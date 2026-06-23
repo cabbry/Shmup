@@ -1,0 +1,48 @@
+name: iOS (simulator build)
+
+# Phase 1 of the iOS modernization: prove the toolchain compiles the
+# legacy dEngine Xcode project under a current Xcode. Builds the "Shmup"
+# target for the iOS Simulator (arm64), unsigned — no Apple account needed.
+# Device/signed builds come in a later phase.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Shmup (iOS Simulator, unsigned)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Pin Xcode. "latest-stable" tracks the newest released Xcode on the
+      # runner (Xcode 26 family). Change to e.g. '26.0' to pin exactly.
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+
+      - name: Build (iphonesimulator, arm64, no signing)
+        working-directory: engine/iOS
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project dEngine.xcodeproj \
+            -target Shmup \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -arch arm64 \
+            IPHONEOS_DEPLOYMENT_TARGET=13.0 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build

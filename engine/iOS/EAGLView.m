@@ -52,7 +52,9 @@ EAGLView *eaglview;
 #import "AQ.h"
 AQ* audiocontroller;
 
-#import <AudioToolBox/AudioSession.h>
+// <AudioToolBox/AudioSession.h> removed: the AudioSession C API was removed
+// from the iOS SDK (replaced by AVAudioSession). It was already unused here
+// (the only consumer, AudioInterruptionListenerCallback, is commented out).
 #import <OpenAL/alc.h>
 
 

@@ -1,0 +1,132 @@
+name: Build and Upload to TestFlight
+
+# Native Xcode adaptation of the proven RealSpeed pipeline.
+# Signing is done with the App Store Connect API key (automatic provisioning
+# via -allowProvisioningUpdates), so no .p12 / .mobileprovision secrets are
+# needed — only the 3 ASC secrets below, which are account-level and identical
+# to the ones already used by RealSpeed.
+#
+# Trigger is manual (workflow_dispatch) or a v* tag ONLY — it never runs on a
+# normal branch push, so it won't burn runner time by accident.
+#
+# Required repo secrets (Settings -> Secrets and variables -> Actions):
+#   APP_STORE_CONNECT_KEY_ID       (e.g. ABCD1234EF)
+#   APP_STORE_CONNECT_ISSUER_ID    (the issuer UUID)
+#   APP_STORE_CONNECT_PRIVATE_KEY  (full contents of the AuthKey_XXX.p8 file)
+#
+# Prerequisites on the Apple side (one-time):
+#   1. An app record must exist in App Store Connect with BUNDLE_ID below.
+#   2. The API key must have at least "App Manager" role.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+env:
+  BUNDLE_ID: com.cabbry.shmup        # <-- change here if you want another bundle id
+  APPLE_TEAM_ID: "44NKN5D232"
+  MARKETING_VERSION: "1.0"
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select newest Xcode 26
+        run: |
+          ls /Applications | grep -i Xcode || true
+          for c in Xcode_26.3.app Xcode_26.2.app Xcode_26.1.app Xcode_26.0.app Xcode_26.app; do
+            if [ -d "/Applications/$c" ]; then
+              sudo xcode-select -s "/Applications/$c/Contents/Developer"; break
+            fi
+          done
+          xcodebuild -version
+
+      - name: Write App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/private_keys
+          printf '%s' "$ASC_PRIVATE_KEY" > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          echo "P8_PATH=$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+
+      - name: Compute build number
+        id: bn
+        run: |
+          BUILD=$((100 + GITHUB_RUN_NUMBER))
+          echo "value=$BUILD" >> "$GITHUB_OUTPUT"
+          # CFBundleVersion is hardcoded in shmup.plist; bump it for this build.
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" engine/iOS/shmup.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${MARKETING_VERSION}" engine/iOS/shmup.plist
+          echo "Build $BUILD / v${MARKETING_VERSION}"
+
+      - name: Archive (Release, device, automatic signing via API key)
+        working-directory: engine/iOS
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project dEngine.xcodeproj \
+            -scheme Shmup \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Shmup.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$P8_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            IPHONEOS_DEPLOYMENT_TARGET=13.0 \
+            GCC_TREAT_WARNINGS_AS_ERRORS=NO \
+            OTHER_CFLAGS='$(inherited) -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-function-pointer-types -Wno-error=incompatible-pointer-types' \
+            archive 2>&1 | tee "$RUNNER_TEMP/archive.log"
+
+      - name: Export IPA
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>destination</key><string>export</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Shmup.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$P8_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          ls -lh "$RUNNER_TEMP/export"
+
+      - name: Upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          IPA=$(find "$RUNNER_TEMP/export" -name "*.ipa" | head -1)
+          echo "Uploading $IPA"
+          xcrun altool --upload-app -f "$IPA" -t ios \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/private_keys/*.p8 || true

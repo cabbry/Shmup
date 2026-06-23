@@ -256,7 +256,7 @@
 		2DE34DFC11C2E8F0004F1658 /* netchannel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = netchannel.h; sourceTree = "<group>"; };
 		2DE34DFD11C2E8F0004F1658 /* netchannel.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = netchannel.c; sourceTree = "<group>"; };
 		2DEABEA81278BB4A00BC446A /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
-		2DEE50C814EA42C60049D078 /* sound_openAL.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = sound_openAL.c; sourceTree = "<group>"; };
+		2DEE50C814EA42C60049D078 /* sound_openAL.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ../openal/sound_openAL.c; sourceTree = "<group>"; };
 		2DEE50CB14EA42EA0049D078 /* sound_backend.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sound_backend.h; sourceTree = "<group>"; };
 		2DEE50CC14EA49DC0049D078 /* log.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = log.c; sourceTree = "<group>"; };
 		2DEE50CD14EA49DC0049D078 /* log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = log.h; sourceTree = "<group>"; };

@@ -30,6 +30,7 @@
 #include "netchannel.h"
 #include "menu.h"
 #include "music.h"
+#include "native_services.h"   // declares Native_UploadScore et al. (we define the stubs below)
 
 #include <sys/types.h>
 #include <sys/sysctl.h>

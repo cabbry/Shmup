@@ -222,7 +222,7 @@
 		2D796F1E1215EACF0061ACE8 /* titles.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = titles.h; sourceTree = "<group>"; };
 		2D796F1F1215EACF0061ACE8 /* titles.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = titles.c; sourceTree = "<group>"; };
 		2D7A3856129F38BF00AD251B /* ShmupLite.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShmupLite.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		2D7A3858129F38BF00AD251B /* shmupLite.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = shmupLite.plist; path = ../shmupLite.plist; sourceTree = "<group>"; };
+		2D7A3858129F38BF00AD251B /* shmupLite.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = shmupLite.plist; path = shmupLite.plist; sourceTree = "<group>"; };
 		2D7C75001037705600EAF594 /* camera.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = camera.h; sourceTree = "<group>"; };
 		2D7C75011037705600EAF594 /* camera.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = camera.c; sourceTree = "<group>"; };
 		2D7C782710378FBC00EAF594 /* timer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = timer.h; sourceTree = "<group>"; };
@@ -282,8 +282,8 @@
 		2DF367781038996B00020D05 /* stats.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = stats.h; sourceTree = "<group>"; };
 		2DF367791038996B00020D05 /* stats.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = stats.c; sourceTree = "<group>"; };
 		2DF5075214D0E249000A6C0D /* data */ = {isa = PBXFileReference; lastKnownFileType = folder; name = data; path = ../../data/data; sourceTree = "<group>"; };
-		32CA4F630368D1EE00C91783 /* dEngine_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dEngine_Prefix.pch; path = ../dEngine_Prefix.pch; sourceTree = "<group>"; };
-		8D1107310486CEB800E47090 /* shmup.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = shmup.plist; path = ../shmup.plist; plistStructureDefinitionIdentifier = "com.apple.xcode.plist.structure-definition.iphone.info-plist"; sourceTree = "<group>"; };
+		32CA4F630368D1EE00C91783 /* dEngine_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = dEngine_Prefix.pch; path = dEngine_Prefix.pch; sourceTree = "<group>"; };
+		8D1107310486CEB800E47090 /* shmup.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = shmup.plist; path = shmup.plist; plistStructureDefinitionIdentifier = "com.apple.xcode.plist.structure-definition.iphone.info-plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -339,7 +339,7 @@
 				1D3623240D0F684500981E51 /* dEngineAppDelegate.h */,
 				1D3623250D0F684500981E51 /* dEngineAppDelegate.m */,
 			);
-			path = srciPhone;
+			name = srciPhone;
 			sourceTree = "<group>";
 		};
 		19C28FACFE9D520D11CA2CBB /* Products */ = {
@@ -521,7 +521,7 @@
 				2D2D554B10435D2100BEDC6E /* world.c */,
 				2D2D554A10435D2100BEDC6E /* world.h */,
 			);
-			path = src;
+			path = ../src;
 			sourceTree = "<group>";
 		};
 		2DF362A11037C85D00020D05 /* texture */ = {

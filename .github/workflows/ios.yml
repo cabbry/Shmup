@@ -45,4 +45,17 @@ jobs:
             ONLY_ACTIVE_ARCH=YES \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            build
+            build 2>&1 | tee "$RUNNER_TEMP/xcodebuild.log"
+
+      # GitHub truncates very long step logs, which can hide clang diagnostics.
+      # Re-print just the error/warning lines (with a little context) from the
+      # full teed log so failures are always visible in the run output.
+      - name: Surface compiler diagnostics
+        if: failure()
+        run: |
+          echo "::group::errors"
+          grep -nE -A3 ": (error|fatal error):" "$RUNNER_TEMP/xcodebuild.log" | head -200 || echo "(no ': error:' lines found in log)"
+          echo "::endgroup::"
+          echo "::group::warnings (first 60)"
+          grep -nE ": warning:" "$RUNNER_TEMP/xcodebuild.log" | head -60 || true
+          echo "::endgroup::"

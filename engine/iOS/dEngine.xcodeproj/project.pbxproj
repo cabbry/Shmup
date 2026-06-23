@@ -708,7 +708,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "find ${SOURCE_ROOT}/../data -exec touch -cam {} \\;";
+			shellScript = "find ${SOURCE_ROOT}/../../data/data -exec touch -cam {} \\;";
 		};
 		2D73F2D8107C47F6007A8E4B /* Touch Data */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -722,7 +722,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "touch -cam ${SOURCE_ROOT}/../data";
+			shellScript = "touch -cam ${SOURCE_ROOT}/../../data/data";
 		};
 		2D7A3813129F38BF00AD251B /* Touch All in data */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -736,7 +736,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "find ${SOURCE_ROOT}/../data -exec touch -cam {} \\;";
+			shellScript = "find ${SOURCE_ROOT}/../../data/data -exec touch -cam {} \\;";
 		};
 		2D7A3814129F38BF00AD251B /* Touch Data */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -750,7 +750,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "touch -cam ${SOURCE_ROOT}/../data";
+			shellScript = "touch -cam ${SOURCE_ROOT}/../../data/data";
 		};
 /* End PBXShellScriptBuildPhase section */
 

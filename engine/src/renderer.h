@@ -87,6 +87,8 @@ typedef struct renderer_t
 	int viewPortDimensions[4];
 	
 	int glBuffersDimensions[2];
+
+	float vScale; // full-screen vertical scale vs the legacy 2:3 surface (1.0 on a 2:3 device, ~1.45 on a tall iPhone)
 	
 	
 	uint type;

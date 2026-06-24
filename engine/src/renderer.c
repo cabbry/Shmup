@@ -116,6 +116,25 @@ void SRC_CalcViewPortDimensions(void)
 	//Center the active surface (defined by the viewport width and height) on the screen.
 	renderer.viewPortDimensions[VP_X] = (renderer.glBuffersDimensions[WIDTH] - renderer.viewPortDimensions[VP_WIDTH]) / 2;
 	renderer.viewPortDimensions[VP_Y] = (renderer.glBuffersDimensions[HEIGHT] - renderer.viewPortDimensions[VP_HEIGHT]) / 2;
+
+	// --- True full-screen (modernization) -------------------------------------
+	// Drop the legacy 2:3 letterbox: render to the whole drawable. vScale is how
+	// much taller the real screen is vs the legacy 320x480 surface fitted to the
+	// screen width (1.0 on a 2:3 device, ~1.45 on a modern tall iPhone). The 3D
+	// FOV (world.c) and the 2D ortho (Set2DF) are extended by vScale so the game
+	// fills the screen with no distortion and no enemy pop-in.
+	renderer.viewPortDimensions[VP_X] = 0;
+	renderer.viewPortDimensions[VP_Y] = 0;
+	renderer.viewPortDimensions[VP_WIDTH]  = renderer.glBuffersDimensions[WIDTH];
+	renderer.viewPortDimensions[VP_HEIGHT] = renderer.glBuffersDimensions[HEIGHT];
+	{
+		float legacyAspect = 320.0f / 480.0f;
+		float fitHeight    = renderer.glBuffersDimensions[WIDTH] / legacyAspect; // width * 1.5
+		renderer.vScale = renderer.glBuffersDimensions[HEIGHT] / fitHeight;
+		if (renderer.vScale < 1.0f)
+			renderer.vScale = 1.0f; // wider-than-2:3 screens (iPad): keep height, don't shrink
+	}
+	// --------------------------------------------------------------------------
     
     /*
     Log_Printf("Viewport[x,y,width,height]=[%d,%d,%d,%d]\n",

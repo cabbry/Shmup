@@ -439,7 +439,13 @@ void World_OpenScene(char* filename)
 				
 				LE_readToken();
 			}
-			camera.aspect = 320/(float)480;
+			// Full-screen: use the real screen aspect, and extend the vertical
+			// FOV by vScale so the taller screen is filled while the original
+			// horizontal field of view is preserved (nothing cropped on the
+			// sides). Enemy/ship positions are normalized to the frustum, so
+			// they still enter from the edge -- no pop-in.
+			camera.aspect = renderer.glBuffersDimensions[WIDTH] / (float)renderer.glBuffersDimensions[HEIGHT];
+			camera.fov = 2.0f * atanf( tanf(camera.fov * DEG_TO_RAD / 2.0f) * renderer.vScale ) / DEG_TO_RAD;
 		}
 		else 
 		if (!strcmp("enemies", LE_getCurrentToken()))

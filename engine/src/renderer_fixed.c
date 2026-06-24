@@ -122,7 +122,7 @@ void Set2DF(void)
 	
 	glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-	glOrthof(-SS_W, SS_W, -SS_H, SS_H, -1, 1);
+	glOrthof(-SS_W, SS_W, -SS_H * renderer.vScale, SS_H * renderer.vScale, -1, 1);
 	
 	
     glMatrixMode(GL_MODELVIEW);

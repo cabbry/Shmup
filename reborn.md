@@ -130,4 +130,8 @@ to the true screen edges, and the touch-coordinate mapping.
 - **First TestFlight build (103)** — verified running on a physical iPhone: full speed,
   sound, gameplay all working. OpenGL ES 1.1 is still alive on current iOS.
 - **Full-screen pass 1 (build 104)** — viewport + 3D FOV + 2D ortho now fill modern
-  tall screens with no distortion and no enemy pop-in.
+  tall screens with no distortion and no enemy pop-in. Verified on device.
+- **Full-screen pass 2 (build 105)** — restored the vertical touch feel (the old
+  2:3 letterbox made Y ~vScale× more responsive; compensated for it) and anchored
+  the score just below the iOS safe area (status bar / Dynamic Island). Lives-counter
+  repositioning still to do.

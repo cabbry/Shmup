@@ -89,6 +89,8 @@ typedef struct renderer_t
 	int glBuffersDimensions[2];
 
 	float vScale; // full-screen vertical scale vs the legacy 2:3 surface (1.0 on a 2:3 device, ~1.45 on a tall iPhone)
+
+	float safeInsetTopPx; // iOS top safe-area inset in pixels (status bar / notch / Dynamic Island); 0 elsewhere
 	
 	
 	uint type;

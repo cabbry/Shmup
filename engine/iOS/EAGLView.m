@@ -358,6 +358,9 @@ AQ* audiocontroller;
     [EAGLContext setCurrentContext:context];
     [self destroyFramebuffer];
     [self createFramebuffer];
+    if (@available(iOS 11.0, *)) {
+        renderer.safeInsetTopPx = self.safeAreaInsets.top * self.contentScaleFactor;
+    }
     [self drawView:nil];
 }
 

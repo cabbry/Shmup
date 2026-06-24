@@ -1,22 +1,16 @@
 name: Build and Upload to TestFlight
 
-# Native Xcode adaptation of the proven RealSpeed pipeline.
-# Signing is done with the App Store Connect API key (automatic provisioning
-# via -allowProvisioningUpdates), so no .p12 / .mobileprovision secrets are
-# needed — only the 3 ASC secrets below, which are account-level and identical
-# to the ones already used by RealSpeed.
+# Manual code signing (mirrors the proven RealSpeed pipeline): import an
+# existing Apple Distribution cert + a provisioning profile, archive, export,
+# then upload with the App Store Connect API key.
 #
-# Trigger is manual (workflow_dispatch) or a v* tag ONLY — it never runs on a
-# normal branch push, so it won't burn runner time by accident.
+# Trigger: manual (workflow_dispatch) or a v* tag ONLY — never on branch push.
 #
-# Required repo secrets (Settings -> Secrets and variables -> Actions):
-#   APP_STORE_CONNECT_KEY_ID       (e.g. ABCD1234EF)
-#   APP_STORE_CONNECT_ISSUER_ID    (the issuer UUID)
-#   APP_STORE_CONNECT_PRIVATE_KEY  (full contents of the AuthKey_XXX.p8 file)
-#
-# Prerequisites on the Apple side (one-time):
-#   1. An app record must exist in App Store Connect with BUNDLE_ID below.
-#   2. The API key must have at least "App Manager" role.
+# Required repo secrets:
+#   APP_STORE_CONNECT_KEY_ID / _ISSUER_ID / _PRIVATE_KEY  (upload)
+#   APPLE_CERT_P12_BASE64 / APPLE_CERT_P12_PASSWORD       (distribution cert)
+#   APPLE_PROVISIONING_PROFILE_BASE64                     (Shmup App Store profile)
+#   KEYCHAIN_PASSWORD                                     (temp CI keychain)
 
 on:
   workflow_dispatch:
@@ -24,8 +18,9 @@ on:
     tags: ['v*']
 
 env:
-  BUNDLE_ID: com.cabbry.shmup        # <-- change here if you want another bundle id
+  BUNDLE_ID: com.cabbry.shmup
   APPLE_TEAM_ID: "R6TQZGC68V"
+  PROFILE_NAME: "Shmup App Store"
   MARKETING_VERSION: "1.0"
 
 jobs:
@@ -38,38 +33,56 @@ jobs:
 
       - name: Select newest Xcode 26
         run: |
-          ls /Applications | grep -i Xcode || true
           for c in Xcode_26.3.app Xcode_26.2.app Xcode_26.1.app Xcode_26.0.app Xcode_26.app; do
-            if [ -d "/Applications/$c" ]; then
-              sudo xcode-select -s "/Applications/$c/Contents/Developer"; break
-            fi
+            if [ -d "/Applications/$c" ]; then sudo xcode-select -s "/Applications/$c/Contents/Developer"; break; fi
           done
           xcodebuild -version
 
-      - name: Write App Store Connect API key
+      - name: Import distribution certificate
+        env:
+          CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          CERT_P12_PASSWORD: ${{ secrets.APPLE_CERT_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "$CERT_P12_BASE64" | base64 --decode -o $RUNNER_TEMP/cert.p12
+          security import $RUNNER_TEMP/cert.p12 -k "$KEYCHAIN_PATH" -P "$CERT_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed s/\"//g)
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security find-identity -p codesigning -v "$KEYCHAIN_PATH"
+
+      - name: Install provisioning profile
+        env:
+          PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROFILE_BASE64" | base64 --decode -o $RUNNER_TEMP/profile.mobileprovision
+          UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" /dev/stdin <<< "$(security cms -D -i $RUNNER_TEMP/profile.mobileprovision)")
+          echo "Profile UUID: $UUID"
+          cp $RUNNER_TEMP/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+
+      - name: Write App Store Connect API key (for upload)
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
         run: |
           mkdir -p ~/private_keys
           printf '%s' "$ASC_PRIVATE_KEY" > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          echo "P8_PATH=$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
 
       - name: Compute build number
         id: bn
         run: |
           BUILD=$((100 + GITHUB_RUN_NUMBER))
-          echo "value=$BUILD" >> "$GITHUB_OUTPUT"
-          # CFBundleVersion is hardcoded in shmup.plist; bump it for this build.
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" engine/iOS/shmup.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${MARKETING_VERSION}" engine/iOS/shmup.plist
           echo "Build $BUILD / v${MARKETING_VERSION}"
 
-      - name: Archive (Release, device, automatic signing via API key)
+      - name: Archive (Release, device, manual signing)
         working-directory: engine/iOS
-        env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           set -o pipefail
           xcodebuild \
@@ -78,23 +91,17 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/Shmup.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$P8_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
-            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGN_STYLE=Manual \
             "CODE_SIGN_IDENTITY=Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
             IPHONEOS_DEPLOYMENT_TARGET=13.0 \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
             OTHER_CFLAGS='$(inherited) -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-function-pointer-types -Wno-error=incompatible-pointer-types' \
             archive 2>&1 | tee "$RUNNER_TEMP/archive.log"
 
       - name: Export IPA
-        env:
-          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
@@ -102,7 +109,11 @@ jobs:
           <plist version="1.0"><dict>
             <key>method</key><string>app-store-connect</string>
             <key>teamID</key><string>${APPLE_TEAM_ID}</string>
-            <key>signingStyle</key><string>automatic</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key><dict>
+              <key>${BUNDLE_ID}</key><string>${PROFILE_NAME}</string>
+            </dict>
             <key>destination</key><string>export</string>
             <key>manageAppVersionAndBuildNumber</key><false/>
           </dict></plist>
@@ -110,11 +121,7 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/Shmup.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
-            -exportPath "$RUNNER_TEMP/export" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$P8_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+            -exportPath "$RUNNER_TEMP/export" 2>&1 | tee "$RUNNER_TEMP/export.log"
           ls -lh "$RUNNER_TEMP/export"
 
       - name: Upload to TestFlight
@@ -125,9 +132,19 @@ jobs:
           IPA=$(find "$RUNNER_TEMP/export" -name "*.ipa" | head -1)
           echo "Uploading $IPA"
           xcrun altool --upload-app -f "$IPA" -t ios \
-            --apiKey "$ASC_KEY_ID" \
-            --apiIssuer "$ASC_ISSUER_ID"
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: Surface diagnostics on failure
+        if: failure()
+        run: |
+          for f in archive export; do
+            if [ -f "$RUNNER_TEMP/$f.log" ]; then
+              echo "::group::$f errors"; grep -nE ": (error|fatal error):|error:" "$RUNNER_TEMP/$f.log" | head -60 || true; echo "::endgroup::"
+            fi
+          done
 
       - name: Cleanup
         if: always()
-        run: rm -f ~/private_keys/*.p8 || true
+        run: |
+          security delete-keychain "$RUNNER_TEMP/build.keychain-db" 2>/dev/null || true
+          rm -f ~/private_keys/*.p8 2>/dev/null || true

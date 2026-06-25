@@ -1120,7 +1120,8 @@ void P_UpdateGhosts(player_t* player)
 		{
 		
 			ss_normal[X] = - ghost->ss_direction[Y] * GHOST_HALFWIDTH;
-			ss_normal[Y] =   ghost->ss_direction[X] * GHOST_HALFWIDTH;
+			// De-stretch the ghost ribbon's vertical half-width on a tall screen.
+			ss_normal[Y] =   ghost->ss_direction[X] * GHOST_HALFWIDTH / gVScale;
 		
 			//Write left pos in vertex array
 			ghost->wayPoints[ghost->head].pos[X] = (ghost->ss_position[X] + ss_normal[X] ) * SS_W;

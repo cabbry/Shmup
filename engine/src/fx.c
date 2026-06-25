@@ -818,6 +818,9 @@ smoke_t* FX_GetSmoke(vec2_t ss_position,float ss_sizeX, float ss_sizeY)
 	//Randomize slightly size
 	ss_sizeX += ss_sizeX * rand()/RAND_MAX*0.5f;
 	ss_sizeY += ss_sizeY * rand()/RAND_MAX*0.5f;
+
+	// De-stretch the smoke height on a tall screen (keeps the puff round).
+	ss_sizeY = ss_sizeY / gVScale;
 	
 	//Randomize slightly ttl
 	smoke->ttl = 1000;

@@ -387,6 +387,8 @@ void P_FireBullet(player_t* player,float deltaX, float deltaY)
 
 void P_FireOneBullet(player_t* player)
 {
+	if (player->autopilot.enabled) // dead / respawning / game over -> no firing
+		return;
 	if ( player->nextBulletFireTime > simulationTime)
 		return;
 	
@@ -402,6 +404,8 @@ void P_FireOneBullet(player_t* player)
 
 void P_FireTwoBullet(player_t* player)
 {
+	if (player->autopilot.enabled) // dead / respawning / game over -> no firing
+		return;
 	if ( player->nextBulletFireTime > simulationTime)
 		return;
 	
@@ -729,7 +733,7 @@ void P_PreparePointerSprites(void)
 		//Only need to update the vertices coordiantes as the texture one have been generated already.
 		for (j=0;  j < NUM_VERTICE_POINTER_PER_PLAYER; j++) {
 			pointerSprVertices[j+i*NUM_VERTICE_POINTER_PER_PLAYER].pos[X] = pointerdeltaSprVertices[j+i*NUM_VERTICE_POINTER_PER_PLAYER][X] + players[i].ss_position[X] * SS_W ;
-			pointerSprVertices[j+i*NUM_VERTICE_POINTER_PER_PLAYER].pos[Y] = pointerdeltaSprVertices[j+i*NUM_VERTICE_POINTER_PER_PLAYER][Y] + players[i].ss_position[Y] * SS_H ;
+			pointerSprVertices[j+i*NUM_VERTICE_POINTER_PER_PLAYER].pos[Y] = pointerdeltaSprVertices[j+i*NUM_VERTICE_POINTER_PER_PLAYER][Y] / renderer.vScale + players[i].ss_position[Y] * SS_H ;
 
 		}
 		numSprIndices+= 24;

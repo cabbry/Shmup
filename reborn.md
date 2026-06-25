@@ -114,7 +114,6 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Known issues
 
 - Backgrounding the app loses the in-progress game (it returns to the menu).
-- The ship keeps firing for a moment after the player dies.
 - The precomputed visibility set culls some geometry too early in the widened
   full-screen view (black wedges at the bottom edge).
 
@@ -150,6 +149,21 @@ to the true screen edges, and the touch-coordinate mapping.
   side view). Input inverts only the vertical axis while flipped.
 - *Known issue:* the precomputed visibility set culls some geometry too early in the
   widened view (black wedges at the bottom edge) — to be fixed next.
+- **Death fire-stop (build 111)**: the ship no longer keeps firing for a moment after
+  it dies — firing is gated on the respawn/autopilot state.
+- **HUD anchoring (builds 110–113)**: lives counter aligned with the score under the
+  iOS safe area; act-title card and menu titles (SHMUP / DIFFICULTY / level names)
+  dropped below the status bar / notch so they're never clipped.
+- **De-oval campaign (builds 110–117)**: with the action now filling the full tall
+  screen on an unscaled 2:3 coordinate system, round 2D sprites were coming out
+  vertically stretched. Introduced a single vertical-stretch factor (`gVScale`,
+  mirrors `renderer.vScale`) and squashed each sprite's *vertical size only* by it,
+  leaving positions aligned with the 3D scene. Fixed, in order: HUD text, lives icons,
+  explosions, enemy bullets, the white spawn ring, the muzzle flash, exhaust smoke,
+  the ghost weapon's ribbon, the boss charge orbs, and impact particles (sparks now
+  round and spraying evenly instead of stretching upward). Circles are circles again.
+- **Player 1 label (build 117)**: raised the "Player 1" pointer text so it sits just
+  above its white underline (the underline had crept up onto it on tall screens).
 
 ### 2026-06-24
 - First green build on Xcode 26 (iOS Simulator) after fixing the stale project paths,

@@ -236,6 +236,13 @@ void TITLE_Render(void)
 	
 	//Render the title
 	renderer.SetTexture(titleTexture.textureId);
+	{
+		// Lower the act-title card below the iOS safe area (status bar / notch).
+		// Recomputed from the base Y each frame, so it never accumulates.
+		float safeOff = renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]);
+		v_TitleBackground[0].pos[Y] = v_TitleBackground[3].pos[Y] = SS_COO_SYST_HEIGHT - safeOff;
+		v_TitleBackground[1].pos[Y] = v_TitleBackground[2].pos[Y] = (480 - 280) - safeOff;
+	}
 	renderer.RenderColorlessSprites(v_TitleBackground, NUM_DIM_TITLE_INDICES, i_TitleBackground);
 	
 	//Render the completed tile

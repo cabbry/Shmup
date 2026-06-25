@@ -109,11 +109,12 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 (simulator build + signed device archive).
 - ✅ Live on **TestFlight** — runs full-speed on device, sound and gameplay intact.
-- 🔄 Full-screen: first pass shipped; HUD/controls edge-anchoring next.
+- ✅ Full-screen: fills tall iPhones, HUD anchored to the safe area, 2D sprites
+  de-stretched (round sprites are round again).
+- ✅ Pause / resume on backgrounding, with a 3-2-1-SHMUP countdown on return.
 
 ## Known issues
 
-- Backgrounding the app loses the in-progress game (it returns to the menu).
 - The precomputed visibility set culls some geometry too early in the widened
   full-screen view (black wedges at the bottom edge).
 
@@ -164,6 +165,18 @@ to the true screen edges, and the touch-coordinate mapping.
   round and spraying evenly instead of stretching upward). Circles are circles again.
 - **Player 1 label (build 117)**: raised the "Player 1" pointer text so it sits just
   above its white underline (the underline had crept up onto it on tall screens).
+- **Pause / resume on backgrounding + 3-2-1-SHMUP countdown (builds 118–119)**:
+  leaving the app used to tear the game down to the menu. Now the in-progress game is
+  frozen and kept — on resign-active the music queue is paused and the render loop is
+  stopped; on become-active nothing is reset. The music resumes where it left off and,
+  if a game is in progress, a centered "3 / 2 / 1 / SHMUP" overlay counts down over the
+  frozen scene before handing control back. The freeze just zeroes the per-frame
+  timestep, which is safe because singleplayer already runs at a fixed timestep, so no
+  time jump accumulates while backgrounded. Two follow-ups: the music now uses AudioQueue
+  **pause/resume** rather than stop/start (the first version drained the queue's buffers,
+  giving silent music and a first-resume crash); and the SHAB/LEE hover wobble (a fixed
+  per-frame nudge, not timestep-scaled) is held still during the countdown so enemies no
+  longer drift while the world is paused.
 
 ### 2026-06-24
 - First green build on Xcode 26 (iOS Simulator) after fixing the stale project paths,

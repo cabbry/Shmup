@@ -162,8 +162,9 @@ void CAM_Update(void)
 	camera.forward[1] = -interpolatedOrientationMatrix[7];
 	camera.forward[2] = -interpolatedOrientationMatrix[8];
 
-	// TTB system: ease flipAngle toward flipTarget and roll the (right,up) basis
-	// around the view axis. The whole 3D scene (view via gluLookAt, ship, enemies)
+	// TTB system: ease flipAngle toward flipTarget and pitch the camera by rolling
+	// the (up,forward) basis around the right axis (vertical flip toward a
+	// view-from-below; 90 degrees would be a side view). The whole 3D scene (view via gluLookAt, ship, enemies)
 	// derives from these vectors, so it all flips together; the 2D HUD is untouched.
 	{
 		float step = (float)timediff * ((float)M_PI / 400.0f); // ~180 degrees in 0.4s
@@ -186,9 +187,9 @@ void CAM_Update(void)
 			for (k = 0; k < 3; k++)
 			{
 				float u = camera.up[k];
-				float r = camera.right[k];
-				camera.up[k]    =  u * c + r * s;
-				camera.right[k] = -u * s + r * c;
+				float f = camera.forward[k];
+				camera.up[k]      =  u * c + f * s;
+				camera.forward[k] = -u * s + f * c;
 			}
 		}
 	}	

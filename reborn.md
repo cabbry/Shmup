@@ -111,6 +111,13 @@ to the true screen edges, and the touch-coordinate mapping.
 - ✅ Live on **TestFlight** — runs full-speed on device, sound and gameplay intact.
 - 🔄 Full-screen: first pass shipped; HUD/controls edge-anchoring next.
 
+## Known issues
+
+- Backgrounding the app loses the in-progress game (it returns to the menu).
+- The ship keeps firing for a moment after the player dies.
+- The precomputed visibility set culls some geometry too early in the widened
+  full-screen view (black wedges at the bottom edge).
+
 ## Roadmap
 
 - Full-screen pass 2: HUD/score/controls anchored to the real edges; touch mapping.
@@ -138,6 +145,9 @@ to the true screen edges, and the touch-coordinate mapping.
   muzzle flash, ghost) with the 3D ship — reverted the 2D ortho scaling so ss_position
   maps to the full screen like the 3D does, and compensated glyph height so HUD text
   stays square. Bullets sit at a fixed distance in front of the ship again.
+- **TTB flip — axis fix (build 109)**: changed the flip from an in-plane roll to a
+  vertical **pitch** — the camera tips over toward a view-from-below (90° will be the
+  side view). Input inverts only the vertical axis while flipped.
 - *Known issue:* the precomputed visibility set culls some geometry too early in the
   widened view (black wedges at the bottom edge) — to be fixed next.
 

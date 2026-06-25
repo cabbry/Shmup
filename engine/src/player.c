@@ -869,7 +869,9 @@ void P_PrepareBulletSprites(void)
 		player = &players[i] ;
 		
 		//Check if the player is currently firing and spawn a flash if so.
-		if (player->firingUpTo >= simulationTime)
+		//Suppressed while the world is frozen (timediff 0) so the muzzle flash
+		//doesn't stay lit on-screen during the resume countdown.
+		if (timediff && player->firingUpTo >= simulationTime)
 		{
 			
 			flashInterpolation = 1- (player->firingUpTo - simulationTime) / (float)bulletConfig.msBetweenBullets;

@@ -138,6 +138,10 @@ void dEngine_CheckState(void);
 void dEngine_WriteScreenshot(char* directory);
 void dEngine_Pause(void);
 void dEngine_Resume(void);
+void dEngine_SuspendGame(void);
+void dEngine_ResumeGame(void);
+void dEngine_RenderCountdown(void);
+extern int gCountdownMs;
 void dEngine_GoToNextScene(void);
 
 #endif

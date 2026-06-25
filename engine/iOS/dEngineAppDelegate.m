@@ -73,7 +73,9 @@ UIViewController* vc=nil;
 - (void) applicationWillResignActive:(UIApplication *)application
 {
 	NSLog(@"applicationWillResignActive");
-	[self stopEngineActivity];
+	// Freeze the in-progress game instead of tearing it down to the menu.
+	dEngine_SuspendGame();
+	[glView stopAnimation];
 }
 
 - (void) applicationDidBecomeActive:(UIApplication *)application
@@ -84,7 +86,9 @@ UIViewController* vc=nil;
 
 	[glView checkEngineSettings];
 
-	dEngine_Resume();
+	// Keep the game (do NOT reset). Starts a 3-2-1-SHMUP countdown if a game
+	// was in progress.
+	dEngine_ResumeGame();
 
 	[glView startAnimation];
 }

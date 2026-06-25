@@ -743,7 +743,7 @@ void P_PreparePointerSprites(void)
 
 char* playersNames[2] = {"Player 1","Player 2"};
 float playerDelta[2][2] = {
-	/*p1*/{110,-6},   // raised the label so it sits just above the white underline
+	/*p1*/{110,-14},   // raised the label so it sits just above the white underline
 	/*p2*/{-200,98}
 };
 

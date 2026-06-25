@@ -252,7 +252,10 @@ void SCR_RenderFrame(void)
 	
 	//Here we render the player pointer because the last call maybe text, we save a texture switch for DYN_TEXT_Render STATS_Render
 	PL_RenderPlayerPointers();
-	
+
+	// 3-2-1-SHMUP overlay shown when resuming from the background.
+	dEngine_RenderCountdown();
+
 	DYN_TEXT_Render();
 	
 	STATS_Render();

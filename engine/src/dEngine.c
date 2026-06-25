@@ -588,11 +588,24 @@ void dEngine_HostFrame(void)
 {
 	// Load a new scene/menu if needed
 	dEngine_CheckState();
-	
-	
-	Timer_tick();
-	
-	
+
+
+	if (gCountdownMs > 0)
+	{
+		// Returning from the background: hold the world frozen (timediff 0,
+		// simulationTime untouched -> nothing updates) and run down the
+		// 3-2-1-SHMUP countdown by one fixed ~60fps step.
+		gCountdownMs -= 16;
+		if (gCountdownMs < 0)
+			gCountdownMs = 0;
+		timediff = 0;
+	}
+	else
+	{
+		Timer_tick();
+	}
+
+
 	diverSpriteLib.numVertices=0;
 	diverSpriteLib.numIndices=0;
 	
@@ -694,6 +707,51 @@ void dEngine_Resume(void)
 	dEngine_RequireSceneId(0);
 	P_ResetPlayers();
 	COM_ResetTouchesBuffer();
+}
+
+
+// --- Background suspend / resume -------------------------------------------
+// dEngine_Pause/Resume above tear the game down to the menu. These two keep the
+// whole game state intact when the app is sent to / brought back from the
+// background, then run a 3-2-1-SHMUP countdown so the world stays frozen until
+// the player is ready again.
+int gCountdownMs = 0;
+#define RESUME_COUNTDOWN_MS 2800
+
+void dEngine_SuspendGame(void)
+{
+	// Going to the background: silence audio but keep every bit of game state.
+	SND_StopSoundTrack();
+}
+
+void dEngine_ResumeGame(void)
+{
+	// Coming back: never reset. If a game is actually in progress, resume its
+	// music and start the countdown that holds the world frozen for a moment.
+	COM_ResetTouchesBuffer();
+
+	if (entitiesAttachedToCamera)
+	{
+		SND_StartSoundTrack();
+		gCountdownMs = RESUME_COUNTDOWN_MS;
+	}
+}
+
+void dEngine_RenderCountdown(void)
+{
+	const char* label;
+
+	if (gCountdownMs <= 0)
+		return;
+
+	if      (gCountdownMs > 2100) label = "3";
+	else if (gCountdownMs > 1400) label = "2";
+	else if (gCountdownMs >  700) label = "1";
+	else                          label = "SHMUP";
+
+	SCR_StartConvertText();
+	SCR_ConvertTextToVertices(label, 6.0f, 0, 0, TEXT_CENTERED);
+	SCR_RenderText();
 }
 
 

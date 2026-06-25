@@ -553,7 +553,7 @@ void MENU_Init(void)
 
 	// TITLE IMAGE
 	pos[X] = 0 ; 
-	pos[Y] = SS_COO_SYST_HEIGHT - 120;
+	pos[Y] = SS_COO_SYST_HEIGHT - 120 - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]);
 	dimensions[WIDTH]  =  261 *2.2;
 	dimensions[HEIGHT] =  102 *2.2;
 	textPos[X] =  0/(float)512;
@@ -603,7 +603,7 @@ void MENU_Init(void)
 	
 	// CREDIT TITLE IMAGE
 	pos[X] = 0 ; 
-	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) ;
+	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]) ;
 	dimensions[WIDTH] = 261*2.1; 
 	dimensions[HEIGHT] = 104*2.1;
 	textPos[X] = 251/(float)512 ; 
@@ -672,7 +672,7 @@ void MENU_Init(void)
 	MENU_CreateText(currentMenu,0,-50,2,TEXT_CENTERED,"");
 	
 	pos[X] = 0 ; 
-	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) ;
+	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]) ;
 	dimensions[WIDTH] = 261*2.1; 
 	dimensions[HEIGHT] = 104*2.1;
 	textPos[X] = 321/(float)512 ; 
@@ -712,7 +712,7 @@ void MENU_Init(void)
 	MENU_CreateButton(currentMenu, "Back", 3, Action_BackToHomeAfterGameOver,NULL, buttonPos, buttonDim);
 	
 	pos[X] = 0 ; 
-	pos[Y] = (SS_COO_SYST_HEIGHT - 180) ;
+	pos[Y] = (SS_COO_SYST_HEIGHT - 180) - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]) ;
 	dimensions[WIDTH] = 261*2.2 ; 
 	dimensions[HEIGHT] = 154*2.2;
 	textPos[X] = 176/(float)512 ; 
@@ -746,7 +746,7 @@ void MENU_Init(void)
 	
 	
 	pos[X] = 0 ; 
-	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) ;
+	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]) ;
 	dimensions[WIDTH] = 261*2.1; 
 	dimensions[HEIGHT] = 104*2.1;
 	textPos[X] = 421/(float)512 ; 
@@ -810,7 +810,7 @@ void MENU_Init(void)
 	currentMenu = &menuScreens[MENU_SELECT_DIFFICULTY];
 	// CREDIT TITLE IMAGE
 	pos[X] = 0 ; 
-	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) ;
+	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]) ;
 	dimensions[WIDTH] = 261*2.1; 
 	dimensions[HEIGHT] = 104*2.1;
 	textPos[X] = 271/(float)512 ; 

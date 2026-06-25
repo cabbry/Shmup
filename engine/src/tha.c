@@ -82,8 +82,8 @@ void THA_FireBullet(float ssPosX, float ssPosY,enemy_t* enemy)
 	// 0 3
 	// 1 2
 	
-	bullet->ss_boudaries[UP]   =  bullet->ss_starting_boudaries[UP] = ssPosY*SS_H + THA_BULLET_HEIGHT;
-	bullet->ss_boudaries[DOWN] =  bullet->ss_starting_boudaries[DOWN] = ssPosY*SS_H - THA_BULLET_HEIGHT;
+	bullet->ss_boudaries[UP]   =  bullet->ss_starting_boudaries[UP] = ssPosY*SS_H + THA_BULLET_HEIGHT / gVScale;
+	bullet->ss_boudaries[DOWN] =  bullet->ss_starting_boudaries[DOWN] = ssPosY*SS_H - THA_BULLET_HEIGHT / gVScale;
 	bullet->ss_boudaries[LEFT] =  bullet->ss_starting_boudaries[LEFT] =  ssPosX*SS_W - THA_BULLET_WIDTH;
 	bullet->ss_boudaries[RIGHT]=  bullet->ss_starting_boudaries[RIGHT] = ssPosX*SS_W + THA_BULLET_WIDTH;
 

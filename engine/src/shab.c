@@ -97,8 +97,8 @@ void emitSHABBullet(enemy_t* enemy,float angle)
 	// 0 3
 	// 1 2
 	
-	bullet->ss_boudaries[UP] = bullet->ss_starting_boudaries[UP] = enemy->ss_position[Y] * SS_H + SHAB_BULLET_SIZE /2 * SS_H;
-	bullet->ss_boudaries[DOWN] = bullet->ss_starting_boudaries[DOWN] = enemy->ss_position[Y] * SS_H - SHAB_BULLET_SIZE /2 * SS_H;
+	bullet->ss_boudaries[UP] = bullet->ss_starting_boudaries[UP] = enemy->ss_position[Y] * SS_H + SHAB_BULLET_SIZE /2 * SS_H / gVScale;
+	bullet->ss_boudaries[DOWN] = bullet->ss_starting_boudaries[DOWN] = enemy->ss_position[Y] * SS_H - SHAB_BULLET_SIZE /2 * SS_H / gVScale;
 	bullet->ss_boudaries[LEFT] = bullet->ss_starting_boudaries[LEFT] = enemy->ss_position[X] * SS_W  - SHAB_BULLET_SIZE /2 *SS_H/(float)SS_W * SS_W;
 	bullet->ss_boudaries[RIGHT] = bullet->ss_starting_boudaries[RIGHT] = enemy->ss_position[X] * SS_W  + SHAB_BULLET_SIZE /2 *SS_H/(float)SS_W * SS_W;
 	

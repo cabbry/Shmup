@@ -88,6 +88,8 @@ void SCR_SetFadeFullScreen(void)
 
 // We have the screen dimension inf the glBuffersDimensions attribute, we need to define the view port 
 // in order to take the best advantage of the space available.
+float gVScale = 1.0f; // see globals.h
+
 void SRC_CalcViewPortDimensions(void)
 {
    float shmupAspectRatio;
@@ -133,6 +135,7 @@ void SRC_CalcViewPortDimensions(void)
 		renderer.vScale = renderer.glBuffersDimensions[HEIGHT] / fitHeight;
 		if (renderer.vScale < 1.0f)
 			renderer.vScale = 1.0f; // wider-than-2:3 screens (iPad): keep height, don't shrink
+		gVScale = renderer.vScale;
 	}
 	// --------------------------------------------------------------------------
     

@@ -96,6 +96,10 @@ enum {WIDTH, HEIGHT}  ;
 #define SS_W SS_COO_SYST_WIDTH
 #define SS_H SS_COO_SYST_HEIGHT
 
+// Full-screen vertical stretch factor (1.0 on a 2:3 screen, ~1.45 on a tall iPhone),
+// set by the renderer. Divide a sprite's vertical SIZE by it to keep it un-stretched.
+extern float gVScale;
+
 #define NUM_BUTTONS  3
 
 #ifdef WIN32

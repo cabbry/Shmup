@@ -134,6 +134,12 @@ to the true screen edges, and the touch-coordinate mapping.
   stays upright, and the controls auto-invert so the ship keeps following the finger.
   Groundwork for the Tokyo-Toy-Box-style view-switching mechanic. (Trigger is a
   temporary gesture; a proper on-screen button comes next.)
+- **Full-screen fix (build 108)**: realigned the 2D overlay (player/enemy bullets,
+  muzzle flash, ghost) with the 3D ship — reverted the 2D ortho scaling so ss_position
+  maps to the full screen like the 3D does, and compensated glyph height so HUD text
+  stays square. Bullets sit at a fixed distance in front of the ship again.
+- *Known issue:* the precomputed visibility set culls some geometry too early in the
+  widened view (black wedges at the bottom edge) — to be fixed next.
 
 ### 2026-06-24
 - First green build on Xcode 26 (iOS Simulator) after fixing the stale project paths,

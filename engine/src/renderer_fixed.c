@@ -122,7 +122,11 @@ void Set2DF(void)
 	
 	glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-	glOrthof(-SS_W, SS_W, -SS_H * renderer.vScale, SS_H * renderer.vScale, -1, 1);
+	// Unscaled 2:3 box: this keeps the 2D overlay (bullets, ghost, flash, enemy
+	// bullets) aligned with the 3D ship/enemies, which map ss_position [-1,1] to
+	// the full screen. Sprites stretch vertically by vScale on a tall screen, but
+	// text is un-stretched in SCR_ConvertTextToVertices.
+	glOrthof(-SS_W, SS_W, -SS_H, SS_H, -1, 1);
 	
 	
     glMatrixMode(GL_MODELVIEW);

@@ -347,7 +347,9 @@ void SCR_ConvertTextToVertices(const char* string, float size, short ss_cooX, sh
 	
 	short textCoo[2];
 	ushort charWidth = size* SS_W  / 40 ;	//40 characters per line at size 1
-	ushort charHeight = charWidth;
+	// Compensate the vertical stretch of the unscaled 2D ortho on a tall screen,
+	// so glyphs stay square (vScale = 1 on a 2:3 device -> no change).
+	ushort charHeight = (ushort)(charWidth / (renderer.vScale > 0.0f ? renderer.vScale : 1.0f));
 	int stringLength ;
 	ushort charSpace = charWidth;
 	

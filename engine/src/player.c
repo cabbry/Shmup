@@ -827,8 +827,8 @@ void PL_RenderPlayerPointers(void)
 	// Island). On a 2:3 device (vScale=1, safeInsetTopPx=0) this lands at ~the
 	// legacy SCORE_POS_Y, so other platforms are unaffected.
 	{
-		float orthoPerPx = (2.0f * SS_H * renderer.vScale) / (float)renderer.glBuffersDimensions[HEIGHT];
-		short scoreY = (short)(SS_H * renderer.vScale - renderer.safeInsetTopPx * orthoPerPx - 30.0f);
+		float orthoPerPx = (2.0f * SS_H) / (float)renderer.glBuffersDimensions[HEIGHT];
+		short scoreY = (short)(SS_H - renderer.safeInsetTopPx * orthoPerPx - 30.0f);
 		SCR_ConvertTextToVertices(stringScore,SCORE_FONT_SIZE,SCORE_POS_X,scoreY,TEXT_NOT_CENTERED);
 	}
 	SCR_RenderText();

@@ -478,32 +478,32 @@ particule_t* FX_GetParticule(vec2_t ss_position, vec2_t direction, float size, f
 		
 	//ss_startBorders
 	particule->ss_startBorders[0][X] =  (ss_position[X] - direction[Y] * size) * SS_W;
-	particule->ss_startBorders[0][Y] =  (ss_position[Y] + direction[X] * size) * SS_H;	
+	particule->ss_startBorders[0][Y] =  ss_position[Y] * SS_H + direction[X] * size * SS_H / gVScale;
 	
 	particule->ss_startBorders[3][X] = particule->ss_startBorders[0][X] +  direction[X] * size * SS_W;
-	particule->ss_startBorders[3][Y] = particule->ss_startBorders[0][Y] +  direction[Y] * size * SS_H;
+	particule->ss_startBorders[3][Y] = particule->ss_startBorders[0][Y] +  direction[Y] * size * SS_H / gVScale;
 	
 	
 	particule->ss_startBorders[1][X] = (ss_position[X] + direction[Y] * size) * SS_W;
-	particule->ss_startBorders[1][Y] = (ss_position[Y] - direction[X] * size) * SS_H;
+	particule->ss_startBorders[1][Y] = ss_position[Y] * SS_H - direction[X] * size * SS_H / gVScale;
 	
 	particule->ss_startBorders[2][X] = particule->ss_startBorders[1][X] + direction[X] * size * SS_W;
-	particule->ss_startBorders[2][Y] = particule->ss_startBorders[1][Y] + direction[Y] * size * SS_H;
+	particule->ss_startBorders[2][Y] = particule->ss_startBorders[1][Y] + direction[Y] * size * SS_H / gVScale;
 	
 	
 	
 	//ss_endBorders;
 	particule->ss_endBorders[0][X] = particule->ss_startBorders[0][X] + direction[X] *  SS_W * travelDistance;
-	particule->ss_endBorders[0][Y] = particule->ss_startBorders[0][Y] + direction[Y] *  SS_H * travelDistance;
+	particule->ss_endBorders[0][Y] = particule->ss_startBorders[0][Y] + direction[Y] *  SS_H * travelDistance / gVScale;
 	
 	particule->ss_endBorders[3][X] = particule->ss_endBorders[0][X] +   direction[X] * size*strech * SS_W;
-	particule->ss_endBorders[3][Y] = particule->ss_endBorders[0][Y] +   direction[Y] * size*strech * SS_H;
+	particule->ss_endBorders[3][Y] = particule->ss_endBorders[0][Y] +   direction[Y] * size*strech * SS_H / gVScale;
 	
 	particule->ss_endBorders[1][X] = particule->ss_startBorders[1][X] + direction[X] * SS_W * travelDistance;
-	particule->ss_endBorders[1][Y] = particule->ss_startBorders[1][Y] + direction[Y] * SS_H * travelDistance;
+	particule->ss_endBorders[1][Y] = particule->ss_startBorders[1][Y] + direction[Y] * SS_H * travelDistance / gVScale;
 	
 	particule->ss_endBorders[2][X] = particule->ss_endBorders[1][X] +   direction[X] * size*strech * SS_W;
-	particule->ss_endBorders[2][Y] = particule->ss_endBorders[1][Y] +   direction[Y] * size*strech * SS_H;
+	particule->ss_endBorders[2][Y] = particule->ss_endBorders[1][Y] +   direction[Y] * size*strech * SS_H / gVScale;
 	
 	
 		//diff c = a - b

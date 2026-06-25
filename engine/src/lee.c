@@ -204,8 +204,8 @@ void updatePrepareBullet(enemy_t* enemy)
 		
 		
 		
-		ss_boundaries[UP]    =   enemy->ss_position[Y] * SS_H + f *WHITE_PRE_BULLET_SIZE /2 * SS_H;
-		ss_boundaries[DOWN]  =   enemy->ss_position[Y] * SS_H - f *WHITE_PRE_BULLET_SIZE /2 * SS_H;
+		ss_boundaries[UP]    =   enemy->ss_position[Y] * SS_H + f *WHITE_PRE_BULLET_SIZE /2 * SS_H / gVScale;
+		ss_boundaries[DOWN]  =   enemy->ss_position[Y] * SS_H - f *WHITE_PRE_BULLET_SIZE /2 * SS_H / gVScale;
 		
 		ss_boundaries[LEFT]  =   enemy->ss_position[X] * SS_W - f *WHITE_PRE_BULLET_SIZE /2 * SS_H;
 		ss_boundaries[RIGHT] =   enemy->ss_position[X] * SS_W + f *WHITE_PRE_BULLET_SIZE /2 * SS_H;
@@ -262,8 +262,8 @@ void updatePrepareBullet(enemy_t* enemy)
 		f = (f-LEE_PRE_PREPARE_BULLET_GROWING_LIMIT)/(1.0f-LEE_PRE_PREPARE_BULLET_GROWING_LIMIT);
 		
 		//Output a fake bullet
-		ss_boundaries[UP]    =   enemy->ss_position[Y] * SS_H + (LEE_BULLET_SIZE+f*(WHITE_PRE_BULLET_SIZE-LEE_BULLET_SIZE)) /2 * SS_H;
-		ss_boundaries[DOWN]  =   enemy->ss_position[Y] * SS_H - (LEE_BULLET_SIZE+f*(WHITE_PRE_BULLET_SIZE-LEE_BULLET_SIZE)) /2 * SS_H;
+		ss_boundaries[UP]    =   enemy->ss_position[Y] * SS_H + (LEE_BULLET_SIZE+f*(WHITE_PRE_BULLET_SIZE-LEE_BULLET_SIZE)) /2 * SS_H / gVScale;
+		ss_boundaries[DOWN]  =   enemy->ss_position[Y] * SS_H - (LEE_BULLET_SIZE+f*(WHITE_PRE_BULLET_SIZE-LEE_BULLET_SIZE)) /2 * SS_H / gVScale;
 		ss_boundaries[LEFT]  =   enemy->ss_position[X] * SS_W - (LEE_BULLET_SIZE+f*(WHITE_PRE_BULLET_SIZE-LEE_BULLET_SIZE)) /2 * SS_H;
 		ss_boundaries[RIGHT] =   enemy->ss_position[X] * SS_W + (LEE_BULLET_SIZE+f*(WHITE_PRE_BULLET_SIZE-LEE_BULLET_SIZE)) /2 * SS_H;
 		
@@ -304,8 +304,8 @@ void updatePrepareBullet(enemy_t* enemy)
 		f = 1-f;
 		
 		//Output a white ball 
-		ss_boundaries[UP]    =   enemy->ss_position[Y] * SS_H + f *WHITE_PRE_BULLET_SIZE /2 * SS_H;
-		ss_boundaries[DOWN]  =   enemy->ss_position[Y] * SS_H - f *WHITE_PRE_BULLET_SIZE /2 * SS_H;
+		ss_boundaries[UP]    =   enemy->ss_position[Y] * SS_H + f *WHITE_PRE_BULLET_SIZE /2 * SS_H / gVScale;
+		ss_boundaries[DOWN]  =   enemy->ss_position[Y] * SS_H - f *WHITE_PRE_BULLET_SIZE /2 * SS_H / gVScale;
 		
 		ss_boundaries[LEFT]  =   enemy->ss_position[X] * SS_W - f *WHITE_PRE_BULLET_SIZE /2 * SS_H;
 		ss_boundaries[RIGHT] =   enemy->ss_position[X] * SS_W + f *WHITE_PRE_BULLET_SIZE /2 * SS_H;

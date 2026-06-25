@@ -84,7 +84,11 @@ typedef struct
 	
 	camera_frame_t* path;
 	camera_frame_t* currentFrame;
-	
+
+	// TTB system: animated camera roll. 0 = normal top-down view, M_PI = flipped 180.
+	float flipAngle;   // current roll around the view axis (radians)
+	float flipTarget;  // flipAngle eases toward this (0 or M_PI)
+
 } camera_t;
 
 
@@ -99,4 +103,5 @@ void CAM_InitUnitCube(void);
 void CAM_LoadPath(void);
 void CAM_StartPlaying(void);
 void CAM_ClearAllRemainingCameraVS(void);
+void CAM_ToggleFlip(void); // TTB: toggle the 180 camera flip
 #endif

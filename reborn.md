@@ -118,10 +118,22 @@ to the true screen edges, and the touch-coordinate mapping.
   clearing the ~600 deprecation warnings (then re-enabling the strict clang flags).
 - A new level (study `data/scenes`, the `event` system, the on-rails `cameraPath`, and
   the preprocessor), reusing the existing assets.
+- **TTB system** (homage to the manga *Tokyo Toy Box*): a scripted camera flip that
+  changes the play style mid-level — a 180° inversion (prototype below), and ultimately
+  a 90° tilt into a side-view (horizontal) shmup, flipping back to top-down at
+  preprogrammed points via the scene `event` timeline. This is only possible because
+  the game is real 3D.
 
 ---
 
 ## Changelog
+
+### 2026-06-25
+- **TTB system — 180° flip prototype (build 107)**: a 3-finger tap rolls the whole 3D
+  camera 180° (animated ~0.4s) around the view axis. The scene flips together, the HUD
+  stays upright, and the controls auto-invert so the ship keeps following the finger.
+  Groundwork for the Tokyo-Toy-Box-style view-switching mechanic. (Trigger is a
+  temporary gesture; a proper on-screen button comes next.)
 
 ### 2026-06-24
 - First green build on Xcode 26 (iOS Simulator) after fixing the stale project paths,

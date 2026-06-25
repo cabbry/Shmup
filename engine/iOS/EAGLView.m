@@ -650,7 +650,12 @@ void loadNativePNG(texture_t* tmpTex)
     }
 	
 	
-	if ( touchCount == 5 && previousTouchCount != 5 ) 
+	if ( touchCount == 3 && previousTouchCount != 3 )
+	{
+		CAM_ToggleFlip(); // TTB prototype: flip the camera 180 with a 3-finger tap
+	}
+
+	if ( touchCount == 5 && previousTouchCount != 5 )
 	{
 		MENU_Set(MENU_HOME);
 		engine.requiredSceneId=0;

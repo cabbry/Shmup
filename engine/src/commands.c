@@ -25,6 +25,7 @@
 
 #include "commands.h"
 #include "player.h"
+#include "camera.h"
 #include "limits.h"
 #include "timer.h"
 #include "filesystem.h"
@@ -249,6 +250,14 @@ void COM_ConvertLocalTouchsToCommands(void)
 		{
 			command->delta[X] = touches[BUTTON_MOVE].dist[X] * PLAYER_SPEED_MS * timediff;
 			command->delta[Y] = touches[BUTTON_MOVE].dist[Y] * PLAYER_SPEED_MS * timediff;
+		}
+
+		// TTB: when the view is flipped past halfway, invert the input so the ship
+		// keeps following the finger naturally.
+		if (camera.flipAngle > 1.5708f)
+		{
+			command->delta[X] = -command->delta[X];
+			command->delta[Y] = -command->delta[Y];
 		}
 	
 	}

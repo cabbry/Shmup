@@ -434,9 +434,14 @@ void updateLEE(enemy_t* enemy)
 		default: break;
 	}
 	
-	enemy->ss_position[X] += 0.002*cosf( (enemy->uniqueId + enemy->timeCounter / enemy->fttl) * 4 * 2 * M_PI);
-	enemy->ss_position[Y] += 0.002*sinf( (enemy->uniqueId + enemy->timeCounter / enemy->fttl) * 4 * 2 * M_PI);
-	
+	// Fixed per-frame hover wobble (not timediff-scaled): freeze it while the
+	// world is frozen (timediff 0) so it doesn't drift during the countdown.
+	if (timediff)
+	{
+		enemy->ss_position[X] += 0.002*cosf( (enemy->uniqueId + enemy->timeCounter / enemy->fttl) * 4 * 2 * M_PI);
+		enemy->ss_position[Y] += 0.002*sinf( (enemy->uniqueId + enemy->timeCounter / enemy->fttl) * 4 * 2 * M_PI);
+	}
+
 	lee_states[enemy->state](enemy);
 }
 

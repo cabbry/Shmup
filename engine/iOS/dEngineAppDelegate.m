@@ -73,8 +73,10 @@ UIViewController* vc=nil;
 - (void) applicationWillResignActive:(UIApplication *)application
 {
 	NSLog(@"applicationWillResignActive");
-	// Freeze the in-progress game instead of tearing it down to the menu.
-	dEngine_SuspendGame();
+	// Freeze the in-progress game instead of tearing it down to the menu:
+	// pause (not stop) the music queue so it can resume cleanly with its buffers
+	// intact, and halt the render loop. All game state is kept.
+	SND_PauseSoundTrack();
 	[glView stopAnimation];
 }
 
@@ -86,8 +88,9 @@ UIViewController* vc=nil;
 
 	[glView checkEngineSettings];
 
-	// Keep the game (do NOT reset). Starts a 3-2-1-SHMUP countdown if a game
-	// was in progress.
+	// Keep the game (do NOT reset). Resume the music queue from where it was
+	// paused, then arm the 3-2-1-SHMUP countdown if a game was in progress.
+	SND_ResumeSoundTrack();
 	dEngine_ResumeGame();
 
 	[glView startAnimation];

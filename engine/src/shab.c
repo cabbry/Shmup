@@ -168,10 +168,16 @@ void updateSHABHelling(enemy_t* enemy)
 		
 	}
 	
-	enemy->ss_position[X] += 0.002*cosf( (enemy->uniqueId + enemy->timeCounter / enemy->fttl) * 4 * 2 * M_PI);
-	enemy->ss_position[Y] += 0.002*sinf( (enemy->uniqueId + enemy->timeCounter / enemy->fttl) * 4 * 2 * M_PI);
-	
-	
+	// This hover wobble adds a fixed step per frame (not scaled by timediff), so
+	// when the world is frozen (timediff 0, e.g. the resume countdown) the angle
+	// is constant and it would drift in a straight line. Skip it while frozen.
+	if (timediff)
+	{
+		enemy->ss_position[X] += 0.002*cosf( (enemy->uniqueId + enemy->timeCounter / enemy->fttl) * 4 * 2 * M_PI);
+		enemy->ss_position[Y] += 0.002*sinf( (enemy->uniqueId + enemy->timeCounter / enemy->fttl) * 4 * 2 * M_PI);
+	}
+
+
 	//Retina persistence Flash simulator
 	if (simulationTime -  enemy->lastTimeFired < SHAB_FIRE_DELAY_MS)
 	{

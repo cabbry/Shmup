@@ -718,23 +718,16 @@ void dEngine_Resume(void)
 int gCountdownMs = 0;
 #define RESUME_COUNTDOWN_MS 2800
 
-void dEngine_SuspendGame(void)
-{
-	// Going to the background: silence audio but keep every bit of game state.
-	SND_StopSoundTrack();
-}
-
 void dEngine_ResumeGame(void)
 {
-	// Coming back: never reset. If a game is actually in progress, resume its
-	// music and start the countdown that holds the world frozen for a moment.
+	// Coming back from the background: never reset. Audio (pause/resume of the
+	// queue) is handled by the iOS app delegate. Here we just clear stale touch
+	// input and, if a game is actually in progress, arm the countdown that holds
+	// the world frozen for a moment.
 	COM_ResetTouchesBuffer();
 
 	if (entitiesAttachedToCamera)
-	{
-		SND_StartSoundTrack();
 		gCountdownMs = RESUME_COUNTDOWN_MS;
-	}
 }
 
 void dEngine_RenderCountdown(void)

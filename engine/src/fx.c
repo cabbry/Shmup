@@ -261,13 +261,13 @@ explosion_t* FX_GetExplosion(vec2_t ss_position, uchar type,float sizeFactor, fl
 	numFreeExplosions--;
 	explosion = freeExplosions[numFreeExplosions];
 	
-	explosion->ss_MaxBoundaries[UP] 	= (mouvementY + ss_position[Y] + sizeFactor*EXPLOSION_END_SIZE)*SS_H;
-	explosion->ss_MaxBoundaries[DOWN] 	= (mouvementY + ss_position[Y] - sizeFactor*EXPLOSION_END_SIZE)*SS_H;
+	explosion->ss_MaxBoundaries[UP] 	= (mouvementY + ss_position[Y])*SS_H + sizeFactor*EXPLOSION_END_SIZE*SS_H/renderer.vScale;
+	explosion->ss_MaxBoundaries[DOWN] 	= (mouvementY + ss_position[Y])*SS_H - sizeFactor*EXPLOSION_END_SIZE*SS_H/renderer.vScale;
 	explosion->ss_MaxBoundaries[LEFT]	= (ss_position[X] - sizeFactor*EXPLOSION_END_SIZE)*SS_H;
 	explosion->ss_MaxBoundaries[RIGHT]	= (ss_position[X] + sizeFactor*EXPLOSION_END_SIZE)*SS_H;
 	
-	explosion->ss_MinBoundaries[UP]		= (ss_position[Y] + sizeFactor*EXPLOSION_START_SIZE)*SS_H;
-	explosion->ss_MinBoundaries[DOWN]	= (ss_position[Y] - sizeFactor*EXPLOSION_START_SIZE)*SS_H;
+	explosion->ss_MinBoundaries[UP]		= ss_position[Y]*SS_H + sizeFactor*EXPLOSION_START_SIZE*SS_H/renderer.vScale;
+	explosion->ss_MinBoundaries[DOWN]	= ss_position[Y]*SS_H - sizeFactor*EXPLOSION_START_SIZE*SS_H/renderer.vScale;
 	explosion->ss_MinBoundaries[LEFT]	= (ss_position[X] - sizeFactor*EXPLOSION_START_SIZE)*SS_H;
 	explosion->ss_MinBoundaries[RIGHT]	= (ss_position[X] + sizeFactor*EXPLOSION_START_SIZE)*SS_H;
 	

@@ -753,19 +753,26 @@ void PL_RenderPlayerPointers(void)
 		return;
 	
 	spriteVertice = &diverSpriteLib.vertices[diverSpriteLib.numVertices];
+
+	// Lives row: align with the score (same iOS safe-area anchor) and squash the
+	// icon height by vScale so they stay square on a tall screen (unscaled ortho).
+	float livesAnchorY = SS_H - renderer.safeInsetTopPx * ((2.0f * SS_H) / (float)renderer.glBuffersDimensions[HEIGHT]) - 30.0f;
+	float livesHalfH   = PLAYER_LIVE_COUNT_HEIGHT * SS_W / ((renderer.vScale > 0.0f ? renderer.vScale : 1.0f) * 2.0f);
+	float livesTop = livesAnchorY + livesHalfH;
+	float livesBot = livesAnchorY - livesHalfH;
 	
 
 	for (i=0; i < players[controlledPlayer].respawnCounter; i++) 
 	{
 		spriteVertice->pos[X] = (PLAYER_LIVE_COUNT_START_X + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i) * SS_W;
-		spriteVertice->pos[Y] = (PLAYER_LIVE_COUNT_START_Y ) * SS_W;
+		spriteVertice->pos[Y] = livesTop;
 		spriteVertice->text[U] = PLAYER_LIVE_COUNT_TEXT_START_U;
 		spriteVertice->text[V] = PLAYER_LIVE_COUNT_TEXT_START_V;
 		//spriteVertice->color[R] =  spriteVertice->color[G] =  spriteVertice->color[B] =  spriteVertice->color[A] = 255; 
 		spriteVertice++;
 		
 		spriteVertice->pos[X] = (PLAYER_LIVE_COUNT_START_X + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i ) * SS_W;
-		spriteVertice->pos[Y] = (PLAYER_LIVE_COUNT_START_Y - PLAYER_LIVE_COUNT_HEIGHT) * SS_W;
+		spriteVertice->pos[Y] = livesBot;
 		spriteVertice->text[U] = PLAYER_LIVE_COUNT_TEXT_START_U;
 		spriteVertice->text[V] = PLAYER_LIVE_COUNT_TEXT_START_V + PLAYER_LIVE_COUNT_TEXT_HEIGHT;
 		// spriteVertice->color[R] =  spriteVertice->color[G] =  spriteVertice->color[B] =  spriteVertice->color[A] = 255;
@@ -773,7 +780,7 @@ void PL_RenderPlayerPointers(void)
 		
 		
 		spriteVertice->pos[X] = (PLAYER_LIVE_COUNT_START_X + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i + PLAYER_LIVE_COUNT_WIDTH) * SS_W;
-		spriteVertice->pos[Y] = (PLAYER_LIVE_COUNT_START_Y - PLAYER_LIVE_COUNT_HEIGHT) * SS_W;
+		spriteVertice->pos[Y] = livesBot;
 		spriteVertice->text[U] = PLAYER_LIVE_COUNT_TEXT_START_U + PLAYER_LIVE_COUNT_TEXT_WIDTH;
 		spriteVertice->text[V] = PLAYER_LIVE_COUNT_TEXT_START_V + PLAYER_LIVE_COUNT_TEXT_HEIGHT;
 		// spriteVertice->color[R] =  spriteVertice->color[G] =  spriteVertice->color[B] =  spriteVertice->color[A] = 255;
@@ -781,7 +788,7 @@ void PL_RenderPlayerPointers(void)
 		
 		
 		spriteVertice->pos[X] = (PLAYER_LIVE_COUNT_START_X + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i + PLAYER_LIVE_COUNT_WIDTH) * SS_W;
-		spriteVertice->pos[Y] = (PLAYER_LIVE_COUNT_START_Y ) * SS_W;
+		spriteVertice->pos[Y] = livesTop;
 		spriteVertice->text[U] = PLAYER_LIVE_COUNT_TEXT_START_U + PLAYER_LIVE_COUNT_TEXT_WIDTH;
 		spriteVertice->text[V] = PLAYER_LIVE_COUNT_TEXT_START_V;
 		// spriteVertice->color[R] =  spriteVertice->color[G] =  spriteVertice->color[B] =  spriteVertice->color[A] = 255;

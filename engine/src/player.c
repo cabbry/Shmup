@@ -885,14 +885,14 @@ void P_PrepareBulletSprites(void)
 			bulSprite++;
 			
 			bulSprite->pos[X] = leftFlashX - bulletConfig.flashHalfWidth  ;
-			bulSprite->pos[Y] = flashY + bulletConfig.flashHeight * flashInterpolation ;
+			bulSprite->pos[Y] = flashY + bulletConfig.flashHeight * flashInterpolation / gVScale ;
 			bulSprite->text[X] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX);
 			bulSprite->text[Y] = (64.0f/128*SHRT_MAX) + player->lastBulletType* (32.0f/128*SHRT_MAX);
 			bulSprite++;
 			
 			
 			bulSprite->pos[X] = leftFlashX + bulletConfig.flashHalfWidth  ;
-			bulSprite->pos[Y] = flashY + bulletConfig.flashHeight * flashInterpolation;
+			bulSprite->pos[Y] = flashY + bulletConfig.flashHeight * flashInterpolation / gVScale;
 			bulSprite->text[X] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX) + (24.0f/128*SHRT_MAX);
 			bulSprite->text[Y] = (64.0f/128*SHRT_MAX) + player->lastBulletType* (32.0f/128*SHRT_MAX);
 			bulSprite++;
@@ -914,14 +914,14 @@ void P_PrepareBulletSprites(void)
 			bulSprite++;
 			
 			bulSprite->pos[X] = rightFlashX - bulletConfig.flashHalfWidth  ;
-			bulSprite->pos[Y] = flashY + bulletConfig.flashHeight * flashInterpolation  ;
+			bulSprite->pos[Y] = flashY + bulletConfig.flashHeight * flashInterpolation / gVScale  ;
 			bulSprite->text[X] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX);
 			bulSprite->text[Y] = (64.0f/128*SHRT_MAX) + player->lastBulletType* (32.0f/128*SHRT_MAX);
 			bulSprite++;
 			
 			
 			bulSprite->pos[X] = rightFlashX + bulletConfig.flashHalfWidth  ;
-			bulSprite->pos[Y] = flashY + bulletConfig.flashHeight * flashInterpolation ;
+			bulSprite->pos[Y] = flashY + bulletConfig.flashHeight * flashInterpolation / gVScale ;
 			bulSprite->text[X] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX) + (24.0f/128*SHRT_MAX);
 			bulSprite->text[Y] = (64.0f/128*SHRT_MAX) + player->lastBulletType* (32.0f/128*SHRT_MAX);
 			bulSprite++;

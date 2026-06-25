@@ -235,8 +235,21 @@ void COM_ConvertLocalTouchsToCommands(void)
 	
 	if (touches[BUTTON_MOVE].down && !players[controlledPlayer].autopilot.enabled)
 	{
-		command->delta[X] = touches[BUTTON_MOVE].dist[X] * PLAYER_SPEED_MS * timediff;
-		command->delta[Y] = touches[BUTTON_MOVE].dist[Y] * PLAYER_SPEED_MS * timediff;
+		if (engine.controlMode == CONTROL_MODE_SWIP)
+		{
+			// Swipe mode: 1:1 finger tracking. dist already equals the finger
+			// delta in pixels * 80 / viewportDim; dividing by 40 turns that into
+			// the matching ss_position delta (ss spans [-1,1] = 2 across the
+			// viewport), so the ship moves exactly as far as the finger,
+			// independent of screen size, FOV and frame-rate.
+			command->delta[X] = touches[BUTTON_MOVE].dist[X] / 40.0f;
+			command->delta[Y] = touches[BUTTON_MOVE].dist[Y] / 40.0f;
+		}
+		else
+		{
+			command->delta[X] = touches[BUTTON_MOVE].dist[X] * PLAYER_SPEED_MS * timediff;
+			command->delta[Y] = touches[BUTTON_MOVE].dist[Y] * PLAYER_SPEED_MS * timediff;
+		}
 	
 	}
 	

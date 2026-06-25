@@ -133,10 +133,7 @@ void IO_PushEvent(io_event_s* event_in){
 					touches[BUTTON_MOVE].down = 1;
                     //Used to be +80 for X and -80 for Y
 					touches[BUTTON_MOVE].dist[X] = (event.position[X] - event.previousPosition[X])*80/(float)320;
-					// Compensate the vertical input for the full-screen viewport: the old
-					// 2:3 letterbox made Y ~vScale x more responsive than X, which is the
-					// feel the controls were tuned for. Restore it.
-					touches[BUTTON_MOVE].dist[Y] = (event.position[Y] - event.previousPosition[Y])*-80/(float)480 * renderer.vScale;
+					touches[BUTTON_MOVE].dist[Y] = (event.position[Y] - event.previousPosition[Y])*-80/(float)480;
 					
 				}
 				if (event.type == IO_EVENT_BEGAN)

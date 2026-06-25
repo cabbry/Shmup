@@ -131,7 +131,10 @@ to the true screen edges, and the touch-coordinate mapping.
   sound, gameplay all working. OpenGL ES 1.1 is still alive on current iOS.
 - **Full-screen pass 1 (build 104)** — viewport + 3D FOV + 2D ortho now fill modern
   tall screens with no distortion and no enemy pop-in. Verified on device.
-- **Full-screen pass 2 (build 105)** — restored the vertical touch feel (the old
-  2:3 letterbox made Y ~vScale× more responsive; compensated for it) and anchored
-  the score just below the iOS safe area (status bar / Dynamic Island). Lives-counter
-  repositioning still to do.
+- **Full-screen pass 2 (build 105)** — anchored the score just below the iOS safe
+  area (status bar / Dynamic Island).
+- **Full-screen pass 3 (build 106)** — reworked swipe controls to **1:1 finger
+  tracking**: the ship now moves exactly as far as the finger, on both axes,
+  independent of screen size and FOV (the previous speed-based gain drifted on a
+  full-screen viewport). Virtual-pad mode unchanged. Lives-counter repositioning
+  still to do.

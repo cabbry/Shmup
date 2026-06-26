@@ -544,22 +544,22 @@ static void RenderEntityF(entity_t* entity)
 
     
     
-	if (entity->usage == ENT_PARTIAL_DRAW)
+	// The per-frame visibility set (entity->indices) was baked offline for the
+	// original 2:3 frustum. On a tall screen the vertical FOV is widened
+	// (renderer.vScale > 1), so the trimmed face set leaves black gaps at the
+	// top/bottom edges. For an entity the vis system still considers on-screen
+	// (the caller skips numIndices==0), draw its FULL mesh so those edge faces
+	// are present. Fully off-screen entities are still skipped by the caller, so
+	// we never pay for far-away level sections. On a non-stretched view
+	// (vScale==1: 2:3 / iPad) the baked set matches the frustum, so keep using it.
+	if (entity->usage == ENT_PARTIAL_DRAW && renderer.vScale <= 1.0f)
 	{
-		
-		glDrawElements (GL_TRIANGLES, entity->numIndices, GL_UNSIGNED_SHORT, entity->indices);	
-		//glDrawArrays(GL_TRIANGLES,0,3);
-		//glDrawElements (GL_TRIANGLES, 0, GL_UNSIGNED_SHORT, entity->indices);	
-
-		
+		glDrawElements (GL_TRIANGLES, entity->numIndices, GL_UNSIGNED_SHORT, entity->indices);
 		STATS_AddTriangles(entity->numIndices/3);
 	}
 	else
 	{
-		glDrawElements (GL_TRIANGLES, entity->model->numIndices, GL_UNSIGNED_SHORT, entity->model->indices);	
-		//glDrawArrays(GL_TRIANGLES,0,3);
-		//glDrawElements (GL_TRIANGLES, 0, GL_UNSIGNED_SHORT, entity->model->indices);	
-
+		glDrawElements (GL_TRIANGLES, entity->model->numIndices, GL_UNSIGNED_SHORT, entity->model->indices);
 		STATS_AddTriangles(entity->model->numIndices/3);
 	}
 

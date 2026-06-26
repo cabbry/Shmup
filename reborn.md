@@ -123,7 +123,9 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Roadmap
 
-- Full-screen pass 2: HUD/score/controls anchored to the real edges; touch mapping.
+- Polish & smaller features: show the final score on the **GAME OVER** screen
+  (the act-completed screen already shows it, game-over doesn't); ship +
+  bullet-colour selection before a run.
 - Optional deeper modernization: ARC migration, 64-bit audit, `AVAudioSession`, and
   clearing the ~600 deprecation warnings (then re-enabling the strict clang flags).
 - A new level (study `data/scenes`, the `event` system, the on-rails `cameraPath`, and

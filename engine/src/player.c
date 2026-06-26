@@ -521,18 +521,17 @@ void P_Update(void)
 			//UPDATE MATRIX
 			
 			//Rotation part
-			// TTB orbit: spin the model around the screen-vertical axis (Ry) by the
-			// orbit angle so the camera "sees around" it (nose / sides), instead of
-			// the billboard keeping its top always facing us. Vertical axis -> never
-			// the ugly underside. Ry(0)=identity, so normal play is unchanged and the
-			// orbit starts/ends with no pop.
+			// TTB: tilt the ship by the camera's TTB angle so it's seen in 3/4
+			// (top + nose), matching the tilted scene. Rx(flip)*fromAbove(=Rx(-90))
+			// = Rx(flip-90): top-down at flip=0, a 3/4 view at the ~55-degree tilt --
+			// well clear of the underside (which would need flip ~180).
 			{
 				float fc = cosf(camera.flipAngle);
 				float fs = sinf(camera.flipAngle);
-				matrix_t ttbOrbit = { fc,0,-fs,0,  0,1,0,0,  fs,0,fc,0,  0,0,0,1 };
-				matrix_t orbited;
-				matrix_multiply(ttbOrbit, fromAboveRotation, orbited);
-				matrix_multiply(cameraInvRot, orbited, playerEntity->matrix);
+				matrix_t ttbTilt = { 1,0,0,0,  0,fc,fs,0,  0,-fs,fc,0,  0,0,0,1 };
+				matrix_t tilted;
+				matrix_multiply(ttbTilt, fromAboveRotation, tilted);
+				matrix_multiply(cameraInvRot, tilted, playerEntity->matrix);
 			}
 			
 			//Translation part

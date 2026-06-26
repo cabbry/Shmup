@@ -92,12 +92,16 @@ void CAM_ClearAllRemainingCameraVS(void)
 	}
 }
 
+// TTB: the fixed 3/4-front tilt angle (~55 degrees) the view settles into, like
+// the level intro. A partial tilt shows the top + nose, never the underside.
+#define TTB_TILT 0.95f
+
 void CAM_ToggleFlip(void)
 {
-	// TTB: trigger a one-shot 360-degree horizontal orbit of the view around the
-	// (screen-centred) ship. Ignore re-taps while one is already running.
-	if (camera.flipTarget == 0.0f)
-		camera.flipTarget = 2.0f * (float)M_PI;
+	// TTB: toggle between the normal top-down view (0) and the fixed 3/4-front
+	// view (TTB_TILT). The view eases there and stays until the button is tapped
+	// again. The ship/enemies are tilted by the same angle in player.c/enemy.c.
+	camera.flipTarget = (camera.flipTarget != 0.0f) ? 0.0f : TTB_TILT;
 }
 
 void CAM_Update(void)
@@ -164,22 +168,22 @@ void CAM_Update(void)
 	camera.forward[1] = -interpolatedOrientationMatrix[7];
 	camera.forward[2] = -interpolatedOrientationMatrix[8];
 
-	// TTB system: a one-shot 360-degree horizontal orbit. While flipTarget is set,
-	// advance flipAngle toward 2*PI then snap back to 0 (normal, ready for the next
-	// trigger). The yaw rotates the (right,forward) basis around the up axis, so the
-	// whole 3D scene sweeps horizontally around the screen-centred ship; the
-	// billboard ship/enemies and the 2D HUD stay put. At 360 degrees the basis is
-	// exactly back to the start.
+	// TTB system: ease flipAngle toward flipTarget (0 = normal top-down,
+	// TTB_TILT = a fixed 3/4-front view like the intro) and pitch the camera by it
+	// (rotate the up/forward basis around right). The ship/enemies are tilted by the
+	// same angle in player.c/enemy.c, so the whole scene settles into the 3/4 pose
+	// and holds there. The 2D HUD is untouched.
 	{
-		if (camera.flipTarget != 0.0f)
+		float step = (float)timediff * (TTB_TILT / 400.0f); // reach/leave the tilt in ~0.4s
+		if (camera.flipAngle < camera.flipTarget)
 		{
-			float step = (float)timediff * (2.0f * (float)M_PI / 1000.0f); // 360 in ~1s
 			camera.flipAngle += step;
-			if (camera.flipAngle >= camera.flipTarget)
-			{
-				camera.flipAngle = 0.0f;
-				camera.flipTarget = 0.0f;
-			}
+			if (camera.flipAngle > camera.flipTarget) camera.flipAngle = camera.flipTarget;
+		}
+		else if (camera.flipAngle > camera.flipTarget)
+		{
+			camera.flipAngle -= step;
+			if (camera.flipAngle < camera.flipTarget) camera.flipAngle = camera.flipTarget;
 		}
 
 		if (camera.flipAngle != 0.0f)
@@ -189,10 +193,10 @@ void CAM_Update(void)
 			int k;
 			for (k = 0; k < 3; k++)
 			{
-				float r = camera.right[k];
+				float u = camera.up[k];
 				float f = camera.forward[k];
-				camera.right[k]   =  r * c + f * s;
-				camera.forward[k] = -r * s + f * c;
+				camera.up[k]      =  u * c + f * s;
+				camera.forward[k] = -u * s + f * c;
 			}
 		}
 	}

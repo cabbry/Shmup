@@ -303,16 +303,16 @@ void ENE_Update(void)
 			eulerMatrix[10] = cosf(entity->xAxisRot) * cosf(entity->zAxisRot) ;
 		
 		
-			// cameraInvRot * Rorbit * (Rz * Rx * Ry * fromAbove)
-			// Rorbit spins the enemy around the screen-vertical axis by the TTB orbit
-			// angle so it's seen from the front/sides too, matching the player ship.
+			// cameraInvRot * Rtilt * (Rz * Rx * Ry * fromAbove)
+			// Rtilt tilts the enemy by the TTB angle (around screen-horizontal) so
+			// it's seen in 3/4 too, matching the player ship and the tilted scene.
 			matrix_multiply(eulerMatrix, enemyFromAboveRotation, tmp);
 			{
 				float fc = cosf(camera.flipAngle);
 				float fs = sinf(camera.flipAngle);
-				matrix_t ttbOrbit = { fc,0,-fs,0,  0,1,0,0,  fs,0,fc,0,  0,0,0,1 };
+				matrix_t ttbTilt = { 1,0,0,0,  0,fc,fs,0,  0,-fs,fc,0,  0,0,0,1 };
 				matrix_t tmp2;
-				matrix_multiply(ttbOrbit, tmp, tmp2);
+				matrix_multiply(ttbTilt, tmp, tmp2);
 				matrix_multiply(cameraInvRot, tmp2, entity->matrix);
 			}
 				

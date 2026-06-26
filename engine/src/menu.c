@@ -519,6 +519,12 @@ char* MENU_GetMultiplayerTextLine(int i)
 	return menuScreens[MENU_MULTIPLAYER].texts[i].text;
 }
 
+void MENU_SetGameOverScore(unsigned int score)
+{
+	// texts[0] of the game-over screen is the score line (created in MENU_Init).
+	sprintf(menuScreens[MENU_GAMEOVER].texts[0].text, "SCORE: %u", score);
+}
+
 
 //  0  2
 //  1  3
@@ -721,7 +727,11 @@ void MENU_Init(void)
 	textDim[HEIGHT] =247/(float)512 ;
 	MENU_CreateImageWithVerticalText(currentMenu,pos,dimensions,textPos,textDim);
 
-	
+	// Final score line (texts[0]); filled in by MENU_SetGameOverScore() from
+	// P_Die when the player runs out of lives.
+	MENU_CreateText(currentMenu, 0, -150, 3.0f, TEXT_CENTERED, "SCORE: 0");
+
+
 	currentMenu = &menuScreens[MENU_REPLAY];
 	currentMenu->numImages = 0;
 	currentMenu->numTexts = 0;

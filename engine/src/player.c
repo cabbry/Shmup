@@ -1385,6 +1385,7 @@ void P_Die(uchar playerId)
            )
 		{
 			
+            MENU_SetGameOverScore(players[controlledPlayer].score);
             MENU_Set(MENU_GAMEOVER);
             
             

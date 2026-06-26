@@ -628,20 +628,6 @@ void loadNativePNG(texture_t* tmpTex)
         CGPoint touchLocation = [myTouch locationInView:nil];
         CGPoint prevTouchLocation = [myTouch previousLocationInView:nil];
 
-        // TTB flip button: a tap in the top-left zone (under the score) flips the
-        // camera. Swallow this touch so it doesn't also fire / move the ship.
-        if (entitiesAttachedToCamera && myTouch.phase == UITouchPhaseBegan)
-        {
-            CGPoint local = [myTouch locationInView:self];
-            CGFloat fx = local.x / self.bounds.size.width;
-            CGFloat fy = local.y / self.bounds.size.height;
-            if (fx < 0.30f && fy > 0.115f && fy < 0.25f)
-            {
-                CAM_ToggleFlip();
-                continue;
-            }
-        }
-
         shmupEvent.position[X] = touchLocation.x;
         shmupEvent.position[Y] = touchLocation.y;
         

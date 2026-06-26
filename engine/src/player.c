@@ -521,21 +521,7 @@ void P_Update(void)
 			//UPDATE MATRIX
 			
 			//Rotation part
-			// TTB: tilt the ship by the camera's TTB angle so it's seen in 3/4
-			// (top + nose), matching the tilted scene. Rx(flip)*fromAbove(=Rx(-90))
-			// = Rx(flip-90): top-down at flip=0, a 3/4 view at the ~55-degree tilt --
-			// well clear of the underside (which would need flip ~180).
-			{
-				float fc = cosf(camera.flipAngle);
-				float fs = sinf(camera.flipAngle);
-				// Grow the ship as it tilts (up to ~1.6x at full tilt) for a
-				// closer, hero-shot feel. Scale is baked into the rotation 3x3.
-				float s  = 1.0f + camera.flipAngle * 0.46f;
-				matrix_t ttbTilt = { s,0,0,0,  0,fc*s,fs*s,0,  0,-fs*s,fc*s,0,  0,0,0,1 };
-				matrix_t tilted;
-				matrix_multiply(ttbTilt, fromAboveRotation, tilted);
-				matrix_multiply(cameraInvRot, tilted, playerEntity->matrix);
-			}
+			matrix_multiply(cameraInvRot, fromAboveRotation, playerEntity->matrix);
 			
 			//Translation part
 			vectorScale(camera.forward,distanceZFromCamera,translationForwardTransform);
@@ -860,9 +846,6 @@ void PL_RenderPlayerPointers(void)
 		float orthoPerPx = (2.0f * SS_H) / (float)renderer.glBuffersDimensions[HEIGHT];
 		short scoreY = (short)(SS_H - renderer.safeInsetTopPx * orthoPerPx - 30.0f);
 		SCR_ConvertTextToVertices(stringScore,SCORE_FONT_SIZE,SCORE_POS_X,scoreY,TEXT_NOT_CENTERED);
-		// TTB flip button, just under the score. The tap zone is hit-tested in
-		// EAGLView.m (top-left corner); this is only the visible label.
-		SCR_ConvertTextToVertices("[ TTB ]",SCORE_FONT_SIZE,SCORE_POS_X,(short)(scoreY - 60),TEXT_NOT_CENTERED);
 	}
 	SCR_RenderText();
 	

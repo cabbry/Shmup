@@ -92,17 +92,12 @@ void CAM_ClearAllRemainingCameraVS(void)
 	}
 }
 
-// TTB: the fixed front tilt angle (~74 degrees) the view settles into, pushed
-// close to standing the ship up so we see its nose (not just a mild top-down
-// tilt). Still short of 180, so the underside never shows.
-#define TTB_TILT 1.30f
-
 void CAM_ToggleFlip(void)
 {
-	// TTB: toggle between the normal top-down view (0) and the fixed 3/4-front
-	// view (TTB_TILT). The view eases there and stays until the button is tapped
-	// again. The ship/enemies are tilted by the same angle in player.c/enemy.c.
-	camera.flipTarget = (camera.flipTarget != 0.0f) ? 0.0f : TTB_TILT;
+	// TTB is disabled on the existing (shipped) levels: it fights the on-rails
+	// camera, the billboard entities and the baked visibility set. The real
+	// intro-style flyby will be authored as a scripted beat in the new level.
+	// Kept as a no-op so the declaration / any call sites stay valid.
 }
 
 void CAM_Update(void)
@@ -169,38 +164,7 @@ void CAM_Update(void)
 	camera.forward[1] = -interpolatedOrientationMatrix[7];
 	camera.forward[2] = -interpolatedOrientationMatrix[8];
 
-	// TTB system: ease flipAngle toward flipTarget (0 = normal top-down,
-	// TTB_TILT = a fixed 3/4-front view like the intro) and pitch the camera by it
-	// (rotate the up/forward basis around right). The ship/enemies are tilted by the
-	// same angle in player.c/enemy.c, so the whole scene settles into the 3/4 pose
-	// and holds there. The 2D HUD is untouched.
-	{
-		float step = (float)timediff * (TTB_TILT / 400.0f); // reach/leave the tilt in ~0.4s
-		if (camera.flipAngle < camera.flipTarget)
-		{
-			camera.flipAngle += step;
-			if (camera.flipAngle > camera.flipTarget) camera.flipAngle = camera.flipTarget;
-		}
-		else if (camera.flipAngle > camera.flipTarget)
-		{
-			camera.flipAngle -= step;
-			if (camera.flipAngle < camera.flipTarget) camera.flipAngle = camera.flipTarget;
-		}
-
-		if (camera.flipAngle != 0.0f)
-		{
-			float c = cosf(camera.flipAngle);
-			float s = sinf(camera.flipAngle);
-			int k;
-			for (k = 0; k < 3; k++)
-			{
-				float u = camera.up[k];
-				float f = camera.forward[k];
-				camera.up[k]      =  u * c + f * s;
-				camera.forward[k] = -u * s + f * c;
-			}
-		}
-	}
+	// (TTB camera tilt removed on the shipped levels -- reserved for the new level.)
 
 }
 

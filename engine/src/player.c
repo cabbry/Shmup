@@ -1313,12 +1313,14 @@ void P_Die(uchar playerId)
     FX_GetSmoke(players[playerId].ss_position, 0.3, 0.3);
 	SND_PlaySound(SND_EXPLOSION);
 
-	// Expire this player's in-flight bullets so they stop hitting enemies (and
-	// adding to the score) during the death / respawn animation.
+	// Expire this player's in-flight bullets AND ghosts so they stop hitting
+	// enemies (and adding to the score) during the death / respawn animation.
 	{
 		int j;
 		for (j = 0; j < MAX_PLAYER_BULLETS; j++)
 			players[playerId].bullets[j].expirationTime = 0;
+		for (j = 0; j < GHOSTS_NUM; j++)
+			players[playerId].ghosts[j].timeCounter = GHOST_TTL_MS + 1;
 	}
 
 	players[playerId].respawnCounter--;

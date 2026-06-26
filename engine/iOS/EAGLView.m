@@ -616,18 +616,32 @@ void loadNativePNG(texture_t* tmpTex)
 - (void) handleTouches:(UIEvent*)event 
 {
 
-    int touchCount ;
+    int touchCount = 0;
     io_event_s shmupEvent;
     static int previousTouchCount;
-    
-    
+
+
     NSSet *iPhonetouches = [event allTouches];
     for (UITouch *myTouch in iPhonetouches)
     {
         touchCount++;
         CGPoint touchLocation = [myTouch locationInView:nil];
         CGPoint prevTouchLocation = [myTouch previousLocationInView:nil];
-        
+
+        // TTB flip button: a tap in the top-left zone (under the score) flips the
+        // camera. Swallow this touch so it doesn't also fire / move the ship.
+        if (entitiesAttachedToCamera && myTouch.phase == UITouchPhaseBegan)
+        {
+            CGPoint local = [myTouch locationInView:self];
+            CGFloat fx = local.x / self.bounds.size.width;
+            CGFloat fy = local.y / self.bounds.size.height;
+            if (fx < 0.30f && fy > 0.115f && fy < 0.25f)
+            {
+                CAM_ToggleFlip();
+                continue;
+            }
+        }
+
         shmupEvent.position[X] = touchLocation.x;
         shmupEvent.position[Y] = touchLocation.y;
         
@@ -650,11 +664,6 @@ void loadNativePNG(texture_t* tmpTex)
     }
 	
 	
-	if ( touchCount == 3 && previousTouchCount != 3 )
-	{
-		CAM_ToggleFlip(); // TTB prototype: flip the camera 180 with a 3-finger tap
-	}
-
 	if ( touchCount == 5 && previousTouchCount != 5 )
 	{
 		MENU_Set(MENU_HOME);

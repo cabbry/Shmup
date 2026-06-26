@@ -841,6 +841,9 @@ void PL_RenderPlayerPointers(void)
 		float orthoPerPx = (2.0f * SS_H) / (float)renderer.glBuffersDimensions[HEIGHT];
 		short scoreY = (short)(SS_H - renderer.safeInsetTopPx * orthoPerPx - 30.0f);
 		SCR_ConvertTextToVertices(stringScore,SCORE_FONT_SIZE,SCORE_POS_X,scoreY,TEXT_NOT_CENTERED);
+		// TTB flip button, just under the score. The tap zone is hit-tested in
+		// EAGLView.m (top-left corner); this is only the visible label.
+		SCR_ConvertTextToVertices("[ TTB ]",SCORE_FONT_SIZE,SCORE_POS_X,(short)(scoreY - 60),TEXT_NOT_CENTERED);
 	}
 	SCR_RenderText();
 	

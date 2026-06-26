@@ -521,7 +521,19 @@ void P_Update(void)
 			//UPDATE MATRIX
 			
 			//Rotation part
-			matrix_multiply(cameraInvRot, fromAboveRotation, playerEntity->matrix);
+			// TTB orbit: spin the model around the screen-vertical axis (Ry) by the
+			// orbit angle so the camera "sees around" it (nose / sides), instead of
+			// the billboard keeping its top always facing us. Vertical axis -> never
+			// the ugly underside. Ry(0)=identity, so normal play is unchanged and the
+			// orbit starts/ends with no pop.
+			{
+				float fc = cosf(camera.flipAngle);
+				float fs = sinf(camera.flipAngle);
+				matrix_t ttbOrbit = { fc,0,-fs,0,  0,1,0,0,  fs,0,fc,0,  0,0,0,1 };
+				matrix_t orbited;
+				matrix_multiply(ttbOrbit, fromAboveRotation, orbited);
+				matrix_multiply(cameraInvRot, orbited, playerEntity->matrix);
+			}
 			
 			//Translation part
 			vectorScale(camera.forward,distanceZFromCamera,translationForwardTransform);

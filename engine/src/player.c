@@ -528,7 +528,10 @@ void P_Update(void)
 			{
 				float fc = cosf(camera.flipAngle);
 				float fs = sinf(camera.flipAngle);
-				matrix_t ttbTilt = { 1,0,0,0,  0,fc,fs,0,  0,-fs,fc,0,  0,0,0,1 };
+				// Grow the ship as it tilts (up to ~1.6x at full tilt) for a
+				// closer, hero-shot feel. Scale is baked into the rotation 3x3.
+				float s  = 1.0f + camera.flipAngle * 0.46f;
+				matrix_t ttbTilt = { s,0,0,0,  0,fc*s,fs*s,0,  0,-fs*s,fc*s,0,  0,0,0,1 };
 				matrix_t tilted;
 				matrix_multiply(ttbTilt, fromAboveRotation, tilted);
 				matrix_multiply(cameraInvRot, tilted, playerEntity->matrix);

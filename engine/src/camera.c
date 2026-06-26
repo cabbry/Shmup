@@ -92,9 +92,10 @@ void CAM_ClearAllRemainingCameraVS(void)
 	}
 }
 
-// TTB: the fixed 3/4-front tilt angle (~55 degrees) the view settles into, like
-// the level intro. A partial tilt shows the top + nose, never the underside.
-#define TTB_TILT 0.95f
+// TTB: the fixed front tilt angle (~74 degrees) the view settles into, pushed
+// close to standing the ship up so we see its nose (not just a mild top-down
+// tilt). Still short of 180, so the underside never shows.
+#define TTB_TILT 1.30f
 
 void CAM_ToggleFlip(void)
 {

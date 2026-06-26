@@ -450,11 +450,6 @@ particule_t* FX_GetParticule(vec2_t ss_position, vec2_t direction, float size, f
 	particule_t* particule;
 	int i;
 
-	// While the world is frozen (resume countdown, timediff 0) don't spawn new
-	// particles, otherwise charging enemies keep emitting fresh sparks each frame.
-	if (!timediff)
-		return &particuleNull;
-
 	//This particule will never be rendered, it is the null void of non existance
 	if (numFreeParticules == 0)
 		return &particuleNull;

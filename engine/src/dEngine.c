@@ -592,18 +592,31 @@ void dEngine_HostFrame(void)
 
 	if (gCountdownMs > 0)
 	{
-		// Returning from the background: hold the world frozen (timediff 0,
-		// simulationTime untouched -> nothing updates) and run down the
-		// 3-2-1-SHMUP countdown by one fixed ~60fps step.
+		// Returning from the background: keep the WHOLE game frozen and run the
+		// 3-2-1-SHMUP countdown. We deliberately skip every simulation, input and
+		// collision step below, so nothing moves, fires, scores, dies or spawns
+		// (no more leaking explosions, sounds, sparks or stray shots). We only
+		// re-prepare the player sprites from the unchanged state and redraw, with
+		// the countdown overlay on top. timediff is 0, so the muzzle flash -- the
+		// one animated thing left in the render-prep path -- stays hidden.
 		gCountdownMs -= 16;
 		if (gCountdownMs < 0)
 			gCountdownMs = 0;
 		timediff = 0;
+
+		diverSpriteLib.numVertices = 0;   // rebuilt by PL_RenderPlayerPointers
+		diverSpriteLib.numIndices  = 0;
+
+		P_PrepareBulletSprites();
+		P_PrepareGhostSprites();
+		FX_PrepareSmokeSprites();
+		P_PreparePointerSprites();
+
+		SCR_RenderFrame();
+		return;
 	}
-	else
-	{
-		Timer_tick();
-	}
+
+	Timer_tick();
 
 
 	diverSpriteLib.numVertices=0;

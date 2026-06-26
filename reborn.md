@@ -130,11 +130,13 @@ to the true screen edges, and the touch-coordinate mapping.
   clearing the ~600 deprecation warnings (then re-enabling the strict clang flags).
 - A new level (study `data/scenes`, the `event` system, the on-rails `cameraPath`, and
   the preprocessor), reusing the existing assets.
-- **TTB system** (homage to the manga *Tokyo Toy Box*): a scripted camera flip that
-  changes the play style mid-level — a 180° inversion (prototype below), and ultimately
-  a 90° tilt into a side-view (horizontal) shmup, flipping back to top-down at
-  preprogrammed points via the scene `event` timeline. This is only possible because
-  the game is real 3D.
+- **TTB system** (homage to the manga *Tokyo Toy Box*) — **reserved for the new level.**
+  Live camera flips/orbits/tilts were prototyped on the shipped level and then removed:
+  they fight the engine's core design (the camera is on-rails, gameplay entities are
+  billboarded to always face the camera, and the visibility set is baked for the rails),
+  so the authored intro-style flyby can't be reproduced mid-flight. The real TTB —
+  a scripted perspective shift (e.g. into a close 3/4 / side view and back) — will be
+  authored as a beat in the new level, with camera path and decor built for it.
 
 ---
 
@@ -157,6 +159,18 @@ to the true screen edges, and the touch-coordinate mapping.
   hitting enemies for a second or two, so the score crept up through the death
   animation. `P_Die` now expires the player's in-flight bullets (standard shmup
   behaviour: your shots clear when you die).
+- **Stop the survival score after death (build 126)**: the score kept ticking up on the
+  GAME OVER screen — it was the passive per-frame "survival" score, added whenever the
+  scene was live regardless of the player being alive. Gated it on `!autopilot.enabled`
+  (autopilot stays on through respawn and game-over). Ghosts are now also expired on death.
+- **Hide the multiplayer entry (build 127)**: the "Network" menu button led to a
+  Bonjour/DNS-SD LAN matchmaker that errors on modern iOS (Local Network permission) with
+  no live peers — hidden, since this is a single-player modernization.
+- **TTB explored, then removed from the shipped levels (builds 124–131)**: prototyped a
+  camera flip, a 360° orbit, and a fixed 3/4 tilt+zoom on the existing level. All fight
+  the on-rails camera + billboard entities + baked visibility (only the backdrop turned,
+  or the ugly modelled undersides showed). Removed it from gameplay; the real intro-style
+  flyby is deferred to the new level where it can be authored properly.
 
 ### 2026-06-25
 - **TTB system — 180° flip prototype (build 107)**: a 3-finger tap rolls the whole 3D

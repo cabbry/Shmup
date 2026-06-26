@@ -109,14 +109,17 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 (simulator build + signed device archive).
 - ✅ Live on **TestFlight** — runs full-speed on device, sound and gameplay intact.
-- ✅ Full-screen: fills tall iPhones, HUD anchored to the safe area, 2D sprites
-  de-stretched (round sprites are round again).
+- ✅ Full-screen: fills tall iPhones with no black edge gaps, HUD anchored to the
+  safe area, 2D sprites de-stretched (round sprites are round again).
 - ✅ Pause / resume on backgrounding, with a 3-2-1-SHMUP countdown on return.
 
 ## Known issues
 
-- The precomputed visibility set culls some geometry too early in the widened
-  full-screen view (black wedges at the bottom edge).
+- Minor: backgrounding the app on the GAME OVER screen still shows the
+  3-2-1-SHMUP overlay (cosmetic).
+- Minor/latent: the menu titles' safe-area offset is computed once at init,
+  before the inset is known, so it stays inactive — the titles clear the notch
+  via fixed margins today but wouldn't auto-adapt to a larger inset.
 
 ## Roadmap
 
@@ -134,6 +137,24 @@ to the true screen edges, and the touch-coordinate mapping.
 ---
 
 ## Changelog
+
+### 2026-06-26
+- **Truly freeze the world during the countdown (build 120)**: the 3-2-1-SHMUP
+  countdown previously only zeroed the timestep, so the update functions still ran
+  and leaked — collisions kept scoring and killing enemies, the player could fire
+  or even die, and sparks/explosions/sounds kept going. Now `dEngine_HostFrame`
+  skips the whole simulation/input/collision block during the countdown and only
+  redraws the frozen frame; this let the earlier per-symptom guards be removed.
+- **Fill the visibility-set edge gaps on tall screens (builds 121–122)**: the black
+  wedges came from the baked per-frame visible-face set (computed offline for the
+  original 2:3 frustum) not covering the widened view. On a stretched view we now
+  draw the full mesh of any level entity still considered on-screen, so the edges
+  fill in; fully off-screen entities stay culled, so far sections aren't drawn and
+  the framerate is unaffected. Verified smooth on device.
+- **Clear bullets on death (build 123)**: a dead ship's already-fired bullets kept
+  hitting enemies for a second or two, so the score crept up through the death
+  animation. `P_Die` now expires the player's in-flight bullets (standard shmup
+  behaviour: your shots clear when you die).
 
 ### 2026-06-25
 - **TTB system — 180° flip prototype (build 107)**: a 3-finger tap rolls the whole 3D

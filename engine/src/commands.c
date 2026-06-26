@@ -252,13 +252,8 @@ void COM_ConvertLocalTouchsToCommands(void)
 			command->delta[Y] = touches[BUTTON_MOVE].dist[Y] * PLAYER_SPEED_MS * timediff;
 		}
 
-		// TTB: a 180 vertical flip inverts the vertical axis only (up -> -up; right
-		// is unchanged), so invert just Y to keep the ship following the finger.
-		if (camera.flipAngle > 1.5708f)
-		{
-			command->delta[Y] = -command->delta[Y];
-		}
-	
+		// (TTB is now a one-shot horizontal orbit that returns to normal, so the
+		// controls need no axis inversion.)
 	}
 	
 	

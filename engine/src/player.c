@@ -480,7 +480,12 @@ void P_Update(void)
 		if (entitiesAttachedToCamera) 
 		{
 			players[i].showPointer -= timediff;
-			players[i].score += (timediff >> 1 << engine.difficultyLevel) * 2;
+			// Passive "survival" score: only while the player is actually alive and
+			// in control. Autopilot stays enabled through the death/respawn fly-in
+			// and (timeCounter=2000000) the whole GAME OVER screen, so this also
+			// stops the score from ticking up after dying / on game over.
+			if (!player->autopilot.enabled)
+				players[i].score += (timediff >> 1 << engine.difficultyLevel) * 2;
 			
 			if (player->autopilot.enabled)
 			{

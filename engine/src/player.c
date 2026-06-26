@@ -516,7 +516,18 @@ void P_Update(void)
 			//UPDATE MATRIX
 			
 			//Rotation part
-			matrix_multiply(cameraInvRot, fromAboveRotation, playerEntity->matrix);
+			// TTB: pitch the model by the camera flip angle around its horizontal
+			// axis so its underside turns toward the screen as the camera flips
+			// (cameraInvRot is a billboard that would otherwise keep the top facing
+			// us). Rx(flip) * fromAbove(=Rx(-90)) = Rx(flip-90): top at 0, belly at 180.
+			{
+				float fc = cosf(camera.flipAngle);
+				float fs = sinf(camera.flipAngle);
+				matrix_t ttbFlip = { 1,0,0,0,  0,fc,fs,0,  0,-fs,fc,0,  0,0,0,1 };
+				matrix_t flippedFromAbove;
+				matrix_multiply(ttbFlip, fromAboveRotation, flippedFromAbove);
+				matrix_multiply(cameraInvRot, flippedFromAbove, playerEntity->matrix);
+			}
 			
 			//Translation part
 			vectorScale(camera.forward,distanceZFromCamera,translationForwardTransform);

@@ -40,10 +40,10 @@ It's meant to be shown to Fabien and kept up to date as the project evolves.
   export, then `xcrun altool --upload-app`. Ship a build with:
   `git tag v0.2.x && git push <fork> v0.2.x`.
 - App: bundle id `com.cabbry.shmup`, store name **"SHMUP Reborn"**.
-- Versioning: TestFlight shows the **marketing version** (`MARKETING_VERSION`, now
-  **0.2**) plus an auto **build number** (`100 + CI run number`, e.g. 137) — the two are
-  independent, so the build number keeps climbing across marketing versions. Git tags
-  `v0.2.x` just trigger builds and aren't the displayed version.
+- Versioning: TestFlight shows the **marketing version** = the **git tag** without its `v`
+  (tag `v0.2.3` → shown as **0.2.3**), plus an independent auto **build number**
+  (`100 + CI run number`, e.g. 140). So tag a higher version each release (`v0.2.3`,
+  `v0.2.4`, …) and it increments in TestFlight; the build number climbs separately.
 
 ---
 

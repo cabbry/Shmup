@@ -73,13 +73,20 @@ jobs:
           mkdir -p ~/private_keys
           printf '%s' "$ASC_PRIVATE_KEY" > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
 
-      - name: Compute build number
+      - name: Compute version + build number
         id: bn
         run: |
           BUILD=$((100 + GITHUB_RUN_NUMBER))
+          # Marketing version (shown in TestFlight) = the git tag minus its leading "v"
+          # (e.g. v0.2.3 -> 0.2.3). Manual runs (no version tag) fall back to MARKETING_VERSION.
+          VER="${GITHUB_REF_NAME#v}"
+          case "$VER" in
+            [0-9]*.[0-9]*) ;;                 # looks like a version -> keep it
+            *) VER="${MARKETING_VERSION}" ;;  # not a version tag -> fallback
+          esac
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" engine/iOS/shmup.plist
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${MARKETING_VERSION}" engine/iOS/shmup.plist
-          echo "Build $BUILD / v${MARKETING_VERSION}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VER}" engine/iOS/shmup.plist
+          echo "Version $VER / build $BUILD"
 
       - name: Archive (Release, device, manual signing)
         working-directory: engine/iOS

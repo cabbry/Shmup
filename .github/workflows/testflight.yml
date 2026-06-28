@@ -20,7 +20,7 @@ on:
 env:
   BUNDLE_ID: com.cabbry.shmup
   APPLE_TEAM_ID: "R6TQZGC68V"
-  PROFILE_NAME: "Shmup App Store"
+  PROFILE_NAME: "Shmup App Store GC"
   MARKETING_VERSION: "1.0"
 
 jobs:

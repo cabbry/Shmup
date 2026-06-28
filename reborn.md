@@ -118,6 +118,8 @@ to the true screen edges, and the touch-coordinate mapping.
   on return (the original just lost the game).
 - 🆕 **Final score on the GAME OVER screen** (the original only showed it on the win
   / act-completed screen).
+- 🆕 **Game Center sign-in + online "High Scores" leaderboard** — the final score is
+  submitted online; also the foundation for online (GameKit) multiplayer.
 
 ## Known issues
 
@@ -171,6 +173,12 @@ to the true screen edges, and the touch-coordinate mapping.
   is LAN peer-to-peer over Bonjour/DNS-SD, which modern iOS gates behind the Local Network
   permission. Added `NSLocalNetworkUsageDescription` + `NSBonjourServices`
   (`_DodgeServer._udp`) to the Info.plist so peer discovery is allowed again.
+- **🆕 Game Center sign-in + online leaderboard (build 135)** — new feature: the app signs
+  the player into Game Center (`GKLocalPlayer`) and submits the final score with the modern
+  `GKLeaderboard.submitScore` to an online "High Scores" leaderboard (`shmup.highscores`).
+  Game Center was enabled on the App ID + the leaderboard created via the App Store Connect
+  API, and the App Store provisioning profile regenerated to carry the capability. This is
+  also the **foundation for GameKit real-time (online) multiplayer**.
 
 ### 2026-06-25
 - **Full-screen fix (build 108)**: realigned the 2D overlay (player/enemy bullets,

@@ -37,6 +37,7 @@
 
 #import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioToolbox.h>
+#import <GameKit/GameKit.h>
 
 dEngineAppDelegate* this=nil;
 UIViewController* vc=nil;
@@ -68,6 +69,19 @@ UIViewController* vc=nil;
 
     }
     [self.window setRootViewController:vc];
+
+    // Sign the player into Game Center (for the online leaderboard, and the
+    // foundation for GameKit real-time multiplayer later). iOS presents its own
+    // sign-in sheet via the handler.
+    [GKLocalPlayer local].authenticateHandler = ^(UIViewController *gcVC, NSError *error) {
+        if (gcVC) {
+            [vc presentViewController:gcVC animated:YES completion:nil];
+        } else if ([GKLocalPlayer local].isAuthenticated) {
+            NSLog(@"[GameCenter] authenticated as %@", [GKLocalPlayer local].displayName);
+        } else {
+            NSLog(@"[GameCenter] not authenticated: %@", error);
+        }
+    };
 }
 
 - (void) applicationWillResignActive:(UIApplication *)application
@@ -158,7 +172,20 @@ UIViewController* vc=nil;
  real in EAGLView.m -- it uses NSFileManager and needs no modernization.
 */
 
-void Native_UploadScore(uint score) {}
+void Native_UploadScore(uint score) {
+	if (![GKLocalPlayer local].isAuthenticated)
+		return;
+	if (@available(iOS 14.0, *)) {
+		[GKLeaderboard submitScore:(NSInteger)score
+		                   context:0
+		                    player:[GKLocalPlayer local]
+		            leaderboardIDs:@[@"shmup.highscores"]
+		         completionHandler:^(NSError * _Nullable error) {
+			if (error) NSLog(@"[GameCenter] submitScore error: %@", error);
+			else       NSLog(@"[GameCenter] score %u submitted", score);
+		}];
+	}
+}
 void Native_LoginGameCenter(void) {}
 void Action_ShowGameCenter(void* tag) {}
 void Native_UploadFileTo(char path[256]) {}

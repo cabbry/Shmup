@@ -782,17 +782,14 @@ void MENU_Init(void)
 	
 	
 #ifndef SHMUP_TARGET_ANDROID
-	// Multiplayer is LAN peer-to-peer over Bonjour/DNS-SD, which fails on modern
-	// iOS (needs the Local Network permission) and has no live peers anyway. This
-	// is a single-player modernization, so the entry point is hidden to avoid the
-	// "NET_CheckServerAvailability" error. Kept here for reference / future revival.
-	/*
+	// Multiplayer: LAN peer-to-peer over Bonjour/DNS-SD. Modern iOS gates that
+	// behind the Local Network permission, declared in the Info.plist
+	// (NSLocalNetworkUsageDescription + NSBonjourServices = _DodgeServer._udp).
 	buttonPos[X] = 160 ;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 500);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Network", 3, Action_ConfigureMultiplayer,NULL, buttonPos, buttonDim);
-	*/
 #endif
 //
 //	if (engine.gameCenterPossible)

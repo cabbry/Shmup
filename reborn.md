@@ -130,13 +130,6 @@ to the true screen edges, and the touch-coordinate mapping.
   clearing the ~600 deprecation warnings (then re-enabling the strict clang flags).
 - A new level (study `data/scenes`, the `event` system, the on-rails `cameraPath`, and
   the preprocessor), reusing the existing assets.
-- **TTB system** (homage to the manga *Tokyo Toy Box*) — **reserved for the new level.**
-  Live camera flips/orbits/tilts were prototyped on the shipped level and then removed:
-  they fight the engine's core design (the camera is on-rails, gameplay entities are
-  billboarded to always face the camera, and the visibility set is baked for the rails),
-  so the authored intro-style flyby can't be reproduced mid-flight. The real TTB —
-  a scripted perspective shift (e.g. into a close 3/4 / side view and back) — will be
-  authored as a beat in the new level, with camera path and decor built for it.
 
 ---
 
@@ -163,28 +156,16 @@ to the true screen edges, and the touch-coordinate mapping.
   GAME OVER screen — it was the passive per-frame "survival" score, added whenever the
   scene was live regardless of the player being alive. Gated it on `!autopilot.enabled`
   (autopilot stays on through respawn and game-over). Ghosts are now also expired on death.
-- **Hide the multiplayer entry (build 127)**: the "Network" menu button led to a
-  Bonjour/DNS-SD LAN matchmaker that errors on modern iOS (Local Network permission) with
-  no live peers — hidden, since this is a single-player modernization.
-- **TTB explored, then removed from the shipped levels (builds 124–131)**: prototyped a
-  camera flip, a 360° orbit, and a fixed 3/4 tilt+zoom on the existing level. All fight
-  the on-rails camera + billboard entities + baked visibility (only the backdrop turned,
-  or the ugly modelled undersides showed). Removed it from gameplay; the real intro-style
-  flyby is deferred to the new level where it can be authored properly.
+- **Multiplayer over the Local Network permission**: the "Network" menu entry is LAN
+  peer-to-peer over Bonjour/DNS-SD, which modern iOS gates behind the Local Network
+  permission. Added `NSLocalNetworkUsageDescription` + `NSBonjourServices`
+  (`_DodgeServer._udp`) to the Info.plist so peer discovery is allowed again.
 
 ### 2026-06-25
-- **TTB system — 180° flip prototype (build 107)**: a 3-finger tap rolls the whole 3D
-  camera 180° (animated ~0.4s) around the view axis. The scene flips together, the HUD
-  stays upright, and the controls auto-invert so the ship keeps following the finger.
-  Groundwork for the Tokyo-Toy-Box-style view-switching mechanic. (Trigger is a
-  temporary gesture; a proper on-screen button comes next.)
 - **Full-screen fix (build 108)**: realigned the 2D overlay (player/enemy bullets,
   muzzle flash, ghost) with the 3D ship — reverted the 2D ortho scaling so ss_position
   maps to the full screen like the 3D does, and compensated glyph height so HUD text
   stays square. Bullets sit at a fixed distance in front of the ship again.
-- **TTB flip — axis fix (build 109)**: changed the flip from an in-plane roll to a
-  vertical **pitch** — the camera tips over toward a view-from-below (90° will be the
-  side view). Input inverts only the vertical axis while flipped.
 - *Known issue:* the precomputed visibility set culls some geometry too early in the
   widened view (black wedges at the bottom edge) — to be fixed next.
 - **Death fire-stop (build 111)**: the ship no longer keeps firing for a moment after

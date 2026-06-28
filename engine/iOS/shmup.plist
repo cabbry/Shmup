@@ -48,5 +48,11 @@
 	<dict/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>SHMUP uses the local network to find and play with a nearby player over Wi-Fi.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_DodgeServer._udp</string>
+	</array>
 </dict>
 </plist>

@@ -152,6 +152,8 @@ UIViewController* vc=nil;
 // Dismiss the Game Center leaderboard sheet when the player taps Done.
 - (void)gameCenterViewControllerDidFinish:(GKGameCenterViewController *)gameCenterViewController {
 	[gameCenterViewController dismissViewControllerAnimated:YES completion:nil];
+	// Clear the "Scores" button's stuck highlight (we never switched menus).
+	MENU_ClearButtonStates();
 }
 
 @end

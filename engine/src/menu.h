@@ -108,6 +108,7 @@ touch_t* MENU_GetCurrentButtonTouches(void);
 int MENU_GetNumButtonsTouches(void);
 char* MENU_GetMultiplayerTextLine(int i);
 void MENU_SetGameOverScore(unsigned int score);
+void MENU_ClearButtonStates(void);
 #define FADING_IN_TIME_PER_MS (1/1000.0f)
 
 

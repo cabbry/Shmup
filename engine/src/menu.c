@@ -1016,6 +1016,21 @@ void MENU_HandleTouches(void)
 	
 }
 
+void MENU_ClearButtonStates(void)
+{
+	// Reset the current menu's button press/highlight state. Used after a modal
+	// (e.g. the Game Center sheet) returns WITHOUT switching menus, so the button
+	// that opened it doesn't stay stuck highlighted -- and can be tapped again
+	// (clearing actionTriggered too).
+	int i;
+	menu_screen_t* currentMenu = &menuScreens[currentMenuId];
+	for (i=0; i < currentMenu->numButtons; i++)
+	{
+		currentMenu->buttons[i].actionTriggered = 0;
+		currentMenu->buttons[i].touch->down = 0;
+	}
+}
+
 touch_t* MENU_GetCurrentButtonTouches(void)
 {
 	return menuScreens[currentMenuId].touches;

@@ -179,6 +179,12 @@ to the true screen edges, and the touch-coordinate mapping.
   Game Center was enabled on the App ID + the leaderboard created via the App Store Connect
   API, and the App Store provisioning profile regenerated to carry the capability. This is
   also the **foundation for GameKit real-time (online) multiplayer**.
+- **Tutorial exit + Game Center entitlement fix (build 136)**: the tutorial had no reliable
+  way out (the 5-finger gesture is unreliable and it loops to the other tutorial) — added a
+  top-centre **[ BACK ]** button (tutorial scenes only) that returns to the main menu. Also
+  fixed Game Center not connecting on build 135: the app now actually ships the
+  `com.apple.developer.game-center` entitlement (via `CODE_SIGN_ENTITLEMENTS`); the profile
+  merely *allowing* it wasn't enough.
 
 ### 2026-06-25
 - **Full-screen fix (build 108)**: realigned the 2D overlay (player/enemy bullets,

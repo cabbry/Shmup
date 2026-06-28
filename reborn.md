@@ -193,6 +193,11 @@ to the true screen edges, and the touch-coordinate mapping.
   Others menu opens the Game Center "High Scores" leaderboard in-app
   (`GKGameCenterViewController`); and the tutorial **[ BACK ]** button was moved down off
   the score row.
+- **Scores-button highlight fix + version ordering (build 139)**: the "Scores" button stayed
+  stuck highlighted after closing the Game Center sheet (opening it never switches menus, so
+  the press state wasn't reset) — added `MENU_ClearButtonStates()`. Also fixed TestFlight
+  ordering: bumping 1.0 → 0.2 made the old 1.0 builds rank as "newer" (1.0 > 0.2), so the 34
+  legacy 1.0 builds were expired, leaving 0.2 as the sole / priority line.
 
 ### 2026-06-25
 - **Full-screen fix (build 108)**: realigned the 2D overlay (player/enemy bullets,

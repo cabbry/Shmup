@@ -38,8 +38,12 @@ It's meant to be shown to Fabien and kept up to date as the project evolves.
 - **TestFlight** — `.github/workflows/testflight.yml` (manual run or a `v*` tag): manual
   code signing (cert + provisioning profile imported into a temporary keychain), archive,
   export, then `xcrun altool --upload-app`. Ship a build with:
-  `git tag v0.1.x && git push <fork> v0.1.x`.
+  `git tag v0.2.x && git push <fork> v0.2.x`.
 - App: bundle id `com.cabbry.shmup`, store name **"SHMUP Reborn"**.
+- Versioning: TestFlight shows the **marketing version** (`MARKETING_VERSION`, now
+  **0.2**) plus an auto **build number** (`100 + CI run number`, e.g. 137) — the two are
+  independent, so the build number keeps climbing across marketing versions. Git tags
+  `v0.2.x` just trigger builds and aren't the displayed version.
 
 ---
 

@@ -130,6 +130,10 @@ to the true screen edges, and the touch-coordinate mapping.
   clearing the ~600 deprecation warnings (then re-enabling the strict clang flags).
 - A new level (study `data/scenes`, the `event` system, the on-rails `cameraPath`, and
   the preprocessor), reusing the existing assets.
+- **TTB system** (homage to the manga *Tokyo Toy Box*): a scripted perspective shift
+  mid-level — the camera swinging into a close 3/4 / side view and back at preprogrammed
+  points — authored as a beat in the new level, with the camera path and decor built for
+  it. Made possible by the game being real 3D.
 
 ---
 

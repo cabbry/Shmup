@@ -628,6 +628,21 @@ void loadNativePNG(texture_t* tmpTex)
         CGPoint touchLocation = [myTouch locationInView:nil];
         CGPoint prevTouchLocation = [myTouch previousLocationInView:nil];
 
+        // Tutorial (scenes 14 = swipe, 15 = virtual pad): a top-centre BACK button
+        // to leave the tutorial and return to the main menu. Swallow the touch.
+        if ((engine.sceneId == 14 || engine.sceneId == 15) && myTouch.phase == UITouchPhaseBegan)
+        {
+            CGPoint local = [myTouch locationInView:self];
+            CGFloat fx = local.x / self.bounds.size.width;
+            CGFloat fy = local.y / self.bounds.size.height;
+            if (fx > 0.32f && fx < 0.68f && fy > 0.04f && fy < 0.16f)
+            {
+                MENU_Set(MENU_HOME);
+                dEngine_RequireSceneId(0);
+                continue;
+            }
+        }
+
         shmupEvent.position[X] = touchLocation.x;
         shmupEvent.position[Y] = touchLocation.y;
         

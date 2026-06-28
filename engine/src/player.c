@@ -846,6 +846,10 @@ void PL_RenderPlayerPointers(void)
 		float orthoPerPx = (2.0f * SS_H) / (float)renderer.glBuffersDimensions[HEIGHT];
 		short scoreY = (short)(SS_H - renderer.safeInsetTopPx * orthoPerPx - 30.0f);
 		SCR_ConvertTextToVertices(stringScore,SCORE_FONT_SIZE,SCORE_POS_X,scoreY,TEXT_NOT_CENTERED);
+		// Tutorial only (scenes 14 = swipe, 15 = virtual pad): a BACK button at the
+		// top-centre to leave the tutorial. The tap zone is hit-tested in EAGLView.
+		if (engine.sceneId == 14 || engine.sceneId == 15)
+			SCR_ConvertTextToVertices("[ BACK ]",SCORE_FONT_SIZE,0,scoreY,TEXT_CENTERED);
 	}
 	SCR_RenderText();
 	

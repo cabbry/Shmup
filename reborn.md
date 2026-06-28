@@ -41,9 +41,12 @@ It's meant to be shown to Fabien and kept up to date as the project evolves.
   `git tag v0.2.x && git push <fork> v0.2.x`.
 - App: bundle id `com.cabbry.shmup`, store name **"SHMUP Reborn"**.
 - Versioning: TestFlight shows the **marketing version** = the **git tag** without its `v`
-  (tag `v0.2.3` → shown as **0.2.3**), plus an independent auto **build number**
-  (`100 + CI run number`, e.g. 140). So tag a higher version each release (`v0.2.3`,
-  `v0.2.4`, …) and it increments in TestFlight; the build number climbs separately.
+  (tag `v1.1.0` → shown as **1.1.0**), plus an independent auto **build number**
+  (`100 + CI run number`). **Lesson learned:** the version must only ever go **up** — an
+  early dip to `0.2` (below the legacy `1.0` builds) made TestFlight keep ranking the old
+  1.0 line as newest, and once those builds were expired it had nothing installable there
+  → testers got stuck. Fixed by moving onto the **1.1.x** line (above 1.0). Tag a higher
+  version each release (`v1.1.1`, `v1.1.2`, …); the build number climbs separately.
 
 ---
 

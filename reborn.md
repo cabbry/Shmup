@@ -111,7 +111,13 @@ to the true screen edges, and the touch-coordinate mapping.
 - ✅ Live on **TestFlight** — runs full-speed on device, sound and gameplay intact.
 - ✅ Full-screen: fills tall iPhones with no black edge gaps, HUD anchored to the
   safe area, 2D sprites de-stretched (round sprites are round again).
-- ✅ Pause / resume on backgrounding, with a 3-2-1-SHMUP countdown on return.
+
+## New features (added beyond the original 2009 game)
+
+- 🆕 **Pause / resume** when the app is backgrounded, with a **3-2-1-SHMUP** countdown
+  on return (the original just lost the game).
+- 🆕 **Final score on the GAME OVER screen** (the original only showed it on the win
+  / act-completed screen).
 
 ## Known issues
 
@@ -123,9 +129,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Roadmap
 
-- Polish & smaller features: show the final score on the **GAME OVER** screen
-  (the act-completed screen already shows it, game-over doesn't); ship +
-  bullet-colour selection before a run.
+- Polish & smaller features: ship + bullet-colour selection before a run.
 - Optional deeper modernization: ARC migration, 64-bit audit, `AVAudioSession`, and
   clearing the ~600 deprecation warnings (then re-enabling the strict clang flags).
 - A new level (study `data/scenes`, the `event` system, the on-rails `cameraPath`, and
@@ -160,8 +164,11 @@ to the true screen edges, and the touch-coordinate mapping.
   GAME OVER screen — it was the passive per-frame "survival" score, added whenever the
   scene was live regardless of the player being alive. Gated it on `!autopilot.enabled`
   (autopilot stays on through respawn and game-over). Ghosts are now also expired on death.
-- **Multiplayer over the Local Network permission**: the "Network" menu entry is LAN
-  peer-to-peer over Bonjour/DNS-SD, which modern iOS gates behind the Local Network
+- **🆕 Final score on the GAME OVER screen (build 133)** — new feature: the win
+  (act-completed) screen already showed the score, but game-over didn't. Added a score
+  line to the game-over menu, filled from `P_Die` with the player's final score.
+- **Multiplayer over the Local Network permission (build 134)**: the "Network" menu entry
+  is LAN peer-to-peer over Bonjour/DNS-SD, which modern iOS gates behind the Local Network
   permission. Added `NSLocalNetworkUsageDescription` + `NSBonjourServices`
   (`_DodgeServer._udp`) to the Info.plist so peer discovery is allowed again.
 
@@ -187,8 +194,8 @@ to the true screen edges, and the touch-coordinate mapping.
   round and spraying evenly instead of stretching upward). Circles are circles again.
 - **Player 1 label (build 117)**: raised the "Player 1" pointer text so it sits just
   above its white underline (the underline had crept up onto it on tall screens).
-- **Pause / resume on backgrounding + 3-2-1-SHMUP countdown (builds 118–119)**:
-  leaving the app used to tear the game down to the menu. Now the in-progress game is
+- **🆕 Pause / resume on backgrounding + 3-2-1-SHMUP countdown (builds 118–119)** — new
+  feature: leaving the app used to tear the game down to the menu. Now the in-progress game is
   frozen and kept — on resign-active the music queue is paused and the render loop is
   stopped; on become-active nothing is reset. The music resumes where it left off and,
   if a game is in progress, a centered "3 / 2 / 1 / SHMUP" overlay counts down over the

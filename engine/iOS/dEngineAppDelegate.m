@@ -149,6 +149,11 @@ UIViewController* vc=nil;
 	[super dealloc];
 }
 
+// Dismiss the Game Center leaderboard sheet when the player taps Done.
+- (void)gameCenterViewControllerDidFinish:(GKGameCenterViewController *)gameCenterViewController {
+	[gameCenterViewController dismissViewControllerAnimated:YES completion:nil];
+}
+
 @end
 
 
@@ -187,5 +192,21 @@ void Native_UploadScore(uint score) {
 	}
 }
 void Native_LoginGameCenter(void) {}
-void Action_ShowGameCenter(void* tag) {}
+void Action_ShowGameCenter(void* tag) {
+	if (!this || !vc) return;
+	if (![GKLocalPlayer local].isAuthenticated) return;
+
+	GKGameCenterViewController* gcvc;
+	if (@available(iOS 14.0, *)) {
+		gcvc = [[GKGameCenterViewController alloc] initWithLeaderboardID:@"shmup.highscores"
+		                                                    playerScope:GKLeaderboardPlayerScopeGlobal
+		                                                      timeScope:GKLeaderboardTimeScopeAllTime];
+	} else {
+		gcvc = [[GKGameCenterViewController alloc] init];
+		gcvc.viewState = GKGameCenterViewControllerStateLeaderboards;
+	}
+	gcvc.gameCenterDelegate = this;
+	[vc presentViewController:gcvc animated:YES completion:nil];
+	[gcvc release];
+}
 void Native_UploadFileTo(char path[256]) {}

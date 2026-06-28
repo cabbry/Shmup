@@ -635,7 +635,7 @@ void loadNativePNG(texture_t* tmpTex)
             CGPoint local = [myTouch locationInView:self];
             CGFloat fx = local.x / self.bounds.size.width;
             CGFloat fy = local.y / self.bounds.size.height;
-            if (fx > 0.32f && fx < 0.68f && fy > 0.04f && fy < 0.16f)
+            if (fx > 0.32f && fx < 0.68f && fy > 0.17f && fy < 0.29f)
             {
                 MENU_Set(MENU_HOME);
                 dEngine_RequireSceneId(0);

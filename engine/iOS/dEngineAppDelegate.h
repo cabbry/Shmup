@@ -23,13 +23,14 @@
 //
 
 #import <UIKit/UIKit.h>
+#import <GameKit/GameKit.h>
 
 #define MAX_FPS 1.0f/45.f
 #define IDLE_FPS 1.0f/5.f
 
 @class EAGLView;
 
-@interface dEngineAppDelegate : NSObject <UIApplicationDelegate> {
+@interface dEngineAppDelegate : NSObject <UIApplicationDelegate, GKGameCenterControllerDelegate> {
     UIWindow *window;
     EAGLView *glView;
 }

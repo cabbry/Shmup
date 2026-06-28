@@ -791,6 +791,13 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Network", 3, Action_ConfigureMultiplayer,NULL, buttonPos, buttonDim);
 #endif
+
+	// Game Center "High Scores" leaderboard viewer.
+	buttonPos[X] = 160 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 370);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, "Scores", 3, Action_ShowGameCenter,NULL, buttonPos, buttonDim);
 //
 //	if (engine.gameCenterPossible)
 //    {

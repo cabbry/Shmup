@@ -189,6 +189,10 @@ to the true screen edges, and the touch-coordinate mapping.
   fixed Game Center not connecting on build 135: the app now actually ships the
   `com.apple.developer.game-center` entitlement (via `CODE_SIGN_ENTITLEMENTS`); the profile
   merely *allowing* it wasn't enough.
+- **Leaderboard viewer + tutorial back position (build 138)**: a **"Scores"** button in the
+  Others menu opens the Game Center "High Scores" leaderboard in-app
+  (`GKGameCenterViewController`); and the tutorial **[ BACK ]** button was moved down off
+  the score row.
 
 ### 2026-06-25
 - **Full-screen fix (build 108)**: realigned the 2D overlay (player/enemy bullets,

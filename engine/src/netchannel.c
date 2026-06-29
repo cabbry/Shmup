@@ -72,6 +72,11 @@ DNSServiceRef		browseRef=0;
 DNSServiceRef		registerRef=0;
 DNSServiceRef		resolveRef=0;
 
+// Our own LAN address (en0), used to elect the role deterministically: the device
+// with the lower IP becomes the SERVER (Player One). Computed once per session.
+struct sockaddr_in	ownAddr;
+int					ownAddrValid = 0;
+
 static const char	*serviceName = "_DodgeServer._udp.";
 
 
@@ -275,6 +280,7 @@ void NET_Free(void)
 	net.state = NET_UNDETERMINED;
 	net.transport = NET_TRANSPORT_LAN;	// default transport; the online entry sets GameKit
 	netRxHead = netRxTail = 0;			// flush any queued online packets
+	ownAddrValid = 0;					// recompute our own IP next session (for role election)
 
 	net.lastReceivedSequenceNumber = 0;
 	net.lastSentSequenceNumber = 1;
@@ -397,20 +403,11 @@ void DNSServiceRegisterReplyCallback (
 									  const char *domain, 
 									  void *context ) {
 	
-	Log_Printf("DNSServiceRegisterReplyCallback\n");
-	
-	if ( errorCode == kDNSServiceErr_NoError ) 
-	{
-		net.type = NET_SERVER;
-		net.state = NET_STARTED;
-		Log_Printf("Able to register: I am the one and only SERVER.\n");
-	} 
-	else 
-	{
-		net.type = NET_CLIENT;
-		net.state = NET_STARTED;
-		Log_Printf("Registering error: I have to be a client.\n");
-	}
+	Log_Printf("DNSServiceRegisterReplyCallback err=%d\n", errorCode);
+	// The role is NO LONGER decided here. We register with auto-rename so BOTH devices
+	// stay advertised and can discover each other; the role is then elected by IP
+	// comparison once we resolve the peer (see DNSServiceQueryRecordReplyCallback).
+	(void)name; (void)regtype; (void)domain;
 }
 int NET_CheckServerAvailability(void)
 {
@@ -422,50 +419,59 @@ int NET_CheckServerAvailability(void)
 
 	net.type = NET_UNKNOWN;
 
-	// Re-issue the registration each call (as the original working build did), but
-	// deallocate the previous ref first so we don't leak one per frame. (Registering
-	// only ONCE was tried and left the LAN stuck on "Determining player role" -- the
-	// reply callback never fired -- so we go back to the proven re-register pattern.)
-	if ( registerRef ) { DNSServiceRefDeallocate( registerRef ); registerRef = 0; }
+	// Own LAN IP (en0), computed once, for the deterministic IP-based role election.
+	if ( !ownAddrValid )
+	{
+		ownAddr = NET_GetAddressForInterfaceName( INTERFACE_NAME );
+		ownAddrValid = ( ownAddr.sin_addr.s_addr != 0 );
+	}
 
 	ifIdx = NET_InterfaceIndexForInterfaceName( INTERFACE_NAME );
 
-	Log_Printf("NET_CheckServerAvailability: DNSServiceRegister (ifIdx=%d)\n", ifIdx);
-	DNSServiceErrorType	err = DNSServiceRegister(
+	// Register ONCE with AUTO-RENAME (no kDNSServiceFlagsNoAutoRename) so BOTH devices
+	// stay advertised and discover each other -- there's no name conflict to race over,
+	// so the start no longer has to be staggered. We don't drain our own register
+	// socket: the service goes live in mDNSResponder regardless, and the role is no
+	// longer taken from the register reply -- it's elected by IP below.
+	if ( registerRef == 0 )
+	{
+		DNSServiceErrorType	rerr = DNSServiceRegister(
 												 &registerRef,
-												 kDNSServiceFlagsNoAutoRename,		// we want a conflict error
+												 0,									// auto-rename: both devices advertise
 												 ifIdx,								// our LAN interface (en0)
 												 "Dodge shmup server",
 												 serviceName,
-												 NULL,	// domain
-												 NULL,	// host
+												 NULL, NULL,
 												 htons( PORT_NUMBER ),
-												 0,		// txtLen
-												 NULL,	// txtRecord
+												 0, NULL,
 												 DNSServiceRegisterReplyCallback,
-												 NULL		// context
-												 );
-
-	if ( err != kDNSServiceErr_NoError )
-	{
-		Log_Printf( "DNSServiceRegister error\n" );
-		net.type = NET_UNKNOWN;
-		return 0;
+												 NULL );
+		if ( rerr != kDNSServiceErr_NoError ) { Log_Printf("DNSServiceRegister error\n"); registerRef = 0; }
 	}
 
-	// fd 0 is a VALID descriptor; only -1 means error (the old "<= 0" wrongly rejected fd 0,
-	// which is what broke LAN once close(0) had freed fd 0 for the DNS-SD socket).
-	socket = DNSServiceRefSockFD( registerRef );
-	if ( socket < 0 )
+	// Browse ONCE for peers; drain it (short blocking) each call. When the peer's IP is
+	// resolved, DNSServiceQueryRecordReplyCallback elects the role by IP comparison.
+	if ( browseRef == 0 )
+	{
+		DNSServiceErrorType	berr = DNSServiceBrowse( &browseRef, 0, 0, serviceName, NULL,
+		                                             DNSServiceBrowseReplyCallback, NULL );
+		if ( berr != kDNSServiceErr_NoError ) { Log_Printf("DNSServiceBrowse error\n"); browseRef = 0; return 0; }
+	}
+
+	socket = DNSServiceRefSockFD( browseRef );
+	if ( socket < 0 )		// fd 0 is valid; only -1 is an error
 		return 0;
 
 	FD_ZERO( &set );
 	FD_SET( socket, &set );
-	tv.tv_sec = 5;
-	tv.tv_usec = 0;
-
+	tv.tv_sec = 0;
+	tv.tv_usec = 300 * 1000;	// 300ms: catch the peer without freezing the waiting screen hard
 	if ( select( socket+1, &set, NULL, NULL, &tv ) > 0 )
-		DNSServiceProcessResult( registerRef );		// fires DNSServiceRegisterReplyCallback
+		DNSServiceProcessResult( browseRef );		// -> browse cb -> resolve -> query -> election
+
+	// DIAGNOSTIC (waiting screen): our own IP + the interface index used.
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "DIAG own=%s if=%d",
+	        ownAddrValid ? inet_ntoa(ownAddr.sin_addr) : "?", ifIdx);
 
 	if (net.type == NET_SERVER)
 	{
@@ -474,9 +480,9 @@ int NET_CheckServerAvailability(void)
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "You are Player ONE.");
 	}
 	else if (net.type == NET_CLIENT)
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Contacting server...");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Contacting server... You are Player TWO.");
 	else
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Determining player role...");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Looking for opponent...");
 
 	return 1;
 }
@@ -505,17 +511,34 @@ void DNSServiceQueryRecordReplyCallback (
 	
 	
 	//ReportNetworkInterfaces();
-	
+
+	struct in_addr peerIp;
+	memcpy( &peerIp, rdata, 4 );
+
+	// We browse and resolve EVERY advertised instance, including our own (auto-rename
+	// keeps us discoverable). Ignore the one that resolves to our own IP.
+	if ( ownAddrValid && peerIp.s_addr == ownAddr.sin_addr.s_addr )
+		return;
+
+	// This is the peer. Record its address for the handshake.
 	memset( &net.peerAddr, 0, sizeof( net.peerAddr ) );
-	//struct sockaddr_in *sin = (struct sockaddr_in *)&net.peerAddr;
 	net.peerAddr.sin_len = sizeof( net.peerAddr );
 	net.peerAddr.sin_family = AF_INET;
 	net.peerAddr.sin_port = htons( PORT_NUMBER );
-	memcpy( &net.peerAddr.sin_addr, rdata, 4 );
-	
+	net.peerAddr.sin_addr = peerIp;
 	net.serverAddResolved = 1;
-	
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP),"PEER IP %s",inet_ntoa(net.peerAddr.sin_addr));
+
+	// Deterministic election: the LOWER IP is the SERVER (Player One). Both devices
+	// run the same comparison, so exactly one becomes server -- no need to stagger
+	// the start. (compare in host byte order)
+	if ( ownAddrValid && ntohl(ownAddr.sin_addr.s_addr) < ntohl(peerIp.s_addr) )
+		net.type = NET_SERVER;
+	else
+		net.type = NET_CLIENT;
+	net.state = NET_STARTED;
+
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "PEER %s -> %s",
+	        inet_ntoa(peerIp), net.type == NET_SERVER ? "I am P1" : "I am P2");
 }
 
 void DNSServiceResolveReplyCallback ( 

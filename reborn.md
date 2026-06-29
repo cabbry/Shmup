@@ -156,6 +156,15 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-06-29
+- **Automatic LAN role election by IP (build 151, v1.2.0)**: you no longer have to start one
+  device before the other. Both devices now register their Bonjour service with **auto-rename**
+  (so both stay advertised — no name conflict to race over), both browse, and resolve the
+  peer's address; the device with the **lower IP becomes the SERVER (Player One)**, computed
+  identically on both ends so exactly one wins. Replaces the old "first to grab the name =
+  server" scheme, whose simultaneous-start race produced "both Player One". On-screen DIAG
+  (own IP, peer IP, elected role) is left on for one build to confirm on device. The
+  auto-rename + browse mechanism was sanity-checked on the macOS CI runner via
+  `tools/dnssd_probe.c`; the cross-device IP tiebreak is validated on the two devices.
 - **Fixed timestep in multiplayer to cut desync (build 150, v1.1.9)**: multiplayer was using a
   *variable* wall-clock timestep (`timediff = currentTime - lastTime`) while single-player used
   a *fixed* ~16.67 ms step. Because the simulation (enemy movement, bullets, the per-frame

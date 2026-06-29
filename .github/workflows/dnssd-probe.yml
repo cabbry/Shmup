@@ -1,0 +1,23 @@
+name: DNS-SD probe
+
+# Compiles and runs tools/dnssd_probe.c on a macOS runner to empirically test
+# SHMUP's Bonjour matchmaking mechanism (register/select/ProcessResult) without
+# an iOS device. Triggered manually or when the probe itself changes.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/dnssd_probe.c'
+      - '.github/workflows/dnssd-probe.yml'
+
+jobs:
+  probe:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build probe
+        run: clang -O0 -g tools/dnssd_probe.c -o "$RUNNER_TEMP/probe"
+      - name: Run probe
+        run: "$RUNNER_TEMP/probe"

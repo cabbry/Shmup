@@ -739,7 +739,10 @@ void dEngine_ResumeGame(void)
 	// the world frozen for a moment.
 	COM_ResetTouchesBuffer();
 
-	if (entitiesAttachedToCamera)
+	// Single-player only: the freeze + countdown holds the world still locally,
+	// which would DESYNC a lockstep multiplayer game (the peer keeps simulating).
+	// In multiplayer we never pause/freeze.
+	if (entitiesAttachedToCamera && engine.mode == DE_MODE_SINGLEPLAYER)
 		gCountdownMs = RESUME_COUNTDOWN_MS;
 }
 

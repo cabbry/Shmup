@@ -201,6 +201,12 @@ to the true screen edges, and the touch-coordinate mapping.
   the press state wasn't reset) — added `MENU_ClearButtonStates()`. Also fixed TestFlight
   ordering: bumping 1.0 → 0.2 made the old 1.0 builds rank as "newer" (1.0 > 0.2), so the 34
   legacy 1.0 builds were expired, leaving 0.2 as the sole / priority line.
+- **LAN multiplayer confirmed + no pause in MP (build 142, v1.1.1)**: two devices connect
+  over the LAN — start one first (~5 s apart) so the Bonjour name-conflict election cleanly
+  picks a server (Player One) and a client; starting both at once makes both register as
+  server. The background pause / 3-2-1 countdown is now **single-player only**: freezing one
+  device desynced the lockstep multiplayer game. (Versioning also moved onto the **1.1.x**
+  line, above the legacy 1.0 — see Build & ship.)
 
 ### 2026-06-25
 - **Full-screen fix (build 108)**: realigned the 2D overlay (player/enemy bullets,

@@ -207,6 +207,10 @@ to the true screen edges, and the touch-coordinate mapping.
   server. The background pause / 3-2-1 countdown is now **single-player only**: freezing one
   device desynced the lockstep multiplayer game. (Versioning also moved onto the **1.1.x**
   line, above the legacy 1.0 — see Build & ship.)
+- **Shared lives in multiplayer (build 143, v1.1.2)**: lives are now a **shared pool** across
+  both players (the count is mirrored onto both on every death), so they run out together
+  and the "both players out" game-over actually fires — previously the match never ended
+  while one player still had lives, so it "didn't really stop".
 
 ### 2026-06-25
 - **Full-screen fix (build 108)**: realigned the 2D overlay (player/enemy bullets,

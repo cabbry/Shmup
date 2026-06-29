@@ -1320,8 +1320,19 @@ void P_Die(uchar playerId)
 
 	players[playerId].respawnCounter--;
 
-	
-	
+	// Multiplayer: SHARED life pool. Mirror the count onto both players so they
+	// draw from the same lives, run out together (finish ~at the same time), and
+	// the "both players out" game-over (checked below) fires for both at once --
+	// otherwise the match never ends while one player still has lives. Deterministic
+	// across peers: lockstep replays the same deaths in the same order.
+	if (engine.mode == DE_MODE_MULTIPLAYER)
+	{
+		players[0].respawnCounter = players[playerId].respawnCounter;
+		players[1].respawnCounter = players[playerId].respawnCounter;
+	}
+
+
+
 	//NET_Update peer that we died
 	if (engine.mode == DE_MODE_MULTIPLAYER && playerId == controlledPlayer)
 	{

@@ -283,8 +283,12 @@ void NET_Free(void)
 	
 	//free(buffer);
 	
-	// unbind
-	close(net.udpSocket);
+	// unbind. Guard against udpSocket==0: close(0) would close STDIN, freeing fd 0
+	// so the next socket (e.g. the DNS-SD registration ref) gets fd 0 -- which the
+	// "<= 0" sockfd checks then wrongly treated as an error. (This is what broke LAN:
+	// register succeeded but DNSServiceRefSockFD returned 0 and was rejected.)
+	if (net.udpSocket > 0)
+		close(net.udpSocket);
 	net.udpSocket=0;
 	
 	//Also reset all messages
@@ -455,7 +459,7 @@ int NET_CheckServerAvailability(void)
 	}
 
 	socket = DNSServiceRefSockFD( registerRef );
-	if ( socket <= 0 ) {
+	if ( socket < 0 ) {		// fd 0 is VALID; only -1 means error (was "<= 0", which wrongly rejected fd 0)
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "DIAG bad sockfd=%d", socket);
 		return 0;
 	}
@@ -691,7 +695,7 @@ int NET_ResolveNetworkServer( )
 	// appears, DNSServiceProcessResult fires DNSServiceBrowseReplyCallback, which
 	// resolves it, and DNSServiceResolveReplyCallback fills net.peerAddr + serverAddResolved.
 	socket = DNSServiceRefSockFD( browseRef );
-	if ( socket <= 0 )
+	if ( socket < 0 )		// fd 0 is VALID; only -1 means error
 		return 1;
 
 	FD_ZERO( &set );

@@ -156,6 +156,18 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-06-29
+- **FIX the real LAN bug: fd 0 rejected (build 148, v1.1.7)**: on-device diagnostics (v1.1.6)
+  showed `regErr=0 ifIdx=19` (registration succeeded, en0 found) but `bad sockfd=0` —
+  `DNSServiceRefSockFD()` returned **file descriptor 0**, which the code rejected via a
+  `socket <= 0` check. fd 0 is perfectly valid (DNS-SD returns -1 on error, not 0). Root
+  cause: `NET_Free` called `close(net.udpSocket)` while `udpSocket` was still 0, **closing
+  stdin (fd 0)** and freeing it, so the DNS-SD registration socket then got fd 0 — which the
+  check rejected, bailing out of matchmaking. A long-latent bug, exposed when the added
+  Game-Center / online-MP init shifted the process's file-descriptor layout. Fix: don't
+  `close()` fd 0, and accept fd 0 as a valid socket in the register/browse checks. This is
+  what actually broke the LAN; the earlier en0/blocking/once changes were red herrings for
+  this symptom (though the leak fix is real and kept). DIAG lines left on for one build to
+  confirm on device.
 - **LAN hang diagnostics (build 147, v1.1.6)**: v1.1.5's en0 revert did NOT fix the hang on
   device, and the matchmaking code is now functionally identical to the last-working build —
   so the cause is no longer obvious by inspection. This build reverts to the original

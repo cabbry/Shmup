@@ -156,13 +156,17 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-06-29
-- **Fix LAN "Determining player role…" hang (build 145, v1.1.4)**: the v1.1.3 resilience
-  pass had over-reached — it changed the DNS-SD registration/browse reads from a *blocking*
-  `select` to a *non-blocking* per-frame poll, and on device that poll never caught the
-  asynchronous registration reply, so the LAN waiting screen got stuck on "Determining player
-  role…". Reverted to the proven blocking read while **keeping** the actual fixes (register/
-  browse exactly once = no per-frame `DNSServiceRef` leak, and advertise/resolve on all
-  interfaces, not just `en0`).
+- **Fix LAN "Determining player role…" hang (builds 145–146, v1.1.4 → v1.1.5)**: the v1.1.3
+  resilience pass broke LAN matchmaking — the waiting screen got stuck on "Determining player
+  role…". Two suspects, ruled out in order: (1) v1.1.4 restored the *blocking* DNS-SD read
+  (v1.1.3 had switched to a non-blocking per-frame poll) — **did not help**, proving that
+  wasn't the cause. (2) v1.1.5 found the real culprit: the registration interface had been
+  changed from `en0` to `0` (all interfaces); on iOS that **stops the registration callback
+  from firing**, so `net.type` was never set. Reverted registration and client-side resolve
+  back to `en0` and dropped the experimental both-server demotion. **Kept** the safe wins:
+  register/browse exactly once (no per-frame `DNSServiceRef` leak, the original "retry/long
+  wait fails" bug) and the interface-table bounds-check. Net effect: LAN is back to its
+  known-good behaviour plus the leak fix; the "advertise on all interfaces" idea is abandoned.
 - **🆕 Online multiplayer over Game Center (build 144, v1.1.3)** — new feature: a second
   multiplayer mode that plays **beyond the LAN**, over the internet. A new **"Online"** button
   (Others menu) opens Apple's matchmaker (invite a friend or auto-match), and GameKit's

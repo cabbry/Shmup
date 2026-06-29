@@ -414,13 +414,13 @@ int NET_CheckServerAvailability(void)
 	fd_set	set;
 	struct timeval tv;
 
-	// Register our service ONCE, on ALL interfaces (interface 0), so the other
-	// device finds us regardless of which link (en0 / awdl / llw ...) mDNS uses on a
-	// modern iPhone. kDNSServiceFlagsNoAutoRename makes a duplicate name report a
-	// conflict, which is how exactly one device is elected SERVER. Guarding on
-	// registerRef==0 is the real fix for the old per-frame DNSServiceRef leak (the
-	// previous code re-created registerRef every frame the reply hadn't landed yet,
-	// which eventually choked mDNSResponder and made a long wait or a retry fail).
+	// Register our service ONCE, on our LAN interface (en0). kDNSServiceFlagsNoAutoRename
+	// makes a duplicate name report a conflict, which is how exactly one device is
+	// elected SERVER. Guarding on registerRef==0 is the real fix for the old per-frame
+	// DNSServiceRef leak (the previous code re-created registerRef every frame the reply
+	// hadn't landed yet, eventually choking mDNSResponder so a long wait or retry failed).
+	// NOTE: registering on interface 0 (all interfaces) was tried for resilience but on
+	// iOS it prevents the registration callback from firing -> stuck "Determining role".
 	if ( registerRef == 0 )
 	{
 		net.type = NET_UNKNOWN;
@@ -429,7 +429,7 @@ int NET_CheckServerAvailability(void)
 		DNSServiceErrorType	err = DNSServiceRegister(
 													 &registerRef,
 													 kDNSServiceFlagsNoAutoRename,		// we want a conflict error
-													 0,									// 0 = all interfaces
+													 NET_InterfaceIndexForInterfaceName( INTERFACE_NAME ),	// our LAN interface (en0) -- 0/all-interfaces stops the callback firing on iOS
 													 "Dodge shmup server",
 													 serviceName,
 													 NULL,	// domain
@@ -606,12 +606,11 @@ void DNSServiceBrowseReplyCallback(
 			service->interfaceIndex = interfaceIndex;
 		}
 
-		// Resolve the server on whatever interface it was discovered on (not just
-		// en0) -- modern iOS may carry the LAN link on a different interface, and the
-		// old en0-only filter meant the client browsed the server but refused to
-		// resolve it, hanging on "Unable to find the server". Resolve only until we
-		// have an address so duplicate Adds across interfaces don't pile up.
-		if ( !net.serverAddResolved )
+		char	interfaceName[IF_NAMESIZE];
+		if_indextoname(interfaceIndex, interfaceName);
+
+		// Resolve only peers seen on our LAN interface (en0), as the original did.
+		if ( !strcmp(INTERFACE_NAME, interfaceName) )
 		{
 			DNSServiceRef	resolveRef2;
 			DNSServiceErrorType err = DNSServiceResolve (
@@ -996,42 +995,6 @@ void NET_Setup(void)
 	}
 	
 	
-	// Recovery from a "both became SERVER" race (the classic "we are both Player
-	// One"): if two devices register the same service name almost simultaneously,
-	// mDNS runs its own deterministic conflict resolution and reports a NameConflict
-	// to exactly one of them -- but only if we keep draining the registration socket.
-	// While we are SERVER and still waiting for a client, keep polling registerRef; a
-	// late conflict flips net.type to NET_CLIENT (see DNSServiceRegisterReplyCallback)
-	// and we then stop advertising the contested name and join the winning server.
-	if (net.type == NET_SERVER && net.state == NET_STARTED && registerRef != 0)
-	{
-		int rsocket = DNSServiceRefSockFD( registerRef );
-		if ( rsocket > 0 )
-		{
-			fd_set rset;
-			struct timeval rtv;
-			FD_ZERO( &rset );
-			FD_SET( rsocket, &rset );
-			rtv.tv_sec = 0;
-			rtv.tv_usec = 0;
-			if ( select( rsocket+1, &rset, NULL, NULL, &rtv ) > 0 )
-				DNSServiceProcessResult( registerRef );
-		}
-
-		if (net.type == NET_CLIENT)
-		{
-			// We lost the election: stop advertising the contested name so the
-			// winner stops seeing a conflict, then fall through to resolve + join it.
-			Log_Printf("Lost SERVER election (late mDNS conflict) -> becoming CLIENT.\n");
-			DNSServiceRefDeallocate( registerRef );
-			registerRef = 0;
-			net.serverAddResolved = 0;
-			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Contacting server...");
-			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
-			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), " ");
-		}
-	}
-
 	if (net.type == NET_CLIENT && !net.serverAddResolved)
 	{
 		if (!NET_ResolveNetworkServer())

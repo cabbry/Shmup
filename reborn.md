@@ -156,6 +156,11 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-06-29
+- **LAN confirmed working + 6 shared lives + cleanup (build 149, v1.1.8)**: with the fd-0 fix,
+  two devices now connect over the LAN on device (start one first, then the other) and play.
+  Bumped the multiplayer **shared life pool to 6** (2 players × 3) — it was initialised to 3,
+  so the team only had 3 lives total instead of the expected 6. Removed the temporary
+  on-screen DIAG lines now that the cause is found.
 - **FIX the real LAN bug: fd 0 rejected (build 148, v1.1.7)**: on-device diagnostics (v1.1.6)
   showed `regErr=0 ifIdx=19` (registration succeeded, en0 found) but `bad sockfd=0` —
   `DNSServiceRefSockFD()` returned **file descriptor 0**, which the code rejected via a

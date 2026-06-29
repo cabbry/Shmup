@@ -419,7 +419,6 @@ int NET_CheckServerAvailability(void)
 	struct timeval tv;
 
 	int	ifIdx;
-	int	selResult;
 
 	net.type = NET_UNKNOWN;
 
@@ -447,10 +446,6 @@ int NET_CheckServerAvailability(void)
 												 NULL		// context
 												 );
 
-	// DIAGNOSTIC (shown on the waiting screen): registration error + the interface
-	// index we registered on. ifIdx==0 would mean en0 wasn't found -> all-interfaces.
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "DIAG regErr=%d ifIdx=%d", (int)err, ifIdx);
-
 	if ( err != kDNSServiceErr_NoError )
 	{
 		Log_Printf( "DNSServiceRegister error\n" );
@@ -458,25 +453,19 @@ int NET_CheckServerAvailability(void)
 		return 0;
 	}
 
+	// fd 0 is a VALID descriptor; only -1 means error (the old "<= 0" wrongly rejected fd 0,
+	// which is what broke LAN once close(0) had freed fd 0 for the DNS-SD socket).
 	socket = DNSServiceRefSockFD( registerRef );
-	if ( socket < 0 ) {		// fd 0 is VALID; only -1 means error (was "<= 0", which wrongly rejected fd 0)
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "DIAG bad sockfd=%d", socket);
+	if ( socket < 0 )
 		return 0;
-	}
 
 	FD_ZERO( &set );
 	FD_SET( socket, &set );
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 
-	errno = 0;
-	selResult = select( socket+1, &set, NULL, NULL, &tv );
-	if ( selResult > 0 )
+	if ( select( socket+1, &set, NULL, NULL, &tv ) > 0 )
 		DNSServiceProcessResult( registerRef );		// fires DNSServiceRegisterReplyCallback
-
-	// DIAGNOSTIC: select result (1=reply arrived, 0=timeout, -1=error) + resulting role.
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT),     "DIAG sel=%d errno=%d", selResult, errno);
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTRECEIVED), "DIAG netType=%d sock=%d", net.type, socket);
 
 	if (net.type == NET_SERVER)
 	{

@@ -452,8 +452,10 @@ void Action_ConfigureMultiplayer(void* tag)
 	NET_Init();
 	PL_ResetPlayersScore();
 
+	// Shared life pool in multiplayer: 2 players' worth (3+3=6), since both players
+	// draw from the same pool (mirrored on each death in P_Die).
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
-		players[i].respawnCounter = numPlayerRespawn[DIFFICULTY_NORMAL];
+		players[i].respawnCounter = 2 * numPlayerRespawn[DIFFICULTY_NORMAL];
 
 	engine.difficultyLevel = DIFFICULTY_NORMAL;
 }
@@ -471,8 +473,9 @@ void Action_ConfigureOnlineMultiplayer(void* tag)
 	net.transport = NET_TRANSPORT_GAMECENTER;	// ...then switch this session to online
 	PL_ResetPlayersScore();
 
+	// Shared life pool in multiplayer: 2 players' worth (3+3=6), mirrored on death.
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
-		players[i].respawnCounter = numPlayerRespawn[DIFFICULTY_NORMAL];
+		players[i].respawnCounter = 2 * numPlayerRespawn[DIFFICULTY_NORMAL];
 
 	engine.difficultyLevel = DIFFICULTY_NORMAL;
 

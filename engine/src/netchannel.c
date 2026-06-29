@@ -414,60 +414,65 @@ int NET_CheckServerAvailability(void)
 	fd_set	set;
 	struct timeval tv;
 
-	// Register our service ONCE, on our LAN interface (en0). kDNSServiceFlagsNoAutoRename
-	// makes a duplicate name report a conflict, which is how exactly one device is
-	// elected SERVER. Guarding on registerRef==0 is the real fix for the old per-frame
-	// DNSServiceRef leak (the previous code re-created registerRef every frame the reply
-	// hadn't landed yet, eventually choking mDNSResponder so a long wait or retry failed).
-	// NOTE: registering on interface 0 (all interfaces) was tried for resilience but on
-	// iOS it prevents the registration callback from firing -> stuck "Determining role".
-	if ( registerRef == 0 )
+	int	ifIdx;
+	int	selResult;
+
+	net.type = NET_UNKNOWN;
+
+	// Re-issue the registration each call (as the original working build did), but
+	// deallocate the previous ref first so we don't leak one per frame. (Registering
+	// only ONCE was tried and left the LAN stuck on "Determining player role" -- the
+	// reply callback never fired -- so we go back to the proven re-register pattern.)
+	if ( registerRef ) { DNSServiceRefDeallocate( registerRef ); registerRef = 0; }
+
+	ifIdx = NET_InterfaceIndexForInterfaceName( INTERFACE_NAME );
+
+	Log_Printf("NET_CheckServerAvailability: DNSServiceRegister (ifIdx=%d)\n", ifIdx);
+	DNSServiceErrorType	err = DNSServiceRegister(
+												 &registerRef,
+												 kDNSServiceFlagsNoAutoRename,		// we want a conflict error
+												 ifIdx,								// our LAN interface (en0)
+												 "Dodge shmup server",
+												 serviceName,
+												 NULL,	// domain
+												 NULL,	// host
+												 htons( PORT_NUMBER ),
+												 0,		// txtLen
+												 NULL,	// txtRecord
+												 DNSServiceRegisterReplyCallback,
+												 NULL		// context
+												 );
+
+	// DIAGNOSTIC (shown on the waiting screen): registration error + the interface
+	// index we registered on. ifIdx==0 would mean en0 wasn't found -> all-interfaces.
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "DIAG regErr=%d ifIdx=%d", (int)err, ifIdx);
+
+	if ( err != kDNSServiceErr_NoError )
 	{
+		Log_Printf( "DNSServiceRegister error\n" );
 		net.type = NET_UNKNOWN;
-
-		Log_Printf("NET_CheckServerAvailability: DNSServiceRegister (all interfaces)\n");
-		DNSServiceErrorType	err = DNSServiceRegister(
-													 &registerRef,
-													 kDNSServiceFlagsNoAutoRename,		// we want a conflict error
-													 NET_InterfaceIndexForInterfaceName( INTERFACE_NAME ),	// our LAN interface (en0) -- 0/all-interfaces stops the callback firing on iOS
-													 "Dodge shmup server",
-													 serviceName,
-													 NULL,	// domain
-													 NULL,	// host
-													 htons( PORT_NUMBER ),
-													 0,		// txtLen
-													 NULL,	// txtRecord
-													 DNSServiceRegisterReplyCallback,
-													 NULL		// context
-													 );
-
-		if ( err != kDNSServiceErr_NoError )
-		{
-			Log_Printf( "DNSServiceRegister error\n" );
-			registerRef = 0;
-			net.type = NET_UNKNOWN;
-			return 0;
-		}
-
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Determining player role...");
+		return 0;
 	}
 
-	// Read the registration reply. This BLOCKS up to 5s (the proven mechanism): the
-	// reply is delivered asynchronously to the DNS-SD socket and DNSServiceProcessResult
-	// fires DNSServiceRegisterReplyCallback, which sets net.type. Because we register
-	// only once (above), this no longer leaks a ref. Normally the reply lands in well
-	// under a second, so this returns quickly with the role decided.
 	socket = DNSServiceRefSockFD( registerRef );
-	if ( socket <= 0 )
-		return 1;
+	if ( socket <= 0 ) {
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "DIAG bad sockfd=%d", socket);
+		return 0;
+	}
 
 	FD_ZERO( &set );
 	FD_SET( socket, &set );
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 
-	if ( select( socket+1, &set, NULL, NULL, &tv ) > 0 )
+	errno = 0;
+	selResult = select( socket+1, &set, NULL, NULL, &tv );
+	if ( selResult > 0 )
 		DNSServiceProcessResult( registerRef );		// fires DNSServiceRegisterReplyCallback
+
+	// DIAGNOSTIC: select result (1=reply arrived, 0=timeout, -1=error) + resulting role.
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT),     "DIAG sel=%d errno=%d", selResult, errno);
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTRECEIVED), "DIAG netType=%d sock=%d", net.type, socket);
 
 	if (net.type == NET_SERVER)
 	{
@@ -475,9 +480,10 @@ int NET_CheckServerAvailability(void)
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "You are Player ONE.");
 	}
-
-	if (net.type == NET_CLIENT)
+	else if (net.type == NET_CLIENT)
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Contacting server...");
+	else
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Determining player role...");
 
 	return 1;
 }
@@ -659,34 +665,31 @@ int NET_ResolveNetworkServer( )
 	int	socket;
 	struct timeval tv;
 
-	// Browse ONCE, on ALL interfaces (interface 0), reusing the same browseRef across
-	// calls. Guarding on browseRef==0 fixes the old per-frame DNSServiceRef leak (the
-	// previous code re-issued DNSServiceBrowse every frame the server wasn't resolved,
-	// leaking a ref each time until mDNSResponder gave up -- which is why a slow first
-	// connect or a retry after backing out would silently stop working).
-	if ( browseRef == 0 )
-	{
-		Log_Printf("NET_ResolveNetworkServer: DNSServiceBrowse (all interfaces)\n");
-		DNSServiceErrorType err = DNSServiceBrowse (
-													&browseRef,
-													0,					/* flags */
-													0,					/* all interfaces */
-													serviceName,
-													NULL,				/* domain */
-													DNSServiceBrowseReplyCallback,
-													NULL				/* context */
-													);
-		if ( err != kDNSServiceErr_NoError ) {
-			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceBrowse error");
-			browseRef = 0;
-			return 0;
-		}
+	// Re-issue the browse each call (as the original working build did), deallocating
+	// the previous ref first so we don't leak one per frame. (Browse-once was tried
+	// alongside register-once and is reverted for the same reason.) Interface 0 (all)
+	// is correct for browsing -- only registration needed the specific en0 index.
+	if ( browseRef ) { DNSServiceRefDeallocate( browseRef ); browseRef = 0; }
+
+	Log_Printf("NET_ResolveNetworkServer: DNSServiceBrowse\n");
+	DNSServiceErrorType err = DNSServiceBrowse (
+												&browseRef,
+												0,					/* flags */
+												0,					/* all interfaces */
+												serviceName,
+												NULL,				/* domain */
+												DNSServiceBrowseReplyCallback,
+												NULL				/* context */
+												);
+	if ( err != kDNSServiceErr_NoError ) {
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceBrowse error");
+		browseRef = 0;
+		return 0;
 	}
 
-	// Read the browse reply. This BLOCKS up to 5s (the proven mechanism): when a
-	// server appears, DNSServiceProcessResult fires DNSServiceBrowseReplyCallback,
-	// which resolves it, and DNSServiceResolveReplyCallback fills net.peerAddr +
-	// serverAddResolved. Browsing only once (above) means this no longer leaks.
+	// Read the browse reply (BLOCKS up to 5s, the proven mechanism): when a server
+	// appears, DNSServiceProcessResult fires DNSServiceBrowseReplyCallback, which
+	// resolves it, and DNSServiceResolveReplyCallback fills net.peerAddr + serverAddResolved.
 	socket = DNSServiceRefSockFD( browseRef );
 	if ( socket <= 0 )
 		return 1;

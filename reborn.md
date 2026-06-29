@@ -156,6 +156,13 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-06-29
+- **LAN hang diagnostics (build 147, v1.1.6)**: v1.1.5's en0 revert did NOT fix the hang on
+  device, and the matchmaking code is now functionally identical to the last-working build —
+  so the cause is no longer obvious by inspection. This build reverts to the original
+  *re-issue-the-registration-each-call* pattern (deallocating the previous ref first, so no
+  leak) and prints on-screen diagnostics on the LAN waiting screen (registration error code,
+  the interface index actually used, the `select` result, and the resulting role) to pinpoint
+  exactly where the handshake stalls.
 - **Fix LAN "Determining player role…" hang (builds 145–146, v1.1.4 → v1.1.5)**: the v1.1.3
   resilience pass broke LAN matchmaking — the waiting screen got stuck on "Determining player
   role…". Two suspects, ruled out in order: (1) v1.1.4 restored the *blocking* DNS-SD read

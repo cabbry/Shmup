@@ -116,16 +116,15 @@ void Timer_tick(void)
 	timediff = 16;
 	simulationTime += timediff;
 	*/
-	if (engine.mode == DE_MODE_SINGLEPLAYER)
-	{
-		extraPrecision += 0.6666667f;
-		timediff =16+(int)extraPrecision;
-		extraPrecision -= timediff-16;
-	}
-	else 
-	{
-		timediff = currentTime - lastTime;
-	}
+	// Fixed timestep (~16.67ms = 60fps) in BOTH single- and multiplayer. A fixed step
+	// keeps the simulation deterministic; in multiplayer this is essential -- the old
+	// variable wall-clock step (timediff = currentTime - lastTime) made the two devices
+	// integrate enemies, bullets and score by a different dt every frame, so their
+	// worlds drifted apart (desync). extraPrecision carries the 0.667ms/frame remainder
+	// so the long-run rate stays a true 60fps.
+	extraPrecision += 0.6666667f;
+	timediff = 16 + (int)extraPrecision;
+	extraPrecision -= timediff - 16;
 
 	//timediff = currentTime - lastTime;
 		

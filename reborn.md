@@ -156,6 +156,15 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-06-29
+- **Fixed timestep in multiplayer to cut desync (build 150, v1.1.9)**: multiplayer was using a
+  *variable* wall-clock timestep (`timediff = currentTime - lastTime`) while single-player used
+  a *fixed* ~16.67 ms step. Because the simulation (enemy movement, bullets, the per-frame
+  survival score) integrates by `timediff`, a different dt on each device every frame made the
+  two worlds drift apart — the desync seen in 2-player games. Both modes now use the fixed
+  step, so the deterministic parts of the sim stay aligned. (This is "lightweight sync", not
+  rollback/lockstep, so it greatly reduces desync rather than guaranteeing none; further steps
+  — resending recent inputs, more frequent position resync, server-authoritative enemy state —
+  remain available if needed.)
 - **LAN confirmed working + 6 shared lives + cleanup (build 149, v1.1.8)**: with the fd-0 fix,
   two devices now connect over the LAN on device (start one first, then the other) and play.
   Bumped the multiplayer **shared life pool to 6** (2 players × 3) — it was initialised to 3,

@@ -42,6 +42,11 @@
 dEngineAppDelegate* this=nil;
 UIViewController* vc=nil;
 
+// Online multiplayer (GKMatch). gMatch is the live match; gMatchStarted guards
+// the one-shot role election / handoff to the engine.
+static GKMatch* gMatch = nil;
+static BOOL     gMatchStarted = NO;
+
 
 
 @implementation dEngineAppDelegate
@@ -156,6 +161,66 @@ UIViewController* vc=nil;
 	MENU_ClearButtonStates();
 }
 
+#pragma mark - Online multiplayer (GKMatch)
+
+// The matchmaker found a match: keep it, become its delegate, and try to start
+// (it may already be fully connected).
+- (void)matchmakerViewController:(GKMatchmakerViewController *)viewController didFindMatch:(GKMatch *)match {
+	[viewController dismissViewControllerAnimated:YES completion:nil];
+	if (gMatch != match) {
+		[gMatch release];
+		gMatch = [match retain];
+	}
+	gMatch.delegate = this;
+	[self tryStartMatch];
+}
+
+// The player backed out of matchmaking.
+- (void)matchmakerViewControllerWasCancelled:(GKMatchmakerViewController *)viewController {
+	[viewController dismissViewControllerAnimated:YES completion:nil];
+	NET_AbortOnlineMatch();
+}
+
+- (void)matchmakerViewController:(GKMatchmakerViewController *)viewController didFailWithError:(NSError *)error {
+	NSLog(@"[GKMatch] matchmaking failed: %@", error);
+	[viewController dismissViewControllerAnimated:YES completion:nil];
+	NET_AbortOnlineMatch();
+}
+
+// A peer connected or dropped.
+- (void)match:(GKMatch *)match player:(GKPlayer *)player didChangeConnectionState:(GKPlayerConnectionState)state {
+	if (match != gMatch) return;
+	if (state == GKPlayerStateDisconnected) {
+		gMatchStarted = NO;
+		NET_AbortOnlineMatch();	// -> NET_Free -> Native_CancelOnlineMatchmaking tears down gMatch
+		return;
+	}
+	[self tryStartMatch];
+}
+
+// A packet arrived from the peer: hand the raw bytes straight to the engine.
+- (void)match:(GKMatch *)match didReceiveData:(NSData *)data fromRemotePlayer:(GKPlayer *)player {
+	if (match != gMatch) return;
+	NET_OnNetworkData(data.bytes, (int)data.length);
+}
+
+// Elect a deterministic role and start exactly once, after every expected player
+// is connected. Both ends run the same comparison (lowest gamePlayerID wins the
+// SERVER seat), so they agree on who is Player One without any negotiation.
+- (void)tryStartMatch {
+	if (gMatchStarted || gMatch == nil) return;
+	if (gMatch.expectedPlayerCount != 0) return;	// still waiting for the peer
+
+	NSString* myId = [GKLocalPlayer local].gamePlayerID;
+	NSString* peerId = nil;
+	for (GKPlayer* p in gMatch.players) { peerId = p.gamePlayerID; break; }	// 2-player: a single peer
+
+	BOOL isServer = (peerId == nil) || ([myId compare:peerId] == NSOrderedAscending);
+
+	gMatchStarted = YES;
+	NET_StartOnlineMatch(isServer ? 1 : 0);
+}
+
 @end
 
 
@@ -212,3 +277,56 @@ void Action_ShowGameCenter(void* tag) {
 	[gcvc release];
 }
 void Native_UploadFileTo(char path[256]) {}
+
+#pragma mark - Online multiplayer bridge (engine -> GameKit)
+
+// Present Apple's matchmaker UI (invite a friend, or auto-match an opponent).
+void Native_StartOnlineMatchmaking(void) {
+	if (!this || !vc) return;
+	if (![GKLocalPlayer local].isAuthenticated) {
+		// Not signed into Game Center: cannot matchmake -- bounce back to the menu.
+		NET_AbortOnlineMatch();
+		return;
+	}
+
+	Native_CancelOnlineMatchmaking();	// drop any stale match first
+
+	GKMatchRequest* req = [[GKMatchRequest alloc] init];
+	req.minPlayers = 2;
+	req.maxPlayers = 2;
+
+	GKMatchmakerViewController* mmvc = [[GKMatchmakerViewController alloc] initWithMatchRequest:req];
+	if (mmvc == nil) {
+		// Matchmaking unavailable (e.g. Game Center restricted): back out cleanly.
+		[req release];
+		NET_AbortOnlineMatch();
+		return;
+	}
+	mmvc.matchmakerDelegate = this;
+	[vc presentViewController:mmvc animated:YES completion:nil];
+
+	[mmvc release];
+	[req release];
+}
+
+// Tear down the live match (also called from NET_Free when an online session ends).
+void Native_CancelOnlineMatchmaking(void) {
+	GKMatch* m = gMatch;
+	gMatch = nil;				// nil first so re-entrant delegate callbacks bail out
+	gMatchStarted = NO;
+	m.delegate = nil;
+	[m disconnect];
+	[m release];
+}
+
+// Send a packet to the peer. Setup/death packets go reliable; per-frame runtime
+// deltas go unreliable (the caller decides via the reliable flag).
+void Native_GKSendData(const void* data, int len, int reliable) {
+	if (gMatch == nil || data == NULL || len <= 0) return;
+	NSData* d = [NSData dataWithBytes:data length:(NSUInteger)len];
+	NSError* err = nil;
+	[gMatch sendDataToAllPlayers:d
+	               withDataMode:(reliable ? GKMatchSendDataReliable : GKMatchSendDataUnreliable)
+	                      error:&err];
+	if (err) NSLog(@"[GKMatch] send error: %@", err);
+}

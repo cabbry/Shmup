@@ -126,7 +126,10 @@ to the true screen edges, and the touch-coordinate mapping.
 - 🆕 **Final score on the GAME OVER screen** (the original only showed it on the win
   / act-completed screen).
 - 🆕 **Game Center sign-in + online "High Scores" leaderboard** — the final score is
-  submitted online; also the foundation for online (GameKit) multiplayer.
+  submitted online.
+- 🆕 **Online multiplayer over Game Center (GKMatch)** — play a 2-player match over the
+  internet (not just the LAN); Apple handles matchmaking and NAT traversal. *(Awaiting
+  2-device validation.)*
 
 ## Known issues
 
@@ -151,6 +154,42 @@ to the true screen edges, and the touch-coordinate mapping.
 ---
 
 ## Changelog
+
+### 2026-06-29
+- **🆕 Online multiplayer over Game Center (build 144, v1.1.3)** — new feature: a second
+  multiplayer mode that plays **beyond the LAN**, over the internet. A new **"Online"** button
+  (Others menu) opens Apple's matchmaker (invite a friend or auto-match), and GameKit's
+  **GKMatch** handles matchmaking + NAT traversal — no server to host. The key design point:
+  the existing lockstep protocol is **transport-agnostic** (every message is a fixed
+  `net_packet_t`), so online reuses the *exact same* handshake and command-sync that the LAN
+  mode uses — only the transport is swapped (UDP/Bonjour ⇄ GKMatch) behind a small abstraction
+  in `netchannel.c`. The LAN path is untouched. Roles are elected deterministically (lowest
+  Game Center player id is Player One), so both ends agree without negotiation. Both players
+  must be signed into Game Center. *Caveat:* lockstep over the internet is latency-sensitive,
+  so expect it to feel less smooth than LAN (the per-second absolute-position update keeps the
+  two ships in sync); smoothing/rollback is a later tuning pass.
+- **More resilient LAN multiplayer connection (build 144, v1.1.3)**: the Bonjour/DNS-SD
+  matchmaking was fragile — it failed about one time in two, needed a precise ~5 s gap
+  between the two devices, and once it had failed a retry (or a long wait) would silently
+  stop working. Three root causes, all fixed in `netchannel.c`:
+  - **Per-frame `DNSServiceRef` leak.** `NET_Setup` runs every frame, and the old
+    register/browse code blocked on a single 5-second `select` then, if the reply hadn't
+    arrived, re-created the `DNSServiceRef` *the next frame* without freeing the old one —
+    leaking a ref every frame until mDNSResponder gave up. This is why "if it takes too
+    long" or "cut and retry" stopped working. Registration and browsing are now **issued
+    once and polled non-blocking across frames** (no leak, and the menu no longer freezes
+    for 5 s).
+  - **`en0` hard-coding.** Both the service registration and the client-side resolve were
+    locked to `en0`; on a modern iPhone the LAN link can ride a different interface
+    (`awdl`/`llw`/…), so the client would *see* the server but refuse to resolve it. Now
+    we advertise on **all interfaces** and resolve the server on **whatever interface it
+    was discovered on** (with a bounds-check that also closes a latent buffer overflow in
+    the interface table).
+  - **No recovery from a "both became Player One" race.** If both devices registered the
+    same service name at almost the same instant, both became server forever. Now the
+    server keeps draining its registration socket while it waits, so mDNS's own
+    deterministic conflict resolution reports a late `NameConflict` to exactly one device,
+    which then **demotes itself to client** and joins the winner — no more manual timing.
 
 ### 2026-06-26
 - **Truly freeze the world during the countdown (build 120)**: the 3-2-1-SHMUP

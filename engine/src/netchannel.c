@@ -24,6 +24,7 @@
  */
 
 #include "netchannel.h"
+#include "native_services.h"	// Native_GKSendData / Native_StartOnlineMatchmaking (online MP)
 
 // The network version was designed on iOS with Unix socket. This part still needs to be ported using winsock32.
 #if defined(WIN32) || defined(ANDROID) || defined(LINUX)
@@ -38,6 +39,10 @@
 	void NET_OnNextLevelLoad(void){}
 	char NET_IsRunning(void){return 0;}
 	uint NET_GetDropedPackets(void){return 0;}
+	void NET_StartOnlineMatch(int isServer){}
+	void NET_AbortOnlineMatch(void){}
+	void NET_OnNetworkData(const void* data, int len){}
+	char NET_IsOnline(void){return 0;}
 
 	net_channel_t net;
 #else
@@ -110,8 +115,124 @@ typedef struct net_packet_t
 #define NET_CMD_START_LEVEL 2
 	
 	command_t command;
-	
+
 } net_packet_t;
+
+
+// ------------------------------------------------------------------------------
+//  Transport abstraction: LAN (UDP+Bonjour) vs online (GameKit GKMatch)
+// ------------------------------------------------------------------------------
+// The whole lockstep protocol below is transport-agnostic: every message is a
+// fixed-size net_packet_t. On the LAN it travels over a UDP socket
+// (sendto/recvfrom); online it travels through GKMatch (Native_GKSendData out,
+// NET_OnNetworkData in) with Apple handling matchmaking + NAT traversal. GKMatch
+// is push-based, so inbound packets are queued here and drained by the very same
+// read loops the UDP code already uses. LAN behaviour is unchanged.
+
+#define NET_RXQUEUE_SIZE 64
+typedef struct net_rx_entry_t { uchar data[BUFFER_SIZE]; int len; } net_rx_entry_t;
+static net_rx_entry_t	netRxQueue[NET_RXQUEUE_SIZE];
+static volatile int		netRxHead = 0;	// next slot to write (producer: GKMatch delegate)
+static volatile int		netRxTail = 0;	// next slot to read  (consumer: game loop)
+
+char NET_IsOnline(void) { return net.transport == NET_TRANSPORT_GAMECENTER; }
+
+// Called by the GameKit layer when a packet arrives from the peer. GKMatch
+// delivers on the main thread, same thread as the game loop that drains the
+// queue, so no locking is needed (the volatile indices are belt-and-suspenders).
+void NET_OnNetworkData(const void* data, int len)
+{
+	int next;
+	if (len <= 0 || len > BUFFER_SIZE)
+		return;
+	next = (netRxHead + 1) % NET_RXQUEUE_SIZE;
+	if (next == netRxTail)
+		return;	// queue full: drop. Lockstep tolerates loss; the periodic ABS update re-syncs.
+	memcpy(netRxQueue[netRxHead].data, data, len);
+	netRxQueue[netRxHead].len = len;
+	netRxHead = next;
+}
+
+// Drain one queued packet. Mirrors recvfrom's contract so the existing read
+// loops are untouched: returns the byte count, or -1 with errno=EAGAIN when the
+// queue is empty.
+static int NET_RxDequeue(void* out, int maxlen)
+{
+	int len;
+	if (netRxTail == netRxHead) { errno = EAGAIN; return -1; }
+	len = netRxQueue[netRxTail].len;
+	if (len > maxlen) len = maxlen;
+	memcpy(out, netRxQueue[netRxTail].data, len);
+	netRxTail = (netRxTail + 1) % NET_RXQUEUE_SIZE;
+	return len;
+}
+
+// Unified send. Online: setup/death packets go reliable, per-frame runtime
+// deltas go unreliable (lower latency; the periodic ABS update repairs drift).
+static void NET_TransportSend(const void* data, int len)
+{
+	if (net.transport == NET_TRANSPORT_GAMECENTER)
+	{
+		const net_packet_t* p = (const net_packet_t*)data;
+		int reliable = (p->type != RUNTIME_PACKET);
+		Native_GKSendData(data, len, reliable);
+	}
+	else
+	{
+		sendto(net.udpSocket, data, len, 0, (struct sockaddr*)&net.peerAddr, sizeof(net.peerAddr));
+	}
+}
+
+// Unified non-blocking receive. Returns bytes read, or -1/EAGAIN when nothing is
+// available. fromAddr (LAN only) captures the sender so the server can learn the
+// client's address; it is left untouched online (GKMatch has the single peer).
+static int NET_TransportRecv(void* out, int maxlen, struct sockaddr_in* fromAddr)
+{
+	if (net.transport == NET_TRANSPORT_GAMECENTER)
+		return NET_RxDequeue(out, maxlen);
+
+	if (fromAddr)
+	{
+		socklen_t len = sizeof(*fromAddr);
+		return recvfrom(net.udpSocket, out, maxlen, 0, (struct sockaddr*)fromAddr, &len);
+	}
+	return recvfrom(net.udpSocket, out, maxlen, 0, NULL, NULL);
+}
+
+// Begin an online match once GKMatch has connected both peers and a role has been
+// elected (deterministically, in the GameKit layer). This bypasses the entire
+// Bonjour election: the peer is the GKMatch, so the same handshake state machine
+// (LOAD_NEXT_LEVEL -> NOTIFY_LOADED -> START_LEVEL) runs straight away.
+void NET_StartOnlineMatch(int isServer)
+{
+	netRxHead = netRxTail = 0;					// fresh receive queue for this match
+	net.transport = NET_TRANSPORT_GAMECENTER;
+	net.type      = isServer ? NET_SERVER : NET_CLIENT;
+	net.state     = NET_STARTED;
+	net.serverAddResolved = 1;					// no resolve online; the peer is the match
+	net.setupRequested    = 1;
+	net.lastReceivedSequenceNumber = 0;
+	net.lastSentSequenceNumber     = 1;
+
+	if (isServer)
+	{
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Online - you are Player ONE");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Starting match...");
+	}
+	else
+	{
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Online - you are Player TWO");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Starting match...");
+	}
+}
+
+void NET_AbortOnlineMatch(void)
+{
+	NET_Free();				// resets transport back to LAN, clears state
+	MENU_Set(MENU_OTHERS);
+}
 
 
 // PREDICTION
@@ -138,7 +259,11 @@ fakeCmdHistory_t fakeCmdHistory;
 void NET_Free(void)
 {
 	Log_Printf("NET_FREE\n");
-	
+
+	// If this was an online session, disconnect the GKMatch (no-op if there isn't one).
+	if (net.transport == NET_TRANSPORT_GAMECENTER)
+		Native_CancelOnlineMatchmaking();
+
 	// unregister
 	DNSServiceRefDeallocate(browseRef); browseRef=0;
 	DNSServiceRefDeallocate(registerRef);registerRef=0;
@@ -148,7 +273,9 @@ void NET_Free(void)
 	net.serverAddResolved = 0;
 	net.setupRequested = 0;
 	net.state = NET_UNDETERMINED;
-	
+	net.transport = NET_TRANSPORT_LAN;	// default transport; the online entry sets GameKit
+	netRxHead = netRxTail = 0;			// flush any queued online packets
+
 	net.lastReceivedSequenceNumber = 0;
 	net.lastSentSequenceNumber = 1;
 	
@@ -285,88 +412,73 @@ int NET_CheckServerAvailability(void)
 {
 	int	socket;
 	fd_set	set;
-	
-	net.type = NET_UNKNOWN;
-	
-	Log_Printf("NET_CheckServerAvailability\n");
-	Log_Printf("DNSServiceRegister\n");
-	DNSServiceErrorType	err = DNSServiceRegister( 
-												 &registerRef, 
-												 kDNSServiceFlagsNoAutoRename,		// we want a conflict error
-												 NET_InterfaceIndexForInterfaceName( INTERFACE_NAME ),		// pass 0 for all interfaces
-												 "Dodge shmup server",
-												 serviceName,
-												 NULL,	// domain
-												 NULL,	// host
-												 htons( PORT_NUMBER ),
-												 0,		// txtLen
-												 NULL,	// txtRecord
-												 DNSServiceRegisterReplyCallback,
-												 NULL		// context
-												 );
-	
-	
-	
-	if ( err != kDNSServiceErr_NoError ) 
+	struct timeval tv;
+
+	// First call: start advertising our service on ALL interfaces (interface 0) so
+	// the other device can find us regardless of which link (en0 / awdl / llw ...)
+	// mDNS happens to use on a modern iPhone. kDNSServiceFlagsNoAutoRename makes a
+	// duplicate name report a conflict, which is how exactly one device is elected
+	// SERVER. We deliberately do NOT block on a 5-second select here: the reply
+	// arrives asynchronously and we poll for it across frames (NET_Setup runs every
+	// frame), so the menu stays responsive AND we never re-register / leak a
+	// DNSServiceRef per frame (the old code re-created registerRef every frame the
+	// reply hadn't landed yet, which eventually choked mDNSResponder and made a long
+	// wait or a retry silently fail).
+	if ( registerRef == 0 )
 	{
-		Log_Printf( "DNSServiceRegister error\n" );
 		net.type = NET_UNKNOWN;
-		return 0;
-	} 
-	
-	
-	
-	
-	
-	
-	// poll the socket for updates
-	socket = DNSServiceRefSockFD( registerRef );
-	if ( socket <= 0 ) {
-		return 0;
+
+		Log_Printf("NET_CheckServerAvailability: DNSServiceRegister (all interfaces)\n");
+		DNSServiceErrorType	err = DNSServiceRegister(
+													 &registerRef,
+													 kDNSServiceFlagsNoAutoRename,		// we want a conflict error
+													 0,									// 0 = all interfaces
+													 "Dodge shmup server",
+													 serviceName,
+													 NULL,	// domain
+													 NULL,	// host
+													 htons( PORT_NUMBER ),
+													 0,		// txtLen
+													 NULL,	// txtRecord
+													 DNSServiceRegisterReplyCallback,
+													 NULL		// context
+													 );
+
+		if ( err != kDNSServiceErr_NoError )
+		{
+			Log_Printf( "DNSServiceRegister error\n" );
+			registerRef = 0;
+			net.type = NET_UNKNOWN;
+			return 0;
+		}
+
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Determining player role...");
+		return 1;
 	}
-	
+
+	// Subsequent calls: non-blocking poll for the registration reply.
+	socket = DNSServiceRefSockFD( registerRef );
+	if ( socket <= 0 )
+		return 1;
+
 	FD_ZERO( &set );
 	FD_SET( socket, &set );
-	
-	struct timeval tv;
-	//memset( &tv, 0, sizeof( tv ) );
-	tv.tv_sec = 5;
-	tv.tv_usec = 0;
-	
-	if ( select( socket+1, &set, NULL, NULL, &tv ) > 0 ) {
-		Log_Printf("Received response from dnsDeamon\n");
-		DNSServiceProcessResult( registerRef );
-	}	
-	else {
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceRegister timeout (%ld sec)",tv.tv_sec);	
-	}
-	/*
-	// block until we get a response, process it, and run the callback
-	// Do this instead of using a select 
-	Log_Printf("DNSServiceProcessResult\n");
-	err = DNSServiceProcessResult( registerRef );
-	if ( err != kDNSServiceErr_NoError ) 
-	{
-		Log_Printf( "DNSServiceProcessResult error\n" );
-		net.type = UNKNOWN;
-		return 0;
-	}
-	*/
-	
-	
-	
-	
-	if(net.type == NET_SERVER)
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;		// non-blocking: do not freeze the menu while we wait
+
+	if ( select( socket+1, &set, NULL, NULL, &tv ) > 0 )
+		DNSServiceProcessResult( registerRef );		// fires DNSServiceRegisterReplyCallback
+
+	if (net.type == NET_SERVER)
 	{
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Waiting for client to connect...");
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "You are Player ONE.");
 	}
-	
+
 	if (net.type == NET_CLIENT)
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Contacting server...");
-	
-	
+
 	return 1;
 }
 
@@ -473,62 +585,59 @@ void DNSServiceBrowseReplyCallback(
 	
 	service_t* service ;
 	
-	if ( flags & kDNSServiceFlagsAdd ) 
+	if ( flags & kDNSServiceFlagsAdd )
 	{
 		// add it to the list
-		if ( interfaceIndex == 1 ) 
+		if ( interfaceIndex == 1 )
 		{
 			Log_Printf( "Not adding service on loopback interface.\n" );
 			return;
-		} 
-		
-		service = &serviceInterfaces[interfaceIndex];
-		//Log_Printf("DNSServiceBrowseReplyCallback processing service interface= %d.\n",service->interfaceIndex);
-			
-		strncpy( service->browseName, serviceName, sizeof( service->browseName ) -1 );
-		strncpy( service->browseRegtype, regtype, sizeof( service->browseRegtype ) -1 );
-		strncpy( service->browseDomain, replyDomain, sizeof( service->browseDomain ) -1 );
-		service->interfaceIndex = interfaceIndex;
-			
-		char	interfaceName[IF_NAMESIZE];	
-		if_indextoname(interfaceIndex,interfaceName);
-		
-		//If interface namei s INTERFACE_NAME let's try to resolve this guy.
-		if (!strcmp(INTERFACE_NAME,interfaceName ))
-		{
-			
-			DNSServiceRef	resolveRef;
-			DNSServiceErrorType err = DNSServiceResolve ( 
-														 &resolveRef, 
-														 kDNSServiceFlagsForceMulticast,	// always on local link
-														 service->interfaceIndex ,		// don't use -1 for bluetooth
-														 service->browseName, 
-														 service->browseRegtype, 
-														 service->browseDomain, 
-														 DNSServiceResolveReplyCallback, 
-														 NULL			/* context */
-														 );  
-			
-			if ( err != kDNSServiceErr_NoError ) {
-				sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceResolve error");	
-				
-			} else {
-				// We can get two callbacks when both wifi and bluetooth are enabled
-				//callbackFlags = 0;
-				//do {
-					err = DNSServiceProcessResult( resolveRef );
-					if ( err != kDNSServiceErr_NoError ) {
-						sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceProcessResult error");	
-					}
-				//} while ( callbackFlags & kDNSServiceFlagsMoreComing );
-				DNSServiceRefDeallocate( resolveRef );
-			}
-			
-			
-			
 		}
-		
-	} 
+
+		// Bookkeeping, bounds-checked: on iOS the interface index can exceed the
+		// table (en0 is small, but awdl/llw/utun interfaces are not) and the old
+		// unchecked serviceInterfaces[interfaceIndex] write was a latent overflow.
+		if ( interfaceIndex < MAX_SERVICE_INTEFACES )
+		{
+			service = &serviceInterfaces[interfaceIndex];
+			strncpy( service->browseName, serviceName, sizeof( service->browseName ) -1 );
+			strncpy( service->browseRegtype, regtype, sizeof( service->browseRegtype ) -1 );
+			strncpy( service->browseDomain, replyDomain, sizeof( service->browseDomain ) -1 );
+			service->interfaceIndex = interfaceIndex;
+		}
+
+		// Resolve the server on whatever interface it was discovered on (not just
+		// en0) -- modern iOS may carry the LAN link on a different interface, and the
+		// old en0-only filter meant the client browsed the server but refused to
+		// resolve it, hanging on "Unable to find the server". Resolve only until we
+		// have an address so duplicate Adds across interfaces don't pile up.
+		if ( !net.serverAddResolved )
+		{
+			DNSServiceRef	resolveRef2;
+			DNSServiceErrorType err = DNSServiceResolve (
+														 &resolveRef2,
+														 kDNSServiceFlagsForceMulticast,	// always on local link
+														 interfaceIndex ,		// the interface it was seen on
+														 serviceName,
+														 regtype,
+														 replyDomain,
+														 DNSServiceResolveReplyCallback,
+														 NULL			/* context */
+														 );
+
+			if ( err != kDNSServiceErr_NoError ) {
+				sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceResolve error");
+
+			} else {
+				err = DNSServiceProcessResult( resolveRef2 );
+				if ( err != kDNSServiceErr_NoError ) {
+					sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceProcessResult error");
+				}
+				DNSServiceRefDeallocate( resolveRef2 );
+			}
+		}
+
+	}
 	else 
 	{
 		// remove it from the list
@@ -545,56 +654,54 @@ void DNSServiceBrowseReplyCallback(
 	// Need to resolved
 }
 
-int NET_ResolveNetworkServer( ) 
+int NET_ResolveNetworkServer( )
 {
 	fd_set	set;
 	int	socket;
-	
-	Log_Printf("NET_ResolveNetworkServer\n");
-	
-	Log_Printf("DNSServiceBrowse\n");
-	//Browse and then Resolve
-	DNSServiceErrorType err = DNSServiceBrowse ( 
-												&browseRef, 
-												0,					/* flags */
-												0,					/* interface */
-												serviceName, 
-												NULL,				/* domain */
-												DNSServiceBrowseReplyCallback, 
-												NULL				/* context */
-												);  
-	if ( err != kDNSServiceErr_NoError ) {
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceBrowse error");
-		return 0;
-	}		
-	
-	
-	
-	//Now we will wait for mDNSResponder to send us an update, then call DNSServiceProcessResult, this should call DNSServiceBrowseReplyCallback
-	// poll the socket for updates
-	socket = DNSServiceRefSockFD( browseRef );
-	if ( socket <= 0 ) {
-		return 0;
+	struct timeval tv;
+
+	// Start browsing once, on ALL interfaces (interface 0), then reuse the same
+	// browseRef across frames. The old code re-issued DNSServiceBrowse every frame
+	// the server hadn't been resolved yet, leaking a DNSServiceRef each time until
+	// mDNSResponder gave up -- which is why a slow first connect or a retry after
+	// backing out would silently stop working.
+	if ( browseRef == 0 )
+	{
+		Log_Printf("NET_ResolveNetworkServer: DNSServiceBrowse (all interfaces)\n");
+		DNSServiceErrorType err = DNSServiceBrowse (
+													&browseRef,
+													0,					/* flags */
+													0,					/* all interfaces */
+													serviceName,
+													NULL,				/* domain */
+													DNSServiceBrowseReplyCallback,
+													NULL				/* context */
+													);
+		if ( err != kDNSServiceErr_NoError ) {
+			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceBrowse error");
+			browseRef = 0;
+			return 0;
+		}
+		return 1;
 	}
-	
+
+	// Non-blocking poll: when a server appears, DNSServiceBrowseReplyCallback
+	// resolves it and DNSServiceResolveReplyCallback fills net.peerAddr +
+	// serverAddResolved. Polling across frames keeps the menu responsive.
+	socket = DNSServiceRefSockFD( browseRef );
+	if ( socket <= 0 )
+		return 1;
+
 	FD_ZERO( &set );
 	FD_SET( socket, &set );
-	
-	struct timeval tv;
-	//memset( &tv, 0, sizeof( tv ) );
-	tv.tv_sec = 5;
+	tv.tv_sec = 0;
 	tv.tv_usec = 0;
-	
-	if ( select( socket+1, &set, NULL, NULL, &tv ) > 0 ) {
-		Log_Printf("Received response from dnsDeamon\n");
+
+	if ( select( socket+1, &set, NULL, NULL, &tv ) > 0 )
 		DNSServiceProcessResult( browseRef );
-	}	
-	else {
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceBrowse timeout (%ld sec)",tv.tv_sec);	
-	}
-	
+
 	return 1;
-	
+
 }
 
 
@@ -672,7 +779,7 @@ void Net_ProcessSetupPacket(void)
 	len = sizeof(incomingAdd);
 	//Log_Printf("Net_ProcessSetupPacket()\n");
 	
-	byteReceived = recvfrom(net.udpSocket,net.buffer,sizeof(net.buffer),0, (struct sockaddr*)&incomingAdd, &len );
+	byteReceived = NET_TransportRecv(net.buffer, sizeof(net.buffer), &incomingAdd);
 	if (byteReceived == -1)
 	{
 		if (errno != EAGAIN )
@@ -716,8 +823,12 @@ void Net_ProcessSetupPacket(void)
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTRECEIVED), "LAST RECV=NET_CMD_LOAD_NEXT_LEVEL");
 		
 		//Save peer informations to send replies as this is the first time the server will hear of the client
-		memcpy(&net.peerAddr,&incomingAdd,sizeof(incomingAdd));
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP),"PEER IP %s",inet_ntoa(net.peerAddr.sin_addr));
+		//(LAN only: online, the peer is the GKMatch and there is no sockaddr to learn).
+		if (!NET_IsOnline())
+		{
+			memcpy(&net.peerAddr,&incomingAdd,sizeof(incomingAdd));
+			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP),"PEER IP %s",inet_ntoa(net.peerAddr.sin_addr));
+		}
 		
 		//Perform preload, pause music, pause timer
 		dEngine_RequireSceneId(engine.sceneId + 1  % engine.numScenes);
@@ -745,7 +856,7 @@ void Net_ProcessSetupPacket(void)
 		outPacket.sequenceNumber = net.lastSentSequenceNumber++;
 		outPacket.ackSequenceNumber = net.lastReceivedSequenceNumber;
 		outPacket.type = SETUP_PACKET;
-		sendto(net.udpSocket, &outPacket, sizeof(outPacket), 0, (struct sockaddr*)&net.peerAddr, sizeof(net.peerAddr));
+		NET_TransportSend(&outPacket, sizeof(outPacket));
 		
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_LOAD_NEXT_LEVEL");
 	}
@@ -775,7 +886,7 @@ void Net_ProcessSetupPacket(void)
 		outPacket.sequenceNumber = net.lastSentSequenceNumber++;
 		outPacket.ackSequenceNumber = net.lastReceivedSequenceNumber;
 		outPacket.type = SETUP_PACKET;
-		sendto(net.udpSocket, &outPacket, sizeof(outPacket), 0, (struct sockaddr*)&net.peerAddr, sizeof(net.peerAddr));
+		NET_TransportSend(&outPacket, sizeof(outPacket));
 		
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_NOTIFY_LOADED");
 		
@@ -805,7 +916,7 @@ void Net_ProcessSetupPacket(void)
 		outPacket.sequenceNumber = net.lastSentSequenceNumber++;
 		outPacket.ackSequenceNumber = net.lastReceivedSequenceNumber;
 		outPacket.type = SETUP_PACKET;
-		sendto(net.udpSocket, &outPacket, sizeof(outPacket), 0, (struct sockaddr*)&net.peerAddr, sizeof(net.peerAddr));
+		NET_TransportSend(&outPacket, sizeof(outPacket));
 		usleep(16*1000);
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_START_LEVEL");
 	}
@@ -867,7 +978,7 @@ void NET_Setup(void)
 	//buffer = calloc(, sizeof(uchar));
 	
 	
-	if (net.type == NET_UNKNOWN && !NET_IsNetworkAvailable())
+	if (!NET_IsOnline() && net.type == NET_UNKNOWN && !NET_IsNetworkAvailable())
 	{
 		sprintf(MENU_GetMultiplayerTextLine(0), "No WIFI network available !");
 		sprintf(MENU_GetMultiplayerTextLine(1), " ");
@@ -878,13 +989,49 @@ void NET_Setup(void)
 	}
 	
 	
-	if (net.type == NET_UNKNOWN && !NET_CheckServerAvailability())
+	if (!NET_IsOnline() && net.type == NET_UNKNOWN && !NET_CheckServerAvailability())
 	{
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETMYIP), "Error while NET_CheckServerAvailability.\n");
 		return ;
 	}
 	
 	
+	// Recovery from a "both became SERVER" race (the classic "we are both Player
+	// One"): if two devices register the same service name almost simultaneously,
+	// mDNS runs its own deterministic conflict resolution and reports a NameConflict
+	// to exactly one of them -- but only if we keep draining the registration socket.
+	// While we are SERVER and still waiting for a client, keep polling registerRef; a
+	// late conflict flips net.type to NET_CLIENT (see DNSServiceRegisterReplyCallback)
+	// and we then stop advertising the contested name and join the winning server.
+	if (net.type == NET_SERVER && net.state == NET_STARTED && registerRef != 0)
+	{
+		int rsocket = DNSServiceRefSockFD( registerRef );
+		if ( rsocket > 0 )
+		{
+			fd_set rset;
+			struct timeval rtv;
+			FD_ZERO( &rset );
+			FD_SET( rsocket, &rset );
+			rtv.tv_sec = 0;
+			rtv.tv_usec = 0;
+			if ( select( rsocket+1, &rset, NULL, NULL, &rtv ) > 0 )
+				DNSServiceProcessResult( registerRef );
+		}
+
+		if (net.type == NET_CLIENT)
+		{
+			// We lost the election: stop advertising the contested name so the
+			// winner stops seeing a conflict, then fall through to resolve + join it.
+			Log_Printf("Lost SERVER election (late mDNS conflict) -> becoming CLIENT.\n");
+			DNSServiceRefDeallocate( registerRef );
+			registerRef = 0;
+			net.serverAddResolved = 0;
+			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Contacting server...");
+			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
+			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), " ");
+		}
+	}
+
 	if (net.type == NET_CLIENT && !net.serverAddResolved)
 	{
 		if (!NET_ResolveNetworkServer())
@@ -900,14 +1047,14 @@ void NET_Setup(void)
 	}
 	
 
-	if (MENU_GetMultiplayerTextLine(MESSAGE_NETMYIP)[0] == '\0')
+	if (!NET_IsOnline() && MENU_GetMultiplayerTextLine(MESSAGE_NETMYIP)[0] == '\0')
 	{
-		localAddress =  NET_GetAddressForInterfaceName(INTERFACE_NAME);	
+		localAddress =  NET_GetAddressForInterfaceName(INTERFACE_NAME);
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETMYIP),"Local IP @:'%s'",inet_ntoa(localAddress.sin_addr));
 	}
-	
-		
-	if (net.udpSocket == 0)
+
+
+	if (!NET_IsOnline() && net.udpSocket == 0)
 	{
 		NET_CreateSocket();
 		Log_Printf("File descriptor UDP socket = %d.\n",net.udpSocket);
@@ -925,7 +1072,7 @@ void NET_Setup(void)
 			registerPacket.ackSequenceNumber = net.lastReceivedSequenceNumber;
 			registerPacket.type = SETUP_PACKET;
 			registerPacket.command.type = NET_CMD_LOAD_NEXT_LEVEL;
-			sendto(net.udpSocket, &registerPacket, sizeof(registerPacket), 0, (struct sockaddr*)&net.peerAddr, sizeof(net.peerAddr));
+			NET_TransportSend(&registerPacket, sizeof(registerPacket));
 			//sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_LOAD_NEXT_LEVEL");
 			
 		}
@@ -1058,7 +1205,7 @@ void NET_Receive(void)
 	
 	while (1)
 	{
-		byteReceived = recvfrom(net.udpSocket,&rcv_packet,sizeof(net_packet_t),0, NULL, &len );
+		byteReceived = NET_TransportRecv(&rcv_packet, sizeof(net_packet_t), NULL);
 		
 		if (byteReceived == -1)
 		{
@@ -1189,7 +1336,7 @@ void NET_Send()
 	//Log_Printf("Sending packet for player id= %X\n",send_packet.command.playerId);
 	//Log_Printf("Controlled player = %X\n",controlledPlayer);
 	
-	sendto(net.udpSocket, &send_packet, sizeof(net_packet_t), 0, (struct sockaddr*)&net.peerAddr, sizeof(net.peerAddr));	
+	NET_TransportSend(&send_packet, sizeof(net_packet_t));
 	
 	
 	
@@ -1200,7 +1347,7 @@ void NET_Send()
 		send_packet.command.delta[X] = players[controlledPlayer].ss_position[X];
 		send_packet.command.delta[Y] = players[controlledPlayer].ss_position[Y];
 		send_packet.sequenceNumber = net.lastSentSequenceNumber++;
-		sendto(net.udpSocket, &send_packet, sizeof(net_packet_t), 0, (struct sockaddr*)&net.peerAddr, sizeof(net.peerAddr));	
+		NET_TransportSend(&send_packet, sizeof(net_packet_t));
 		lastFullUpdateTime= simulationTime;
 	}
 }
@@ -1217,7 +1364,7 @@ void Net_SendDie(command_t* command)
 	send_packet.ackSequenceNumber = net.lastReceivedSequenceNumber;
 	memcpy(&send_packet.command,command,sizeof(command_t));
 	
-	sendto(net.udpSocket, &send_packet, sizeof(net_packet_t), 0, (struct sockaddr*)&net.peerAddr, sizeof(net.peerAddr));	
+	NET_TransportSend(&send_packet, sizeof(net_packet_t));
 	
 }
 

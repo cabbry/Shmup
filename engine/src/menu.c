@@ -446,17 +446,40 @@ void Action_PreGoToGameCenter(void* tag)
 void Action_ConfigureMultiplayer(void* tag)
 {
 	int i;
-	
+
 	MENU_Set(MENU_MULTIPLAYER);
 	engine.mode = DE_MODE_MULTIPLAYER;
 	NET_Init();
 	PL_ResetPlayersScore();
-	
+
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = numPlayerRespawn[DIFFICULTY_NORMAL];
-	
+
 	engine.difficultyLevel = DIFFICULTY_NORMAL;
 }
+
+#ifdef __APPLE__
+// Online multiplayer over Game Center (GKMatch): same as the LAN setup, but the
+// transport is GameKit instead of Bonjour/UDP and matchmaking is driven by Apple.
+void Action_ConfigureOnlineMultiplayer(void* tag)
+{
+	int i;
+
+	MENU_Set(MENU_MULTIPLAYER);
+	engine.mode = DE_MODE_MULTIPLAYER;
+	NET_Init();								// resets net (transport defaults to LAN)...
+	net.transport = NET_TRANSPORT_GAMECENTER;	// ...then switch this session to online
+	PL_ResetPlayersScore();
+
+	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
+		players[i].respawnCounter = numPlayerRespawn[DIFFICULTY_NORMAL];
+
+	engine.difficultyLevel = DIFFICULTY_NORMAL;
+
+	sprintf(MENU_GetMultiplayerTextLine(0), "Finding an opponent...");
+	Native_StartOnlineMatchmaking();		// presents the Game Center matchmaker UI
+}
+#endif
 
 #ifdef SHMUP_TARGET_ANDROID  
 #include "native_URL.h"
@@ -790,6 +813,17 @@ void MENU_Init(void)
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Network", 3, Action_ConfigureMultiplayer,NULL, buttonPos, buttonDim);
+#endif
+
+#ifdef __APPLE__
+	// Online multiplayer over Game Center (GKMatch): matchmaking + NAT traversal
+	// handled by Apple, so it plays beyond the LAN. Both players must be signed
+	// into Game Center.
+	buttonPos[X] = 160 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, "Online", 3, Action_ConfigureOnlineMultiplayer,NULL, buttonPos, buttonDim);
 #endif
 
 	// Game Center "High Scores" leaderboard viewer.

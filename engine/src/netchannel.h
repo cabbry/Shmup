@@ -94,13 +94,17 @@ int				type;
 #define NET_PRELOADED		2
 #define NET_RUNNING			3
 int				state;
-	
-	
+
+#define NET_TRANSPORT_LAN			0	// peer-to-peer UDP + Bonjour (local network)
+#define NET_TRANSPORT_GAMECENTER	1	// GameKit GKMatch (online, NAT-traversed)
+int				transport;
+
+
 	unsigned int lastReceivedSequenceNumber;
 	unsigned int lastSentSequenceNumber;
-	
+
 	uint numDropedPackets;
-	
+
 } net_channel_t;
 #else
 	
@@ -122,13 +126,17 @@ int				type;
 #define NET_PRELOADED		2
 #define NET_RUNNING			3
 int				state;
-	
-	
+
+#define NET_TRANSPORT_LAN			0	// peer-to-peer UDP + Bonjour (local network)
+#define NET_TRANSPORT_GAMECENTER	1	// GameKit GKMatch (online, NAT-traversed)
+int				transport;
+
+
 	unsigned int lastReceivedSequenceNumber;
 	unsigned int lastSentSequenceNumber;
-	
+
 	uint numDropedPackets;
-	
+
 } net_channel_t;
 	
 #endif
@@ -155,4 +163,10 @@ void NET_OnNextLevelLoad(void);
 char NET_IsRunning(void);
 
 uint NET_GetDropedPackets(void);
+
+// Online (GameKit) multiplayer entry points, called FROM the iOS GameKit layer.
+void NET_StartOnlineMatch(int isServer);			// role decided by GKMatch; begin the handshake
+void NET_AbortOnlineMatch(void);					// matchmaking cancelled, peer dropped, or failed
+void NET_OnNetworkData(const void* data, int len);	// a packet arrived over GKMatch (push)
+char NET_IsOnline(void);							// true when the active transport is GameKit
 #endif

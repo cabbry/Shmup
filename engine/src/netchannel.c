@@ -414,16 +414,13 @@ int NET_CheckServerAvailability(void)
 	fd_set	set;
 	struct timeval tv;
 
-	// First call: start advertising our service on ALL interfaces (interface 0) so
-	// the other device can find us regardless of which link (en0 / awdl / llw ...)
-	// mDNS happens to use on a modern iPhone. kDNSServiceFlagsNoAutoRename makes a
-	// duplicate name report a conflict, which is how exactly one device is elected
-	// SERVER. We deliberately do NOT block on a 5-second select here: the reply
-	// arrives asynchronously and we poll for it across frames (NET_Setup runs every
-	// frame), so the menu stays responsive AND we never re-register / leak a
-	// DNSServiceRef per frame (the old code re-created registerRef every frame the
-	// reply hadn't landed yet, which eventually choked mDNSResponder and made a long
-	// wait or a retry silently fail).
+	// Register our service ONCE, on ALL interfaces (interface 0), so the other
+	// device finds us regardless of which link (en0 / awdl / llw ...) mDNS uses on a
+	// modern iPhone. kDNSServiceFlagsNoAutoRename makes a duplicate name report a
+	// conflict, which is how exactly one device is elected SERVER. Guarding on
+	// registerRef==0 is the real fix for the old per-frame DNSServiceRef leak (the
+	// previous code re-created registerRef every frame the reply hadn't landed yet,
+	// which eventually choked mDNSResponder and made a long wait or a retry fail).
 	if ( registerRef == 0 )
 	{
 		net.type = NET_UNKNOWN;
@@ -453,18 +450,21 @@ int NET_CheckServerAvailability(void)
 		}
 
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Determining player role...");
-		return 1;
 	}
 
-	// Subsequent calls: non-blocking poll for the registration reply.
+	// Read the registration reply. This BLOCKS up to 5s (the proven mechanism): the
+	// reply is delivered asynchronously to the DNS-SD socket and DNSServiceProcessResult
+	// fires DNSServiceRegisterReplyCallback, which sets net.type. Because we register
+	// only once (above), this no longer leaks a ref. Normally the reply lands in well
+	// under a second, so this returns quickly with the role decided.
 	socket = DNSServiceRefSockFD( registerRef );
 	if ( socket <= 0 )
 		return 1;
 
 	FD_ZERO( &set );
 	FD_SET( socket, &set );
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;		// non-blocking: do not freeze the menu while we wait
+	tv.tv_sec = 5;
+	tv.tv_usec = 0;
 
 	if ( select( socket+1, &set, NULL, NULL, &tv ) > 0 )
 		DNSServiceProcessResult( registerRef );		// fires DNSServiceRegisterReplyCallback
@@ -660,11 +660,11 @@ int NET_ResolveNetworkServer( )
 	int	socket;
 	struct timeval tv;
 
-	// Start browsing once, on ALL interfaces (interface 0), then reuse the same
-	// browseRef across frames. The old code re-issued DNSServiceBrowse every frame
-	// the server hadn't been resolved yet, leaking a DNSServiceRef each time until
-	// mDNSResponder gave up -- which is why a slow first connect or a retry after
-	// backing out would silently stop working.
+	// Browse ONCE, on ALL interfaces (interface 0), reusing the same browseRef across
+	// calls. Guarding on browseRef==0 fixes the old per-frame DNSServiceRef leak (the
+	// previous code re-issued DNSServiceBrowse every frame the server wasn't resolved,
+	// leaking a ref each time until mDNSResponder gave up -- which is why a slow first
+	// connect or a retry after backing out would silently stop working).
 	if ( browseRef == 0 )
 	{
 		Log_Printf("NET_ResolveNetworkServer: DNSServiceBrowse (all interfaces)\n");
@@ -682,19 +682,19 @@ int NET_ResolveNetworkServer( )
 			browseRef = 0;
 			return 0;
 		}
-		return 1;
 	}
 
-	// Non-blocking poll: when a server appears, DNSServiceBrowseReplyCallback
-	// resolves it and DNSServiceResolveReplyCallback fills net.peerAddr +
-	// serverAddResolved. Polling across frames keeps the menu responsive.
+	// Read the browse reply. This BLOCKS up to 5s (the proven mechanism): when a
+	// server appears, DNSServiceProcessResult fires DNSServiceBrowseReplyCallback,
+	// which resolves it, and DNSServiceResolveReplyCallback fills net.peerAddr +
+	// serverAddResolved. Browsing only once (above) means this no longer leaks.
 	socket = DNSServiceRefSockFD( browseRef );
 	if ( socket <= 0 )
 		return 1;
 
 	FD_ZERO( &set );
 	FD_SET( socket, &set );
-	tv.tv_sec = 0;
+	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 
 	if ( select( socket+1, &set, NULL, NULL, &tv ) > 0 )

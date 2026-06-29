@@ -156,6 +156,13 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-06-29
+- **Fix LAN "Determining player role…" hang (build 145, v1.1.4)**: the v1.1.3 resilience
+  pass had over-reached — it changed the DNS-SD registration/browse reads from a *blocking*
+  `select` to a *non-blocking* per-frame poll, and on device that poll never caught the
+  asynchronous registration reply, so the LAN waiting screen got stuck on "Determining player
+  role…". Reverted to the proven blocking read while **keeping** the actual fixes (register/
+  browse exactly once = no per-frame `DNSServiceRef` leak, and advertise/resolve on all
+  interfaces, not just `en0`).
 - **🆕 Online multiplayer over Game Center (build 144, v1.1.3)** — new feature: a second
   multiplayer mode that plays **beyond the LAN**, over the internet. A new **"Online"** button
   (Others menu) opens Apple's matchmaker (invite a friend or auto-match), and GameKit's

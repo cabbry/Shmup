@@ -409,6 +409,13 @@ void DNSServiceRegisterReplyCallback (
 	// comparison once we resolve the peer (see DNSServiceQueryRecordReplyCallback).
 	(void)name; (void)regtype; (void)domain;
 }
+
+// Defined further down, but NET_CheckServerAvailability now starts the browse itself.
+void DNSServiceBrowseReplyCallback( DNSServiceRef sdRef, DNSServiceFlags flags,
+                                    uint32_t interfaceIndex, DNSServiceErrorType errorCode,
+                                    const char *serviceName, const char *regtype,
+                                    const char *replyDomain, void *context );
+
 int NET_CheckServerAvailability(void)
 {
 	int	socket;

@@ -510,29 +510,39 @@ void Action_ShowOthersMenu(void* tag)
 	MENU_Set(MENU_OTHERS);
 }
 
+// Reflect the current ship + bullet-colour choice in the Custom screen's status line
+// (texts[1]). Default is Ship 1 / Red (gShipChoice = gBulletColor = 0).
+static const char* customColorNames[NUM_BULLET_COLORS] = { "Red", "Blue", "Invisible", "Yellow" };
+static void MENU_UpdateCustomSelection(void)
+{
+	const char* col = (gBulletColor >= 0 && gBulletColor < NUM_BULLET_COLORS) ? customColorNames[gBulletColor] : "?";
+	int ship = (gShipChoice >= 0 && gShipChoice < NUM_SHIP_CHOICES) ? gShipChoice + 1 : 1;
+	sprintf(menuScreens[MENU_SELECT_SHIP].texts[1].text, "Ship %d  -  %s", ship, col);
+}
+
 void Action_ShowShipMenu(void* tag)
 {
+	MENU_UpdateCustomSelection();	// reflect the current choice when entering
 	MENU_Set(MENU_SELECT_SHIP);
 }
 
 void Action_SelectShip(void* tag)
 {
-	// tag points to the chosen ship index (see MENU_SELECT_SHIP setup). Applied in
-	// P_LoadPlayer for single-player games. Return to Others as confirmation.
+	// tag points to the chosen ship index. STAY on the Custom screen (you leave via
+	// Back) and refresh the status line so the current selection is visible.
 	int choice = *(int*)tag;
 	if (choice >= 0 && choice < NUM_SHIP_CHOICES)
 		gShipChoice = choice;
-	MENU_Set(MENU_OTHERS);
+	MENU_UpdateCustomSelection();
 }
 
 void Action_SelectBulletColor(void* tag)
 {
-	// tag points to the chosen bullet-colour column (see MENU_SELECT_SHIP setup).
-	// Applied in P_PrepareBulletSprites for single-player games.
+	// tag points to the chosen bullet-colour column. STAY on the Custom screen.
 	int choice = *(int*)tag;
 	if (choice >= 0 && choice < NUM_BULLET_COLORS)
 		gBulletColor = choice;
-	MENU_Set(MENU_OTHERS);
+	MENU_UpdateCustomSelection();
 }
 
 
@@ -818,7 +828,7 @@ void MENU_Init(void)
 	
 	
 	buttonPos[X] = -160;
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 500);
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	actId = calloc(1, sizeof(char));
@@ -826,7 +836,7 @@ void MENU_Init(void)
 	MENU_CreateButtonWithTag(currentMenu, "Demo", 3, Action_PlayDemo,actId,NULL, buttonPos, buttonDim);
 	
 	buttonPos[X] = -160 ; 
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 370);
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Credits", 3, Action_ShowCreditsMenu,NULL, buttonPos, buttonDim);
@@ -836,11 +846,11 @@ void MENU_Init(void)
 	// Multiplayer: LAN peer-to-peer over Bonjour/DNS-SD. Modern iOS gates that
 	// behind the Local Network permission, declared in the Info.plist
 	// (NSLocalNetworkUsageDescription + NSBonjourServices = _DodgeServer._udp).
-	buttonPos[X] = 160 ;
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 500);
+	buttonPos[X] = -160 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Network", 3, Action_ConfigureMultiplayer,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, "Local Network", 2.0f, Action_ConfigureMultiplayer,NULL, buttonPos, buttonDim);
 #endif
 
 #ifdef __APPLE__
@@ -856,14 +866,14 @@ void MENU_Init(void)
 
 	// Game Center "High Scores" leaderboard viewer.
 	buttonPos[X] = 160 ;
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 370);
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Scores", 3, Action_ShowGameCenter,NULL, buttonPos, buttonDim);
 
-	// Loadout selection (solo: ship + bullet colour).
-	buttonPos[X] = -160 ;
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
+	// Solo ship + bullet-colour selection (top-right).
+	buttonPos[X] = 160 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Custom", 3, Action_ShowShipMenu,NULL, buttonPos, buttonDim);
@@ -946,6 +956,8 @@ void MENU_Init(void)
 	currentMenu = &menuScreens[MENU_SELECT_SHIP];
 
 	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, "CUSTOM");
+	// Status line (texts[1]) showing the current selection, updated on each pick.
+	MENU_CreateText(currentMenu, 0, (SS_H - 240), 2.2f, TEXT_CENTERED, "Ship 1  -  Red");
 
 	{
 		static const char* shipLabels[NUM_SHIP_CHOICES]   = { "Ship 1", "Ship 2", "Ship 3" };
@@ -979,8 +991,10 @@ void MENU_Init(void)
 		}
 	}
 
-	buttonPos[X] = 0 ;
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
+	// Back sits in the empty bottom-LEFT cell, on the same row as the 4th colour
+	// (Yellow, right), so it no longer overlaps it.
+	buttonPos[X] = -160 ;
+	buttonPos[Y] = (SS_H - 320) - 3*150;
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowOthersMenu, NULL, buttonPos, buttonDim);

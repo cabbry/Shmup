@@ -43,5 +43,8 @@ void Native_StartOnlineMatchmaking(void);
 void Native_CancelOnlineMatchmaking(void);
 void Native_GKSendData(const void* data, int len, int reliable);
 
+// Persist the solo loadout (ship + bullet colour) so it survives app restarts.
+void Native_SaveLoadout(int ship, int color);
+
 #endif
 

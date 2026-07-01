@@ -278,6 +278,15 @@ void Action_ShowGameCenter(void* tag) {
 }
 void Native_UploadFileTo(char path[256]) {}
 
+// Persist the solo loadout (ship + bullet colour) in NSUserDefaults; restored at
+// launch in EAGLView's checkEngineSettings.
+void Native_SaveLoadout(int ship, int color) {
+	NSUserDefaults* d = [NSUserDefaults standardUserDefaults];
+	[d setInteger:ship  forKey:@"ShipChoice"];
+	[d setInteger:color forKey:@"BulletColor"];
+	[d synchronize];
+}
+
 #pragma mark - Online multiplayer bridge (engine -> GameKit)
 
 // Present Apple's matchmaker UI (invite a friend, or auto-match an opponent).

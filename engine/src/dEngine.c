@@ -419,7 +419,12 @@ void dEngine_LoadScene(int sceneId)
 	
 	// Now actually start loading things
 	World_OpenScene(engine.scenes[engine.sceneId].path);
-	
+
+	// Apply the chosen ship to player 0 now that the level config has set modelPath
+	// (solo uses gShipChoice; multiplayer keeps the level's model0). This is why the
+	// ship selection now takes effect per game instead of only at the one-time init.
+	P_ReloadShip();
+
 	MENU_Set(engine.scenes[engine.sceneId].defaultMenuId);
 	
 	COM_StartScene();

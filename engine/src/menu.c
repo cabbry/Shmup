@@ -534,6 +534,9 @@ void Action_SelectShip(void* tag)
 	if (choice >= 0 && choice < NUM_SHIP_CHOICES)
 		gShipChoice = choice;
 	MENU_UpdateCustomSelection();
+#ifdef __APPLE__
+	Native_SaveLoadout(gShipChoice, gBulletColor);	// persist across restarts
+#endif
 }
 
 void Action_SelectBulletColor(void* tag)
@@ -543,6 +546,9 @@ void Action_SelectBulletColor(void* tag)
 	if (choice >= 0 && choice < NUM_BULLET_COLORS)
 		gBulletColor = choice;
 	MENU_UpdateCustomSelection();
+#ifdef __APPLE__
+	Native_SaveLoadout(gShipChoice, gBulletColor);	// persist across restarts
+#endif
 }
 
 

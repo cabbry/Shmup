@@ -279,5 +279,7 @@ extern unsigned char numPlayerRespawn[];
 extern int gShipChoice;
 #define NUM_BULLET_COLORS 4
 extern int gBulletColor;
+// Re-apply the chosen ship to player 0 (called on scene load, after modelPath is set).
+void P_ReloadShip(void);
 
 #endif

@@ -115,8 +115,17 @@ AQ* audiocontroller;
 		engine.musicEnabled = [[[NSUserDefaults standardUserDefaults] stringForKey:@"MusicEnabled"] intValue] ;
 	}
 	NSLog(@"engine.musicEnabled=%d",engine.musicEnabled);
-	
-	
+
+	// Persisted solo loadout (Custom screen): restore the chosen ship + bullet colour.
+	if ([standardUserDefaults objectForKey:@"ShipChoice"] != nil)
+		gShipChoice = (int)[standardUserDefaults integerForKey:@"ShipChoice"];
+	if ([standardUserDefaults objectForKey:@"BulletColor"] != nil)
+		gBulletColor = (int)[standardUserDefaults integerForKey:@"BulletColor"];
+	if (gShipChoice  < 0 || gShipChoice  >= NUM_SHIP_CHOICES)  gShipChoice  = 0;
+	if (gBulletColor < 0 || gBulletColor >= NUM_BULLET_COLORS) gBulletColor = 0;
+	NSLog(@"loadout ship=%d color=%d", gShipChoice, gBulletColor);
+
+
 	engine.gameCenterEnabled = 0;
 //	NSLog(@"GameCenterEnabled='%@'",[[NSUserDefaults standardUserDefaults] stringForKey:@"GameCenterEnabled"]);
 //	if ([[NSUserDefaults standardUserDefaults] stringForKey:@"GameCenterEnabled"] == nil)

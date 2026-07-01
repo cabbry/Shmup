@@ -270,6 +270,29 @@ void P_LoadPlayer(int playerIdToLoad)
 	P_ResetPlayer(playerIdToLoad);
 }
 
+// Re-point player 0's model to the currently chosen ship (solo) or the level's model0
+// (multiplayer). Called on each scene load, AFTER the level config has set modelPath.
+// Cheap and leak-free: ENT_LoadEntity caches meshes by name, so switching just swaps
+// the entity's model pointer to a cached mesh (the player model is loaded once per ship).
+void P_ReloadShip(void)
+{
+	const char* modelToLoad = players[0].modelPath;
+	const char* base;
+	const char* s;
+
+	if (engine.mode == DE_MODE_SINGLEPLAYER && gShipChoice > 0 && gShipChoice < NUM_SHIP_CHOICES)
+		modelToLoad = gShipPaths[gShipChoice];
+
+	if (!modelToLoad || !modelToLoad[0])
+		return;
+
+	ENT_LoadEntity(&players[0].entity, modelToLoad, ENT_FULL_DRAW);
+
+	base = modelToLoad;
+	for (s = modelToLoad; *s; s++) if (*s == '/') base = s + 1;
+	snprintf(gLoadedShipDebug, sizeof(gLoadedShipDebug), "SHIP c%d %s", gShipChoice, base);
+}
+
 
 
 void P_ResetPlayers(void)

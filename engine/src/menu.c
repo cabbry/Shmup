@@ -899,10 +899,17 @@ void MENU_Init(void)
 	difficultyLevel = calloc(1, sizeof(int));
 	*difficultyLevel = DIFFICULTY_INSANE;
 	MENU_CreateButtonWithTag(currentMenu, "Insane", 3, Action_startNewGame,difficultyLevel,NULL, buttonPos, buttonDim);
-	
-	
-	
-	
+
+	// Back to the main menu (so New Game -> difficulty selection is escapable).
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
+
+
+
+
 	menuCreated = 1;
 	currentMenuId = -1;
 

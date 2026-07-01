@@ -160,6 +160,12 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-07-01
+- **Menu polish from feedback (build 156, v1.2.5)**: Others menu — swapped Network/Custom so the
+  two multiplayer entries sit together, renamed **"Network" → "Local Network"**, evened the row
+  spacing. Custom screen — the **Back** button no longer overlaps the last colour, and picking a
+  ship/colour **no longer exits the screen**: it updates a status line ("Ship 1 - Red" by
+  default) and you leave via Back (so you can set both ship and colour in one visit). This also
+  makes it easy to verify the ship selection via the temporary in-game `SHIP cX` readout.
 - **Custom-screen polish (build 155, v1.2.4)**: from on-device feedback — (1) the difficulty
   screen's **Back** button overlapped **Insane**; the three difficulty buttons were pulled up
   so Back gets its own row. (2) The bullet colours are now confirmed and **named** (Red / Blue

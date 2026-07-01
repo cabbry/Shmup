@@ -160,6 +160,16 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-07-01
+- **🆕 Solo loadout: ship + bullet-colour selection, and a difficulty Back button (build 154, v1.2.3)** —
+  new feature: an **Others → Loadout** screen lets the single-player pick their **ship**
+  (among the 3 existing models p1/p2/hpp) and their **bullet colour**. Both reuse mechanisms
+  the engine already had for multiplayer: the ship is loaded per-player from `modelPath`
+  (`P_LoadPlayer`), and the bullet sprite already picks its colour from the atlas column by
+  player index in `P_PrepareBulletSprites` — so single-player now substitutes the chosen ship
+  path / colour column, while **multiplayer is untouched** (keeps its two distinct ships and
+  bullet colours). Also added a **Back** button to the New Game → difficulty screen (it had no
+  way out). Choices are in-memory for now (reset on app restart); colour labels are generic
+  pending on-device confirmation of the atlas mapping.
 - **Fix multiplayer end-of-level freeze (build 153, v1.2.2)**: at a level transition the game
   froze — decor still, soundtrack paused but the level-complete jingle kept playing. Cause:
   the level-load handshake (server→`LOAD_NEXT_LEVEL`, client→`NOTIFY_LOADED`,

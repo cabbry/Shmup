@@ -866,7 +866,7 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Loadout", 3, Action_ShowShipMenu,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, "Custom", 3, Action_ShowShipMenu,NULL, buttonPos, buttonDim);
 //
 //	if (engine.gameCenterPossible)
 //    {
@@ -908,24 +908,26 @@ void MENU_Init(void)
 	textDim[HEIGHT] =96/(float)512 ;	
 	MENU_CreateImage(currentMenu,pos,dimensions,textPos,textDim);
 	
-	buttonPos[X] = 0 ; 
-	buttonPos[Y] = (SS_H -400);
+	// Difficulty buttons pulled up so the bottom Back button (standard slot below) has
+	// its own row and no longer overlaps Insane.
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (SS_H - 360);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	difficultyLevel = calloc(1, sizeof(int));
 	*difficultyLevel = DIFFICULTY_EASY;
 	MENU_CreateButtonWithTag(currentMenu, "Easy", 3, Action_startNewGame,difficultyLevel,NULL, buttonPos, buttonDim);
 
-	buttonPos[X] = 0 ; 
-	buttonPos[Y] = (SS_H - 600);
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (SS_H - 510);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	difficultyLevel = calloc(1, sizeof(int));
 	*difficultyLevel = DIFFICULTY_NORMAL;
 	MENU_CreateButtonWithTag(currentMenu, "Normal", 3, Action_startNewGame,difficultyLevel,NULL, buttonPos, buttonDim);
 
-	buttonPos[X] =  0 ; 
-	buttonPos[Y] = (SS_H - 800);
+	buttonPos[X] =  0 ;
+	buttonPos[Y] = (SS_H - 660);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	difficultyLevel = calloc(1, sizeof(int));
@@ -943,11 +945,13 @@ void MENU_Init(void)
 	// --- Loadout menu (solo: Others -> Ship): pick ship (left) + bullet colour (right) ---
 	currentMenu = &menuScreens[MENU_SELECT_SHIP];
 
-	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, "LOADOUT");
+	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, "CUSTOM");
 
 	{
 		static const char* shipLabels[NUM_SHIP_CHOICES]   = { "Ship 1", "Ship 2", "Ship 3" };
-		static const char* colorLabels[NUM_BULLET_COLORS] = { "Color 1", "Color 2", "Color 3", "Color 4" };
+		// Confirmed on device: column 0 = red (default), 1 = blue, 2 = invisible (kept as a
+		// stealth option), 3 = yellow.
+		static const char* colorLabels[NUM_BULLET_COLORS] = { "Red", "Blue", "Invisible", "Yellow" };
 		int k;
 
 		// Ships (left column)

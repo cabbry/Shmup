@@ -52,6 +52,10 @@ const char* gShipPaths[NUM_SHIP_CHOICES] = {
 	"data/models/players/hpp.obj.md5mesh",
 };
 
+// Diagnostic: basename of the ship model actually loaded for the solo player, shown
+// in-game so we can confirm the Custom ship choice is applied (vs. the art just looking alike).
+char gLoadedShipDebug[64] = "";
+
 // Solo bullet colour (Others -> Ship). Selects the colour COLUMN of the bullet atlas
 // (spritesBullets.png); the player index already does this in multiplayer, so in solo
 // we substitute the chosen column. Applied in P_PrepareBulletSprites.
@@ -245,6 +249,15 @@ void P_LoadPlayer(int playerIdToLoad)
 		if (engine.mode == DE_MODE_SINGLEPLAYER && gShipChoice > 0 && gShipChoice < NUM_SHIP_CHOICES)
 			modelToLoad = gShipPaths[gShipChoice];
 		ENT_LoadEntity(currentEntity, modelToLoad, ENT_FULL_DRAW);
+
+		// Diagnostic: record the basename of what player 0 (the solo ship) actually loaded.
+		if (playerIdToLoad == 0)
+		{
+			const char* base = modelToLoad;
+			const char* s;
+			for (s = modelToLoad; *s; s++) if (*s == '/') base = s + 1;
+			snprintf(gLoadedShipDebug, sizeof(gLoadedShipDebug), "SHIP c%d %s", gShipChoice, base);
+		}
 	}
 	
 
@@ -873,6 +886,10 @@ void PL_RenderPlayerPointers(void)
 		// top-centre to leave the tutorial. The tap zone is hit-tested in EAGLView.
 		if (engine.sceneId == 14 || engine.sceneId == 15)
 			SCR_ConvertTextToVertices("[ BACK ]",SCORE_FONT_SIZE,0,(short)(scoreY - 100),TEXT_CENTERED);
+		// DIAGNOSTIC (solo): shows which ship model was actually loaded, so we can tell
+		// whether the Custom ship choice is applied or the three ships just look alike.
+		if (engine.mode == DE_MODE_SINGLEPLAYER && gLoadedShipDebug[0])
+			SCR_ConvertTextToVertices(gLoadedShipDebug,1.8f,SCORE_POS_X,(short)(scoreY - 70),TEXT_NOT_CENTERED);
 	}
 	SCR_RenderText();
 	

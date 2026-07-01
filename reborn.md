@@ -160,6 +160,14 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-07-01
+- **Custom-screen polish (build 155, v1.2.4)**: from on-device feedback — (1) the difficulty
+  screen's **Back** button overlapped **Insane**; the three difficulty buttons were pulled up
+  so Back gets its own row. (2) The bullet colours are now confirmed and **named** (Red / Blue
+  / Invisible / Yellow — the invisible one is kept as a stealth option). (3) The **"Loadout"**
+  button/screen is renamed **"Custom"**. (4) The three solo ships (p1/p2/hpp) looked identical
+  in play even though the code loads three distinct meshes with distinct skins; added a
+  temporary on-screen readout of the ship model actually loaded, to tell whether the choice is
+  applied or the art is simply too similar.
 - **🆕 Solo loadout: ship + bullet-colour selection, and a difficulty Back button (build 154, v1.2.3)** —
   new feature: an **Others → Loadout** screen lets the single-player pick their **ship**
   (among the 3 existing models p1/p2/hpp) and their **bullet colour**. Both reuse mechanisms

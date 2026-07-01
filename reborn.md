@@ -160,6 +160,15 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-07-01
+- **Loadout + multiplayer balance/robustness (build 159, v1.2.8)**: from on-device feedback —
+  (1) confirmed the ship choice now takes effect and **removed the diagnostic overlay**;
+  (2) **dropped Ship 3** (the `hpp` model renders far too small — Ship 1 & 2 kept); (3) the
+  Custom buttons **deselect** after a pick instead of staying highlighted; (4) **enemies now
+  have double HP in multiplayer** — with two ships firing, the game was too easy at solo HP
+  (applied identically on both devices, so it stays in sync); (5) **backgrounding a 2-player
+  game now ends the match cleanly** and returns to the menu, instead of leaving a frozen,
+  desynced screen (you can't pause a live networked game; single-player still pauses + 3-2-1
+  resumes).
 - **Ship choice now applies + loadout persists (build 157, v1.2.6)**: the solo ship selection
   had no effect because the player model was loaded **once** at engine init (when the choice was
   still the default) and never reloaded. Now `P_ReloadShip()` re-points player 0's model to the

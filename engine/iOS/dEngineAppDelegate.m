@@ -124,10 +124,17 @@ static BOOL     gMatchStarted = NO;
 
 - (void)applicationDidEnterBackground:(UIApplication *)application
 {
-	/*
-	NSLog(@"applicationDidEnterBackground");
-	[self stopEngineActivity];
-	 */
+	// A live 2-player game can't be paused (the peer keeps playing), so backgrounding
+	// desyncs it -- on return you'd see a frozen screen while the other player moved on.
+	// So when the app is really backgrounded during a multiplayer match, end the match
+	// cleanly and go back to the menu instead of resuming out of sync. (Single-player
+	// still pauses + 3-2-1 resumes, handled in applicationDidBecomeActive.)
+	if (engine.mode == DE_MODE_MULTIPLAYER && NET_IsRunning())
+	{
+		NET_Free();
+		MENU_Set(MENU_HOME);
+		dEngine_RequireSceneId(0);
+	}
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)application

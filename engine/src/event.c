@@ -169,17 +169,24 @@ void EV_SpawnEnemy(event_t* event)
 			enemy->entity.color[A] = 1;	
 			enemy->energy *= 40;
 			break;
-		case ENEMY_SUBTYPE_WEAK:	
+		case ENEMY_SUBTYPE_WEAK:
 			enemy->entity.color[R] = 1;
 			enemy->entity.color[G] = 1;
 			enemy->entity.color[B] = 1;
-			enemy->entity.color[A] = 1;	
+			enemy->entity.color[A] = 1;
 			enemy->energy = 1;
 
 			break;
 		default:
 			break;
 	}
+
+	// In multiplayer there are two ships firing (~twice the DPS), so enemies felt too
+	// easy with solo HP. Double their energy to keep the challenge comparable. Applied
+	// identically on both devices (same events, same mode) so it stays deterministic.
+	// One-shot WEAK enemies (energy 1) are left alone.
+	if (engine.mode == DE_MODE_MULTIPLAYER && enemy->energy > 1)
+		enemy->energy *= 2;
 	
 
 	

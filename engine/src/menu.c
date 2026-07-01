@@ -534,6 +534,7 @@ void Action_SelectShip(void* tag)
 	if (choice >= 0 && choice < NUM_SHIP_CHOICES)
 		gShipChoice = choice;
 	MENU_UpdateCustomSelection();
+	MENU_ClearButtonStates();	// don't leave the just-pressed button highlighted
 #ifdef __APPLE__
 	Native_SaveLoadout(gShipChoice, gBulletColor);	// persist across restarts
 #endif
@@ -546,6 +547,7 @@ void Action_SelectBulletColor(void* tag)
 	if (choice >= 0 && choice < NUM_BULLET_COLORS)
 		gBulletColor = choice;
 	MENU_UpdateCustomSelection();
+	MENU_ClearButtonStates();	// don't leave the just-pressed button highlighted
 #ifdef __APPLE__
 	Native_SaveLoadout(gShipChoice, gBulletColor);	// persist across restarts
 #endif
@@ -966,7 +968,7 @@ void MENU_Init(void)
 	MENU_CreateText(currentMenu, 0, (SS_H - 240), 2.2f, TEXT_CENTERED, "Ship 1  -  Red");
 
 	{
-		static const char* shipLabels[NUM_SHIP_CHOICES]   = { "Ship 1", "Ship 2", "Ship 3" };
+		static const char* shipLabels[NUM_SHIP_CHOICES]   = { "Ship 1", "Ship 2" };
 		// Confirmed on device: column 0 = red (default), 1 = blue, 2 = invisible (kept as a
 		// stealth option), 3 = yellow.
 		static const char* colorLabels[NUM_BULLET_COLORS] = { "Red", "Blue", "Invisible", "Yellow" };

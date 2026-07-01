@@ -47,9 +47,8 @@ unsigned char numPlayerRespawn[] = {PLAYER_NUM_LIVES,3,1};
 // two players stay recognizable. Index 0 = the default ship (same as the config).
 int gShipChoice = 0;
 const char* gShipPaths[NUM_SHIP_CHOICES] = {
-	"data/models/players/p1.obj.md5mesh",
-	"data/models/players/p2.obj.md5mesh",
-	"data/models/players/hpp.obj.md5mesh",
+	"data/models/players/p1.obj.md5mesh",	// choice 0 falls back to the level's model anyway
+	"data/models/players/p2.obj.md5mesh",	// choice 1 = Ship 2
 };
 
 // Diagnostic: basename of the ship model actually loaded for the solo player, shown
@@ -909,10 +908,6 @@ void PL_RenderPlayerPointers(void)
 		// top-centre to leave the tutorial. The tap zone is hit-tested in EAGLView.
 		if (engine.sceneId == 14 || engine.sceneId == 15)
 			SCR_ConvertTextToVertices("[ BACK ]",SCORE_FONT_SIZE,0,(short)(scoreY - 100),TEXT_CENTERED);
-		// DIAGNOSTIC (solo): shows which ship model was actually loaded, so we can tell
-		// whether the Custom ship choice is applied or the three ships just look alike.
-		if (engine.mode == DE_MODE_SINGLEPLAYER && gLoadedShipDebug[0])
-			SCR_ConvertTextToVertices(gLoadedShipDebug,1.8f,SCORE_POS_X,(short)(scoreY - 70),TEXT_NOT_CENTERED);
 	}
 	SCR_RenderText();
 	

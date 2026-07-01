@@ -275,7 +275,8 @@ void PL_RenderPlayerPointers(void);
 extern unsigned char numPlayerRespawn[];
 
 // Solo loadout selection (Others -> Ship). See player.c / menu.c.
-#define NUM_SHIP_CHOICES 3
+// (Ship 3 / hpp was dropped: its model renders far too small.)
+#define NUM_SHIP_CHOICES 2
 extern int gShipChoice;
 #define NUM_BULLET_COLORS 4
 extern int gBulletColor;

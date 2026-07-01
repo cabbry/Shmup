@@ -141,7 +141,11 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Roadmap
 
-- Polish & smaller features: ship + bullet-colour selection before a run.
+- Polish & smaller features: ship + bullet-colour selection before a run (bullets are
+  texture-driven `xf_colorless_sprite_t`, so this means colored textures or a draw-time tint).
+- **3–4 player multiplayer** (idea, later): the current netcode is strictly 2-player
+  (peer-to-peer, `controlledPlayer` / `!controlledPlayer`, `numPlayers = 2`), so N players
+  would be a real rewrite — N-way command sync / topology, more ship slots and lives logic.
 - Optional deeper modernization: ARC migration, 64-bit audit, `AVAudioSession`, and
   clearing the ~600 deprecation warnings (then re-enabling the strict clang flags).
 - A new level (study `data/scenes`, the `event` system, the on-rails `cameraPath`, and
@@ -154,6 +158,17 @@ to the true screen edges, and the touch-coordinate mapping.
 ---
 
 ## Changelog
+
+### 2026-07-01
+- **Fix multiplayer end-of-level freeze (build 153, v1.2.2)**: at a level transition the game
+  froze — decor still, soundtrack paused but the level-complete jingle kept playing. Cause:
+  the level-load handshake (server→`LOAD_NEXT_LEVEL`, client→`NOTIFY_LOADED`,
+  server→`START_LEVEL`) sent each of those responses **once**; only the client's initial
+  request retried. On the LAN (unreliable UDP) a single dropped handshake packet deadlocked
+  both sides with the timer paused. Fixed: each handshake command is now sent as a small
+  **burst** on LAN (the receiver ignores duplicates once its state has advanced); online
+  packets are already reliable so they still send one copy. Also hardened the runtime receiver
+  to **skip stray setup packets** so leftover handshake copies can't be mis-applied as input.
 
 ### 2026-06-29
 - **Command redundancy + faster resync to cut multiplayer desync (build 152, v1.2.1)**: two

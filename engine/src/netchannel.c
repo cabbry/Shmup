@@ -804,6 +804,26 @@ void NET_CreateSocket(void)
 
 
 
+// Send a level-load handshake command to the peer. On the LAN these are unreliable
+// UDP datagrams, so we send a small BURST -- a single dropped handshake packet used
+// to deadlock the level transition with the timer paused ("decor frozen, music still
+// playing"). The receiver ignores duplicates once its state has advanced. Online
+// (GKMatch) packets are already reliable, so one copy is enough.
+static void NET_SendSetupCmd(char cmdType)
+{
+	net_packet_t p;
+	int i, copies = NET_IsOnline() ? 1 : 6;
+	p.type = SETUP_PACKET;
+	p.command.type = cmdType;
+	p.numRedundant = 0;
+	for (i = 0; i < copies; i++)
+	{
+		p.sequenceNumber = net.lastSentSequenceNumber++;
+		p.ackSequenceNumber = net.lastReceivedSequenceNumber;
+		NET_TransportSend(&p, sizeof(p));
+	}
+}
+
 void Net_ProcessSetupPacket(void)
 {
 	// Read all incoming UDP datagrams
@@ -813,8 +833,7 @@ void Net_ProcessSetupPacket(void)
 	int byteReceived;
 	net_packet_t* packet;
 	uchar packetConsumed = 0;
-	net_packet_t outPacket;
-	
+
 //	Log_Printf("Net_ProcessSetupPacket\n");
 	
 	bzero(&incomingAdd, sizeof(incomingAdd));
@@ -894,12 +913,8 @@ void Net_ProcessSetupPacket(void)
 		Log_Printf("Client loaded level, but Timer still paused sending NET_CMD_LOAD_NEXT_LEVEL.\n");
 		
 		// Trigger preload on the other end as well by sending a NET_CMD_LOAD_NEXT_LEVEL to peer
-		outPacket.command.type = NET_CMD_LOAD_NEXT_LEVEL;
-		outPacket.sequenceNumber = net.lastSentSequenceNumber++;
-		outPacket.ackSequenceNumber = net.lastReceivedSequenceNumber;
-		outPacket.type = SETUP_PACKET;
-		NET_TransportSend(&outPacket, sizeof(outPacket));
-		
+		NET_SendSetupCmd(NET_CMD_LOAD_NEXT_LEVEL);
+
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_LOAD_NEXT_LEVEL");
 	}
 	
@@ -924,12 +939,8 @@ void Net_ProcessSetupPacket(void)
 		Log_Printf("Client loaded level, but Timer still paused sending NET_CMD_NOTIFY_LOADED.\n");
 		
 		// Tell server we are ready to start by sending NET_CMD_NOTIFY_LOADED
-		outPacket.command.type = NET_CMD_NOTIFY_LOADED;
-		outPacket.sequenceNumber = net.lastSentSequenceNumber++;
-		outPacket.ackSequenceNumber = net.lastReceivedSequenceNumber;
-		outPacket.type = SETUP_PACKET;
-		NET_TransportSend(&outPacket, sizeof(outPacket));
-		
+		NET_SendSetupCmd(NET_CMD_NOTIFY_LOADED);
+
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_NOTIFY_LOADED");
 		
 	}
@@ -954,12 +965,7 @@ void Net_ProcessSetupPacket(void)
 		MENU_Set(MENU_NONE);
 		
 		//Trigger client start
-		outPacket.command.type = NET_CMD_START_LEVEL;
-		outPacket.sequenceNumber = net.lastSentSequenceNumber++;
-		outPacket.ackSequenceNumber = net.lastReceivedSequenceNumber;
-		outPacket.type = SETUP_PACKET;
-		NET_TransportSend(&outPacket, sizeof(outPacket));
-		usleep(16*1000);
+		NET_SendSetupCmd(NET_CMD_START_LEVEL);
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_START_LEVEL");
 	}
 	
@@ -1219,6 +1225,11 @@ void NET_Receive(void)
 				sprintf(MENU_GetMultiplayerTextLine(4),"Error recvfrom:%d %s.\n",errno,strerror( errno ));
 			break;
 		}
+
+		// Ignore handshake leftovers here (they're handled by Net_ProcessSetupPacket).
+		// Their command fields are uninitialized, so applying them as input would glitch.
+		if (rcv_packet.type == SETUP_PACKET)
+			continue;
 
 		// A runtime packet carries its current command plus a few redundant (previous)
 		// commands. Walk them oldest-first and apply every command whose sequence we

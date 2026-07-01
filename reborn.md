@@ -160,6 +160,14 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-07-01
+- **Ship choice now applies + loadout persists (build 157, v1.2.6)**: the solo ship selection
+  had no effect because the player model was loaded **once** at engine init (when the choice was
+  still the default) and never reloaded. Now `P_ReloadShip()` re-points player 0's model to the
+  chosen ship on every scene load (after the level config sets `modelPath`); it's leak-free
+  because `ENT_LoadEntity` caches meshes by name. Multiplayer still uses the level's model0.
+  Also: the loadout (ship + bullet colour) is now **persisted** in `NSUserDefaults` — saved on
+  each pick, restored at launch — so it survives an app restart. (The temporary `SHIP cX`
+  on-screen readout is kept one more build to confirm the choice now changes.)
 - **Menu polish from feedback (build 156, v1.2.5)**: Others menu — swapped Network/Custom so the
   two multiplayer entries sit together, renamed **"Network" → "Local Network"**, evened the row
   spacing. Custom screen — the **Back** button no longer overlaps the last colour, and picking a

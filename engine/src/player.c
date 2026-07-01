@@ -52,6 +52,11 @@ const char* gShipPaths[NUM_SHIP_CHOICES] = {
 	"data/models/players/hpp.obj.md5mesh",
 };
 
+// Solo bullet colour (Others -> Ship). Selects the colour COLUMN of the bullet atlas
+// (spritesBullets.png); the player index already does this in multiplayer, so in solo
+// we substitute the chosen column. Applied in P_PrepareBulletSprites.
+int gBulletColor = 0;
+
 #define SHOW_POINTER_DURATION 5000
 
 uchar numPlayers;
@@ -893,8 +898,13 @@ void P_PrepareBulletSprites(void)
 	
 	for(i=0 ; i < numPlayers ; i++)
 	{
+		int colorCol;
 		player = &players[i] ;
-		
+
+		// Solo bullet colour: pick the chosen atlas colour column; multiplayer keeps the
+		// player-index colours so the two players' shots stay distinguishable.
+		colorCol = (engine.mode == DE_MODE_SINGLEPLAYER) ? gBulletColor : i;
+
 		//Check if the player is currently firing and spawn a flash if so.
 		//Suppressed while the world is frozen (timediff 0) so the muzzle flash
 		//doesn't stay lit on-screen during the resume countdown.
@@ -988,26 +998,26 @@ void P_PrepareBulletSprites(void)
 			
 			bulSprite->pos[X] = bullet->ss_boudaries[LEFT];
 			bulSprite->pos[Y] = bullet->ss_boudaries[DOWN];
-			bulSprite->text[X] = i*(16.0f/128*SHRT_MAX) ;
+			bulSprite->text[X] = colorCol*(16.0f/128*SHRT_MAX) ;
 			bulSprite->text[Y] = bullet->type*(32.0f/128*SHRT_MAX) + 32.0f/128*SHRT_MAX;
 			bulSprite++;
 			
 			bulSprite->pos[X] = bullet->ss_boudaries[LEFT];
 			bulSprite->pos[Y] = bullet->ss_boudaries[UP];
-			bulSprite->text[X] = i*(16.0f/128*SHRT_MAX);
+			bulSprite->text[X] = colorCol*(16.0f/128*SHRT_MAX);
 			bulSprite->text[Y] = bullet->type*(32.0f/128*SHRT_MAX) ;
 			bulSprite++;
 			
 					
 			bulSprite->pos[X] = bullet->ss_boudaries[RIGHT];
 			bulSprite->pos[Y] = bullet->ss_boudaries[UP];
-			bulSprite->text[X] = i*(16.0f/128*SHRT_MAX) + 16.0f/128*SHRT_MAX;
+			bulSprite->text[X] = colorCol*(16.0f/128*SHRT_MAX) + 16.0f/128*SHRT_MAX;
 			bulSprite->text[Y] = bullet->type*(32.0f/128*SHRT_MAX);
 			bulSprite++;
 			
 			bulSprite->pos[X] = bullet->ss_boudaries[RIGHT];
 			bulSprite->pos[Y] = bullet->ss_boudaries[DOWN];
-			bulSprite->text[X] = i*(16.0f/128*SHRT_MAX) + (16.0f/128*SHRT_MAX);
+			bulSprite->text[X] = colorCol*(16.0f/128*SHRT_MAX) + (16.0f/128*SHRT_MAX);
 			bulSprite->text[Y] = bullet->type*(32.0f/128*SHRT_MAX)+32.0f/128*SHRT_MAX;
 			bulSprite++;
 			

@@ -525,6 +525,16 @@ void Action_SelectShip(void* tag)
 	MENU_Set(MENU_OTHERS);
 }
 
+void Action_SelectBulletColor(void* tag)
+{
+	// tag points to the chosen bullet-colour column (see MENU_SELECT_SHIP setup).
+	// Applied in P_PrepareBulletSprites for single-player games.
+	int choice = *(int*)tag;
+	if (choice >= 0 && choice < NUM_BULLET_COLORS)
+		gBulletColor = choice;
+	MENU_Set(MENU_OTHERS);
+}
+
 
 void Action_GoToReplayScreen(void* tag)
 {
@@ -851,12 +861,12 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Scores", 3, Action_ShowGameCenter,NULL, buttonPos, buttonDim);
 
-	// Ship selection (solo loadout).
+	// Loadout selection (solo: ship + bullet colour).
 	buttonPos[X] = -160 ;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Ship", 3, Action_ShowShipMenu,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, "Loadout", 3, Action_ShowShipMenu,NULL, buttonPos, buttonDim);
 //
 //	if (engine.gameCenterPossible)
 //    {
@@ -930,23 +940,38 @@ void MENU_Init(void)
 	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
 
 
-	// --- Ship selection menu (solo loadout: Others -> Ship) ---
+	// --- Loadout menu (solo: Others -> Ship): pick ship (left) + bullet colour (right) ---
 	currentMenu = &menuScreens[MENU_SELECT_SHIP];
 
-	MENU_CreateText(currentMenu, 0, (SS_H - 200), 3.0f, TEXT_CENTERED, "SELECT SHIP");
+	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, "LOADOUT");
 
 	{
-		static const char* shipLabels[NUM_SHIP_CHOICES] = { "Ship 1", "Ship 2", "Ship 3" };
-		int s;
-		for (s = 0; s < NUM_SHIP_CHOICES; s++)
+		static const char* shipLabels[NUM_SHIP_CHOICES]   = { "Ship 1", "Ship 2", "Ship 3" };
+		static const char* colorLabels[NUM_BULLET_COLORS] = { "Color 1", "Color 2", "Color 3", "Color 4" };
+		int k;
+
+		// Ships (left column)
+		for (k = 0; k < NUM_SHIP_CHOICES; k++)
 		{
-			int* shipTag = calloc(1, sizeof(int));
-			*shipTag = s;
-			buttonPos[X] = 0 ;
-			buttonPos[Y] = (SS_H - 400) - s*200;
+			int* t = calloc(1, sizeof(int));
+			*t = k;
+			buttonPos[X] = -160 ;
+			buttonPos[Y] = (SS_H - 320) - k*150;
 			buttonDim[WIDTH] = (159 * 2);
 			buttonDim[HEIGHT] = 64 * 2;
-			MENU_CreateButtonWithTag(currentMenu, shipLabels[s], 3, Action_SelectShip, shipTag, NULL, buttonPos, buttonDim);
+			MENU_CreateButtonWithTag(currentMenu, shipLabels[k], 3, Action_SelectShip, t, NULL, buttonPos, buttonDim);
+		}
+
+		// Bullet colours (right column)
+		for (k = 0; k < NUM_BULLET_COLORS; k++)
+		{
+			int* t = calloc(1, sizeof(int));
+			*t = k;
+			buttonPos[X] = 160 ;
+			buttonPos[Y] = (SS_H - 320) - k*150;
+			buttonDim[WIDTH] = (159 * 2);
+			buttonDim[HEIGHT] = 64 * 2;
+			MENU_CreateButtonWithTag(currentMenu, colorLabels[k], 3, Action_SelectBulletColor, t, NULL, buttonPos, buttonDim);
 		}
 	}
 

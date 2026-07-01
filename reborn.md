@@ -156,6 +156,16 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-06-29
+- **Command redundancy + faster resync to cut multiplayer desync (build 152, v1.2.1)**: two
+  network robustness improvements, most valuable online (where packet loss is common) but they
+  help LAN too. (1) **Command redundancy** — each runtime packet now also carries the previous
+  couple of commands (with their sequence numbers); the receiver applies any command it hasn't
+  seen yet, so an input lost to a dropped packet is recovered from the next packet instead of
+  leaving the peer's ship stuck for a frame. (2) **Faster position resync** — the periodic
+  absolute-position correction now fires every ~300 ms instead of every 1 s, so residual drift
+  is pulled back sooner. First confirmed **online** game worked (via Game Center quick-match);
+  invitations-by-iMessage and SharePlay only light up once the app is on the App Store, so
+  quick-match is the way to test online in TestFlight.
 - **Automatic LAN role election by IP (build 151, v1.2.0)**: you no longer have to start one
   device before the other. Both devices now register their Bonjour service with **auto-rename**
   (so both stay advertised — no name conflict to race over), both browse, and resolve the

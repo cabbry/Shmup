@@ -118,10 +118,26 @@ typedef struct net_packet_t
 #define NET_CMD_LOAD_NEXT_LEVEL 0
 #define NET_CMD_NOTIFY_LOADED 1
 #define NET_CMD_START_LEVEL 2
-	
+
 	command_t command;
 
+	// Command redundancy (anti packet-loss): each runtime packet also carries the
+	// previous few commands + their sequence numbers, so a lost packet's input is
+	// recovered from the next one (the receiver applies any command it hasn't seen).
+	// Not used by setup/ABS packets (numRedundant = 0).
+#define NET_REDUNDANT_CMDS 2
+	int			numRedundant;
+	int			redundantSeq[NET_REDUNDANT_CMDS];
+	command_t	redundant[NET_REDUNDANT_CMDS];
+
 } net_packet_t;
+
+// Outgoing command-redundancy ring: the last few runtime commands we sent (oldest
+// first), echoed in each packet's redundant[] so the peer can recover an input lost
+// to a dropped packet.
+static command_t	sentCmds[NET_REDUNDANT_CMDS];
+static int			sentSeqs[NET_REDUNDANT_CMDS];
+static int			sentCount = 0;
 
 
 // ------------------------------------------------------------------------------
@@ -281,6 +297,7 @@ void NET_Free(void)
 	net.transport = NET_TRANSPORT_LAN;	// default transport; the online entry sets GameKit
 	netRxHead = netRxTail = 0;			// flush any queued online packets
 	ownAddrValid = 0;					// recompute our own IP next session (for role election)
+	sentCount = 0;						// clear the outgoing command-redundancy ring
 
 	net.lastReceivedSequenceNumber = 0;
 	net.lastSentSequenceNumber = 1;
@@ -1201,50 +1218,45 @@ void NET_Receive(void)
 			if (errno != EAGAIN )
 				sprintf(MENU_GetMultiplayerTextLine(4),"Error recvfrom:%d %s.\n",errno,strerror( errno ));
 			break;
-		}	
-		if (rcv_packet.sequenceNumber <= net.lastReceivedSequenceNumber)
-		{
-			Log_Printf("Old packet.\n");
-			continue;
 		}
-			
-			
-		net.numDropedPackets +=  (rcv_packet.sequenceNumber - (1 + net.lastReceivedSequenceNumber));
-			
-		net.lastReceivedSequenceNumber = rcv_packet.sequenceNumber;
-			
-		
-		rcv_packet.command.time = simulationTime;
-		
-		//Log_Printf("Receiving packet for player id= %d\n",rcv_packet.command.playerId);
-		
-		
-		
-		//Safe guard against data corruption
-		if(rcv_packet.command.playerId < 2 && commandsBuffers[!controlledPlayer].numCommands < COMMAND_BUFFER_SIZE-1)
+
+		// A runtime packet carries its current command plus a few redundant (previous)
+		// commands. Walk them oldest-first and apply every command whose sequence we
+		// haven't seen yet -- this recovers inputs lost to dropped packets.
+		int nred = rcv_packet.numRedundant;
+		if (nred < 0)                  nred = 0;
+		if (nred > NET_REDUNDANT_CMDS) nred = NET_REDUNDANT_CMDS;
+
+		for (i = 0; i <= nred; i++)		// [0..nred-1] = redundant (old->new); i==nred = current
 		{
-			memcpy(&commandsBuffers[!controlledPlayer].cmds[commandsBuffers[!controlledPlayer].numCommands], &rcv_packet.command, sizeof(command_t));
-			
-			/*
-			Log_Printf("t=%d rcv: t=%d d=[%.2f %.2f] %d%d%d\n",
-				   simulationTime,
-				   rcv_packet.type,rcv_packet.command.delta[X],
-				   rcv_packet.command.delta[Y],
-				   rcv_packet.command.buttons & BUTTON_MOVE_PRESSED,
-				   rcv_packet.command.buttons & BUTTON_FIRE_PRESSED,
-				   rcv_packet.command.buttons & BUTTON_GHOST_PRESSED
-				   );
-			*/
-			//Need to add this command to history
-			if (rcv_packet.type == NET_RTM_COMMAND)
+			command_t*	c;
+			int			seq;
+			int			slot;
+
+			if (i < nred) { c = &rcv_packet.redundant[i]; seq = rcv_packet.redundantSeq[i]; }
+			else          { c = &rcv_packet.command;      seq = rcv_packet.sequenceNumber;  }
+
+			if (seq <= net.lastReceivedSequenceNumber)
+				continue;			// already applied this command
+
+			net.numDropedPackets += (seq - (1 + net.lastReceivedSequenceNumber));
+			net.lastReceivedSequenceNumber = seq;
+
+			//Safe guard against data corruption
+			if (c->playerId < 2 && commandsBuffers[!controlledPlayer].numCommands < COMMAND_BUFFER_SIZE-1)
 			{
-				NET_AddCMDToHistory(&rcv_packet.command);
-				numDeltaUpdateRecv += 1;
+				slot = commandsBuffers[!controlledPlayer].numCommands;
+				memcpy(&commandsBuffers[!controlledPlayer].cmds[slot], c, sizeof(command_t));
+
+				if (rcv_packet.type == NET_RTM_COMMAND)
+				{
+					NET_AddCMDToHistory(c);
+					numDeltaUpdateRecv += 1;
+				}
+
+				commandsBuffers[!controlledPlayer].cmds[slot].time = simulationTime;
+				commandsBuffers[!controlledPlayer].numCommands++;
 			}
-			
-		
-			cmdBuffer->cmds[commandsBuffers[!controlledPlayer].numCommands].time = simulationTime;
-			commandsBuffers[!controlledPlayer].numCommands++;
 		}
 	}
 	
@@ -1303,41 +1315,56 @@ int lastFullUpdateTime = 0;
 void NET_Send()
 {
 	net_packet_t send_packet;
-	
-	//Log_Printf("NET_Send\n");
-	
+	int i, seq;
+
 	if (!isInitialized)
 		return;
-	
-	//Log_Printf("To send contains playerId= %X\n",toSend.playerId);
-	
-	
-	
+
+	seq = net.lastSentSequenceNumber++;
+
 	send_packet.type = RUNTIME_PACKET;
 	send_packet.command.type = NET_RTM_COMMAND;
-	send_packet.sequenceNumber = net.lastSentSequenceNumber++;
-	//Log_Printf("net.lastSentSequenceNumber=%d\n",net.lastSentSequenceNumber);
+	send_packet.sequenceNumber = seq;
 	send_packet.ackSequenceNumber = net.lastReceivedSequenceNumber;
-	memcpy(&send_packet.command,&toSend,sizeof(command_t));
-	
-	//send_packet.command.playerId = controlledPlayer;
-	
-	//Log_Printf("Sending packet for player id= %X\n",send_packet.command.playerId);
-	//Log_Printf("Controlled player = %X\n",controlledPlayer);
-	
+	memcpy(&send_packet.command, &toSend, sizeof(command_t));
+
+	// Attach the previous commands as redundancy (oldest first) so a lost packet's
+	// input is recovered from this one.
+	send_packet.numRedundant = sentCount;
+	for (i = 0; i < sentCount; i++)
+	{
+		send_packet.redundant[i]    = sentCmds[i];
+		send_packet.redundantSeq[i] = sentSeqs[i];
+	}
+
 	NET_TransportSend(&send_packet, sizeof(net_packet_t));
-	
-	
-	
-	if (simulationTime - lastFullUpdateTime > 1000)
+
+	// Push the command we just sent into the redundancy ring (keep the last N, oldest first).
+	if (sentCount < NET_REDUNDANT_CMDS)
+	{
+		sentCmds[sentCount] = toSend;
+		sentSeqs[sentCount] = seq;
+		sentCount++;
+	}
+	else
+	{
+		for (i = 1; i < NET_REDUNDANT_CMDS; i++) { sentCmds[i-1] = sentCmds[i]; sentSeqs[i-1] = sentSeqs[i]; }
+		sentCmds[NET_REDUNDANT_CMDS-1] = toSend;
+		sentSeqs[NET_REDUNDANT_CMDS-1] = seq;
+	}
+
+	// Periodic absolute-position resync to correct residual drift. More frequent than
+	// before (was 1000ms) since online packet loss lets drift build up faster.
+	if (simulationTime - lastFullUpdateTime > 300)
 	{
 		// We are reusing the delta field to contain absolute position :/ No clean I know.
 		send_packet.command.type = NET_RTM_ABS_UPDATE;
 		send_packet.command.delta[X] = players[controlledPlayer].ss_position[X];
 		send_packet.command.delta[Y] = players[controlledPlayer].ss_position[Y];
 		send_packet.sequenceNumber = net.lastSentSequenceNumber++;
+		send_packet.numRedundant = 0;		// the ABS correction packet carries no redundancy
 		NET_TransportSend(&send_packet, sizeof(net_packet_t));
-		lastFullUpdateTime= simulationTime;
+		lastFullUpdateTime = simulationTime;
 	}
 }
 		
@@ -1351,8 +1378,9 @@ void Net_SendDie(command_t* command)
 	send_packet.type = NET_RUNNING;
 	send_packet.sequenceNumber = net.lastSentSequenceNumber++;
 	send_packet.ackSequenceNumber = net.lastReceivedSequenceNumber;
+	send_packet.numRedundant = 0;		// no redundant commands on the death packet
 	memcpy(&send_packet.command,command,sizeof(command_t));
-	
+
 	NET_TransportSend(&send_packet, sizeof(net_packet_t));
 	
 }

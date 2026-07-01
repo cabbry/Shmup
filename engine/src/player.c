@@ -42,6 +42,16 @@
 //WARNING...if THIS IS CHANGED
 unsigned char numPlayerRespawn[] = {PLAYER_NUM_LIVES,3,1};
 
+// Solo ship selection (Others -> Ship). Index into gShipPaths, applied in P_LoadPlayer
+// for single-player only; multiplayer keeps the level's distinct model0/model1 so the
+// two players stay recognizable. Index 0 = the default ship (same as the config).
+int gShipChoice = 0;
+const char* gShipPaths[NUM_SHIP_CHOICES] = {
+	"data/models/players/p1.obj.md5mesh",
+	"data/models/players/p2.obj.md5mesh",
+	"data/models/players/hpp.obj.md5mesh",
+};
+
 #define SHOW_POINTER_DURATION 5000
 
 uchar numPlayers;
@@ -222,7 +232,15 @@ void P_LoadPlayer(int playerIdToLoad)
 	player->playerId = playerIdToLoad;
 	currentEntity = &players[playerIdToLoad].entity ;
 	currentEntity->model = (md5_mesh_t*)calloc(1,sizeof(md5_mesh_t)) ;
-	ENT_LoadEntity(currentEntity,players[playerIdToLoad].modelPath,ENT_FULL_DRAW);
+
+	// Solo ship selection: load the chosen ship in single-player; multiplayer keeps the
+	// level's distinct model0/model1 so the two players stay recognizable.
+	{
+		const char* modelToLoad = players[playerIdToLoad].modelPath;
+		if (engine.mode == DE_MODE_SINGLEPLAYER && gShipChoice > 0 && gShipChoice < NUM_SHIP_CHOICES)
+			modelToLoad = gShipPaths[gShipChoice];
+		ENT_LoadEntity(currentEntity, modelToLoad, ENT_FULL_DRAW);
+	}
 	
 
 	currentEntity->model->memStatic = 1;

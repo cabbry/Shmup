@@ -510,6 +510,21 @@ void Action_ShowOthersMenu(void* tag)
 	MENU_Set(MENU_OTHERS);
 }
 
+void Action_ShowShipMenu(void* tag)
+{
+	MENU_Set(MENU_SELECT_SHIP);
+}
+
+void Action_SelectShip(void* tag)
+{
+	// tag points to the chosen ship index (see MENU_SELECT_SHIP setup). Applied in
+	// P_LoadPlayer for single-player games. Return to Others as confirmation.
+	int choice = *(int*)tag;
+	if (choice >= 0 && choice < NUM_SHIP_CHOICES)
+		gShipChoice = choice;
+	MENU_Set(MENU_OTHERS);
+}
+
 
 void Action_GoToReplayScreen(void* tag)
 {
@@ -835,6 +850,13 @@ void MENU_Init(void)
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Scores", 3, Action_ShowGameCenter,NULL, buttonPos, buttonDim);
+
+	// Ship selection (solo loadout).
+	buttonPos[X] = -160 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, "Ship", 3, Action_ShowShipMenu,NULL, buttonPos, buttonDim);
 //
 //	if (engine.gameCenterPossible)
 //    {
@@ -908,6 +930,31 @@ void MENU_Init(void)
 	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
 
 
+	// --- Ship selection menu (solo loadout: Others -> Ship) ---
+	currentMenu = &menuScreens[MENU_SELECT_SHIP];
+
+	MENU_CreateText(currentMenu, 0, (SS_H - 200), 3.0f, TEXT_CENTERED, "SELECT SHIP");
+
+	{
+		static const char* shipLabels[NUM_SHIP_CHOICES] = { "Ship 1", "Ship 2", "Ship 3" };
+		int s;
+		for (s = 0; s < NUM_SHIP_CHOICES; s++)
+		{
+			int* shipTag = calloc(1, sizeof(int));
+			*shipTag = s;
+			buttonPos[X] = 0 ;
+			buttonPos[Y] = (SS_H - 400) - s*200;
+			buttonDim[WIDTH] = (159 * 2);
+			buttonDim[HEIGHT] = 64 * 2;
+			MENU_CreateButtonWithTag(currentMenu, shipLabels[s], 3, Action_SelectShip, shipTag, NULL, buttonPos, buttonDim);
+		}
+	}
+
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowOthersMenu, NULL, buttonPos, buttonDim);
 
 
 	menuCreated = 1;

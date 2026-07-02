@@ -454,7 +454,7 @@ void COLL_CheckEnemies(void)
 			
 			for (j=0; j< MAX_PLAYER_BULLETS; j++) 
 			{
-				if (bullets[j].expirationTime < simulationTime)
+				if (bullets[j].expirationTime <= simulationTime)	// <=: exp 0 at a timer reset (t=0) means expired
 					continue;
 				
 				ss_bullet_boudaries= bullets[j].ss_boudaries;

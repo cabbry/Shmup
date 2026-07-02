@@ -159,6 +159,26 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-07-02
+- **🆕 Custom loadout in multiplayer + "player left" handling + start-of-match cleanup
+  (build 160, v1.2.9)**: three multiplayer improvements from 2-player testing.
+  - **Per-player Custom loadout online and on the LAN** — each device now sends its Custom
+    choice (ship + bullet colour) inside the existing handshake packets; both ends then hold
+    both loadouts and apply them when the level loads, so each player keeps his own look. If
+    both players picked the **same bullet colour** (the real in-game differentiator), player
+    two's colour is shifted **deterministically on both ends** — no negotiation, the two
+    simulations stay identical. Defaults remain the classic P1/P2 look.
+  - **"The other player left the game."** — a peer-liveness timeout (the peer normally sends
+    every frame; ~5 s of silence means it quit, was backgrounded, or lost the network) ends
+    the match cleanly on the remaining device: the session is freed, the menu scene is
+    reloaded (previously the abandoned game kept simulating behind the menu), and a notice
+    tells the player what happened. Online, a GKMatch disconnect triggers the same path
+    immediately.
+  - **No more ghost shots at match start** — at a multiplayer match start the timer is reset
+    to 0, and the stale bullet pool (expiration time 0) briefly counted as alive ("0 < 0" is
+    false), flashing old shots at their last positions. Expiry is now inclusive (`<=`) and
+    reset bullets are parked offscreen.
+
 ### 2026-07-01
 - **Loadout + multiplayer balance/robustness (build 159, v1.2.8)**: from on-device feedback —
   (1) confirmed the ship choice now takes effect and **removed the diagnostic overlay**;

@@ -280,7 +280,11 @@ extern unsigned char numPlayerRespawn[];
 extern int gShipChoice;
 #define NUM_BULLET_COLORS 4
 extern int gBulletColor;
-// Re-apply the chosen ship to player 0 (called on scene load, after modelPath is set).
+// Multiplayer per-player Custom loadout, synced during the handshake (netchannel.c).
+extern int gMPShipChoice[2];
+extern int gMPBulletColor[2];
+// Re-apply the chosen ship(s) to the player entities (called on scene load, after
+// modelPath is set; solo = player 0, multiplayer = both players).
 void P_ReloadShip(void);
 
 #endif

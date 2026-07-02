@@ -331,7 +331,7 @@ void RenderCollisionBoxes(void)
 	{
 		for (j=0; j < MAX_PLAYER_BULLETS; j++) 
 		{
-			if (players[i].bullets[j].expirationTime < simulationTime)
+			if (players[i].bullets[j].expirationTime <= simulationTime)	// <=: exp 0 at a timer reset (t=0) means expired
 				continue;
 			
 			collisionBoxes[1] = players[i].bullets[j].ss_boudaries[UP];

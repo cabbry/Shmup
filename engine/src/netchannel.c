@@ -41,6 +41,7 @@
 	uint NET_GetDropedPackets(void){return 0;}
 	void NET_StartOnlineMatch(int isServer){}
 	void NET_AbortOnlineMatch(void){}
+	void NET_OnPeerLost(void){}
 	void NET_OnNetworkData(const void* data, int len){}
 	char NET_IsOnline(void){return 0;}
 
@@ -129,6 +130,11 @@ typedef struct net_packet_t
 	int			numRedundant;
 	int			redundantSeq[NET_REDUNDANT_CMDS];
 	command_t	redundant[NET_REDUNDANT_CMDS];
+
+	// Custom loadout (setup packets only): the sender's chosen ship + bullet colour,
+	// so each player keeps his Custom look in multiplayer (see NET_StorePeerLoadout).
+	int			shipChoice;
+	int			bulletColor;
 
 } net_packet_t;
 
@@ -816,12 +822,71 @@ static void NET_SendSetupCmd(char cmdType)
 	p.type = SETUP_PACKET;
 	p.command.type = cmdType;
 	p.numRedundant = 0;
+	p.shipChoice   = gShipChoice;	// carry our Custom loadout in every setup packet
+	p.bulletColor  = gBulletColor;
 	for (i = 0; i < copies; i++)
 	{
 		p.sequenceNumber = net.lastSentSequenceNumber++;
 		p.ackSequenceNumber = net.lastReceivedSequenceNumber;
 		NET_TransportSend(&p, sizeof(p));
 	}
+}
+
+// Per-player custom loadout sync: each end sends its own Custom choice (ship +
+// bullet colour) in its setup packets; once a setup packet from the peer arrives,
+// both ends hold both choices and apply the same deterministic rule -- so the two
+// devices render the match identically without negotiation.
+static void NET_StorePeerLoadout(const net_packet_t* packet, int peerId)
+{
+	int ship  = packet->shipChoice;
+	int color = packet->bulletColor;
+
+	// Clamp (protects against a mismatched build on the other end).
+	if (ship  < 0 || ship  >= NUM_SHIP_CHOICES)  ship  = peerId;	// classic P1/P2 ship
+	if (color < 0 || color >= NUM_BULLET_COLORS) color = peerId;	// classic red/blue
+
+	gMPShipChoice[peerId]  = ship;
+	gMPBulletColor[peerId] = color;
+
+	// Our own slot.
+	gMPShipChoice[!peerId]  = (gShipChoice  >= 0 && gShipChoice  < NUM_SHIP_CHOICES)  ? gShipChoice  : !peerId;
+	gMPBulletColor[!peerId] = (gBulletColor >= 0 && gBulletColor < NUM_BULLET_COLORS) ? gBulletColor : !peerId;
+
+	// Same bullet colour on both sides would make the two players' shots
+	// indistinguishable: shift PLAYER TWO's colour. Both ends run this same rule on
+	// the same data, so they agree.
+	if (gMPBulletColor[0] == gMPBulletColor[1])
+		gMPBulletColor[1] = (gMPBulletColor[1] + 1) % NUM_BULLET_COLORS;
+
+	Log_Printf("Loadout sync: P1 ship=%d color=%d | P2 ship=%d color=%d\n",
+	           gMPShipChoice[0], gMPBulletColor[0], gMPShipChoice[1], gMPBulletColor[1]);
+}
+
+// Peer liveness: in a running match the peer sends every frame, so a long silence
+// means it quit, was backgrounded, or lost the network.
+#define NET_PEER_TIMEOUT_MS 5000
+static int lastPeerPacketTime = 0;
+
+// The peer is gone mid-match: end the match cleanly on THIS side too. Free the
+// session, reload the menu scene NOW (otherwise the abandoned game keeps simulating
+// behind the menu), then show a notice telling the player what happened.
+void NET_OnPeerLost(void)
+{
+	Log_Printf("NET_OnPeerLost\n");
+
+	NET_Free();						// also clears the multiplayer text lines
+
+	numPlayers = 1;
+	controlledPlayer = 0;
+	engine.mode = DE_MODE_SINGLEPLAYER;
+
+	dEngine_RequireSceneId(0);
+	dEngine_CheckState();			// load the menu scene now (sets the HOME menu)
+
+	MENU_Set(MENU_MULTIPLAYER);		// then show the notice over it
+	sprintf(MENU_GetMultiplayerTextLine(0), "Connection lost !");
+	sprintf(MENU_GetMultiplayerTextLine(2), "The other player");
+	sprintf(MENU_GetMultiplayerTextLine(3), "left the game.");
 }
 
 void Net_ProcessSetupPacket(void)
@@ -893,13 +958,14 @@ void Net_ProcessSetupPacket(void)
 		
 		//Perform preload, pause music, pause timer
 		dEngine_RequireSceneId(engine.sceneId + 1  % engine.numScenes);
-		
+
 		numPlayers=2;
 		controlledPlayer=0;
-		
-//		Log_Printf("PPRE Player1=%p\n",players[0].entity.material);
-//		Log_Printf("PPRE Player2=%p\n",players[1].entity.material);
-		
+
+		// The client's packet carries its Custom loadout; store both loadouts (and
+		// dedupe colours) BEFORE the scene load below applies the ship models.
+		NET_StorePeerLoadout(packet, 1);
+
 		dEngine_CheckState();
 		
 //		Log_Printf("POST Player1=%p\n",players[0].entity.material);
@@ -925,10 +991,14 @@ void Net_ProcessSetupPacket(void)
 		
 		//Perform preload, pause music, pause timer
 		dEngine_RequireSceneId(engine.sceneId + 1  % engine.numScenes);
-		
+
 		numPlayers=2;
 		controlledPlayer=1;
-		
+
+		// The server's packet carries its Custom loadout; store both loadouts (and
+		// dedupe colours) BEFORE the scene load below applies the ship models.
+		NET_StorePeerLoadout(packet, 0);
+
 		dEngine_CheckState();
 		
 		SND_PauseSoundTrack();
@@ -959,6 +1029,7 @@ void Net_ProcessSetupPacket(void)
 		SND_ResumeSoundTrack();
 		Timer_resetTime();
 		Timer_Resume();
+		lastPeerPacketTime = simulationTime;	// fresh peer-liveness window (just reset to 0)
 		
 		Log_Printf("Server Received NET_CMD_NOTIFY_LOADED, starting and asking client to start as well: NET_CMD_START_LEVEL.\n");
 		
@@ -979,6 +1050,7 @@ void Net_ProcessSetupPacket(void)
 		SND_ResumeSoundTrack();
 		Timer_resetTime();
 		Timer_Resume();
+		lastPeerPacketTime = simulationTime;	// fresh peer-liveness window (just reset to 0)
 		
 		Log_Printf("Client Received NET_CMD_START_LEVEL, starting.\n");
 		
@@ -1084,6 +1156,9 @@ void NET_Setup(void)
 			registerPacket.ackSequenceNumber = net.lastReceivedSequenceNumber;
 			registerPacket.type = SETUP_PACKET;
 			registerPacket.command.type = NET_CMD_LOAD_NEXT_LEVEL;
+			registerPacket.numRedundant = 0;
+			registerPacket.shipChoice   = gShipChoice;	// carry our Custom loadout
+			registerPacket.bulletColor  = gBulletColor;
 			NET_TransportSend(&registerPacket, sizeof(registerPacket));
 			//sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_LOAD_NEXT_LEVEL");
 			
@@ -1226,6 +1301,8 @@ void NET_Receive(void)
 			break;
 		}
 
+		lastPeerPacketTime = simulationTime;	// any packet proves the peer is alive
+
 		// Ignore handshake leftovers here (they're handled by Net_ProcessSetupPacket).
 		// Their command fields are uninitialized, so applying them as input would glitch.
 		if (rcv_packet.type == SETUP_PACKET)
@@ -1273,7 +1350,13 @@ void NET_Receive(void)
 	
 	
 	Log_Printf("t=%d,numDeltaUpdateRecv=%d\n",simulationTime,numDeltaUpdateRecv);
-	
+
+	// Peer liveness: the peer sends every frame while the match runs, so a long
+	// silence means it quit / was backgrounded / lost the network. End the match
+	// cleanly instead of leaving this player in an abandoned game.
+	if (simulationTime - lastPeerPacketTime > NET_PEER_TIMEOUT_MS)
+		NET_OnPeerLost();
+
 	return;
 	
 	// If no update was received, we need to create a fake one in order to avoid jerky mouvments.

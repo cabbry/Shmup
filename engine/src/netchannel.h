@@ -167,6 +167,7 @@ uint NET_GetDropedPackets(void);
 // Online (GameKit) multiplayer entry points, called FROM the iOS GameKit layer.
 void NET_StartOnlineMatch(int isServer);			// role decided by GKMatch; begin the handshake
 void NET_AbortOnlineMatch(void);					// matchmaking cancelled, peer dropped, or failed
+void NET_OnPeerLost(void);							// peer vanished mid-match: clean reset + notice
 void NET_OnNetworkData(const void* data, int len);	// a packet arrived over GKMatch (push)
 char NET_IsOnline(void);							// true when the active transport is GameKit
 #endif

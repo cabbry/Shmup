@@ -60,6 +60,14 @@ char gLoadedShipDebug[64] = "";
 // we substitute the chosen column. Applied in P_PrepareBulletSprites.
 int gBulletColor = 0;
 
+// Multiplayer per-player loadout, synced during the match handshake (netchannel.c
+// NET_StorePeerLoadout): each slot holds that player's Custom ship / bullet-colour
+// column. Defaults = the classic multiplayer look (P1 ship + red, P2 ship + blue).
+// If both players picked the same colour, player two's is shifted deterministically
+// on both ends so the two players' shots stay distinguishable.
+int gMPShipChoice[2]  = { 0, 1 };
+int gMPBulletColor[2] = { 0, 1 };
+
 #define SHOW_POINTER_DURATION 5000
 
 uchar numPlayers;
@@ -197,10 +205,17 @@ void P_ResetPlayer(int i)
 	player->showPointer = 0;
 	player->autopilot.enabled = 0;
 	
-	for (j=0; j < MAX_PLAYER_BULLETS; j++) 
+	for (j=0; j < MAX_PLAYER_BULLETS; j++)
 	{
 		player->bullets[j].energy = BULLET_DEFAULT_ENERGY;
 		player->bullets[j].expirationTime = 0;
+		// Park the quad offscreen too: at a timer reset (multiplayer match start)
+		// simulationTime briefly equals the 0 expiration time, which used to flash
+		// the stale bullet pool at its old positions for a frame.
+		player->bullets[j].ss_boudaries[UP]    = 4*SS_H;
+		player->bullets[j].ss_boudaries[DOWN]  = 4*SS_H;
+		player->bullets[j].ss_boudaries[LEFT]  = 4*SS_W;
+		player->bullets[j].ss_boudaries[RIGHT] = 4*SS_W;
 	}
 	
 	
@@ -269,27 +284,34 @@ void P_LoadPlayer(int playerIdToLoad)
 	P_ResetPlayer(playerIdToLoad);
 }
 
-// Re-point player 0's model to the currently chosen ship (solo) or the level's model0
-// (multiplayer). Called on each scene load, AFTER the level config has set modelPath.
-// Cheap and leak-free: ENT_LoadEntity caches meshes by name, so switching just swaps
-// the entity's model pointer to a cached mesh (the player model is loaded once per ship).
+// Re-point the player entities' models to the chosen ships. Called on each scene
+// load, AFTER the level config has set modelPath. Solo: player 0 gets gShipChoice.
+// Multiplayer: EACH player gets his own Custom choice (gMPShipChoice, exchanged
+// during the handshake in netchannel.c). Cheap and leak-free: ENT_LoadEntity caches
+// meshes by name, so switching just swaps the entity's model pointer.
 void P_ReloadShip(void)
 {
-	const char* modelToLoad = players[0].modelPath;
-	const char* base;
-	const char* s;
+	int i;
+	int last = (engine.mode == DE_MODE_MULTIPLAYER) ? 1 : 0;
 
-	if (engine.mode == DE_MODE_SINGLEPLAYER && gShipChoice > 0 && gShipChoice < NUM_SHIP_CHOICES)
-		modelToLoad = gShipPaths[gShipChoice];
+	for (i = 0; i <= last; i++)
+	{
+		const char* modelToLoad = players[i].modelPath;
 
-	if (!modelToLoad || !modelToLoad[0])
-		return;
+		if (engine.mode == DE_MODE_MULTIPLAYER)
+		{
+			// Any valid choice applies (0 = the P1 ship, a real pick).
+			if (gMPShipChoice[i] >= 0 && gMPShipChoice[i] < NUM_SHIP_CHOICES)
+				modelToLoad = gShipPaths[gMPShipChoice[i]];
+		}
+		else if (gShipChoice > 0 && gShipChoice < NUM_SHIP_CHOICES)
+			modelToLoad = gShipPaths[gShipChoice];
 
-	ENT_LoadEntity(&players[0].entity, modelToLoad, ENT_FULL_DRAW);
+		if (!modelToLoad || !modelToLoad[0])
+			continue;
 
-	base = modelToLoad;
-	for (s = modelToLoad; *s; s++) if (*s == '/') base = s + 1;
-	snprintf(gLoadedShipDebug, sizeof(gLoadedShipDebug), "SHIP c%d %s", gShipChoice, base);
+		ENT_LoadEntity(&players[i].entity, modelToLoad, ENT_FULL_DRAW);
+	}
 }
 
 
@@ -604,7 +626,7 @@ void P_Update(void)
 			//Also update bullets
 			for(j=0; j < MAX_PLAYER_BULLETS ; j++)
 			{
-				if (player->bullets[j].expirationTime < simulationTime )
+				if (player->bullets[j].expirationTime <= simulationTime )	// <=: exp 0 at a timer reset (t=0) means expired
 					continue;
 				
 				bullet = &player->bullets[j];
@@ -938,7 +960,9 @@ void P_PrepareBulletSprites(void)
 
 		// Solo bullet colour: pick the chosen atlas colour column; multiplayer keeps the
 		// player-index colours so the two players' shots stay distinguishable.
-		colorCol = (engine.mode == DE_MODE_SINGLEPLAYER) ? gBulletColor : i;
+			// Solo: the chosen Custom colour. Multiplayer: each player's SYNCED Custom
+		// colour (defaults to the classic red/blue = the player index).
+		colorCol = (engine.mode == DE_MODE_SINGLEPLAYER) ? gBulletColor : gMPBulletColor[i & 1];
 
 		//Check if the player is currently firing and spawn a flash if so.
 		//Suppressed while the world is frozen (timediff 0) so the muzzle flash
@@ -1023,7 +1047,7 @@ void P_PrepareBulletSprites(void)
 			bullet = &player->bullets[j];
 			
 		//	bulletdiagnostic[j+3] = '0';
-			if (bullet->expirationTime < simulationTime)
+			if (bullet->expirationTime <= simulationTime)	// <=: exp 0 at a timer reset (t=0) means expired
 				continue;
 		//	bulletdiagnostic[j+3] = '1';
             

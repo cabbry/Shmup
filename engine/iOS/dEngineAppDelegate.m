@@ -199,7 +199,10 @@ static BOOL     gMatchStarted = NO;
 	if (match != gMatch) return;
 	if (state == GKPlayerStateDisconnected) {
 		gMatchStarted = NO;
-		NET_AbortOnlineMatch();	// -> NET_Free -> Native_CancelOnlineMatchmaking tears down gMatch
+		if (NET_IsRunning())
+			NET_OnPeerLost();		// mid-match: clean scene reset + "other player left" notice
+		else
+			NET_AbortOnlineMatch();	// still matchmaking: just back out to the menu
 		return;
 	}
 	[self tryStartMatch];

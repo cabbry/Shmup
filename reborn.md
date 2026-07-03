@@ -128,8 +128,16 @@ to the true screen edges, and the touch-coordinate mapping.
 - 🆕 **Game Center sign-in + online "High Scores" leaderboard** — the final score is
   submitted online.
 - 🆕 **Online multiplayer over Game Center (GKMatch)** — play a 2-player match over the
-  internet (not just the LAN); Apple handles matchmaking and NAT traversal. *(Awaiting
-  2-device validation.)*
+  internet (not just the LAN); Apple handles matchmaking and NAT traversal. Confirmed
+  working on devices via Game Center quick-match.
+- 🆕 **Ship + bullet-colour customisation ("Custom" menu)** — the engine could already do
+  this (multiplayer always gave the two players distinct ships and bullet colours), but
+  there was no menu to reach it: the ability existed, unexposed, since 2009. An
+  **Others → Custom** screen now lets each player pick a ship (2 models) and a bullet
+  colour (Red / Blue / Invisible / Yellow — straight from the original bullet atlas'
+  columns), persisted across restarts. In multiplayer, each player's choice is synced
+  during the handshake, and if both picked the same colour, player two's is shifted
+  deterministically on both ends so the two players' shots stay distinguishable.
 
 ## Known issues
 
@@ -141,8 +149,6 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Roadmap
 
-- Polish & smaller features: ship + bullet-colour selection before a run (bullets are
-  texture-driven `xf_colorless_sprite_t`, so this means colored textures or a draw-time tint).
 - **3–4 player multiplayer** (idea, later): the current netcode is strictly 2-player
   (peer-to-peer, `controlledPlayer` / `!controlledPlayer`, `numPlayers = 2`), so N players
   would be a real rewrite — N-way command sync / topology, more ship slots and lives logic.

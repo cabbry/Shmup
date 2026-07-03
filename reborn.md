@@ -157,9 +157,10 @@ to the true screen edges, and the touch-coordinate mapping.
 - A new level (study `data/scenes`, the `event` system, the on-rails `cameraPath`, and
   the preprocessor), reusing the existing assets.
 - **TTB system** (homage to the manga *Tokyo Toy Box*): a scripted perspective shift
-  mid-level — the camera swinging into a close 3/4 / side view and back at preprogrammed
-  points — authored as a beat in the new level, with the camera path and decor built for
-  it. Made possible by the game being real 3D.
+  mid-level — the camera rotating **90° from the usual top-down view to a side view**
+  (and back) at preprogrammed points, briefly turning the vertical shooter into a
+  side-scroller — authored as a beat in the new level, with the camera path and decor
+  built for it. Made possible by the game being real 3D.
 
 ---
 

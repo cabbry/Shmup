@@ -159,6 +159,20 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-07-03
+- **Smoother, more reliable LAN matchmaking screen (build 161, v1.2.10)**: three comfort
+  fixes for "starting a local game is still awkward". (1) The waiting screen's background
+  animation stuttered at ~3 fps — the discovery drain used a 300 ms *blocking* `select`
+  every frame; it is now a non-blocking poll (same discovery latency, full frame rate).
+  (2) Fewer "back out and retry" runs: a long-lived mDNS browse backs its queries off
+  exponentially, so if the second device shows up late, discovery could sit silent for a
+  long while — the browse is now re-issued every ~8 s until the peer is found, which
+  restarts the query schedule. Also, the resolve steps' blocking waits are now bounded
+  (2 s): a stale "ghost" advertisement left by a killed app could previously hang the
+  menu indefinitely. (3) Clearer guidance: the screen now says "Looking for the other
+  player... Open Others > Network on the second device", and the last diagnostic line
+  is gone.
+
 ### 2026-07-02
 - **🆕 Custom loadout in multiplayer + "player left" handling + start-of-match cleanup
   (build 160, v1.2.9)**: three multiplayer improvements from 2-player testing.

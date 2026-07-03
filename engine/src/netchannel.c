@@ -78,6 +78,10 @@ DNSServiceRef		resolveRef=0;
 struct sockaddr_in	ownAddr;
 int					ownAddrValid = 0;
 
+// When the current peer browse was issued (see the periodic re-browse in
+// NET_CheckServerAvailability).
+static int			lastBrowseTime = 0;
+
 static const char	*serviceName = "_DodgeServer._udp.";
 
 
@@ -479,55 +483,91 @@ int NET_CheckServerAvailability(void)
 		if ( rerr != kDNSServiceErr_NoError ) { Log_Printf("DNSServiceRegister error\n"); registerRef = 0; }
 	}
 
-	// Browse ONCE for peers; drain it (short blocking) each call. When the peer's IP is
-	// resolved, DNSServiceQueryRecordReplyCallback elects the role by IP comparison.
+	// Browse for peers. Re-issue the browse every few seconds while nobody is found:
+	// a long-lived mDNS browse backs its queries off exponentially, so if the other
+	// device shows up "late" a single browse can sit silent for a long while -- a
+	// fresh browse restarts the query schedule (this was the "have to back out and
+	// retry" symptom). Once the peer is elected we leave the browse alone.
+	if ( browseRef != 0 && net.type == NET_UNKNOWN && simulationTime - lastBrowseTime > 8000 )
+	{
+		DNSServiceRefDeallocate( browseRef );
+		browseRef = 0;
+	}
 	if ( browseRef == 0 )
 	{
 		DNSServiceErrorType	berr = DNSServiceBrowse( &browseRef, 0, 0, serviceName, NULL,
 		                                             DNSServiceBrowseReplyCallback, NULL );
 		if ( berr != kDNSServiceErr_NoError ) { Log_Printf("DNSServiceBrowse error\n"); browseRef = 0; return 0; }
+		lastBrowseTime = simulationTime;
 	}
 
 	socket = DNSServiceRefSockFD( browseRef );
 	if ( socket < 0 )		// fd 0 is valid; only -1 is an error
 		return 0;
 
+	// Non-blocking drain, once per frame: discovery events are caught just as fast as
+	// with a blocking wait, but the menu keeps rendering at full speed (the previous
+	// 300ms blocking select made the whole waiting screen stutter at ~3 fps).
 	FD_ZERO( &set );
 	FD_SET( socket, &set );
 	tv.tv_sec = 0;
-	tv.tv_usec = 300 * 1000;	// 300ms: catch the peer without freezing the waiting screen hard
+	tv.tv_usec = 0;
 	if ( select( socket+1, &set, NULL, NULL, &tv ) > 0 )
 		DNSServiceProcessResult( browseRef );		// -> browse cb -> resolve -> query -> election
-
-	// DIAGNOSTIC (waiting screen): our own IP + the interface index used.
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "DIAG own=%s if=%d",
-	        ownAddrValid ? inet_ntoa(ownAddr.sin_addr) : "?", ifIdx);
 
 	if (net.type == NET_SERVER)
 	{
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Waiting for client to connect...");
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "You are Player ONE.");
+		MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE)[0] = '\0';	// clear the "second device" hint
 	}
 	else if (net.type == NET_CLIENT)
+	{
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Contacting server... You are Player TWO.");
+		MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE)[0] = '\0';	// clear the "second device" hint
+	}
 	else
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Looking for opponent...");
+	{
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Looking for the other player...");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Open Others > Network");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "on the second device.");
+	}
 
 	return 1;
 }
 
-void DNSServiceQueryRecordReplyCallback ( 
-										 DNSServiceRef DNSServiceRef, 
-										 DNSServiceFlags flags, 
-										 uint32_t interfaceIndex, 
-										 DNSServiceErrorType errorCode, 
-										 const char *fullname, 
-										 uint16_t rrtype, 
-										 uint16_t rrclass, 
-										 uint16_t rdlen, 
-										 const void *rdata, 
-										 uint32_t ttl, 
+// Drain one result from a one-shot ref, giving up after a short timeout instead of
+// blocking forever: a stale ("ghost") advertisement left behind by a killed app would
+// otherwise hang the menu inside DNSServiceProcessResult until the record expires.
+static int NET_ProcessResultWithTimeout(DNSServiceRef ref, int timeoutMs)
+{
+	fd_set set;
+	struct timeval tv;
+	int fd = DNSServiceRefSockFD( ref );
+	if ( fd < 0 )
+		return 0;
+	FD_ZERO( &set );
+	FD_SET( fd, &set );
+	tv.tv_sec  = timeoutMs / 1000;
+	tv.tv_usec = (timeoutMs % 1000) * 1000;
+	if ( select( fd+1, &set, NULL, NULL, &tv ) > 0 )
+		return DNSServiceProcessResult( ref ) == kDNSServiceErr_NoError;
+	return 0;	// timed out: no answer (ghost record) -- caller just moves on
+}
+
+void DNSServiceQueryRecordReplyCallback (
+										 DNSServiceRef DNSServiceRef,
+										 DNSServiceFlags flags,
+										 uint32_t interfaceIndex,
+										 DNSServiceErrorType errorCode,
+										 const char *fullname,
+										 uint16_t rrtype,
+										 uint16_t rrclass,
+										 uint16_t rdlen,
+										 const void *rdata,
+										 uint32_t ttl,
 										 void *context ) {
 	
 	
@@ -604,18 +644,14 @@ void DNSServiceResolveReplyCallback (
 													 DNSServiceQueryRecordReplyCallback, 
 													 NULL /* may be NULL */
 													 );  	
-	if ( err != kDNSServiceErr_NoError ) 
+	if ( err != kDNSServiceErr_NoError )
 	{
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceQueryRecord error");
-	} 
-	else 
+	}
+	else
 	{
-		// block until we get a response, process it, and run the callback
-		err = DNSServiceProcessResult( queryRef );
-		
-		if ( err != kDNSServiceErr_NoError ) 
-			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceProcessResult error");
-		
+		// wait for the answer, but bounded: a ghost record would otherwise hang here
+		NET_ProcessResultWithTimeout( queryRef, 2000 );
 		DNSServiceRefDeallocate( queryRef );
 	}
 }
@@ -680,10 +716,8 @@ void DNSServiceBrowseReplyCallback(
 				sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceResolve error");
 
 			} else {
-				err = DNSServiceProcessResult( resolveRef2 );
-				if ( err != kDNSServiceErr_NoError ) {
-					sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceProcessResult error");
-				}
+				// bounded wait: a ghost record would otherwise hang the menu here
+				NET_ProcessResultWithTimeout( resolveRef2, 2000 );
 				DNSServiceRefDeallocate( resolveRef2 );
 			}
 		}

@@ -149,6 +149,18 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Roadmap
 
+- **🎯 Boss fight** (Fabien's #1 wish — the thing he ran out of money for in 2009): the
+  traces are all there in the repo — an unused **"BOSS" title card** ships in
+  `data/titles/boss.png`, and act 2 ends with a commented-out *"To_Be_Continued..."*.
+  The plan: make the boss the **climax of the new level** — investigate which asset is
+  the boss seen at the end of level 2, then extend the enemy/event system to drive a real
+  encounter (its own HP pool, attack phases, patterns), announced by that title card at last.
+- **Enemy / boss scripting** (Fabien's suggestion): the `.scene` event format is
+  declarative (spawn timelines); a boss needs *reactive* behaviour (phases, conditions).
+  Evaluate the lightest thing that works — extending the event system with conditional
+  triggers vs. embedding a small VM/Lua for enemy injection and boss scripting.
+- **Gameplay videos on YouTube** (Fabien's suggestion): record short progress videos
+  (solo run, 2-player LAN, online match) so people can see the project evolve.
 - **3–4 player multiplayer** (idea, later): the current netcode is strictly 2-player
   (peer-to-peer, `controlledPlayer` / `!controlledPlayer`, `numPlayers = 2`), so N players
   would be a real rewrite — N-way command sync / topology, more ship slots and lives logic.

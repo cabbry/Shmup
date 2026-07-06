@@ -29,6 +29,7 @@
 #include "timer.h"
 #include "limits.h"
 #include "enemy.h"
+#include "lofb.h"
 #include <math.h>
 #include "sounds.h"
 #include "menu.h"
@@ -930,6 +931,12 @@ void PL_RenderPlayerPointers(void)
 		// top-centre to leave the tutorial. The tap zone is hit-tested in EAGLView.
 		if (engine.sceneId == 14 || engine.sceneId == 15)
 			SCR_ConvertTextToVertices("[ BACK ]",SCORE_FONT_SIZE,0,(short)(scoreY - 100),TEXT_CENTERED);
+		// Boss health bar (act 3), just under the score line while the fight is on.
+		{
+			char bossBar[32];
+			if (LOFB_GetBossHealthBar(bossBar))
+				SCR_ConvertTextToVertices(bossBar, 2.0f, 0, (short)(scoreY - 55), TEXT_CENTERED);
+		}
 	}
 	SCR_RenderText();
 	

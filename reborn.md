@@ -179,6 +179,29 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-07-04
+- **🆕 THE BOSS FIGHT (build 162, v1.3.0)** — Fabien's #1 wish, and a little archaeology: the
+  2010 repo already contained the whole skeleton of a boss act that was never finished — act 3
+  ("水 -Water", whose title card is literally named `boss.png`), the LOFB model/texture, a
+  one-spawn scene that made the boss *appear* for 17 seconds and then quit to the menu, and an
+  `updateLOFB()` left **empty** next to a scaffolded state machine. That fight is now real:
+  - **`lofb.c` finally has its brain**: the boss eases down to a hover point, then fights in
+    **three HP phases** — aimed fan bursts at the nearest player (always), a twin **rotating
+    bullet spiral** (below ⅔ HP), and **FHT escort waves** (his scaffolded "Spawning" state,
+    below ⅔ HP; everything faster and wider below ⅓). Attacks reuse the engine's own systems
+    (SHAB's bullet emitter, the standard spawn payload), and all behaviour is driven purely by
+    simulation state, so the fight stays **deterministic in lockstep multiplayer** (boss HP is
+    doubled in MP like every enemy).
+  - **Boss HP bar** under the score (`BOSS ====----`), boss-sized **hitbox** (the old one was
+    the standard small-enemy box), HP 200 → 450, and a **victory bonus** (100 000 × difficulty).
+  - **Winning ends the game properly**: on the killing blow — pyro burst, the ships fly to
+    their rest position, the act-3 epilog plays, and the game returns to the menu. This also
+    fixed a dormant 2009 bug: `sceneId + 1 % numScenes` parses as `sceneId + 1` (no wrap), so
+    finishing the last act would have indexed past the scene table — never hit back then only
+    because the stub act force-quit at 17 s.
+  - **act3.scene rebuilt**: deep-blue "Water" fog, a ~30 s FHT gauntlet, a **WARNING** call-out,
+    then the boss — and no more 17-second exit; the act ends when the boss dies.
+
 ### 2026-07-03
 - **Smoother, more reliable LAN matchmaking screen (build 161, v1.2.10)**: three comfort
   fixes for "starting a local game is still awkward". (1) The waiting screen's background

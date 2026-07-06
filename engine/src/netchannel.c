@@ -991,7 +991,7 @@ void Net_ProcessSetupPacket(void)
 		}
 		
 		//Perform preload, pause music, pause timer
-		dEngine_RequireSceneId(engine.sceneId + 1  % engine.numScenes);
+		dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);	// (parenthesized: "+ 1 % n" is just "+ 1")
 
 		numPlayers=2;
 		controlledPlayer=0;
@@ -1024,7 +1024,7 @@ void Net_ProcessSetupPacket(void)
 		packetConsumed=1;
 		
 		//Perform preload, pause music, pause timer
-		dEngine_RequireSceneId(engine.sceneId + 1  % engine.numScenes);
+		dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);	// (parenthesized: "+ 1 % n" is just "+ 1")
 
 		numPlayers=2;
 		controlledPlayer=1;

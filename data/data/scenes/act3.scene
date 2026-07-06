@@ -2,7 +2,7 @@
 
 defaultMenu -1
 
-map	
+map
 {
 	filename: data/map/act2.map
 }
@@ -14,51 +14,47 @@ light
    lookAt   : 0 -200 -5000
    upVector : 1 0 0
    fov      : 70
-   #ambientColor  : 0.6 0.5 0.5
-   #diffuseColor  : 1 0.8 0.8
    ambientColor  : 0.5 0.5 0.5
    diffuseColor  : 1.0 1.0 1.0
-   
+
    speculaColor  : 1 1 1
    constantAttenuation: 1
    linearAttenuation: 0
    attachedToCamera: 0
-   
+
 }
 
 camera
 {
 	#path: data/cameraPath/act3.cp
 	path:  data/cameraPath/act3.cp.cp2b
-	
-	
-	
+
 	fov:	55
 	zNear:	2
 	zFar:	22000
-	
+
 	attachAt: 09000
-	detachAt: 28000
+	detachAt: 900000
 }
 
+# "Water" act: deep blue haze.
 fog
 {
 	enabled 1
-	#density parameter is USELESS IF USING FOG_LINEAR (which I DO !!)
 	density 0.1
 	startAt 0.1
 	endAt   405.0
-	color:  0.0  0.0  0.05    
+	color:  0.0  0.02  0.10
 }
 
 player
 {
 	id 0
-	matrix 1 0 0 0
+	matrix 1 0 0 -3
 	       0 1 0 110
 		   0 0 1 -386
 		   0 0 0 1
-	
+
 
 }
 
@@ -69,16 +65,16 @@ player
 	       0 1 0 110
 		   0 0 1 -386
 		   0 0 0 1
-		   
-	
+
+
 }
 
- 
- 
+
+
 playback
 {
 	play 0
-	record 1
+	record 0
 	filename 03act3.scene.io
 }
 
@@ -94,19 +90,49 @@ title
 {
 	titleName  data/titles/boss.png
 	prolog start 500 duration 8500
-		
-	at 27000 movePlayersToDefautlSSLocation
-	epilog start 28000 duration 7000
-	
 }
 
 
+# Act III -- the boss act. A short gauntlet, a warning, then the LOFB.
+# Its behaviour (phases, spirals, escorts) lives in lofb.c; the fight ends when
+# it dies (LOFB_OnBossDeath -> epilog -> back to the menu), not on a timer.
 enemies
 {
-	#enemy was xAxisRot -45
-	settime 000
-	at 000 spawnEnemy mouvement 1 enemyType 4 startPos 0 0 endPos 0 0 controlPoint -1 1 zAxisRot  0 xAxisRot 0 yAxisRot 0 subType 0
-	
+	settime 11000
+	setttl 5000
+
+	# opening dives, criss-crossing
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.8 1.3 endPos 0.6 -1.3 controlPoint -0.8 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 400  spawnEnemy mouvement 1 enemyType 1 startPos 0.8 1.3 endPos -0.6 -1.3 controlPoint 0.8 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 800  spawnEnemy mouvement 1 enemyType 1 startPos -0.5 1.3 endPos 0.4 -1.3 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1200 spawnEnemy mouvement 1 enemyType 1 startPos 0.5 1.3 endPos -0.4 -1.3 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1600 spawnEnemy mouvement 1 enemyType 1 startPos 0 1.3 endPos 0 -1.3 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+
+	addtime 6000
+	setttl 4500
+
+	# weaving columns, left and right
+	at 0    spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.5 enemyType 1 startPos -0.5 1.2 endPos -0.5 -1.2 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 350  spawnEnemy mouvement 2 xOffset 0.5 xWidth 0.5 enemyType 1 startPos 0.5 1.2 endPos 0.5 -1.2 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 700  spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.5 enemyType 1 startPos -0.5 1.2 endPos -0.5 -1.2 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1050 spawnEnemy mouvement 2 xOffset 0.5 xWidth 0.5 enemyType 1 startPos 0.5 1.2 endPos 0.5 -1.2 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1400 spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.5 enemyType 1 startPos -0.5 1.2 endPos -0.5 -1.2 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1750 spawnEnemy mouvement 2 xOffset 0.5 xWidth 0.5 enemyType 1 startPos 0.5 1.2 endPos 0.5 -1.2 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+
+	addtime 7000
+	setttl 6000
+
+	# hardened stragglers
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.7 1.3 endPos -0.7 -1.3 controlPoint 0 0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	at 500  spawnEnemy mouvement 1 enemyType 1 startPos 0.7 1.3 endPos 0.7 -1.3 controlPoint 0 0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	at 1000 spawnEnemy mouvement 1 enemyType 1 startPos -0.3 1.3 endPos -0.3 -1.3 controlPoint 0 -0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	at 1500 spawnEnemy mouvement 1 enemyType 1 startPos 0.3 1.3 endPos 0.3 -1.3 controlPoint 0 -0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+
+	addtime 8000
+	setttl 9000000
+
+	# THE BOSS. Eases down to its hover point, then lofb.c takes over.
+	at 9000 spawnEnemy mouvement 1 enemyType 4 startPos 0 1.35 endPos 0 0.55 controlPoint 0 1 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 
 
 }
@@ -114,19 +140,15 @@ enemies
 texts_events
 {
 	settime 0
-	at 10000 display To_Be_Continued... size 2.5  for 5000 starting 0 -100 ending  0 -100
+	at 38500 display WARNING size 4.0  for 3000 starting 0 50 ending  0 50
+
 }
 
 events
 {
-	at 17000 finishAct nextAct 0
-	
-	at 17000 setMenu 0
-	at 17000 uploadScore
-	
+	at 40000 uploadScore
+
 }
 
 
 
-
-\

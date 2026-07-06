@@ -139,6 +139,7 @@
 #include "sounds.h"
 #include "dEngine.h"
 #include "enemy_particules.h"
+#include "lofb.h"
 
 plan_t unitCubePlans[6];
 
@@ -562,9 +563,13 @@ void COLL_CheckEnemies(void)
 			enemy->ss_position[X] += (rand() - (RAND_MAX >> 1)) / (float)(RAND_MAX >> 1) * 0.1 ;
 			enemy->ss_position[Y] += (rand() - (RAND_MAX >> 1)) / (float)(RAND_MAX >> 1) * 0.1 ;
 			FX_GetSmoke(enemy->ss_position, 0.2, 0.2);
-			
+
+			// The boss going down ends the act (victory pyro + epilog choreography).
+			if (enemy->type == ENEMY_LOFB)
+				LOFB_OnBossDeath(enemy);
+
 			ENE_Release(enemy);
-			
+
 			SND_PlaySound(SND_EXPLOSION);
 		}
 		

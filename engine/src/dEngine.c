@@ -770,13 +770,32 @@ void dEngine_RenderCountdown(void)
 
 
 void dEngine_GoToNextScene(void)
-{	
+{
+	// NOTE: the original expression was "engine.sceneId + 1 % engine.numScenes",
+	// which C parses as sceneId + (1 % numScenes) = sceneId + 1 -- past the last
+	// act it indexed scenes[4], out of bounds. Never hit in 2009 because act 3
+	// (the boss act) force-quit to the menu after 17 seconds; with the boss fight
+	// finishing the game for real, wrap properly.
+	int next = (engine.sceneId + 1) % engine.numScenes;
+
+	if (next == 0)
+	{
+		// That was the last act: the game is COMPLETE. Return to the menu cleanly
+		// (both multiplayer sims reach this at the same simulation tick, so each
+		// side tears its session down deterministically).
+		NET_Free();
+		numPlayers = 1;
+		controlledPlayer = 0;
+		engine.mode = DE_MODE_SINGLEPLAYER;
+		MENU_Set(MENU_HOME);
+		dEngine_RequireSceneId(0);
+		return;
+	}
+
 	if (engine.mode == DE_MODE_MULTIPLAYER && NET_IsRunning())
 		NET_OnNextLevelLoad();
 	else
-		dEngine_RequireSceneId(engine.sceneId + 1  % engine.numScenes);
-	
-	
+		dEngine_RequireSceneId(next);
 }
 
 

@@ -28,11 +28,18 @@
 
 #include "enemy.h"
 
-
+// The LOFB is THE BOSS (act 3, "Water"). The 2010 code shipped with an empty
+// updateLOFB and a scaffolded state machine; the fight is now implemented.
 
 void updateLOFB(enemy_t* enemy);
 
+// Called from the enemy-death path in collisions.c when the boss's energy
+// reaches 0: victory pyrotechnics, score bonus, then the end-of-act
+// choreography (autopilot + epilog; the epilog's end advances the scene).
+void LOFB_OnBossDeath(enemy_t* enemy);
 
-
+// Fills out (>= 32 bytes) with the "BOSS ====----" health bar and returns 1
+// while a boss fight is active, 0 otherwise. Rendered from the HUD text block.
+int LOFB_GetBossHealthBar(char* out);
 
 #endif

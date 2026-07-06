@@ -227,11 +227,15 @@ void ENE_AttachToCamera(matrix_t globalMatrix)
 
 void ENE_UpdateSSBoundaries(enemy_t* enemy)
 {
-	enemy->ss_boudaries[UP]   =  (enemy->ss_position[Y] + 0.1)*SS_H ;
-	enemy->ss_boudaries[DOWN] =  (enemy->ss_position[Y] - 0.1)*SS_H;
-	enemy->ss_boudaries[LEFT] =  (enemy->ss_position[X] - 0.1)*SS_W;
-	enemy->ss_boudaries[RIGHT]=  (enemy->ss_position[X] + 0.1)*SS_W;
-	
+	// The boss (LOFB) is far bigger on screen than regular enemies; give it a
+	// hitbox to match, so player bullets connect where the ship visually is.
+	float r = (enemy->type == ENEMY_LOFB) ? 0.26f : 0.1f;
+
+	enemy->ss_boudaries[UP]   =  (enemy->ss_position[Y] + r)*SS_H ;
+	enemy->ss_boudaries[DOWN] =  (enemy->ss_position[Y] - r)*SS_H;
+	enemy->ss_boudaries[LEFT] =  (enemy->ss_position[X] - r)*SS_W;
+	enemy->ss_boudaries[RIGHT]=  (enemy->ss_position[X] + r)*SS_W;
+
 }
 
 
@@ -411,13 +415,13 @@ updateFunction_t enemyTypeUpdateFct[] =
 };
 
 
-ushort enemyTypeEnergy[] = 
+ushort enemyTypeEnergy[] =
 {
 	10,
 	1,
 	12,
 	30,
-	200,
+	450,	// LOFB, the act-3 boss (a player bullet deals 1) -- doubled to 900 in multiplayer
 	30
 };
 

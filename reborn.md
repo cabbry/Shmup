@@ -179,6 +179,23 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-07-06 (boss playtest round 1)
+- **Boss fight tuned from first playtests (build 166, v1.3.4)**: eight fixes/changes from
+  on-device feedback. (1) **Locked acts now show "Locked"** on the act-select buttons (the
+  label is swapped; the font is single-colour so a true grey-out would need renderer work).
+  (2) **Act 3 now rides act 2's camera rails** — same decor, so its long straight flight and
+  baked visibility are valid; Fabien's original act3 path was a short test spline that turned
+  then froze before the boss arrived. (3) **Boss HP ×11** (450 → 5000; 10000 in multiplayer)
+  — it went down far too easily. (4) **Score freezes at the killing blow** — leftover bullets
+  mopping up escorts during the victory lap no longer pad the final score. (5) **The boss is
+  untouchable while descending into position** (hitbox parked off-screen until its first
+  lateral move — shooting it during the approach did damage). (6) **Fixed the visible
+  position "jump"** at the start of its lateral sweep: the sway used total-time (sin was
+  already mid-cycle when the fight began); it now uses fight-relative time, continuous with
+  the arrival point. (7) **Escort waves doubled** (4 FHT per wave, two per side). (8) 🆕 **THE
+  BIG SHOT**: from phase 2, a large slow orb (4× bullet size) aimed at the nearest player,
+  every ~8.5 s (6 s in phase 3).
+
 ### 2026-07-06
 - **Fix: unfair multiplayer game over while one player was still alive (build 165, v1.3.3)**:
   the shared-life pool intentionally lets the first player who exhausts it sit out (parked

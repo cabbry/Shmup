@@ -69,6 +69,10 @@ int gBulletColor = 0;
 int gMPShipChoice[2]  = { 0, 1 };
 int gMPBulletColor[2] = { 0, 1 };
 
+// Set when the act-3 boss dies: the run is scored at the killing blow, so all
+// score gains stop during the victory lap. Cleared on the next scene load.
+int gScoreLocked = 0;
+
 #define SHOW_POINTER_DURATION 5000
 
 uchar numPlayers;
@@ -566,7 +570,8 @@ void P_Update(void)
 			// and (timeCounter=2000000) the whole GAME OVER screen, so this also
 			// stops the score from ticking up after dying / on game over.
 			if (!player->autopilot.enabled)
-				players[i].score += (timediff >> 1 << engine.difficultyLevel) * 2;
+				if (!gScoreLocked)
+					players[i].score += (timediff >> 1 << engine.difficultyLevel) * 2;
 			
 			if (player->autopilot.enabled)
 			{

@@ -283,6 +283,8 @@ extern int gBulletColor;
 // Multiplayer per-player Custom loadout, synced during the handshake (netchannel.c).
 extern int gMPShipChoice[2];
 extern int gMPBulletColor[2];
+// Score frozen after the boss's killing blow (victory lap gains don't count).
+extern int gScoreLocked;
 // Re-apply the chosen ship(s) to the player entities (called on scene load, after
 // modelPath is set; solo = player 0, multiplayer = both players).
 void P_ReloadShip(void);

@@ -492,9 +492,10 @@ void COLL_CheckEnemies(void)
 				if (enemy->energy <= 0)
 				{
 					engine.playerStats.enemyDestroyed[i]++;
-					players[i].score += enemy->score * 2;
+					if (!gScoreLocked)
+						players[i].score += enemy->score * 2;
 				}
-								
+
 			}
 			
 		}
@@ -543,7 +544,8 @@ void COLL_CheckEnemies(void)
 				if (enemy->energy <= 0)
 				{
 					engine.playerStats.enemyDestroyed[i]++;
-					players[i].score += enemy->score * 2 ;
+					if (!gScoreLocked)
+						players[i].score += enemy->score * 2 ;
 				}
 			}
 		}

@@ -430,10 +430,18 @@ void Action_startNewGame(void* tag)
 // selectable once they have been REACHED in play (gHighestActReached).
 static const char* actRoman[] = { "", "I", "II", "III" };
 
-// texts[1] of the act-select screen is its status line.
+// texts[1] of the act-select screen is its status line; buttons 0..2 are the acts.
 static void MENU_UpdateActLockStatus(int lockedActTried)
 {
-	char* line = menuScreens[MENU_SELECT_ACT].texts[1].text;
+	static char* actLabels[] = { "", "Act I", "Act II", "Act III" };
+	menu_screen_t* screen = &menuScreens[MENU_SELECT_ACT];
+	char* line = screen->texts[1].text;
+	int act;
+
+	// "Grey out" locked acts: swap the button label (button text is a pointer,
+	// so swapping between the two literals is safe; the font is single-colour).
+	for (act = 1; act <= 3; act++)
+		screen->buttons[act - 1].text = (act <= gHighestActReached) ? actLabels[act] : "Locked";
 
 	if (lockedActTried > 1)
 		sprintf(line, "Locked - finish Act %s first", actRoman[lockedActTried - 1]);

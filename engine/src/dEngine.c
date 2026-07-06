@@ -420,6 +420,8 @@ void dEngine_LoadScene(int sceneId)
 	
 	engine.sceneId = sceneId;
 
+	gScoreLocked = 0;	// new scene: scoring live again (was frozen at a boss kill)
+
 	// Progression: remember the furthest act ever reached (solo or multiplayer).
 	if (sceneId >= 1 && sceneId <= 3 && sceneId > gHighestActReached)
 	{

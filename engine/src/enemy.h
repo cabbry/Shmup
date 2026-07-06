@@ -59,7 +59,7 @@ struct enemy_t ;
 
 typedef void (*updateFunction_t)(struct enemy_t*)  ;
 
-#define NUM_ENEMY_PARAMETERS 5
+#define NUM_ENEMY_PARAMETERS 6
 
 typedef struct enemy_t
 {

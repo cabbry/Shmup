@@ -231,6 +231,18 @@ void ENE_UpdateSSBoundaries(enemy_t* enemy)
 	// hitbox to match, so player bullets connect where the ship visually is.
 	float r = (enemy->type == ENEMY_LOFB) ? 0.26f : 0.1f;
 
+	// While the boss is still descending into position it is UNTOUCHABLE: park
+	// its hitbox off-screen so early shots pass through (damage starts with its
+	// first lateral move, when the fight actually begins).
+	if (enemy->type == ENEMY_LOFB && enemy->state == LOFB_STATE_ARRIVING)
+	{
+		enemy->ss_boudaries[UP]   = 4*SS_H;
+		enemy->ss_boudaries[DOWN] = 4*SS_H;
+		enemy->ss_boudaries[LEFT] = 4*SS_W;
+		enemy->ss_boudaries[RIGHT]= 4*SS_W;
+		return;
+	}
+
 	enemy->ss_boudaries[UP]   =  (enemy->ss_position[Y] + r)*SS_H ;
 	enemy->ss_boudaries[DOWN] =  (enemy->ss_position[Y] - r)*SS_H;
 	enemy->ss_boudaries[LEFT] =  (enemy->ss_position[X] - r)*SS_W;
@@ -421,7 +433,7 @@ ushort enemyTypeEnergy[] =
 	1,
 	12,
 	30,
-	450,	// LOFB, the act-3 boss (a player bullet deals 1) -- doubled to 900 in multiplayer
+	5000,	// LOFB, the act-3 boss (a player bullet deals 1) -- doubled to 10000 in multiplayer
 	30
 };
 

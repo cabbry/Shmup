@@ -31,6 +31,11 @@
 // The LOFB is THE BOSS (act 3, "Water"). The 2010 code shipped with an empty
 // updateLOFB and a scaffolded state machine; the fight is now implemented.
 
+// Boss states (public: enemy.c parks the hitbox off-screen while ARRIVING, so
+// the boss can't take damage until its first lateral move).
+#define LOFB_STATE_ARRIVING	0
+#define LOFB_STATE_FIGHTING	1
+
 void updateLOFB(enemy_t* enemy);
 
 // Called from the enemy-death path in collisions.c when the boss's energy

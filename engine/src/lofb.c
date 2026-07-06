@@ -47,10 +47,6 @@ extern void emitSHABBullet(enemy_t* enemy, float angle);	// shab.c: one enemy bu
 extern void EV_SpawnEnemy(event_t* event);					// event.c: spawn from a payload
 extern void EV_AutoPilotPls(event_t* event);				// event.c: fly players to rest position
 
-// States (Fabien's scaffolded state machine, now real).
-#define LOFB_STATE_ARRIVING	0
-#define LOFB_STATE_FIGHTING	1
-
 // enemy->parameters[] slots: float scratch storage, per enemy. timeCounter is a
 // ushort (wraps at ~65s), too small for a boss fight, so time lives here.
 #define P_TIME			0	// ms since spawn
@@ -58,6 +54,7 @@ extern void EV_AutoPilotPls(event_t* event);				// event.c: fly players to rest 
 #define P_SPIRAL_CD		2	// cooldown: spiral emitter
 #define P_SPIRAL_ANGLE	3	// current spiral angle (radians)
 #define P_MINION_CD		4	// cooldown: escort wave
+#define P_BIGSHOT_CD	5	// cooldown: the big shot
 
 // Tuning.
 #define LOFB_ARRIVE_MS			6000.0f
@@ -98,7 +95,7 @@ static void LOFB_FireFan(enemy_t* enemy, int count, float spread)
 		emitSHABBullet(enemy, aim + (i - (count - 1) * 0.5f) * spread);
 }
 
-static void LOFB_SpawnMinion(float side)
+static void LOFB_SpawnMinion(float side, float startX)
 {
 	// One FHT escort diving in from the top; built like a .scene spawnEnemy line.
 	event_t ev;
@@ -107,9 +104,9 @@ static void LOFB_SpawnMinion(float side)
 	memset(&pl, 0, sizeof(pl));
 	pl.type = 1;							// FHT
 	pl.mouvementPatternType = MVMT_STRAIGHT;
-	pl.startPosition[X] = side * 0.9f;	pl.startPosition[Y] = 1.25f;
-	pl.endPosition[X]   = -side * 0.3f;	pl.endPosition[Y]   = -1.3f;
-	pl.controlPoint[X]  = side * 0.9f;	pl.controlPoint[Y]  = 0.0f;
+	pl.startPosition[X] = side * startX;	pl.startPosition[Y] = 1.25f;
+	pl.endPosition[X]   = -side * 0.3f;		pl.endPosition[Y]   = -1.3f;
+	pl.controlPoint[X]  = side * startX;	pl.controlPoint[Y]  = 0.0f;
 	pl.ttl = 6000;
 	pl.subType = 0;							// NORMAL
 
@@ -117,6 +114,43 @@ static void LOFB_SpawnMinion(float side)
 	ev.type = EV_SPAWN_ENEMY;
 	ev.payload = &pl;
 	EV_SpawnEnemy(&ev);
+}
+
+// The BIG SHOT: a large, slower orb aimed at the nearest player (same atlas
+// sprite as the SHAB/boss bullets, four times the size).
+#define LOFB_BIG_TTL		3600
+#define LOFB_BIG_DISTANCE	1.6f
+#define LOFB_BIG_SIZE		0.22f
+#define LOFB_TEXT_BULLET_U      (80/128.0f*SHRT_MAX)
+#define LOFB_TEXT_BULLET_V      (0/128.0f*SHRT_MAX)
+#define LOFB_TEXT_BULLET_WIDTH  (16/128.0f*SHRT_MAX)
+#define LOFB_TEXT_BULLET_HEIGHT (16/128.0f*SHRT_MAX)
+static void LOFB_FireBigShot(enemy_t* enemy)
+{
+	enemy_part_t* bullet;
+	float angle = LOFB_AimAngle(enemy);
+
+	bullet = ENPAR_GetNextParticule();
+
+	bullet->ttl = LOFB_BIG_TTL;
+	bullet->originalTTL = LOFB_BIG_TTL;
+
+	bullet->ss_boudaries[UP]    = bullet->ss_starting_boudaries[UP]    = enemy->ss_position[Y] * SS_H + LOFB_BIG_SIZE /2 * SS_H / gVScale;
+	bullet->ss_boudaries[DOWN]  = bullet->ss_starting_boudaries[DOWN]  = enemy->ss_position[Y] * SS_H - LOFB_BIG_SIZE /2 * SS_H / gVScale;
+	bullet->ss_boudaries[LEFT]  = bullet->ss_starting_boudaries[LEFT]  = enemy->ss_position[X] * SS_W - LOFB_BIG_SIZE /2 *SS_H/(float)SS_W * SS_W;
+	bullet->ss_boudaries[RIGHT] = bullet->ss_starting_boudaries[RIGHT] = enemy->ss_position[X] * SS_W + LOFB_BIG_SIZE /2 *SS_H/(float)SS_W * SS_W;
+
+	bullet->text[0][U] = LOFB_TEXT_BULLET_U;
+	bullet->text[0][V] = LOFB_TEXT_BULLET_V;
+	bullet->text[1][U] = LOFB_TEXT_BULLET_U;
+	bullet->text[1][V] = LOFB_TEXT_BULLET_V + LOFB_TEXT_BULLET_HEIGHT;
+	bullet->text[2][U] = LOFB_TEXT_BULLET_U + LOFB_TEXT_BULLET_WIDTH;
+	bullet->text[2][V] = LOFB_TEXT_BULLET_V + LOFB_TEXT_BULLET_HEIGHT;
+	bullet->text[3][U] = LOFB_TEXT_BULLET_U + LOFB_TEXT_BULLET_WIDTH;
+	bullet->text[3][V] = LOFB_TEXT_BULLET_V;
+
+	bullet->posDiff[X] = cosf(angle) * LOFB_BIG_DISTANCE * SS_H;
+	bullet->posDiff[Y] = sinf(angle) * LOFB_BIG_DISTANCE * SS_H;
 }
 
 void updateLOFB(enemy_t* enemy)
@@ -147,14 +181,20 @@ void updateLOFB(enemy_t* enemy)
 		if (t >= LOFB_ARRIVE_MS)
 		{
 			enemy->state = LOFB_STATE_FIGHTING;
-			enemy->parameters[P_FAN_CD]    = 900;	// first volley shortly after arrival
-			enemy->parameters[P_SPIRAL_CD] = 1500;
-			enemy->parameters[P_MINION_CD] = 4000;
+			enemy->parameters[P_FAN_CD]     = 900;	// first volley shortly after arrival
+			enemy->parameters[P_SPIRAL_CD]  = 1500;
+			enemy->parameters[P_MINION_CD]  = 4000;
+			enemy->parameters[P_BIGSHOT_CD] = 7000;
 		}
 		return;
 	}
 
-	// FIGHTING. Phase 1/2/3 by remaining HP (>2/3, >1/3, below).
+	// FIGHTING. Time base is fight-relative so the sway starts at sin(0)=0 --
+	// continuous with the arrival's end position (using total time made the boss
+	// visibly JUMP sideways on its first lateral move).
+	t -= LOFB_ARRIVE_MS;
+
+	// Phase 1/2/3 by remaining HP (>2/3, >1/3, below).
 	phase = 1;
 	if (gBossMaxEnergy > 0)
 	{
@@ -188,15 +228,28 @@ void updateLOFB(enemy_t* enemy)
 		}
 	}
 
-	// Attack 3 (phase 2+): FHT escort waves.
+	// Attack 3 (phase 2+): FHT escort waves, two per side.
 	if (phase >= 2)
 	{
 		enemy->parameters[P_MINION_CD] -= timediff;
 		if (enemy->parameters[P_MINION_CD] <= 0)
 		{
-			LOFB_SpawnMinion(-1.0f);
-			LOFB_SpawnMinion(1.0f);
+			LOFB_SpawnMinion(-1.0f, 0.9f);
+			LOFB_SpawnMinion( 1.0f, 0.9f);
+			LOFB_SpawnMinion(-1.0f, 0.55f);
+			LOFB_SpawnMinion( 1.0f, 0.55f);
 			enemy->parameters[P_MINION_CD] = (phase == 3) ? 6500 : 9000;
+		}
+	}
+
+	// Attack 4 (phase 2+): THE BIG SHOT -- a large, slower aimed orb.
+	if (phase >= 2)
+	{
+		enemy->parameters[P_BIGSHOT_CD] -= timediff;
+		if (enemy->parameters[P_BIGSHOT_CD] <= 0)
+		{
+			LOFB_FireBigShot(enemy);
+			enemy->parameters[P_BIGSHOT_CD] = (phase == 3) ? 6000 : 8500;
 		}
 	}
 }
@@ -220,10 +273,13 @@ void LOFB_OnBossDeath(enemy_t* enemy)
 	FX_GetSmoke(enemy->ss_position, 0.5f, 0.5f);
 	SND_PlaySound(SND_EXPLOSION);
 
-	// Victory bonus (each player; both sims add it at the same tick in MP).
+	// Victory bonus (each player; both sims add it at the same tick in MP), then
+	// FREEZE the score: the win is scored at the killing blow -- leftover bullets
+	// mopping up escorts during the victory lap don't count anymore.
 	for (i = 0; i < numPlayers; i++)
 		players[i].score += (LOFB_VICTORY_BONUS << engine.difficultyLevel);
 	Native_UploadScore(players[controlledPlayer].score);
+	gScoreLocked = 1;
 
 	// End-of-act choreography, same as the other acts: the ships fly to their
 	// rest position and the epilog title shows; when it ends, TITLE_Update calls

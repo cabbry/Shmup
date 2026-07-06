@@ -26,8 +26,10 @@ light
 
 camera
 {
-	#path: data/cameraPath/act3.cp
-	path:  data/cameraPath/act3.cp.cp2b
+	# Act 3 rides act 2's camera rails: same decor (act2.map), so its long straight
+	# flight -- and its baked visibility -- are valid here. Fabien's original act3.cp
+	# was a short test path that turned then froze before the boss arrived.
+	path:  data/cameraPath/act2.cp.cp2b
 
 	fov:	55
 	zNear:	2

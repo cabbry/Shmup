@@ -41,6 +41,7 @@
 #include "titles.h"
 #include "event.h"
 #include "native_services.h"
+#include "enemy_particules.h"
 
 // Reused engine services with no public prototype.
 extern void emitSHABBullet(enemy_t* enemy, float angle);	// shab.c: one enemy bullet at an angle

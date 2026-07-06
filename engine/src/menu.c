@@ -397,27 +397,58 @@ void Action_GoToAct(void* tag)
 }
 
 
+// Difficulty picked on the SELECT_DIFFICULTY screen, applied when an act is
+// chosen on the SELECT_ACT screen that follows.
+static uchar gPickedDifficulty = 1;
+
 void Action_startNewGame(void* tag)
 {
 	int i;
 	uchar difficultyLevel;
-	
-	difficultyLevel = *(char*)tag; 
-	
+
+	difficultyLevel = *(char*)tag;
+
 	MENU_Set(MENU_NONE);
 	dEngine_RequireSceneId(1);
-	
+
 	//Parameter set the difficulty level
-	
+
 	engine.mode = DE_MODE_SINGLEPLAYER;
 	PL_ResetPlayersScore();
 	numPlayers = 1;
-	
-	
+
+
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = numPlayerRespawn[difficultyLevel];
-	
+
 	engine.difficultyLevel = difficultyLevel;
+}
+
+// New Game flow: pick a difficulty, then pick the starting act (full lives
+// either way). Act select makes practicing an act -- and reaching the act-3
+// boss -- possible without clearing the whole game in one run.
+void Action_PickDifficulty(void* tag)
+{
+	gPickedDifficulty = *(char*)tag;
+	MENU_Set(MENU_SELECT_ACT);
+}
+
+void Action_startNewGameAtAct(void* tag)
+{
+	int i;
+	int sceneId = *(char*)tag;	// 1..3 = Act I..III
+
+	MENU_Set(MENU_NONE);
+	dEngine_RequireSceneId(sceneId);
+
+	engine.mode = DE_MODE_SINGLEPLAYER;
+	PL_ResetPlayersScore();
+	numPlayers = 1;
+
+	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
+		players[i].respawnCounter = numPlayerRespawn[gPickedDifficulty];
+
+	engine.difficultyLevel = gPickedDifficulty;
 }
 
 void Action_SpecifyDifficulty(void* tag)
@@ -934,7 +965,7 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	difficultyLevel = calloc(1, sizeof(int));
 	*difficultyLevel = DIFFICULTY_EASY;
-	MENU_CreateButtonWithTag(currentMenu, "Easy", 3, Action_startNewGame,difficultyLevel,NULL, buttonPos, buttonDim);
+	MENU_CreateButtonWithTag(currentMenu, "Easy", 3, Action_PickDifficulty,difficultyLevel,NULL, buttonPos, buttonDim);
 
 	buttonPos[X] = 0 ;
 	buttonPos[Y] = (SS_H - 510);
@@ -942,7 +973,7 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	difficultyLevel = calloc(1, sizeof(int));
 	*difficultyLevel = DIFFICULTY_NORMAL;
-	MENU_CreateButtonWithTag(currentMenu, "Normal", 3, Action_startNewGame,difficultyLevel,NULL, buttonPos, buttonDim);
+	MENU_CreateButtonWithTag(currentMenu, "Normal", 3, Action_PickDifficulty,difficultyLevel,NULL, buttonPos, buttonDim);
 
 	buttonPos[X] =  0 ;
 	buttonPos[Y] = (SS_H - 660);
@@ -950,7 +981,7 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	difficultyLevel = calloc(1, sizeof(int));
 	*difficultyLevel = DIFFICULTY_INSANE;
-	MENU_CreateButtonWithTag(currentMenu, "Insane", 3, Action_startNewGame,difficultyLevel,NULL, buttonPos, buttonDim);
+	MENU_CreateButtonWithTag(currentMenu, "Insane", 3, Action_PickDifficulty,difficultyLevel,NULL, buttonPos, buttonDim);
 
 	// Back to the main menu (so New Game -> difficulty selection is escapable).
 	buttonPos[X] = 0 ;
@@ -958,6 +989,44 @@ void MENU_Init(void)
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
+
+
+	// --- Act select (solo), after the difficulty pick: start at any act with full
+	// lives. Practicing an act (and reaching the act-3 boss) no longer requires
+	// clearing the whole game in one run.
+	currentMenu = &menuScreens[MENU_SELECT_ACT];
+
+	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, "SELECT ACT");
+
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (SS_H - 360);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	actId = calloc(1, sizeof(char));
+	*actId = 1;
+	MENU_CreateButtonWithTag(currentMenu, "Act I", 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (SS_H - 510);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	actId = calloc(1, sizeof(char));
+	*actId = 2;
+	MENU_CreateButtonWithTag(currentMenu, "Act II", 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (SS_H - 660);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	actId = calloc(1, sizeof(char));
+	*actId = 3;
+	MENU_CreateButtonWithTag(currentMenu, "Act III", 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, "Back", 3, Action_SpecifyDifficulty,NULL, buttonPos, buttonDim);
 
 
 	// --- Loadout menu (solo: Others -> Ship): pick ship (left) + bullet colour (right) ---

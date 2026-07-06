@@ -98,6 +98,7 @@ typedef struct menu_screen_t
 #define MENU_OTHERS 6
 #define MENU_SELECT_DIFFICULTY 7
 #define MENU_SELECT_SHIP 8
+#define MENU_SELECT_ACT 9
 
 void MENU_Init(void);
 void MENU_Set(signed char menuId);

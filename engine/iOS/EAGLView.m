@@ -125,6 +125,13 @@ AQ* audiocontroller;
 	if (gBulletColor < 0 || gBulletColor >= NUM_BULLET_COLORS) gBulletColor = 0;
 	NSLog(@"loadout ship=%d color=%d", gShipChoice, gBulletColor);
 
+	// Progression: restore the furthest act reached (gates the act-select screen).
+	if ([standardUserDefaults objectForKey:@"HighestAct"] != nil)
+		gHighestActReached = (int)[standardUserDefaults integerForKey:@"HighestAct"];
+	if (gHighestActReached < 1) gHighestActReached = 1;
+	if (gHighestActReached > 3) gHighestActReached = 3;
+	NSLog(@"highestAct=%d", gHighestActReached);
+
 
 	engine.gameCenterEnabled = 0;
 //	NSLog(@"GameCenterEnabled='%@'",[[NSUserDefaults standardUserDefaults] stringForKey:@"GameCenterEnabled"]);

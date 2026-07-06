@@ -180,11 +180,14 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-07-06
-- **🆕 Act select (build 163, v1.3.1)**: New Game now goes difficulty → **"SELECT ACT"**
-  (Act I / II / III), starting the chosen act with full lives. The game is hard — reaching
-  the new act-3 boss by clearing the whole game in one run was a tall order, and practicing
-  a single act is a standard nicety in arcade re-releases anyway. Also the shortest path to
-  film the boss for the YouTube videos.
+- **🆕 Act select, gated by progression (build 164, v1.3.2)**: New Game now goes difficulty →
+  **"SELECT ACT"** (Act I / II / III), starting the chosen act with full lives. The game is
+  hard — reaching the new act-3 boss by clearing the whole game in one run was a tall order,
+  and practicing a single act is a standard nicety in arcade re-releases anyway. **An act is
+  only selectable once it has been reached in play at least once** (solo or multiplayer): the
+  furthest act reached is persisted across restarts, locked picks answer with
+  *"Locked - finish Act N first"*, and the screen shows how far you've unlocked. Earning the
+  boss stays part of the game.
 
 ### 2026-07-04
 - **🆕 THE BOSS FIGHT (build 162, v1.3.0)** — Fabien's #1 wish, and a little archaeology: the

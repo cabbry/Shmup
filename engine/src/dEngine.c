@@ -44,6 +44,7 @@
 #include "world.h"
 #include "lexer.h"
 #include "event.h"
+#include "native_services.h"
 #include "fx.h"
 #include "vis.h"
 #include "netchannel.h"
@@ -390,10 +391,15 @@ void dEngine_InitDisplaySystem(uchar rendererType)
 	MENU_Set(MENU_HOME);
 }
 
+// Progression: the furthest act (scene 1..3) ever reached. Gates the act-select
+// screen -- an act is only selectable once it has been reached in play. Persisted
+// on iOS (NSUserDefaults) and restored at launch.
+int gHighestActReached = 1;
+
 void dEngine_LoadScene(int sceneId)
 {
 	event_t* ev;
-	
+
 	COM_StopRecording();
 
 	engine.showFingers=0;
@@ -413,10 +419,18 @@ void dEngine_LoadScene(int sceneId)
 	numBackgroundEntities=0;
 	
 	engine.sceneId = sceneId;
-	
-		
+
+	// Progression: remember the furthest act ever reached (solo or multiplayer).
+	if (sceneId >= 1 && sceneId <= 3 && sceneId > gHighestActReached)
+	{
+		gHighestActReached = sceneId;
+#ifdef __APPLE__
+		Native_SaveProgress(gHighestActReached);
+#endif
+	}
+
 	engine.musicStartAt= 0;
-	
+
 	// Now actually start loading things
 	World_OpenScene(engine.scenes[engine.sceneId].path);
 

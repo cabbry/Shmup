@@ -130,6 +130,9 @@ extern engine_info_t engine;
 
 
 
+// Progression: furthest act (scene 1..3) ever reached; gates the act select.
+extern int gHighestActReached;
+
 bool dEngine_Init(void);
 void dEngine_InitDisplaySystem(uchar rendererType);
 void dEngine_RequireSceneId(int sceneId);

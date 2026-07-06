@@ -45,6 +45,7 @@ void Native_GKSendData(const void* data, int len, int reliable);
 
 // Persist the solo loadout (ship + bullet colour) so it survives app restarts.
 void Native_SaveLoadout(int ship, int color);
+void Native_SaveProgress(int highestAct);
 
 #endif
 

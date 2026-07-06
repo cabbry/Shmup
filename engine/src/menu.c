@@ -426,10 +426,27 @@ void Action_startNewGame(void* tag)
 
 // New Game flow: pick a difficulty, then pick the starting act (full lives
 // either way). Act select makes practicing an act -- and reaching the act-3
-// boss -- possible without clearing the whole game in one run.
+// boss -- possible without clearing the whole game in one run. Acts are only
+// selectable once they have been REACHED in play (gHighestActReached).
+static const char* actRoman[] = { "", "I", "II", "III" };
+
+// texts[1] of the act-select screen is its status line.
+static void MENU_UpdateActLockStatus(int lockedActTried)
+{
+	char* line = menuScreens[MENU_SELECT_ACT].texts[1].text;
+
+	if (lockedActTried > 1)
+		sprintf(line, "Locked - finish Act %s first", actRoman[lockedActTried - 1]);
+	else if (gHighestActReached >= 2)
+		sprintf(line, "Unlocked up to Act %s", actRoman[gHighestActReached]);
+	else
+		line[0] = '\0';
+}
+
 void Action_PickDifficulty(void* tag)
 {
 	gPickedDifficulty = *(char*)tag;
+	MENU_UpdateActLockStatus(0);
 	MENU_Set(MENU_SELECT_ACT);
 }
 
@@ -437,6 +454,14 @@ void Action_startNewGameAtAct(void* tag)
 {
 	int i;
 	int sceneId = *(char*)tag;	// 1..3 = Act I..III
+
+	// Progression gate: the act must have been reached in play at least once.
+	if (sceneId > gHighestActReached)
+	{
+		MENU_UpdateActLockStatus(sceneId);
+		MENU_ClearButtonStates();
+		return;
+	}
 
 	MENU_Set(MENU_NONE);
 	dEngine_RequireSceneId(sceneId);
@@ -997,6 +1022,8 @@ void MENU_Init(void)
 	currentMenu = &menuScreens[MENU_SELECT_ACT];
 
 	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, "SELECT ACT");
+	// texts[1]: lock/progress status line (filled by MENU_UpdateActLockStatus).
+	MENU_CreateText(currentMenu, 0, (SS_H - 230), 2.0f, TEXT_CENTERED, "");
 
 	buttonPos[X] = 0 ;
 	buttonPos[Y] = (SS_H - 360);

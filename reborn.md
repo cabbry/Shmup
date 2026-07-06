@@ -180,6 +180,14 @@ to the true screen edges, and the touch-coordinate mapping.
 ## Changelog
 
 ### 2026-07-06
+- **Fix: unfair multiplayer game over while one player was still alive (build 165, v1.3.3)**:
+  the shared-life pool intentionally lets the first player who exhausts it sit out (parked
+  off-screen) while the other plays on — game over only when BOTH are down. But the parked
+  "corpse" **could still be hit**: the collision checks only guarded invulnerability frames,
+  so a stray bullet drifting off-screen would "kill" the dead ship again, push the shared
+  counter below zero and end the match while the surviving player was doing fine. Dead
+  players no longer collide (guards in both collision paths and in `P_Die` itself, identical
+  on both lockstep sims so multiplayer stays in sync).
 - **🆕 Act select, gated by progression (build 164, v1.3.2)**: New Game now goes difficulty →
   **"SELECT ACT"** (Act I / II / III), starting the chosen act with full lives. The game is
   hard — reaching the new act-3 boss by clearing the whole game in one run was a tall order,

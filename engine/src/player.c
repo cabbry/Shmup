@@ -1393,8 +1393,14 @@ void P_Die(uchar playerId)
 	event_t* event;
 	event_req_menu_t* eventReqMenu;
 	event_req_scene_t* eventReqScene;
-    
-    
+
+	// Already out of lives (RIP: parked off-screen, shouldDraw 0): ignore further
+	// "deaths". Stray bullets could hit the parked corpse, push the shared life
+	// counter below zero and end the multiplayer match while the OTHER player was
+	// still alive. Both lockstep sims skip these the same way, so MP stays in sync.
+	if (players[playerId].respawnCounter <= 0 && players[playerId].shouldDraw == 0)
+		return;
+
 	// Player collided with the enemy
 	// Spawn explosin, smoke and particules
 	FX_GetExplosion(players[playerId].ss_position,IMPACT_TYPE_YELLOW,1,0);

@@ -405,12 +405,18 @@ void Spawn_EntityParticules(vec2_t ss_position)
 void COLL_CheckPlayers(void)
 {
 	int j;
-	
+
 	// User in invulnerable
 	if (players[controlledPlayer].invulnerableFor > 0)
 		return;
-		
-	for (j=0; j < partLib.numParticules; j++) 
+
+	// Out of lives (RIP, parked off-screen): the corpse can't collide anymore --
+	// stray bullets used to "kill" it again and end the multiplayer match while
+	// the other player was still alive.
+	if (players[controlledPlayer].respawnCounter <= 0 && players[controlledPlayer].shouldDraw == 0)
+		return;
+
+	for (j=0; j < partLib.numParticules; j++)
 	{
 		if (players[controlledPlayer].ss_boudaries[DOWN]  >  partLib.particules[j].ss_boudaries[UP]    ||
 			players[controlledPlayer].ss_boudaries[UP]    <  partLib.particules[j].ss_boudaries[DOWN]  ||
@@ -584,12 +590,15 @@ void COLL_CheckEnemies(void)
 	// User in invulnerable
 	if (players[controlledPlayer].invulnerableFor > 0)
 		return;
-	
-	
+
+	// Out of lives (RIP): same guard as COLL_CheckPlayers -- no corpse collisions.
+	if (players[controlledPlayer].respawnCounter <= 0 && players[controlledPlayer].shouldDraw == 0)
+		return;
+
 	enemy = ENE_GetFirstEnemy();
-	while (enemy != NULL) 
+	while (enemy != NULL)
 	{
-		
+
 		if (enemy->ss_boudaries[DOWN]  >  players[controlledPlayer].ss_boudaries[UP] ||
 			enemy->ss_boudaries[UP]    <  players[controlledPlayer].ss_boudaries[DOWN] ||
 			enemy->ss_boudaries[LEFT]  >  players[controlledPlayer].ss_boudaries[RIGHT] ||

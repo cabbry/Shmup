@@ -179,6 +179,13 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-07-07 (laser polish)
+- **Mega-laser look + feel (build 168, v1.3.6)**: the beam was a hard-edged block and
+  swept a bit fast. It's now **soft-edged** — a bright white core fading through cyan to
+  transparent edges, fading toward the far end too, with a subtle energy pulse; the charge
+  and the muzzle use soft round glows (a swelling energy ball, sparks spiralling in) instead
+  of flat squares. The sweep is **~28 % slower** — one calm left/right/left pass.
+
 ### 2026-07-07 (boss playtest round 2)
 - **The boss got a signature move (build 167, v1.3.5)**, from Fabien's second round of
   on-device notes. (1) 🆕 **THE MEGA-LASER** — every ~32 s (the first at ~14 s), whatever

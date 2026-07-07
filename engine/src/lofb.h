@@ -47,4 +47,11 @@ void LOFB_OnBossDeath(enemy_t* enemy);
 // while a boss fight is active, 0 otherwise. Rendered from the HUD text block.
 int LOFB_GetBossHealthBar(char* out);
 
+// Mega-laser collision query. When the beam is actively FIRING, returns 1 and
+// fills the beam ray in sprite pixel space: origin (ox,oy), unit direction
+// (dx,dy), half-thickness and length. Returns 0 otherwise (idle or just the
+// harmless charge/telegraph). Used by collisions.c to hit players and minions.
+int LOFB_GetLaserBeam(float* ox, float* oy, float* dx, float* dy,
+					  float* halfWidth, float* length);
+
 #endif

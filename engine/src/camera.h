@@ -97,6 +97,10 @@ typedef struct
 
 extern camera_t camera;
 
+// Set to 1 (by dEngine, for the boss act) to keep the camera drifting forward
+// once the baked path ends, instead of freezing the decor. 0 elsewhere.
+extern int gCameraDriftAtEnd;
+
 
 void CAM_Update(void);
 void CAM_InitUnitCube(void);

@@ -422,6 +422,10 @@ void dEngine_LoadScene(int sceneId)
 
 	gScoreLocked = 0;	// new scene: scoring live again (was frozen at a boss kill)
 
+	// Boss act (3) keeps scrolling forever once the baked path ends; other acts
+	// end on their own script and keep the original freeze behaviour.
+	gCameraDriftAtEnd = (sceneId == 3);
+
 	// Progression: remember the furthest act ever reached (solo or multiplayer).
 	if (sceneId >= 1 && sceneId <= 3 && sceneId > gHighestActReached)
 	{

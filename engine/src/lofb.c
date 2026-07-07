@@ -65,10 +65,44 @@ extern void EV_AutoPilotPls(event_t* event);				// event.c: fly players to rest 
 #define LOFB_BOB_PERIOD_MS		3700.0f
 #define LOFB_VICTORY_BONUS		100000
 
+// THE MEGA-LASER (Fabien's round-2 ask): every ~30-45s the boss stops, gathers
+// energy (converging sparks -- the "particules qui se concentrent"), then fires
+// a huge beam that pivots from straight-down and sweeps the lower screen. The
+// safe ground is UP, in a top corner (the beam never points above the boss).
+// It vaporises escort minions it crosses. Purely simulation-state driven, so it
+// stays deterministic in lockstep multiplayer; the beam quads are pushed into
+// enFxLib (the LEE-style enemy FX buffer), so no renderer change is needed.
+#define LOFB_LASER_OFF			0
+#define LOFB_LASER_CHARGING		1
+#define LOFB_LASER_FIRING		2
+
+#define LOFB_LASER_FIRST_MS		14000.0f	// first beam, into the fight
+#define LOFB_LASER_PERIOD_MS	32000.0f	// then one every ~32s (30-45 window)
+#define LOFB_LASER_CHARGE_MS	1500.0f		// telegraph: gather + warning line
+#define LOFB_LASER_FIRE_MS		3400.0f		// beam sweep duration
+#define LOFB_LASER_SWEEP_AMP	1.15f		// radians off straight-down (~66 deg)
+#define LOFB_LASER_SWEEP_CYCLES	1.25f		// left/right passes across the sweep
+#define LOFB_LASER_HALFWIDTH	(0.12f * SS_H)	// beam half-thickness (pixels)
+#define LOFB_LASER_LENGTH		(2.5f  * SS_H)	// beam length (crosses the screen)
+#define LOFB_LASER_SPARKS		12			// converging charge sparks
+#define LOFB_LASER_TEXT_U		((ushort)(72.0f / 128.0f * SHRT_MAX))	// solid white
+#define LOFB_LASER_TEXT_V		((ushort)( 8.0f / 128.0f * SHRT_MAX))	// atlas texel
+
 // Boss HUD state (read by LOFB_GetBossHealthBar, rendered with the score).
 static int gBossEnergy = 0;
 static int gBossMaxEnergy = 0;
 static int gBossHudStamp = -100000;	// simulationTime of the last boss update
+
+// Mega-laser state (single boss -> file statics; all advanced from updateLOFB so
+// both lockstep sims evolve them identically). The beam is drawn from the FX
+// buffer; collisions read it through LOFB_GetLaserBeam.
+static int   gLaserState    = LOFB_LASER_OFF;
+static float gLaserCooldown = 0;	// ms until the next beam (while OFF)
+static float gLaserTimer    = 0;	// ms left in the current sub-state
+static float gLaserCharge   = 0;	// 0..1 charge progress (CHARGING)
+static float gLaserDX = 0, gLaserDY = -1;	// beam unit direction (screen space)
+static float gLaserOX = 0, gLaserOY = 0;	// beam origin (pixels: ss * SS_W/SS_H)
+static float gSwayClock = 0;		// hover-sway time; pauses while the laser is up
 
 static float LOFB_AimAngle(enemy_t* enemy)
 {
@@ -154,6 +188,178 @@ static void LOFB_FireBigShot(enemy_t* enemy)
 	bullet->posDiff[Y] = sinf(angle) * LOFB_BIG_DISTANCE * SS_H;
 }
 
+// --- Mega-laser ------------------------------------------------------------
+
+// Append one white quad (4 arbitrary screen-space corners) to the enemy FX
+// buffer -- same mechanism LEE uses for its charge glow. Colour modulates the
+// white atlas texel; alpha fades it. Silently drops if the buffer is full.
+static void LOFB_PushFXQuad(float ax, float ay, float bx, float by,
+							float cx, float cy, float dx, float dy,
+							ubyte r, ubyte g, ubyte b, ubyte a)
+{
+	xf_sprite_t* s;
+	int i;
+	float cx4[4], cy4[4];
+
+	if (enFxLib.num_vertices + 4 > 4 * MAX_NUM_ENEMY_FX)
+		return;
+
+	cx4[0] = ax; cy4[0] = ay;
+	cx4[1] = bx; cy4[1] = by;
+	cx4[2] = cx; cy4[2] = cy;
+	cx4[3] = dx; cy4[3] = dy;
+
+	s = &enFxLib.ss_vertices[enFxLib.num_vertices];
+	for (i = 0; i < 4; i++)
+	{
+		s->pos[X]  = (short)cx4[i];
+		s->pos[Y]  = (short)cy4[i];
+		s->text[U] = LOFB_LASER_TEXT_U;
+		s->text[V] = LOFB_LASER_TEXT_V;
+		s->color[R] = r; s->color[G] = g; s->color[B] = b; s->color[A] = a;
+		s++;
+	}
+	enFxLib.num_vertices += 4;
+	enFxLib.num_indices  += 6;
+}
+
+// A beam quad: a rectangle from (ox,oy) along (dx,dy) for `len`, `hw` to each
+// side (perp = (-dy,dx)).
+static void LOFB_PushBeam(float ox, float oy, float dx, float dy,
+						  float hw, float len,
+						  ubyte r, ubyte g, ubyte b, ubyte a)
+{
+	float px = -dy, py = dx;	// unit perpendicular
+	LOFB_PushFXQuad(ox            + px * hw, oy            + py * hw,
+					ox            - px * hw, oy            - py * hw,
+					ox + dx * len - px * hw, oy + dy * len - py * hw,
+					ox + dx * len + px * hw, oy + dy * len + py * hw,
+					r, g, b, a);
+}
+
+// Advance the laser timers/state. Direction points straight down while charging
+// (telegraph) and sweeps left/right about straight-down while firing.
+static void LOFB_UpdateLaser(enemy_t* enemy)
+{
+	(void)enemy;
+
+	if (gLaserState == LOFB_LASER_OFF)
+	{
+		gLaserDX = 0; gLaserDY = -1;
+		gLaserCooldown -= timediff;
+		if (gLaserCooldown <= 0)
+		{
+			gLaserState  = LOFB_LASER_CHARGING;
+			gLaserTimer  = LOFB_LASER_CHARGE_MS;
+			gLaserCharge = 0;
+			// Throw in an escort wave to be sliced by the beam.
+			LOFB_SpawnMinion(-1.0f, 0.70f);
+			LOFB_SpawnMinion( 1.0f, 0.70f);
+			LOFB_SpawnMinion(-1.0f, 0.35f);
+			LOFB_SpawnMinion( 1.0f, 0.35f);
+		}
+		return;
+	}
+
+	if (gLaserState == LOFB_LASER_CHARGING)
+	{
+		gLaserDX = 0; gLaserDY = -1;
+		gLaserTimer -= timediff;
+		gLaserCharge = 1.0f - gLaserTimer / LOFB_LASER_CHARGE_MS;
+		if (gLaserCharge < 0) gLaserCharge = 0;
+		if (gLaserCharge > 1) gLaserCharge = 1;
+		if (gLaserTimer <= 0)
+		{
+			gLaserState  = LOFB_LASER_FIRING;
+			gLaserTimer  = LOFB_LASER_FIRE_MS;
+			gLaserCharge = 1.0f;
+			SND_PlaySound(SND_EXPLOSION);	// beam ignition
+		}
+		return;
+	}
+
+	/* LOFB_LASER_FIRING */
+	{
+		float frac, sweep, ang;
+		gLaserTimer -= timediff;
+		frac = 1.0f - gLaserTimer / LOFB_LASER_FIRE_MS;
+		if (frac < 0) frac = 0;
+		if (frac > 1) frac = 1;
+		sweep = LOFB_LASER_SWEEP_AMP * sinf(frac * (float)(2 * M_PI) * LOFB_LASER_SWEEP_CYCLES);
+		ang   = -(float)(M_PI / 2.0) + sweep;	// straight-down + sweep
+		gLaserDX = cosf(ang);
+		gLaserDY = sinf(ang);
+		if (gLaserTimer <= 0)
+		{
+			gLaserState    = LOFB_LASER_OFF;
+			gLaserCooldown = LOFB_LASER_PERIOD_MS;
+		}
+	}
+}
+
+// Draw the laser for this frame (charge sparks + telegraph, or the live beam)
+// and publish the beam origin for collisions. Boss position is frozen while the
+// laser is up (gSwayClock paused), so the pivot is stable.
+static void LOFB_EmitLaserFX(enemy_t* enemy)
+{
+	float ox, oy;
+
+	if (gLaserState == LOFB_LASER_OFF)
+		return;
+
+	gLaserOX = ox = enemy->ss_position[X] * SS_W;
+	gLaserOY = oy = enemy->ss_position[Y] * SS_H;
+
+	if (gLaserState == LOFB_LASER_CHARGING)
+	{
+		int i;
+		float rad = (1.0f - gLaserCharge) * (0.55f * SS_H);	// sparks converge inward
+		ubyte al  = (ubyte)(120 + gLaserCharge * 135);
+
+		for (i = 0; i < LOFB_LASER_SPARKS; i++)
+		{
+			float ang = i * (float)(2 * M_PI) / LOFB_LASER_SPARKS + gLaserCharge * 9.0f;
+			float sx  = ox + cosf(ang) * rad;
+			float sy  = oy + sinf(ang) * rad;
+			float hs  = 0.028f * SS_H * (0.6f + 0.5f * gLaserCharge);
+			LOFB_PushFXQuad(sx - hs, sy + hs, sx - hs, sy - hs,
+							sx + hs, sy - hs, sx + hs, sy + hs,
+							200, 235, 255, al);
+		}
+		// Faint warning line where the beam is about to erupt.
+		LOFB_PushBeam(ox, oy, gLaserDX, gLaserDY,
+					  LOFB_LASER_HALFWIDTH * 0.22f, LOFB_LASER_LENGTH,
+					  130, 205, 255, (ubyte)(30 + gLaserCharge * 130));
+		return;
+	}
+
+	/* LOFB_LASER_FIRING: hot core inside a wider glow, plus a muzzle flash. */
+	LOFB_PushBeam(ox, oy, gLaserDX, gLaserDY,
+				  LOFB_LASER_HALFWIDTH,        LOFB_LASER_LENGTH,  90, 190, 255, 160);
+	LOFB_PushBeam(ox, oy, gLaserDX, gLaserDY,
+				  LOFB_LASER_HALFWIDTH * 0.45f, LOFB_LASER_LENGTH, 255, 255, 255, 255);
+	{
+		float hs = 0.14f * SS_H;
+		LOFB_PushFXQuad(ox - hs, oy + hs, ox - hs, oy - hs,
+						ox + hs, oy - hs, ox + hs, oy + hs,
+						200, 240, 255, 220);
+	}
+}
+
+// Collision query: fills the beam ray (pixel space) and returns 1 only while the
+// beam is actually FIRING (charging is harmless). Read by collisions.c.
+int LOFB_GetLaserBeam(float* ox, float* oy, float* dx, float* dy,
+					  float* halfWidth, float* length)
+{
+	if (gLaserState != LOFB_LASER_FIRING)
+		return 0;
+	*ox = gLaserOX; *oy = gLaserOY;
+	*dx = gLaserDX; *dy = gLaserDY;
+	*halfWidth = LOFB_LASER_HALFWIDTH;
+	*length    = LOFB_LASER_LENGTH;
+	return 1;
+}
+
 void updateLOFB(enemy_t* enemy)
 {
 	float t;
@@ -186,73 +392,93 @@ void updateLOFB(enemy_t* enemy)
 			enemy->parameters[P_SPIRAL_CD]  = 1500;
 			enemy->parameters[P_MINION_CD]  = 4000;
 			enemy->parameters[P_BIGSHOT_CD] = 7000;
+			// Fresh fight: reset the laser + hover clock.
+			gLaserState    = LOFB_LASER_OFF;
+			gLaserCooldown = LOFB_LASER_FIRST_MS;
+			gSwayClock     = 0;
 		}
 		return;
 	}
 
-	// FIGHTING. Time base is fight-relative so the sway starts at sin(0)=0 --
-	// continuous with the arrival's end position (using total time made the boss
-	// visibly JUMP sideways on its first lateral move).
-	t -= LOFB_ARRIVE_MS;
-
-	// Phase 1/2/3 by remaining HP (>2/3, >1/3, below).
+	// Phase 1/2/3 by remaining HP. Phase 1 (triple-fan-only) is deliberately
+	// short now (top 15%) -- Fabien found it dragged; the varied attacks start
+	// almost right away.
 	phase = 1;
 	if (gBossMaxEnergy > 0)
 	{
-		if (enemy->energy <= (2 * gBossMaxEnergy) / 3) phase = 2;
-		if (enemy->energy <= gBossMaxEnergy / 3)       phase = 3;
+		if (enemy->energy <= (85 * gBossMaxEnergy) / 100) phase = 2;
+		if (enemy->energy <= (40 * gBossMaxEnergy) / 100) phase = 3;
 	}
 
-	// Hover: slow horizontal sweep + a light vertical bob.
-	enemy->ss_position[X] = sinf(t * (float)(2 * M_PI) / LOFB_SWAY_PERIOD_MS) * LOFB_SWAY_HALFWIDTH;
-	enemy->ss_position[Y] = LOFB_HOVER_Y + 0.05f * sinf(t * (float)(2 * M_PI) / LOFB_BOB_PERIOD_MS);
+	// The mega-laser runs on its own clock, independent of HP phases, so a beam
+	// shows up every ~30-45s whatever the boss's health.
+	LOFB_UpdateLaser(enemy);
 
-	// Attack 1: aimed fan at the nearest player (always on; widens in phase 3).
-	enemy->parameters[P_FAN_CD] -= timediff;
-	if (enemy->parameters[P_FAN_CD] <= 0)
-	{
-		LOFB_FireFan(enemy, phase == 3 ? 5 : 3, 0.22f);
-		enemy->parameters[P_FAN_CD] = 1700 - phase * 200;	// 1500 / 1300 / 1100 ms
-	}
+	// Hover: slow horizontal sweep + a light vertical bob. The sway clock pauses
+	// while the laser is up, so the boss braces perfectly still to fire and then
+	// resumes its sway seamlessly (no jump).
+	if (gLaserState == LOFB_LASER_OFF)
+		gSwayClock += timediff;
+	enemy->ss_position[X] = sinf(gSwayClock * (float)(2 * M_PI) / LOFB_SWAY_PERIOD_MS) * LOFB_SWAY_HALFWIDTH;
+	enemy->ss_position[Y] = LOFB_HOVER_Y + 0.05f * sinf(gSwayClock * (float)(2 * M_PI) / LOFB_BOB_PERIOD_MS);
 
-	// Attack 2 (phase 2+): twin rotating spiral, SHAB-style.
-	if (phase >= 2)
+	// While charging or firing the beam, the boss holds its fire: the laser IS
+	// the phase. (Escort minions already on-screen keep coming -- and get fried.)
+	if (gLaserState == LOFB_LASER_OFF)
 	{
-		enemy->parameters[P_SPIRAL_CD] -= timediff;
-		if (enemy->parameters[P_SPIRAL_CD] <= 0)
+		// Attack 1: aimed fan at the nearest player (always on; widens in phase 3).
+		enemy->parameters[P_FAN_CD] -= timediff;
+		if (enemy->parameters[P_FAN_CD] <= 0)
 		{
-			float a = enemy->parameters[P_SPIRAL_ANGLE];
-			emitSHABBullet(enemy, a);
-			emitSHABBullet(enemy, a + (float)M_PI);
-			enemy->parameters[P_SPIRAL_ANGLE] = a + 0.75f;
-			enemy->parameters[P_SPIRAL_CD] = (phase == 3) ? 170 : 260;
+			LOFB_FireFan(enemy, phase == 3 ? 5 : 3, 0.22f);
+			enemy->parameters[P_FAN_CD] = 1700 - phase * 200;	// 1500 / 1300 / 1100 ms
+		}
+
+		// Attack 2 (phase 2+): twin rotating spiral, SHAB-style.
+		if (phase >= 2)
+		{
+			enemy->parameters[P_SPIRAL_CD] -= timediff;
+			if (enemy->parameters[P_SPIRAL_CD] <= 0)
+			{
+				float a = enemy->parameters[P_SPIRAL_ANGLE];
+				emitSHABBullet(enemy, a);
+				emitSHABBullet(enemy, a + (float)M_PI);
+				enemy->parameters[P_SPIRAL_ANGLE] = a + 0.75f;
+				enemy->parameters[P_SPIRAL_CD] = (phase == 3) ? 170 : 260;
+			}
+		}
+
+		// Attack 3 (phase 2+): FHT escort waves -- three per side now (Fabien
+		// wanted twice as many gêneurs).
+		if (phase >= 2)
+		{
+			enemy->parameters[P_MINION_CD] -= timediff;
+			if (enemy->parameters[P_MINION_CD] <= 0)
+			{
+				LOFB_SpawnMinion(-1.0f, 0.90f);
+				LOFB_SpawnMinion( 1.0f, 0.90f);
+				LOFB_SpawnMinion(-1.0f, 0.60f);
+				LOFB_SpawnMinion( 1.0f, 0.60f);
+				LOFB_SpawnMinion(-1.0f, 0.30f);
+				LOFB_SpawnMinion( 1.0f, 0.30f);
+				enemy->parameters[P_MINION_CD] = (phase == 3) ? 5000 : 6500;
+			}
+		}
+
+		// Attack 4 (phase 2+): THE BIG SHOT -- a large, slower aimed orb.
+		if (phase >= 2)
+		{
+			enemy->parameters[P_BIGSHOT_CD] -= timediff;
+			if (enemy->parameters[P_BIGSHOT_CD] <= 0)
+			{
+				LOFB_FireBigShot(enemy);
+				enemy->parameters[P_BIGSHOT_CD] = (phase == 3) ? 6000 : 8500;
+			}
 		}
 	}
 
-	// Attack 3 (phase 2+): FHT escort waves, two per side.
-	if (phase >= 2)
-	{
-		enemy->parameters[P_MINION_CD] -= timediff;
-		if (enemy->parameters[P_MINION_CD] <= 0)
-		{
-			LOFB_SpawnMinion(-1.0f, 0.9f);
-			LOFB_SpawnMinion( 1.0f, 0.9f);
-			LOFB_SpawnMinion(-1.0f, 0.55f);
-			LOFB_SpawnMinion( 1.0f, 0.55f);
-			enemy->parameters[P_MINION_CD] = (phase == 3) ? 6500 : 9000;
-		}
-	}
-
-	// Attack 4 (phase 2+): THE BIG SHOT -- a large, slower aimed orb.
-	if (phase >= 2)
-	{
-		enemy->parameters[P_BIGSHOT_CD] -= timediff;
-		if (enemy->parameters[P_BIGSHOT_CD] <= 0)
-		{
-			LOFB_FireBigShot(enemy);
-			enemy->parameters[P_BIGSHOT_CD] = (phase == 3) ? 6000 : 8500;
-		}
-	}
+	// Draw the laser (charge sparks / live beam) into the enemy FX buffer.
+	LOFB_EmitLaserFX(enemy);
 }
 
 void LOFB_OnBossDeath(enemy_t* enemy)
@@ -289,6 +515,7 @@ void LOFB_OnBossDeath(enemy_t* enemy)
 	TITLE_Show_epilog(7000);
 
 	gBossHudStamp = -100000;	// hide the health bar right away
+	gLaserState   = LOFB_LASER_OFF;	// kill any beam in flight
 }
 
 int LOFB_GetBossHealthBar(char* out)

@@ -140,6 +140,7 @@
 #include "dEngine.h"
 #include "enemy_particules.h"
 #include "lofb.h"
+#include "globals.h"
 
 plan_t unitCubePlans[6];
 
@@ -426,11 +427,27 @@ void COLL_CheckPlayers(void)
 			continue;
 		
 		//We have a collision here
-		
+
 		P_Die(controlledPlayer);
 		partLib.particules[j].ttl = 0;
 	}
-	
+
+	// Boss mega-laser: a swept beam, not an AABB particle. Test the player point
+	// against the beam ray (same maths as the minion test). The top corners stay
+	// clear because the beam only ever points down from the boss.
+	{
+		float ox, oy, dx, dy, hw, len;
+		if (LOFB_GetLaserBeam(&ox, &oy, &dx, &dy, &hw, &len))
+		{
+			float rx   = players[controlledPlayer].ss_position[X] * SS_W - ox;
+			float ry   = players[controlledPlayer].ss_position[Y] * SS_H - oy;
+			float proj = rx * dx + ry * dy;
+			float perp = rx * dy - ry * dx;
+			if (perp < 0) perp = -perp;
+			if (proj > -0.15f * len && proj < len && perp < hw + 0.035f * SS_H)
+				P_Die(controlledPlayer);
+		}
+	}
 }
 
 void COLL_CheckEnemies(void)
@@ -443,16 +460,35 @@ void COLL_CheckEnemies(void)
 	const short* ss_enemy_boudaries;
 	int i,j;
 	ushort tmpEnergy;
-	
-    
-    
+	float lox, loy, ldx, ldy, lhw, llen;	// boss mega-laser beam ray
+	int laserFiring;
+
+
+
+	laserFiring = LOFB_GetLaserBeam(&lox, &loy, &ldx, &ldy, &lhw, &llen);
+
 	enemy = ENE_GetFirstEnemy();
-	
-	while (enemy != NULL) 
+
+	while (enemy != NULL)
 	{
 		ss_enemy_boudaries = enemy->ss_boudaries;
-		
-		
+
+		// Boss mega-laser vaporises escort minions it sweeps across (never the
+		// boss itself). Zero the energy and let the shared death path below fire
+		// the explosion + release. Beam test = distance from the enemy centre to
+		// the beam ray, in sprite pixel space.
+		if (laserFiring && enemy->type != ENEMY_LOFB && enemy->energy > 0)
+		{
+			float rx   = enemy->ss_position[X] * SS_W - lox;
+			float ry   = enemy->ss_position[Y] * SS_H - loy;
+			float proj = rx * ldx + ry * ldy;		// along the beam
+			float perp = rx * ldy - ry * ldx;		// perpendicular (signed)
+			if (perp < 0) perp = -perp;
+			if (proj > -0.15f * llen && proj < llen && perp < lhw + 0.06f * SS_H)
+				enemy->energy = 0;
+		}
+
+
 		// Enenemy VS Player's bullet
 		for(i=0 ; i < numPlayers ; i++)
 		{

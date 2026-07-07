@@ -41,6 +41,19 @@ matrix3x3_t orientationMatrix;
 
 int cameraVisMemSize;
 
+// Infinite decor scroll for the boss act. The baked camera path (act 3 borrows
+// act 2's rails) is finite; when it ran out the camera FROZE, so the city
+// stopped dead in the middle of the boss fight. Instead we keep drifting forward
+// at the path's final velocity so the decor keeps flowing past. Baked visibility
+// is frozen at the last frame, so far-ahead tiles fade into the "Water" fog
+// rather than emerging fresh -- but the sense of motion (what Fabien asked for)
+// is preserved. Gated to the boss act by dEngine (gCameraDriftAtEnd) so the
+// other acts, which end on their own script, are untouched.
+int           gCameraDriftAtEnd = 0;
+static vec3_t gCamPrevPos;
+static vec3_t gCamDriftVel;			// world units per ms, from the last segment
+static int    gCamHavePrev = 0;
+
 void CAM_InterpolateFrames(camera_frame_t* currentFrame, camera_frame_t* nextFrame, float interpolationFactor, vec3_t position, quat4_t orientation)
 {
 	
@@ -131,15 +144,32 @@ void CAM_Update(void)
 	//Log_Printf("frame t=%d.\n",camera.currentFrame->time);
 	
 	if (camera.currentFrame->next == 0)
+	{
+		// Path exhausted. Boss act: keep coasting forward at the last known
+		// velocity so the background never freezes. Orientation stays put.
+		if (gCameraDriftAtEnd && gCamHavePrev)
+			vectorMA(camera.position, timediff, gCamDriftVel, camera.position);
 		return;
-		
+	}
+
 	nextFrame = camera.currentFrame->next;
-		
-	
+
+
 	interpolationFactor = (simulationTime - camera.currentFrame->time) * 1.0 / (nextFrame->time - camera.currentFrame->time);
 	//printf("interpo = %.2f\n",interpolationFactor);
-		
+
 	CAM_InterpolateFrames(camera.currentFrame,nextFrame,interpolationFactor, camera.position, interpolatedQuaterion);
+
+	// Remember the per-ms velocity of this (last valid) segment so we can keep
+	// drifting once the path ends.
+	if (gCamHavePrev && timediff > 0)
+	{
+		gCamDriftVel[0] = (camera.position[0] - gCamPrevPos[0]) / timediff;
+		gCamDriftVel[1] = (camera.position[1] - gCamPrevPos[1]) / timediff;
+		gCamDriftVel[2] = (camera.position[2] - gCamPrevPos[2]) / timediff;
+	}
+	vectorCopy(camera.position, gCamPrevPos);
+	gCamHavePrev = 1;
 		
 	//Transforme quat to matrix and set it as orientation
 	Quat_ConvertToMat3x3(interpolatedOrientationMatrix, interpolatedQuaterion);
@@ -173,6 +203,7 @@ void CAM_Update(void)
 void CAM_StartPlaying()
 {
 	camera.playing = 1;
+	gCamHavePrev = 0;	// don't carry a stale drift velocity across scenes
 }
 
 

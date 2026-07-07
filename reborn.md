@@ -179,6 +179,23 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-07-07 (boss playtest round 2)
+- **The boss got a signature move (build 167, v1.3.5)**, from Fabien's second round of
+  on-device notes. (1) 🆕 **THE MEGA-LASER** — every ~32 s (the first at ~14 s), whatever
+  the boss's health, it stops, **gathers energy** (a ring of sparks spiralling inward — the
+  charge-up you asked for) for 1.5 s, then unleashes a **huge beam** for 3.4 s that pivots
+  from straight-down and **sweeps left/right**. It only ever points downward, so the safe
+  ground is **a top corner** — move up-left or up-right to survive. Hot white core inside a
+  cyan glow. (2) **The laser vaporises the escort minions it sweeps through** (not the boss
+  itself). (3) **A bonus escort wave spawns on every laser charge**, so there's always fodder
+  for the beam. (4) **Phase 1 is much shorter** — the varied attacks (spirals, escorts, big
+  shot) now start at 85 % HP instead of 66 %, so the triple-fan opening no longer drags.
+  (5) **More gêneurs** in general: escort waves are now six ships (three per side, was four).
+  (6) **The background no longer freezes** — in the boss act the camera keeps drifting forward
+  once the baked flight path runs out, so the city keeps scrolling past through the whole
+  fight instead of stopping dead. While the laser is charging/firing the boss braces perfectly
+  still, then resumes its hover sway seamlessly.
+
 ### 2026-07-06 (boss playtest round 1)
 - **Boss fight tuned from first playtests (build 166, v1.3.4)**: eight fixes/changes from
   on-device feedback. (1) **Locked acts now show "Locked"** on the act-select buttons (the

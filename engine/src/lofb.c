@@ -79,14 +79,20 @@ extern void EV_AutoPilotPls(event_t* event);				// event.c: fly players to rest 
 #define LOFB_LASER_FIRST_MS		14000.0f	// first beam, into the fight
 #define LOFB_LASER_PERIOD_MS	32000.0f	// then one every ~32s (30-45 window)
 #define LOFB_LASER_CHARGE_MS	1500.0f		// telegraph: gather + warning line
-#define LOFB_LASER_FIRE_MS		3400.0f		// beam sweep duration
+#define LOFB_LASER_FIRE_MS		3900.0f		// beam sweep duration (slower = calmer sweep)
 #define LOFB_LASER_SWEEP_AMP	1.15f		// radians off straight-down (~66 deg)
-#define LOFB_LASER_SWEEP_CYCLES	1.25f		// left/right passes across the sweep
+#define LOFB_LASER_SWEEP_CYCLES	1.0f		// one calm left/right/left pass (was 1.25, felt fast)
 #define LOFB_LASER_HALFWIDTH	(0.12f * SS_H)	// beam half-thickness (pixels)
 #define LOFB_LASER_LENGTH		(2.5f  * SS_H)	// beam length (crosses the screen)
 #define LOFB_LASER_SPARKS		12			// converging charge sparks
 #define LOFB_LASER_TEXT_U		((ushort)(72.0f / 128.0f * SHRT_MAX))	// solid white
 #define LOFB_LASER_TEXT_V		((ushort)( 8.0f / 128.0f * SHRT_MAX))	// atlas texel
+// Soft round blob (the SHAB/big-shot orb sprite) for sparks + muzzle glow, so
+// they read as light rather than hard squares.
+#define LOFB_ORB_U				((ushort)(80.0f / 128.0f * SHRT_MAX))
+#define LOFB_ORB_V				((ushort)( 0.0f / 128.0f * SHRT_MAX))
+#define LOFB_ORB_W				((ushort)(16.0f / 128.0f * SHRT_MAX))
+#define LOFB_ORB_H				((ushort)(16.0f / 128.0f * SHRT_MAX))
 
 // Boss HUD state (read by LOFB_GetBossHealthBar, rendered with the score).
 static int gBossEnergy = 0;
@@ -190,32 +196,64 @@ static void LOFB_FireBigShot(enemy_t* enemy)
 
 // --- Mega-laser ------------------------------------------------------------
 
-// Append one white quad (4 arbitrary screen-space corners) to the enemy FX
-// buffer -- same mechanism LEE uses for its charge glow. Colour modulates the
-// white atlas texel; alpha fades it. Silently drops if the buffer is full.
-static void LOFB_PushFXQuad(float ax, float ay, float bx, float by,
-							float cx, float cy, float dx, float dy,
-							ubyte r, ubyte g, ubyte b, ubyte a)
+// Append one white-texel quad (4 arbitrary corners) to the enemy FX buffer --
+// same mechanism LEE uses. Per-vertex alpha (aa..ad, one per corner) lets the
+// beam fade smoothly at its edges instead of ending in a hard rectangle.
+static void LOFB_PushQuadA(float ax, float ay, float bx, float by,
+						   float cx, float cy, float dx, float dy,
+						   ubyte r, ubyte g, ubyte b,
+						   ubyte aa, ubyte ab, ubyte ac, ubyte ad)
 {
 	xf_sprite_t* s;
+	float px[4], py[4];
+	ubyte pa[4];
 	int i;
-	float cx4[4], cy4[4];
 
 	if (enFxLib.num_vertices + 4 > 4 * MAX_NUM_ENEMY_FX)
 		return;
 
-	cx4[0] = ax; cy4[0] = ay;
-	cx4[1] = bx; cy4[1] = by;
-	cx4[2] = cx; cy4[2] = cy;
-	cx4[3] = dx; cy4[3] = dy;
+	px[0] = ax; py[0] = ay; pa[0] = aa;
+	px[1] = bx; py[1] = by; pa[1] = ab;
+	px[2] = cx; py[2] = cy; pa[2] = ac;
+	px[3] = dx; py[3] = dy; pa[3] = ad;
 
 	s = &enFxLib.ss_vertices[enFxLib.num_vertices];
 	for (i = 0; i < 4; i++)
 	{
-		s->pos[X]  = (short)cx4[i];
-		s->pos[Y]  = (short)cy4[i];
+		s->pos[X]  = (short)px[i];
+		s->pos[Y]  = (short)py[i];
 		s->text[U] = LOFB_LASER_TEXT_U;
 		s->text[V] = LOFB_LASER_TEXT_V;
+		s->color[R] = r; s->color[G] = g; s->color[B] = b; s->color[A] = pa[i];
+		s++;
+	}
+	enFxLib.num_vertices += 4;
+	enFxLib.num_indices  += 6;
+}
+
+// A soft round sprite (the orb texel) centred at (cx,cy), half-size hs. Used for
+// the charge sparks and the muzzle glow so they read as light, not squares.
+static void LOFB_PushSprite(float cx, float cy, float hs,
+							ubyte r, ubyte g, ubyte b, ubyte a)
+{
+	xf_sprite_t* s;
+	short xs[4], ys[4];
+	ushort us[4], vs[4];
+	int i;
+
+	if (enFxLib.num_vertices + 4 > 4 * MAX_NUM_ENEMY_FX)
+		return;
+
+	xs[0] = (short)(cx - hs); ys[0] = (short)(cy + hs); us[0] = LOFB_ORB_U;			vs[0] = LOFB_ORB_V;
+	xs[1] = (short)(cx - hs); ys[1] = (short)(cy - hs); us[1] = LOFB_ORB_U;			vs[1] = LOFB_ORB_V + LOFB_ORB_H;
+	xs[2] = (short)(cx + hs); ys[2] = (short)(cy - hs); us[2] = LOFB_ORB_U + LOFB_ORB_W; vs[2] = LOFB_ORB_V + LOFB_ORB_H;
+	xs[3] = (short)(cx + hs); ys[3] = (short)(cy + hs); us[3] = LOFB_ORB_U + LOFB_ORB_W; vs[3] = LOFB_ORB_V;
+
+	s = &enFxLib.ss_vertices[enFxLib.num_vertices];
+	for (i = 0; i < 4; i++)
+	{
+		s->pos[X]  = xs[i]; s->pos[Y] = ys[i];
+		s->text[U] = us[i]; s->text[V] = vs[i];
 		s->color[R] = r; s->color[G] = g; s->color[B] = b; s->color[A] = a;
 		s++;
 	}
@@ -223,18 +261,36 @@ static void LOFB_PushFXQuad(float ax, float ay, float bx, float by,
 	enFxLib.num_indices  += 6;
 }
 
-// A beam quad: a rectangle from (ox,oy) along (dx,dy) for `len`, `hw` to each
-// side (perp = (-dy,dx)).
-static void LOFB_PushBeam(float ox, float oy, float dx, float dy,
-						  float hw, float len,
-						  ubyte r, ubyte g, ubyte b, ubyte a)
+// The beam, drawn as a stack of parallel strips across its width so the alpha
+// rises to a bright core and fades to nothing at the edges (soft glow), plus a
+// gentle fade toward the far tip for depth. `peak` is the core alpha (0..255).
+static void LOFB_PushBeamSoft(float ox, float oy, float dx, float dy,
+							  float hw, float len, float peak)
 {
-	float px = -dy, py = dx;	// unit perpendicular
-	LOFB_PushFXQuad(ox            + px * hw, oy            + py * hw,
-					ox            - px * hw, oy            - py * hw,
-					ox + dx * len - px * hw, oy + dy * len - py * hw,
-					ox + dx * len + px * hw, oy + dy * len + py * hw,
-					r, g, b, a);
+	static const float frac[7] = {-1.0f, -0.60f, -0.28f, 0.0f, 0.28f, 0.60f, 1.0f};
+	static const float aScl[7] = { 0.0f,  0.30f,  0.78f, 1.0f, 0.78f, 0.30f, 0.0f};
+	const float tipFade = 0.40f;			// far end melts into the distance
+	float px = -dy, py = dx;				// unit perpendicular
+	int i;
+
+	for (i = 0; i < 6; i++)
+	{
+		float p0 = frac[i]   * hw, p1 = frac[i + 1] * hw;
+		float a0 = aScl[i]   * peak, a1 = aScl[i + 1] * peak;
+		float m  = (fabsf(frac[i]) + fabsf(frac[i + 1])) * 0.5f;	// 0 core .. 1 edge
+		ubyte r  = (ubyte)(255.0f - m * 165.0f);	// white core -> cyan edge
+		ubyte g  = (ubyte)(255.0f - m *  55.0f);
+		ubyte b  = 255;
+
+		float n0x = ox + px * p0,           n0y = oy + py * p0;
+		float n1x = ox + px * p1,           n1y = oy + py * p1;
+		float f0x = ox + dx * len + px * p0, f0y = oy + dy * len + py * p0;
+		float f1x = ox + dx * len + px * p1, f1y = oy + dy * len + py * p1;
+
+		LOFB_PushQuadA(n0x, n0y, n1x, n1y, f1x, f1y, f0x, f0y, r, g, b,
+					   (ubyte)a0, (ubyte)a1,
+					   (ubyte)(a1 * tipFade), (ubyte)(a0 * tipFade));
+	}
 }
 
 // Advance the laser timers/state. Direction points straight down while charging
@@ -313,36 +369,38 @@ static void LOFB_EmitLaserFX(enemy_t* enemy)
 	if (gLaserState == LOFB_LASER_CHARGING)
 	{
 		int i;
-		float rad = (1.0f - gLaserCharge) * (0.55f * SS_H);	// sparks converge inward
-		ubyte al  = (ubyte)(120 + gLaserCharge * 135);
+		float rad  = (1.0f - gLaserCharge) * (0.55f * SS_H);	// sparks converge inward
+		ubyte al   = (ubyte)(150 + gLaserCharge * 105);
+		float core = (0.06f + 0.16f * gLaserCharge) * SS_H;	// gathering ball grows
 
+		// A soft ball of energy swelling at the muzzle...
+		LOFB_PushSprite(ox, oy, core,       255, 255, 255, (ubyte)(50 + gLaserCharge * 150));
+		LOFB_PushSprite(ox, oy, core * 1.7f, 120, 205, 255, (ubyte)(30 + gLaserCharge * 90));
+
+		// ...fed by sparks spiralling inward.
 		for (i = 0; i < LOFB_LASER_SPARKS; i++)
 		{
 			float ang = i * (float)(2 * M_PI) / LOFB_LASER_SPARKS + gLaserCharge * 9.0f;
 			float sx  = ox + cosf(ang) * rad;
 			float sy  = oy + sinf(ang) * rad;
-			float hs  = 0.028f * SS_H * (0.6f + 0.5f * gLaserCharge);
-			LOFB_PushFXQuad(sx - hs, sy + hs, sx - hs, sy - hs,
-							sx + hs, sy - hs, sx + hs, sy + hs,
-							200, 235, 255, al);
+			float hs  = 0.024f * SS_H * (0.6f + 0.6f * gLaserCharge);
+			LOFB_PushSprite(sx, sy, hs, 210, 240, 255, al);
 		}
-		// Faint warning line where the beam is about to erupt.
-		LOFB_PushBeam(ox, oy, gLaserDX, gLaserDY,
-					  LOFB_LASER_HALFWIDTH * 0.22f, LOFB_LASER_LENGTH,
-					  130, 205, 255, (ubyte)(30 + gLaserCharge * 130));
+		// Faint, soft warning line where the beam is about to erupt.
+		LOFB_PushBeamSoft(ox, oy, gLaserDX, gLaserDY,
+						  LOFB_LASER_HALFWIDTH * 0.5f, LOFB_LASER_LENGTH,
+						  30.0f + gLaserCharge * 110.0f);
 		return;
 	}
 
-	/* LOFB_LASER_FIRING: hot core inside a wider glow, plus a muzzle flash. */
-	LOFB_PushBeam(ox, oy, gLaserDX, gLaserDY,
-				  LOFB_LASER_HALFWIDTH,        LOFB_LASER_LENGTH,  90, 190, 255, 160);
-	LOFB_PushBeam(ox, oy, gLaserDX, gLaserDY,
-				  LOFB_LASER_HALFWIDTH * 0.45f, LOFB_LASER_LENGTH, 255, 255, 255, 255);
+	/* LOFB_LASER_FIRING: soft-edged beam with a bright core, a subtle energy
+	   pulse, and a layered muzzle glow. */
 	{
-		float hs = 0.14f * SS_H;
-		LOFB_PushFXQuad(ox - hs, oy + hs, ox - hs, oy - hs,
-						ox + hs, oy - hs, ox + hs, oy + hs,
-						200, 240, 255, 220);
+		float pulse = 0.85f + 0.15f * sinf((LOFB_LASER_FIRE_MS - gLaserTimer) * 0.02f);
+		LOFB_PushBeamSoft(ox, oy, gLaserDX, gLaserDY,
+						  LOFB_LASER_HALFWIDTH, LOFB_LASER_LENGTH, 235.0f * pulse);
+		LOFB_PushSprite(ox, oy, 0.34f * SS_H, 120, 205, 255, (ubyte)(120 * pulse));
+		LOFB_PushSprite(ox, oy, 0.20f * SS_H, 255, 255, 255, (ubyte)(220 * pulse));
 	}
 }
 

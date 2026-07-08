@@ -179,6 +179,13 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-07-08 (destructible homing missiles)
+- **The boss arms now fire homing missiles (build 170, v1.3.8)**: from phase 2 on, both arms
+  launch red-hot **heat-seeking missiles** that track you — but each has its own HP, so you can
+  **shoot them down** before they reach you (they explode when destroyed). They turn at a
+  limited rate, so weaving still loses them. Running into one is lethal. (No dedicated missile
+  model yet — they reuse the small escort mesh, tinted red; art can be swapped in later.)
+
 ### 2026-07-08 (boss balance + laser pass 2)
 - **Health bar now honest / no more "immortal" boss (build 169, v1.3.7)**: the bar used to
   read empty at the last ~5 % of HP (floor rounding), so the boss looked dead-but-alive. It
@@ -190,8 +197,6 @@ to the true screen edges, and the touch-coordinate mapping.
   first version.
 - **Muzzle/charge halo smoother** — was a magnified 16px sprite (pixelated), now a clean
   procedural radial glow.
-- **Next**: the boss's arms will fire **destructible homing missiles** (each with its own HP —
-  shoot them down before they reach you).
 
 ### 2026-07-07 (laser polish)
 - **Mega-laser look + feel (build 168, v1.3.6)**: the beam was a hard-edged block and

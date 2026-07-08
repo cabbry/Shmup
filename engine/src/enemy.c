@@ -433,7 +433,7 @@ ushort enemyTypeEnergy[] =
 	1,
 	12,
 	30,
-	5000,	// LOFB, the act-3 boss (a player bullet deals 1) -- doubled to 10000 in multiplayer
+	4000,	// LOFB, the act-3 boss (a player bullet deals 1) -- doubled to 8000 in multiplayer
 	30
 };
 

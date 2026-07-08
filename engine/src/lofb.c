@@ -79,9 +79,9 @@ extern void EV_AutoPilotPls(event_t* event);				// event.c: fly players to rest 
 #define LOFB_LASER_FIRST_MS		14000.0f	// first beam, into the fight
 #define LOFB_LASER_PERIOD_MS	32000.0f	// then one every ~32s (30-45 window)
 #define LOFB_LASER_CHARGE_MS	1500.0f		// telegraph: gather + warning line
-#define LOFB_LASER_FIRE_MS		3900.0f		// beam sweep duration (slower = calmer sweep)
+#define LOFB_LASER_FIRE_MS		3500.0f		// beam sweep duration
 #define LOFB_LASER_SWEEP_AMP	1.15f		// radians off straight-down (~66 deg)
-#define LOFB_LASER_SWEEP_CYCLES	1.0f		// one calm left/right/left pass (was 1.25, felt fast)
+#define LOFB_LASER_SWEEP_CYCLES	1.2f		// sweep speed (faster than 1.3.6, calmer than 1.3.5)
 #define LOFB_LASER_HALFWIDTH	(0.12f * SS_H)	// beam half-thickness (pixels)
 #define LOFB_LASER_LENGTH		(2.5f  * SS_H)	// beam length (crosses the screen)
 #define LOFB_LASER_SPARKS		12			// converging charge sparks
@@ -293,6 +293,26 @@ static void LOFB_PushBeamSoft(float ox, float oy, float dx, float dy,
 	}
 }
 
+// A smooth round glow: a fan of wedges, bright at the centre and fading to zero
+// alpha at the rim (Gouraud gradient on the flat white texel). Unlike a scaled-up
+// 16px orb sprite it has no visible pixels, so the muzzle halo stays clean.
+#define LOFB_GLOW_WEDGES 14
+static void LOFB_PushGlow(float cx, float cy, float radius,
+						  ubyte r, ubyte g, ubyte b, ubyte centerA)
+{
+	int i;
+	for (i = 0; i < LOFB_GLOW_WEDGES; i++)
+	{
+		float a0 = i       * (float)(2 * M_PI) / LOFB_GLOW_WEDGES;
+		float a1 = (i + 1) * (float)(2 * M_PI) / LOFB_GLOW_WEDGES;
+		float x0 = cx + cosf(a0) * radius, y0 = cy + sinf(a0) * radius;
+		float x1 = cx + cosf(a1) * radius, y1 = cy + sinf(a1) * radius;
+		// Degenerate first tri (centre,centre,rim1); the wedge is tri (centre,rim1,rim0).
+		LOFB_PushQuadA(cx, cy, cx, cy, x1, y1, x0, y0, r, g, b,
+					   centerA, centerA, 0, 0);
+	}
+}
+
 // Advance the laser timers/state. Direction points straight down while charging
 // (telegraph) and sweeps left/right about straight-down while firing.
 static void LOFB_UpdateLaser(enemy_t* enemy)
@@ -374,8 +394,8 @@ static void LOFB_EmitLaserFX(enemy_t* enemy)
 		float core = (0.06f + 0.16f * gLaserCharge) * SS_H;	// gathering ball grows
 
 		// A soft ball of energy swelling at the muzzle...
-		LOFB_PushSprite(ox, oy, core,       255, 255, 255, (ubyte)(50 + gLaserCharge * 150));
-		LOFB_PushSprite(ox, oy, core * 1.7f, 120, 205, 255, (ubyte)(30 + gLaserCharge * 90));
+		LOFB_PushGlow(ox, oy, core * 1.9f, 110, 200, 255, (ubyte)(30 + gLaserCharge * 90));
+		LOFB_PushGlow(ox, oy, core,        255, 255, 255, (ubyte)(50 + gLaserCharge * 150));
 
 		// ...fed by sparks spiralling inward.
 		for (i = 0; i < LOFB_LASER_SPARKS; i++)
@@ -399,8 +419,8 @@ static void LOFB_EmitLaserFX(enemy_t* enemy)
 		float pulse = 0.85f + 0.15f * sinf((LOFB_LASER_FIRE_MS - gLaserTimer) * 0.02f);
 		LOFB_PushBeamSoft(ox, oy, gLaserDX, gLaserDY,
 						  LOFB_LASER_HALFWIDTH, LOFB_LASER_LENGTH, 235.0f * pulse);
-		LOFB_PushSprite(ox, oy, 0.34f * SS_H, 120, 205, 255, (ubyte)(120 * pulse));
-		LOFB_PushSprite(ox, oy, 0.20f * SS_H, 255, 255, 255, (ubyte)(220 * pulse));
+		LOFB_PushGlow(ox, oy, 0.36f * SS_H, 110, 200, 255, (ubyte)(120 * pulse));
+		LOFB_PushGlow(ox, oy, 0.19f * SS_H, 255, 255, 255, (ubyte)(225 * pulse));
 	}
 }
 
@@ -426,9 +446,12 @@ void updateLOFB(enemy_t* enemy)
 	enemy->parameters[P_TIME] += timediff;
 	t = enemy->parameters[P_TIME];
 
-	// Publish HP to the HUD. A stale stamp (fresh fight after a scene change)
-	// re-baselines the max.
-	if (simulationTime - gBossHudStamp > 1000 || gBossHudStamp > simulationTime)
+	// Publish HP to the HUD. Max HP is captured while ARRIVING (full HP, and the
+	// boss is invulnerable then) and frozen for the rest of the fight. Do NOT
+	// re-baseline on a time gap: a frame hitch or an app background/resume would
+	// otherwise reset the max to the CURRENT (already-reduced) energy, making the
+	// bar visibly refill -- which read as an immortal boss.
+	if (enemy->state == LOFB_STATE_ARRIVING)
 		gBossMaxEnergy = enemy->energy;
 	gBossEnergy = enemy->energy;
 	gBossHudStamp = simulationTime;
@@ -585,9 +608,17 @@ int LOFB_GetBossHealthBar(char* out)
 	if (simulationTime - gBossHudStamp > 300 || gBossHudStamp > simulationTime)
 		return 0;
 
-	n = (gBossEnergy * 20) / gBossMaxEnergy;
-	if (n < 0)  n = 0;
-	if (n > 20) n = 20;
+	// Round UP so any remaining HP keeps at least one segment lit -- the bar now
+	// empties exactly when the boss dies (floor division used to read empty at
+	// the last ~5%, so the boss looked dead-but-alive).
+	if (gBossEnergy <= 0)
+		n = 0;
+	else
+	{
+		n = (gBossEnergy * 20 + gBossMaxEnergy - 1) / gBossMaxEnergy;
+		if (n < 1)  n = 1;
+		if (n > 20) n = 20;
+	}
 
 	memcpy(out, "BOSS ", 5);
 	for (i = 0; i < 20; i++)

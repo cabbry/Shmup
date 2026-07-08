@@ -41,6 +41,7 @@
 #define ENEMY_SHAB		3
 #define ENEMY_LOFB		4
 #define ENEMY_THA		5
+#define ENEMY_MISSILE	6	// boss arm homing missile (own HP, shootable); reuses the FHT mesh
 
 
 // Enemy types

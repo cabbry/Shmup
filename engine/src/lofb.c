@@ -110,6 +110,17 @@ static float gLaserDX = 0, gLaserDY = -1;	// beam unit direction (screen space)
 static float gLaserOX = 0, gLaserOY = 0;	// beam origin (pixels: ss * SS_W/SS_H)
 static float gSwayClock = 0;		// hover-sway time; pauses while the laser is up
 
+// Homing-missile launcher (fired from the arms). Cooldown is a file static like
+// the laser -- single boss, advanced deterministically from updateLOFB.
+static float gMissileCooldown = 0;
+#define LOFB_MISSILE_SPEED	0.85f	// ss units / second
+#define LOFB_MISSILE_TURN	2.0f	// max turn rate (rad / second) -- low enough to juke
+#define LOFB_MISSILE_TTL	6000	// ms before it fizzles out
+#define LOFB_MISSILE_ARM_X	0.24f	// arm offset from the boss centre
+#define LOFB_MISSILE_CD		6500.0f	// launch interval (phase 2)
+#define LOFB_MISSILE_CD_P3	4500.0f	// launch interval (phase 3)
+#define P_MISSILE_HEADING	0		// missile's own parameters[] slot (its heading)
+
 static float LOFB_AimAngle(enemy_t* enemy)
 {
 	// Angle (screen space) from the boss toward the nearest player. Player
@@ -155,6 +166,87 @@ static void LOFB_SpawnMinion(float side, float startX)
 	ev.type = EV_SPAWN_ENEMY;
 	ev.payload = &pl;
 	EV_SpawnEnemy(&ev);
+}
+
+// Launch one homing missile from an arm (side = -1 left, +1 right). It spawns as
+// a normal ENEMY_MISSILE, so it has HP (shootable) and the shared death path
+// gives it an explosion for free. updateLOFBMissile steers it toward the player.
+static void LOFB_FireMissile(enemy_t* enemy, float side)
+{
+	event_t ev;
+	event_spawnEnemy_payload_t pl;
+
+	memset(&pl, 0, sizeof(pl));
+	pl.type = ENEMY_MISSILE;
+	pl.mouvementPatternType = MVMT_STRAIGHT;	// ignored -- the update fn homes
+	pl.startPosition[X] = enemy->ss_position[X] + side * LOFB_MISSILE_ARM_X;
+	pl.startPosition[Y] = enemy->ss_position[Y] - 0.05f;
+	pl.endPosition[X]   = pl.startPosition[X];	pl.endPosition[Y]   = -1.3f;
+	pl.controlPoint[X]  = pl.startPosition[X];	pl.controlPoint[Y]  = 0.0f;
+	pl.ttl = LOFB_MISSILE_TTL;
+	pl.subType = 0;								// NORMAL (energy from enemyTypeEnergy)
+
+	memset(&ev, 0, sizeof(ev));
+	ev.type = EV_SPAWN_ENEMY;
+	ev.payload = &pl;
+	EV_SpawnEnemy(&ev);
+}
+
+// A boss homing missile: pops out at its arm, then steers toward the nearest
+// player at a capped turn rate (dodgeable). Deterministic (player positions are
+// lockstep-synced). Its HP + destruction are handled by COLL_CheckEnemies; this
+// only drives motion, a red tint (to read as a missile, not an escort) and TTL.
+void updateLOFBMissile(enemy_t* enemy)
+{
+	float dt = timediff / 1000.0f;
+	float ax = 0, ay = -1, best = 1e9f;
+	float ang, desired, diff, maxTurn;
+	int i;
+
+	// First frame: appear at the spawn (arm) point, heading downward.
+	if (enemy->timeCounter == 0)
+	{
+		enemy->ss_position[X] = enemy->spawn_startPosition[X];
+		enemy->ss_position[Y] = enemy->spawn_startPosition[Y];
+		enemy->parameters[P_MISSILE_HEADING] = -(float)M_PI / 2.0f;
+	}
+
+	// Seek the nearest player.
+	for (i = 0; i < numPlayers; i++)
+	{
+		float dx = players[i].ss_position[X] - enemy->ss_position[X];
+		float dy = players[i].ss_position[Y] - enemy->ss_position[Y];
+		float d2 = dx * dx + dy * dy;
+		if (d2 < best) { best = d2; ax = dx; ay = dy; }
+	}
+	desired = atan2f(ay, ax);
+
+	// Turn toward the target, but only so fast (leaves room to juke it).
+	ang  = enemy->parameters[P_MISSILE_HEADING];
+	diff = desired - ang;
+	while (diff >  (float)M_PI) diff -= (float)(2 * M_PI);
+	while (diff < -(float)M_PI) diff += (float)(2 * M_PI);
+	maxTurn = LOFB_MISSILE_TURN * dt;
+	if (diff >  maxTurn) diff =  maxTurn;
+	if (diff < -maxTurn) diff = -maxTurn;
+	ang += diff;
+	enemy->parameters[P_MISSILE_HEADING] = ang;
+
+	enemy->ss_position[X] += cosf(ang) * LOFB_MISSILE_SPEED * dt;
+	enemy->ss_position[Y] += sinf(ang) * LOFB_MISSILE_SPEED * dt;
+
+	// Point the model along its travel (seen from above -> Z) and tint it red-hot.
+	enemy->entity.zAxisRot = ang + (float)M_PI / 2.0f;
+	enemy->entity.color[R] = 1.0f;
+	enemy->entity.color[G] = 0.35f;
+	enemy->entity.color[B] = 0.15f;
+	enemy->entity.color[A] = 1.0f;
+
+	// End of life, or gone off the bottom / far to the sides.
+	if (enemy->timeCounter >= enemy->ttl ||
+		enemy->ss_position[Y] < -1.5f ||
+		enemy->ss_position[X] < -1.7f || enemy->ss_position[X] > 1.7f)
+		ENE_Release(enemy);
 }
 
 // The BIG SHOT: a large, slower orb aimed at the nearest player (same atlas
@@ -473,10 +565,11 @@ void updateLOFB(enemy_t* enemy)
 			enemy->parameters[P_SPIRAL_CD]  = 1500;
 			enemy->parameters[P_MINION_CD]  = 4000;
 			enemy->parameters[P_BIGSHOT_CD] = 7000;
-			// Fresh fight: reset the laser + hover clock.
-			gLaserState    = LOFB_LASER_OFF;
-			gLaserCooldown = LOFB_LASER_FIRST_MS;
-			gSwayClock     = 0;
+			// Fresh fight: reset the laser + hover clock + missile launcher.
+			gLaserState      = LOFB_LASER_OFF;
+			gLaserCooldown   = LOFB_LASER_FIRST_MS;
+			gSwayClock       = 0;
+			gMissileCooldown = LOFB_MISSILE_CD;
 		}
 		return;
 	}
@@ -554,6 +647,19 @@ void updateLOFB(enemy_t* enemy)
 			{
 				LOFB_FireBigShot(enemy);
 				enemy->parameters[P_BIGSHOT_CD] = (phase == 3) ? 6000 : 8500;
+			}
+		}
+
+		// Attack 5 (phase 2+): the arms launch destructible homing missiles --
+		// they seek the player but can be shot down (a few hits each).
+		if (phase >= 2)
+		{
+			gMissileCooldown -= timediff;
+			if (gMissileCooldown <= 0)
+			{
+				LOFB_FireMissile(enemy, -1.0f);
+				LOFB_FireMissile(enemy,  1.0f);
+				gMissileCooldown = (phase == 3) ? LOFB_MISSILE_CD_P3 : LOFB_MISSILE_CD;
 			}
 		}
 	}

@@ -432,6 +432,26 @@ void COLL_CheckPlayers(void)
 		partLib.particules[j].ttl = 0;
 	}
 
+	// Boss homing missiles: unlike escort ships, their body is lethal on contact.
+	// (Player bullets shoot them down via COLL_CheckEnemies; here we handle the
+	// player running into one.) energy=0 detonates it through the shared death path.
+	{
+		enemy_t* e = ENE_GetFirstEnemy();
+		while (e != NULL)
+		{
+			if (e->type == ENEMY_MISSILE && e->energy > 0 &&
+				!(players[controlledPlayer].ss_boudaries[DOWN]  > e->ss_boudaries[UP]    ||
+				  players[controlledPlayer].ss_boudaries[UP]    < e->ss_boudaries[DOWN]  ||
+				  players[controlledPlayer].ss_boudaries[LEFT]  > e->ss_boudaries[RIGHT] ||
+				  players[controlledPlayer].ss_boudaries[RIGHT] < e->ss_boudaries[LEFT]))
+			{
+				P_Die(controlledPlayer);
+				e->energy = 0;
+			}
+			e = e->next;
+		}
+	}
+
 	// Boss mega-laser: a swept beam, not an AABB particle. Test the player point
 	// against the beam ray (same maths as the minion test). The top corners stay
 	// clear because the beam only ever points down from the boss.

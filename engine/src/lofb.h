@@ -38,6 +38,11 @@
 
 void updateLOFB(enemy_t* enemy);
 
+// Per-frame update for a boss homing missile (ENEMY_MISSILE). Seeks the nearest
+// player at a limited turn rate (so it can be juked) and can be shot down -- it
+// spawns as a normal enemy so COLL_CheckEnemies already handles its HP + death.
+void updateLOFBMissile(enemy_t* enemy);
+
 // Called from the enemy-death path in collisions.c when the boss's energy
 // reaches 0: victory pyrotechnics, score bonus, then the end-of-act
 // choreography (autopilot + epilog; the epilog's end advances the scene).

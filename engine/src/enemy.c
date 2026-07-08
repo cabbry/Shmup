@@ -413,6 +413,7 @@ char* enemyTypePath[] =
 	"data/models/enemies/shab.obj.md5mesh",
 	"data/models/enemies/lofb.obj.md5mesh",
 	"data/models/enemies/tha.obj.md5mesh",
+	"data/models/enemies/fht.obj.md5mesh",	// ENEMY_MISSILE: no missile mesh exists, reuse the small FHT (tinted red in-flight)
 };
 
 
@@ -423,7 +424,8 @@ updateFunction_t enemyTypeUpdateFct[] =
 	updateLEE,
 	updateSHAB,
 	updateLOFB,
-	updateTHA
+	updateTHA,
+	updateLOFBMissile	// ENEMY_MISSILE
 };
 
 
@@ -434,7 +436,8 @@ ushort enemyTypeEnergy[] =
 	12,
 	30,
 	4000,	// LOFB, the act-3 boss (a player bullet deals 1) -- doubled to 8000 in multiplayer
-	30
+	30,
+	4		// ENEMY_MISSILE: a few bullets shoots it down (8 in multiplayer)
 };
 
 uint enemyScore[] =
@@ -444,5 +447,6 @@ uint enemyScore[] =
 	3000,
 	10000,
 	200000,
-	10000
+	10000,
+	3000	// ENEMY_MISSILE
 };

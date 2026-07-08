@@ -179,6 +179,17 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-07-08 (boss readability pass)
+- **Laser easier to anticipate (build 171, v1.3.9)**: the charge-up gathers a lot more energy
+  now — longer telegraph (1.5→2.2s), twice as many sparks streaming in from further out, and a
+  warning line that clearly shows *where* the beam will fire, ramping up sharply just before it
+  erupts.
+- **Missiles no longer loop back**: once a homing missile misses, it keeps going and exits
+  instead of U-turning — a U-turn showed the underside of the mesh (which isn't modelled for
+  that angle). They can still curve to chase you on the way down.
+- **Boss damage is now visible**: hitting the boss throws off impact sparks right where your
+  shots land on the arms, so you can see it taking damage (not just the health bar).
+
 ### 2026-07-08 (destructible homing missiles)
 - **The boss arms now fire homing missiles (build 170, v1.3.8)**: from phase 2 on, both arms
   launch red-hot **heat-seeking missiles** that track you — but each has its own HP, so you can

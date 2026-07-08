@@ -78,13 +78,13 @@ extern void EV_AutoPilotPls(event_t* event);				// event.c: fly players to rest 
 
 #define LOFB_LASER_FIRST_MS		14000.0f	// first beam, into the fight
 #define LOFB_LASER_PERIOD_MS	32000.0f	// then one every ~32s (30-45 window)
-#define LOFB_LASER_CHARGE_MS	1500.0f		// telegraph: gather + warning line
+#define LOFB_LASER_CHARGE_MS	2200.0f		// telegraph: longer so the beam is easy to anticipate
 #define LOFB_LASER_FIRE_MS		3500.0f		// beam sweep duration
 #define LOFB_LASER_SWEEP_AMP	1.15f		// radians off straight-down (~66 deg)
 #define LOFB_LASER_SWEEP_CYCLES	1.2f		// sweep speed (faster than 1.3.6, calmer than 1.3.5)
 #define LOFB_LASER_HALFWIDTH	(0.12f * SS_H)	// beam half-thickness (pixels)
 #define LOFB_LASER_LENGTH		(2.5f  * SS_H)	// beam length (crosses the screen)
-#define LOFB_LASER_SPARKS		12			// converging charge sparks
+#define LOFB_LASER_SPARKS		20			// converging charge sparks (denser = clearer telegraph)
 #define LOFB_LASER_TEXT_U		((ushort)(72.0f / 128.0f * SHRT_MAX))	// solid white
 #define LOFB_LASER_TEXT_V		((ushort)( 8.0f / 128.0f * SHRT_MAX))	// atlas texel
 // Soft round blob (the SHAB/big-shot orb sprite) for sparks + muzzle glow, so
@@ -230,6 +230,21 @@ void updateLOFBMissile(enemy_t* enemy)
 	if (diff >  maxTurn) diff =  maxTurn;
 	if (diff < -maxTurn) diff = -maxTurn;
 	ang += diff;
+
+	// Never turn back UPWARD. The escort mesh is only meant to be seen flying
+	// down-screen; a U-turn would show its undesigned underside. Clamp to a
+	// downward cone (straight-down +/- ~85 deg): if the player slips above it,
+	// the missile just keeps descending and exits instead of looping back.
+	{
+		float down = -(float)M_PI / 2.0f;	// -Y == down the screen
+		float d = ang - down;
+		while (d >  (float)M_PI) d -= (float)(2 * M_PI);
+		while (d < -(float)M_PI) d += (float)(2 * M_PI);
+		if (d >  1.48f) d =  1.48f;			// ~85 degrees off straight-down
+		if (d < -1.48f) d = -1.48f;
+		ang = down + d;
+	}
+
 	enemy->parameters[P_MISSILE_HEADING] = ang;
 
 	enemy->ss_position[X] += cosf(ang) * LOFB_MISSILE_SPEED * dt;
@@ -481,27 +496,31 @@ static void LOFB_EmitLaserFX(enemy_t* enemy)
 	if (gLaserState == LOFB_LASER_CHARGING)
 	{
 		int i;
-		float rad  = (1.0f - gLaserCharge) * (0.55f * SS_H);	// sparks converge inward
+		// Sparks stream in from far out and converge on the muzzle -- start wide so
+		// the "gathering" is obvious and the player has time to read it.
+		float rad  = (1.0f - gLaserCharge) * (0.85f * SS_H);
 		ubyte al   = (ubyte)(150 + gLaserCharge * 105);
-		float core = (0.06f + 0.16f * gLaserCharge) * SS_H;	// gathering ball grows
+		float core = (0.05f + 0.24f * gLaserCharge) * SS_H;	// gathering ball swells
+		float warn = 30.0f + gLaserCharge * gLaserCharge * 170.0f;	// telegraph ramps up hard near the end
 
 		// A soft ball of energy swelling at the muzzle...
-		LOFB_PushGlow(ox, oy, core * 1.9f, 110, 200, 255, (ubyte)(30 + gLaserCharge * 90));
-		LOFB_PushGlow(ox, oy, core,        255, 255, 255, (ubyte)(50 + gLaserCharge * 150));
+		LOFB_PushGlow(ox, oy, core * 1.9f, 110, 200, 255, (ubyte)(40 + gLaserCharge * 120));
+		LOFB_PushGlow(ox, oy, core,        255, 255, 255, (ubyte)(60 + gLaserCharge * 160));
 
-		// ...fed by sparks spiralling inward.
+		// ...fed by a dense swarm of sparks spiralling inward, growing as they near.
 		for (i = 0; i < LOFB_LASER_SPARKS; i++)
 		{
 			float ang = i * (float)(2 * M_PI) / LOFB_LASER_SPARKS + gLaserCharge * 9.0f;
 			float sx  = ox + cosf(ang) * rad;
 			float sy  = oy + sinf(ang) * rad;
-			float hs  = 0.024f * SS_H * (0.6f + 0.6f * gLaserCharge);
+			float hs  = 0.030f * SS_H * (0.5f + 0.9f * gLaserCharge);
 			LOFB_PushSprite(sx, sy, hs, 210, 240, 255, al);
 		}
-		// Faint, soft warning line where the beam is about to erupt.
+		// Bright warning line clearly showing WHERE the beam will erupt -- it ramps
+		// up sharply as the charge completes so you can dodge in time.
 		LOFB_PushBeamSoft(ox, oy, gLaserDX, gLaserDY,
-						  LOFB_LASER_HALFWIDTH * 0.5f, LOFB_LASER_LENGTH,
-						  30.0f + gLaserCharge * 110.0f);
+						  LOFB_LASER_HALFWIDTH * (0.35f + 0.4f * gLaserCharge), LOFB_LASER_LENGTH,
+						  warn);
 		return;
 	}
 

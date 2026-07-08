@@ -533,7 +533,24 @@ void COLL_CheckEnemies(void)
 				
 				//We have a collision here
 				enemy->shouldFlicker = 1;
-				
+
+				// The boss is huge and tanky, so the 1-frame full-body flash reads
+				// as "nothing is happening". Spray localised impact sparks where the
+				// shots actually land (on the arms) so hits are visible. Throttled so
+				// it stays a spark stream, not a wall of explosions.
+				if (enemy->type == ENEMY_LOFB)
+				{
+					static int lastBossImpact = -1000;
+					if (simulationTime - lastBossImpact > 40 || simulationTime < lastBossImpact)
+					{
+						vec2_t hit;
+						hit[X] = (bullets[j].ss_boudaries[LEFT] + bullets[j].ss_boudaries[RIGHT]) * 0.5f / (float)SS_W;
+						hit[Y] = (bullets[j].ss_boudaries[UP]   + bullets[j].ss_boudaries[DOWN]) * 0.5f / (float)SS_H;
+						FX_GetExplosion(hit, IMPACT_TYPE_YELLOW, 0.3f, 0);
+						lastBossImpact = simulationTime;
+					}
+				}
+
 				tmpEnergy = bullets[j].energy ;
 				bullets[j].energy -= MAX(enemy->energy,0);
 				enemy->energy -= MAX(tmpEnergy,0);		

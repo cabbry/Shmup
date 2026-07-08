@@ -179,6 +179,20 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-07-08 (boss balance + laser pass 2)
+- **Health bar now honest / no more "immortal" boss (build 169, v1.3.7)**: the bar used to
+  read empty at the last ~5 % of HP (floor rounding), so the boss looked dead-but-alive. It
+  now rounds up — at least one segment stays lit until HP actually reaches 0, and empties
+  exactly at death. Max HP is captured while the boss is arriving (full HP, invulnerable) and
+  frozen for the fight, so a frame hitch or an app background/resume can't make the bar refill.
+- **Boss HP −20 %**: 5000 → 4000 (×2 in multiplayer).
+- **Laser sweep faster** — a good bit quicker than v1.3.6, still a touch calmer than the very
+  first version.
+- **Muzzle/charge halo smoother** — was a magnified 16px sprite (pixelated), now a clean
+  procedural radial glow.
+- **Next**: the boss's arms will fire **destructible homing missiles** (each with its own HP —
+  shoot them down before they reach you).
+
 ### 2026-07-07 (laser polish)
 - **Mega-laser look + feel (build 168, v1.3.6)**: the beam was a hard-edged block and
   swept a bit fast. It's now **soft-edged** — a bright white core fading through cyan to

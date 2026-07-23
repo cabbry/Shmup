@@ -179,6 +179,20 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-07-23 (destructible arms + no more black screen)
+- **Destructible arms (build 172, v1.4.0)**: the two big side arms now have their own HP and
+  are what launch the red homing missiles. Shoot an arm down and that side stops firing;
+  destroy both and the homing missiles stop entirely. A destroyed arm bursts and keeps
+  smoking/sparking. *(There's no dedicated broken-arm 3D model yet — the wreck sparks/smoke
+  stand in for now; a real damaged-arm mesh is a follow-up if you want it.)*
+- **No more black screen in long fights**: when the baked camera path runs out, the view used
+  to coast into un-built void (black). It now gently drifts **back and forth** over the stretch
+  already flown, so the city keeps scrolling under the boss — your "repartir dans l'autre sens".
+- **Health bar clearer**: spent segments are now blank, so the lit marks visibly erase from the
+  right as the boss loses HP (they blended together before and the bar looked static).
+- **Laser charge much more visible**: it now gathers a swarm of big magenta **bullet-orbs**
+  spiralling inward and swelling before it fires — an unmistakable "here it comes" tell.
+
 ### 2026-07-08 (boss readability pass)
 - **Laser easier to anticipate (build 171, v1.3.9)**: the charge-up gathers a lot more energy
   now — longer telegraph (1.5→2.2s), twice as many sparks streaming in from further out, and a

@@ -53,6 +53,16 @@ int           gCameraDriftAtEnd = 0;
 static vec3_t gCamPrevPos;
 static vec3_t gCamDriftVel;			// world units per ms, from the last segment
 static int    gCamHavePrev = 0;
+// When the path ends we can't coast FORWARD: baked visibility is frozen at the
+// last frame, so tiles ahead never become visible (-> black void). But the tiles
+// we already flew past keep their frozen visible faces, so we ping-pong BACKWARD
+// and forward over that stretch -- the decor keeps scrolling (Fabien's "repartir
+// dans l'autre sens") and the camera never passes the anchor into the void.
+static vec3_t gCamEndAnchor;
+static int    gCamEndActive = 0;
+static float  gCamEndPhase  = 0;
+#define CAM_END_PERIOD_MS	7000.0f		// one full back-and-forth
+#define CAM_END_SECONDS		3.0f		// how many seconds of travel to drift back
 
 void CAM_InterpolateFrames(camera_frame_t* currentFrame, camera_frame_t* nextFrame, float interpolationFactor, vec3_t position, quat4_t orientation)
 {
@@ -145,10 +155,32 @@ void CAM_Update(void)
 	
 	if (camera.currentFrame->next == 0)
 	{
-		// Path exhausted. Boss act: keep coasting forward at the last known
-		// velocity so the background never freezes. Orientation stays put.
+		// Path exhausted. Ping-pong BACKWARD/forward over the stretch we just flew
+		// (its tiles keep their frozen visible faces, so they still render); never
+		// pass the anchor forward, which would look into the un-baked void (black).
 		if (gCameraDriftAtEnd && gCamHavePrev)
-			vectorMA(camera.position, timediff, gCamDriftVel, camera.position);
+		{
+			float speed = sqrtf(gCamDriftVel[0]*gCamDriftVel[0] +
+								gCamDriftVel[1]*gCamDriftVel[1] +
+								gCamDriftVel[2]*gCamDriftVel[2]);
+			if (!gCamEndActive)
+			{
+				vectorCopy(camera.position, gCamEndAnchor);
+				gCamEndPhase  = 0;
+				gCamEndActive = 1;
+			}
+			gCamEndPhase += timediff;
+			if (speed > 1e-8f)
+			{
+				// off goes 0 -> amp -> 0 (always backward from the anchor).
+				float amp   = speed * CAM_END_SECONDS * 1000.0f;
+				float off   = amp * 0.5f * (1.0f - cosf(gCamEndPhase * (float)(2 * M_PI) / CAM_END_PERIOD_MS));
+				float invSp = off / speed;	// backward = -driftVel direction
+				camera.position[0] = gCamEndAnchor[0] - gCamDriftVel[0] * invSp;
+				camera.position[1] = gCamEndAnchor[1] - gCamDriftVel[1] * invSp;
+				camera.position[2] = gCamEndAnchor[2] - gCamDriftVel[2] * invSp;
+			}
+		}
 		return;
 	}
 
@@ -204,6 +236,7 @@ void CAM_StartPlaying()
 {
 	camera.playing = 1;
 	gCamHavePrev = 0;	// don't carry a stale drift velocity across scenes
+	gCamEndActive = 0;	// fresh scene: re-arm the end-of-path ping-pong
 }
 
 

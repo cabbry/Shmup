@@ -84,7 +84,7 @@ extern void EV_AutoPilotPls(event_t* event);				// event.c: fly players to rest 
 #define LOFB_LASER_SWEEP_CYCLES	1.2f		// sweep speed (faster than 1.3.6, calmer than 1.3.5)
 #define LOFB_LASER_HALFWIDTH	(0.12f * SS_H)	// beam half-thickness (pixels)
 #define LOFB_LASER_LENGTH		(2.5f  * SS_H)	// beam length (crosses the screen)
-#define LOFB_LASER_SPARKS		20			// converging charge sparks (denser = clearer telegraph)
+#define LOFB_LASER_SPARKS		24			// converging charge orbs (denser = clearer telegraph)
 #define LOFB_LASER_TEXT_U		((ushort)(72.0f / 128.0f * SHRT_MAX))	// solid white
 #define LOFB_LASER_TEXT_V		((ushort)( 8.0f / 128.0f * SHRT_MAX))	// atlas texel
 // Soft round blob (the SHAB/big-shot orb sprite) for sparks + muzzle glow, so
@@ -120,6 +120,18 @@ static float gMissileCooldown = 0;
 #define LOFB_MISSILE_CD		6500.0f	// launch interval (phase 2)
 #define LOFB_MISSILE_CD_P3	4500.0f	// launch interval (phase 3)
 #define P_MISSILE_HEADING	0		// missile's own parameters[] slot (its heading)
+
+// Destructible arms. The two big side arms have their own HP; the homing missiles
+// come from them, and once an arm is destroyed that side stops launching. Shot the
+// arms down to shut off the missiles. State is file-static (single boss).
+#define LOFB_ARM_HP			200		// per arm (doubled in multiplayer)
+#define LOFB_ARM_OFFX		0.34f	// arm hit-zone offset from the boss centre (ss)
+#define LOFB_ARM_OFFY		0.06f	// arms sit just above the body centre
+#define LOFB_ARM_RADIUS		0.15f	// arm hit radius (ss)
+static short  gArmHP[2]    = {0, 0};	// [0]=left, [1]=right
+static int    gArmAlive[2] = {0, 0};
+static vec2_t gArmSS[2];				// current arm centres (ss), refreshed each frame
+static float  gArmSparkTimer = 0;		// throttle for wreck smoke/sparks
 
 static float LOFB_AimAngle(enemy_t* enemy)
 {
@@ -504,17 +516,18 @@ static void LOFB_EmitLaserFX(enemy_t* enemy)
 		float warn = 30.0f + gLaserCharge * gLaserCharge * 170.0f;	// telegraph ramps up hard near the end
 
 		// A soft ball of energy swelling at the muzzle...
-		LOFB_PushGlow(ox, oy, core * 1.9f, 110, 200, 255, (ubyte)(40 + gLaserCharge * 120));
+		LOFB_PushGlow(ox, oy, core * 1.9f, 200, 90, 230, (ubyte)(40 + gLaserCharge * 120));
 		LOFB_PushGlow(ox, oy, core,        255, 255, 255, (ubyte)(60 + gLaserCharge * 160));
 
-		// ...fed by a dense swarm of sparks spiralling inward, growing as they near.
+		// ...fed by a swarm of BULLET ORBS (boss-bullet magenta) spiralling inward
+		// and swelling as they gather -- an unmistakable "it's about to fire" tell.
 		for (i = 0; i < LOFB_LASER_SPARKS; i++)
 		{
 			float ang = i * (float)(2 * M_PI) / LOFB_LASER_SPARKS + gLaserCharge * 9.0f;
 			float sx  = ox + cosf(ang) * rad;
 			float sy  = oy + sinf(ang) * rad;
-			float hs  = 0.030f * SS_H * (0.5f + 0.9f * gLaserCharge);
-			LOFB_PushSprite(sx, sy, hs, 210, 240, 255, al);
+			float hs  = 0.050f * SS_H * (0.55f + 0.9f * gLaserCharge);
+			LOFB_PushSprite(sx, sy, hs, 255, 90, 220, al);
 		}
 		// Bright warning line clearly showing WHERE the beam will erupt -- it ramps
 		// up sharply as the charge completes so you can dodge in time.
@@ -547,6 +560,39 @@ int LOFB_GetLaserBeam(float* ox, float* oy, float* dx, float* dy,
 	*halfWidth = LOFB_LASER_HALFWIDTH;
 	*length    = LOFB_LASER_LENGTH;
 	return 1;
+}
+
+// Arm hit-zone query for collisions.c: returns 1 (and fills the arm's ss centre +
+// radius) only while that arm is alive AND the boss is actively updating.
+int LOFB_GetArm(int idx, float* ssx, float* ssy, float* radius)
+{
+	if (idx < 0 || idx > 1 || !gArmAlive[idx])
+		return 0;
+	if (gBossMaxEnergy <= 0 || simulationTime - gBossHudStamp > 300 || gBossHudStamp > simulationTime)
+		return 0;	// boss not on-screen / not being updated
+	*ssx = gArmSS[idx][X];
+	*ssy = gArmSS[idx][Y];
+	*radius = LOFB_ARM_RADIUS;
+	return 1;
+}
+
+// Apply damage to an arm; when it drops to 0 the arm is destroyed (big burst +
+// smoke) and that side stops launching homing missiles.
+void LOFB_DamageArm(int idx, int dmg)
+{
+	if (idx < 0 || idx > 1 || !gArmAlive[idx])
+		return;
+	gArmHP[idx] -= dmg;
+	if (gArmHP[idx] <= 0)
+	{
+		vec2_t p;
+		gArmAlive[idx] = 0;
+		p[X] = gArmSS[idx][X];
+		p[Y] = gArmSS[idx][Y];
+		FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 1.4f, 0);
+		FX_GetSmoke(p, 0.6f, 0.6f);
+		SND_PlaySound(SND_EXPLOSION);
+	}
 }
 
 void updateLOFB(enemy_t* enemy)
@@ -584,11 +630,14 @@ void updateLOFB(enemy_t* enemy)
 			enemy->parameters[P_SPIRAL_CD]  = 1500;
 			enemy->parameters[P_MINION_CD]  = 4000;
 			enemy->parameters[P_BIGSHOT_CD] = 7000;
-			// Fresh fight: reset the laser + hover clock + missile launcher.
+			// Fresh fight: reset the laser + hover clock + missile launcher + arms.
 			gLaserState      = LOFB_LASER_OFF;
 			gLaserCooldown   = LOFB_LASER_FIRST_MS;
 			gSwayClock       = 0;
 			gMissileCooldown = LOFB_MISSILE_CD;
+			gArmHP[0] = gArmHP[1] = (short)(LOFB_ARM_HP * (engine.mode == DE_MODE_MULTIPLAYER ? 2 : 1));
+			gArmAlive[0] = gArmAlive[1] = 1;
+			gArmSparkTimer = 0;
 		}
 		return;
 	}
@@ -614,6 +663,29 @@ void updateLOFB(enemy_t* enemy)
 		gSwayClock += timediff;
 	enemy->ss_position[X] = sinf(gSwayClock * (float)(2 * M_PI) / LOFB_SWAY_PERIOD_MS) * LOFB_SWAY_HALFWIDTH;
 	enemy->ss_position[Y] = LOFB_HOVER_Y + 0.05f * sinf(gSwayClock * (float)(2 * M_PI) / LOFB_BOB_PERIOD_MS);
+
+	// Track the two arm hit-zones with the body, and keep destroyed arms smoking
+	// and sparking so their wreckage reads (there is no dedicated broken-arm mesh).
+	gArmSS[0][X] = enemy->ss_position[X] - LOFB_ARM_OFFX;  gArmSS[0][Y] = enemy->ss_position[Y] + LOFB_ARM_OFFY;
+	gArmSS[1][X] = enemy->ss_position[X] + LOFB_ARM_OFFX;  gArmSS[1][Y] = enemy->ss_position[Y] + LOFB_ARM_OFFY;
+	if (!gArmAlive[0] || !gArmAlive[1])
+	{
+		gArmSparkTimer -= timediff;
+		if (gArmSparkTimer <= 0)
+		{
+			int k;
+			for (k = 0; k < 2; k++)
+				if (!gArmAlive[k])
+				{
+					vec2_t p;
+					p[X] = gArmSS[k][X] + 0.05f * sinf(gSwayClock * 0.03f + k);
+					p[Y] = gArmSS[k][Y];
+					FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 0.45f, 0);
+					FX_GetSmoke(p, 0.3f, 0.3f);
+				}
+			gArmSparkTimer = 320;
+		}
+	}
 
 	// While charging or firing the beam, the boss holds its fire: the laser IS
 	// the phase. (Escort minions already on-screen keep coming -- and get fried.)
@@ -669,15 +741,16 @@ void updateLOFB(enemy_t* enemy)
 			}
 		}
 
-		// Attack 5 (phase 2+): the arms launch destructible homing missiles --
-		// they seek the player but can be shot down (a few hits each).
-		if (phase >= 2)
+		// Attack 5 (phase 2+): each surviving arm launches a destructible homing
+		// missile. Destroy an arm and that side goes quiet; destroy both and the
+		// homing missiles stop entirely.
+		if (phase >= 2 && (gArmAlive[0] || gArmAlive[1]))
 		{
 			gMissileCooldown -= timediff;
 			if (gMissileCooldown <= 0)
 			{
-				LOFB_FireMissile(enemy, -1.0f);
-				LOFB_FireMissile(enemy,  1.0f);
+				if (gArmAlive[0]) LOFB_FireMissile(enemy, -1.0f);
+				if (gArmAlive[1]) LOFB_FireMissile(enemy,  1.0f);
 				gMissileCooldown = (phase == 3) ? LOFB_MISSILE_CD_P3 : LOFB_MISSILE_CD;
 			}
 		}
@@ -745,9 +818,13 @@ int LOFB_GetBossHealthBar(char* out)
 		if (n > 20) n = 20;
 	}
 
+	// Filled segments are solid '='; spent ones are blank (not '-', which blended
+	// in and made the bar look like a static line). The string stays 25 chars, so
+	// the centred bar keeps a fixed left edge and the '=' marks visibly erase from
+	// the right as the boss loses HP.
 	memcpy(out, "BOSS ", 5);
 	for (i = 0; i < 20; i++)
-		out[5 + i] = (i < n) ? '=' : '-';
+		out[5 + i] = (i < n) ? '=' : ' ';
 	out[25] = '\0';
 	return 1;
 }

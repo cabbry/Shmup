@@ -59,4 +59,11 @@ int LOFB_GetBossHealthBar(char* out);
 int LOFB_GetLaserBeam(float* ox, float* oy, float* dx, float* dy,
 					  float* halfWidth, float* length);
 
+// Destructible arms. LOFB_GetArm returns 1 (and fills the arm's ss centre +
+// radius) while arm idx (0=left,1=right) is alive and the boss is on-screen.
+// LOFB_DamageArm applies bullet damage; the arm is destroyed at 0 HP and its
+// side stops firing homing missiles. Both used by collisions.c.
+int  LOFB_GetArm(int idx, float* ssx, float* ssy, float* radius);
+void LOFB_DamageArm(int idx, int dmg);
+
 #endif

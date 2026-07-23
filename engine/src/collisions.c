@@ -487,6 +487,54 @@ void COLL_CheckEnemies(void)
 
 	laserFiring = LOFB_GetLaserBeam(&lox, &loy, &ldx, &ldy, &lhw, &llen);
 
+	// Boss destructible arms: test player bullets against each living arm hit-zone
+	// (they flank the body, outside its hitbox) before the body loop below. Damage
+	// the arm, kill the bullet, and spark the impact. Destroying an arm shuts off
+	// that side's homing missiles (handled in LOFB_DamageArm).
+	{
+		int a;
+		for (a = 0; a < 2; a++)
+		{
+			float asx, asy, ar;
+			short au, ad, al, arr;
+			if (!LOFB_GetArm(a, &asx, &asy, &ar))
+				continue;
+			au  = (short)((asy + ar) * SS_H);
+			ad  = (short)((asy - ar) * SS_H);
+			al  = (short)((asx - ar) * SS_W);
+			arr = (short)((asx + ar) * SS_W);
+			for (i = 0; i < numPlayers; i++)
+			{
+				bullets = players[i].bullets;
+				for (j = 0; j < MAX_PLAYER_BULLETS; j++)
+				{
+					if (bullets[j].expirationTime <= simulationTime)
+						continue;
+					ss_bullet_boudaries = bullets[j].ss_boudaries;
+					if (ad > ss_bullet_boudaries[UP]   || au < ss_bullet_boudaries[DOWN] ||
+						al > ss_bullet_boudaries[RIGHT] || arr < ss_bullet_boudaries[LEFT])
+						continue;
+					LOFB_DamageArm(a, MAX(bullets[j].energy, 0));
+					engine.playerStats.bulletsHit[i]++;
+					bullets[j].expirationTime = simulationTime;
+					{
+						static int lastArmImpact = -1000;
+						if (simulationTime - lastArmImpact > 40 || simulationTime < lastArmImpact)
+						{
+							vec2_t hit;
+							hit[X] = (ss_bullet_boudaries[LEFT] + ss_bullet_boudaries[RIGHT]) * 0.5f / (float)SS_W;
+							hit[Y] = (ss_bullet_boudaries[UP]   + ss_bullet_boudaries[DOWN]) * 0.5f / (float)SS_H;
+							FX_GetExplosion(hit, IMPACT_TYPE_YELLOW, 0.3f, 0);
+							lastArmImpact = simulationTime;
+						}
+					}
+					if (!LOFB_GetArm(a, &asx, &asy, &ar))
+						break;	// arm just died -- stop feeding it bullets
+				}
+			}
+		}
+	}
+
 	enemy = ENE_GetFirstEnemy();
 
 	while (enemy != NULL)

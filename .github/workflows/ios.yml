@@ -17,7 +17,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Pin Xcode. "latest-stable" tracks the newest released Xcode on the
       # runner (Xcode 26 family). Change to e.g. '26.0' to pin exactly.

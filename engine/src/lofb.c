@@ -132,6 +132,13 @@ static short  gArmHP[2]    = {0, 0};	// [0]=left, [1]=right
 static int    gArmAlive[2] = {0, 0};
 static vec2_t gArmSS[2];				// current arm centres (ss), refreshed each frame
 static float  gArmSparkTimer = 0;		// throttle for wreck smoke/sparks
+static short  gArmMaxHP     = LOFB_ARM_HP;	// per-arm starting HP (x2 in MP)
+static float  gArmFlashMs[2] = {0, 0};	// arm-localised hit-flash countdown (ms)
+#define LOFB_ARM_FLASH_MS	130.0f
+// Damage owed to the GLOBAL health bar by destroyed arms. The arms' own HP pool
+// is separate, but blowing one off carves a visible chunk (8% of max) out of the
+// boss bar -- applied from updateLOFB, which holds the enemy pointer.
+static int    gArmChunkDmg = 0;
 
 static float LOFB_AimAngle(enemy_t* enemy)
 {
@@ -508,31 +515,57 @@ static void LOFB_EmitLaserFX(enemy_t* enemy)
 	if (gLaserState == LOFB_LASER_CHARGING)
 	{
 		int i;
-		// Sparks stream in from far out and converge on the muzzle -- start wide so
-		// the "gathering" is obvious and the player has time to read it.
-		float rad  = (1.0f - gLaserCharge) * (0.85f * SS_H);
-		ubyte al   = (ubyte)(150 + gLaserCharge * 105);
-		float core = (0.05f + 0.24f * gLaserCharge) * SS_H;	// gathering ball swells
-		float warn = 30.0f + gLaserCharge * gLaserCharge * 170.0f;	// telegraph ramps up hard near the end
+		float c   = gLaserCharge;
+		float tMs = LOFB_LASER_CHARGE_MS - gLaserTimer;	// deterministic FX clock
+		// Orbs hang WIDE at first, then RUSH the muzzle (1 - c^2 easing): the
+		// inward acceleration is what sells "all the energy just got sucked in".
+		float rad  = (1.0f - c * c) * (0.95f * SS_H);
+		ubyte al   = (ubyte)(140 + c * 115);
+		float core = (0.05f + 0.26f * c) * SS_H;	// gathering ball swells
+		float warn = 30.0f + c * c * 170.0f;		// telegraph ramps up hard near the end
+		// Over the last quarter the whole gather STROBES -- final unmissable beat.
+		float pulse = (c > 0.75f) ? (0.80f + 0.20f * sinf(tMs * 0.045f)) : 1.0f;
 
 		// A soft ball of energy swelling at the muzzle...
-		LOFB_PushGlow(ox, oy, core * 1.9f, 200, 90, 230, (ubyte)(40 + gLaserCharge * 120));
-		LOFB_PushGlow(ox, oy, core,        255, 255, 255, (ubyte)(60 + gLaserCharge * 160));
+		LOFB_PushGlow(ox, oy, core * 1.9f, 200, 90, 230, (ubyte)((40 + c * 120) * pulse));
+		LOFB_PushGlow(ox, oy, core,        255, 255, 255, (ubyte)((60 + c * 160) * pulse));
 
 		// ...fed by a swarm of BULLET ORBS (boss-bullet magenta) spiralling inward
-		// and swelling as they gather -- an unmistakable "it's about to fire" tell.
+		// ever faster, each dragging a bright tail aimed at the muzzle so the
+		// direction of flow -- INTO the gun -- reads at a glance.
 		for (i = 0; i < LOFB_LASER_SPARKS; i++)
 		{
-			float ang = i * (float)(2 * M_PI) / LOFB_LASER_SPARKS + gLaserCharge * 9.0f;
+			float ang = i * (float)(2 * M_PI) / LOFB_LASER_SPARKS + c * c * 14.0f;
 			float sx  = ox + cosf(ang) * rad;
 			float sy  = oy + sinf(ang) * rad;
-			float hs  = 0.050f * SS_H * (0.55f + 0.9f * gLaserCharge);
+			float hs  = 0.050f * SS_H * (0.45f + 1.05f * c);
+			float tx  = ox - sx, ty = oy - sy;
+			float d   = sqrtf(tx * tx + ty * ty);
+
 			LOFB_PushSprite(sx, sy, hs, 255, 90, 220, al);
+
+			// Convergence tail: a thin wedge from the orb toward the muzzle,
+			// faint at the orb and bright at the tip (motion streak pointing in).
+			if (d > 1.0f)
+			{
+				float sl, pxp, pyp, wd;
+				tx /= d; ty /= d;
+				sl = (0.10f + 0.30f * c) * SS_H;
+				if (sl > d) sl = d;
+				pxp = -ty; pyp = tx;
+				wd  = 2.0f + 3.0f * c;
+				LOFB_PushQuadA(sx + pxp * wd, sy + pyp * wd,
+							   sx - pxp * wd, sy - pyp * wd,
+							   sx + tx * sl,  sy + ty * sl,
+							   sx + tx * sl,  sy + ty * sl,
+							   255, 140, 235,
+							   (ubyte)(al / 3), (ubyte)(al / 3), al, al);
+			}
 		}
 		// Bright warning line clearly showing WHERE the beam will erupt -- it ramps
 		// up sharply as the charge completes so you can dodge in time.
 		LOFB_PushBeamSoft(ox, oy, gLaserDX, gLaserDY,
-						  LOFB_LASER_HALFWIDTH * (0.35f + 0.4f * gLaserCharge), LOFB_LASER_LENGTH,
+						  LOFB_LASER_HALFWIDTH * (0.35f + 0.4f * c), LOFB_LASER_LENGTH,
 						  warn);
 		return;
 	}
@@ -545,6 +578,24 @@ static void LOFB_EmitLaserFX(enemy_t* enemy)
 						  LOFB_LASER_HALFWIDTH, LOFB_LASER_LENGTH, 235.0f * pulse);
 		LOFB_PushGlow(ox, oy, 0.36f * SS_H, 110, 200, 255, (ubyte)(120 * pulse));
 		LOFB_PushGlow(ox, oy, 0.19f * SS_H, 255, 255, 255, (ubyte)(225 * pulse));
+	}
+}
+
+// Arm hit feedback: an additive glow flashed over an arm that just took a bullet.
+// The boss never full-body flickers (one mesh -> the whole ship lit up, see
+// collisions.c), so this is what makes an ARM hit read as "I'm hurting THIS part".
+static void LOFB_EmitArmFX(void)
+{
+	int k;
+	for (k = 0; k < 2; k++)
+	{
+		float f;
+		if (!gArmAlive[k] || gArmFlashMs[k] <= 0)
+			continue;
+		f = gArmFlashMs[k] / LOFB_ARM_FLASH_MS;
+		LOFB_PushGlow(gArmSS[k][X] * SS_W, gArmSS[k][Y] * SS_H,
+					  LOFB_ARM_RADIUS * 1.5f * SS_H,
+					  255, 240, 190, (ubyte)(150 * f));
 	}
 }
 
@@ -583,6 +634,7 @@ void LOFB_DamageArm(int idx, int dmg)
 	if (idx < 0 || idx > 1 || !gArmAlive[idx])
 		return;
 	gArmHP[idx] -= dmg;
+	gArmFlashMs[idx] = LOFB_ARM_FLASH_MS;	// the ARM (not the whole ship) lights up
 	if (gArmHP[idx] <= 0)
 	{
 		vec2_t p;
@@ -592,6 +644,7 @@ void LOFB_DamageArm(int idx, int dmg)
 		FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 1.4f, 0);
 		FX_GetSmoke(p, 0.6f, 0.6f);
 		SND_PlaySound(SND_EXPLOSION);
+		gArmChunkDmg += (gBossMaxEnergy * 8) / 100;
 	}
 }
 
@@ -602,6 +655,16 @@ void updateLOFB(enemy_t* enemy)
 
 	enemy->parameters[P_TIME] += timediff;
 	t = enemy->parameters[P_TIME];
+
+	// Damage owed by destroyed arms: carve it off the global energy here, where
+	// the enemy pointer lives (LOFB_DamageArm only sees the arm). Floored at 1 HP
+	// -- the arms are a side objective; the killing blow stays with direct fire.
+	if (enemy->state == LOFB_STATE_FIGHTING && gArmChunkDmg > 0)
+	{
+		int e = enemy->energy - gArmChunkDmg;
+		enemy->energy = (short)(e < 1 ? 1 : e);
+		gArmChunkDmg = 0;
+	}
 
 	// Publish HP to the HUD. Max HP is captured while ARRIVING (full HP, and the
 	// boss is invulnerable then) and frozen for the rest of the fight. Do NOT
@@ -635,9 +698,12 @@ void updateLOFB(enemy_t* enemy)
 			gLaserCooldown   = LOFB_LASER_FIRST_MS;
 			gSwayClock       = 0;
 			gMissileCooldown = LOFB_MISSILE_CD;
-			gArmHP[0] = gArmHP[1] = (short)(LOFB_ARM_HP * (engine.mode == DE_MODE_MULTIPLAYER ? 2 : 1));
+			gArmMaxHP = (short)(LOFB_ARM_HP * (engine.mode == DE_MODE_MULTIPLAYER ? 2 : 1));
+			gArmHP[0] = gArmHP[1] = gArmMaxHP;
 			gArmAlive[0] = gArmAlive[1] = 1;
 			gArmSparkTimer = 0;
+			gArmFlashMs[0] = gArmFlashMs[1] = 0;
+			gArmChunkDmg = 0;
 		}
 		return;
 	}
@@ -664,26 +730,39 @@ void updateLOFB(enemy_t* enemy)
 	enemy->ss_position[X] = sinf(gSwayClock * (float)(2 * M_PI) / LOFB_SWAY_PERIOD_MS) * LOFB_SWAY_HALFWIDTH;
 	enemy->ss_position[Y] = LOFB_HOVER_Y + 0.05f * sinf(gSwayClock * (float)(2 * M_PI) / LOFB_BOB_PERIOD_MS);
 
-	// Track the two arm hit-zones with the body, and keep destroyed arms smoking
-	// and sparking so their wreckage reads (there is no dedicated broken-arm mesh).
+	// Track the two arm hit-zones with the body; tick down the hit flashes; keep
+	// destroyed arms smoking/sparking so the wreckage reads (there is no dedicated
+	// broken-arm mesh), and let a half-dead arm trail light smoke -- the visible
+	// "it's working, keep shooting" progress tell.
 	gArmSS[0][X] = enemy->ss_position[X] - LOFB_ARM_OFFX;  gArmSS[0][Y] = enemy->ss_position[Y] + LOFB_ARM_OFFY;
 	gArmSS[1][X] = enemy->ss_position[X] + LOFB_ARM_OFFX;  gArmSS[1][Y] = enemy->ss_position[Y] + LOFB_ARM_OFFY;
-	if (!gArmAlive[0] || !gArmAlive[1])
+	if (gArmFlashMs[0] > 0) gArmFlashMs[0] -= timediff;
+	if (gArmFlashMs[1] > 0) gArmFlashMs[1] -= timediff;
 	{
-		gArmSparkTimer -= timediff;
-		if (gArmSparkTimer <= 0)
+		int k, needFx = 0;
+		for (k = 0; k < 2; k++)
+			if (!gArmAlive[k] || gArmHP[k] <= gArmMaxHP / 2)
+				needFx = 1;
+		if (needFx)
 		{
-			int k;
-			for (k = 0; k < 2; k++)
-				if (!gArmAlive[k])
+			gArmSparkTimer -= timediff;
+			if (gArmSparkTimer <= 0)
+			{
+				for (k = 0; k < 2; k++)
 				{
 					vec2_t p;
 					p[X] = gArmSS[k][X] + 0.05f * sinf(gSwayClock * 0.03f + k);
 					p[Y] = gArmSS[k][Y];
-					FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 0.45f, 0);
-					FX_GetSmoke(p, 0.3f, 0.3f);
+					if (!gArmAlive[k])
+					{
+						FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 0.45f, 0);
+						FX_GetSmoke(p, 0.3f, 0.3f);
+					}
+					else if (gArmHP[k] <= gArmMaxHP / 2)
+						FX_GetSmoke(p, 0.18f, 0.18f);
 				}
-			gArmSparkTimer = 320;
+				gArmSparkTimer = 320;
+			}
 		}
 	}
 
@@ -756,8 +835,10 @@ void updateLOFB(enemy_t* enemy)
 		}
 	}
 
-	// Draw the laser (charge sparks / live beam) into the enemy FX buffer.
+	// Draw the laser (charge sparks / live beam) + arm hit flashes into the enemy
+	// FX buffer.
 	LOFB_EmitLaserFX(enemy);
+	LOFB_EmitArmFX();
 }
 
 void LOFB_OnBossDeath(enemy_t* enemy)

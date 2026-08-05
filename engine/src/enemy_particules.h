@@ -68,7 +68,10 @@ extern enemy_particule_lib_t partLib;
 
 
 //Enemy fxs
-#define MAX_NUM_ENEMY_FX 64
+// 192 (was 64): the boss mega-laser telegraph alone is ~80 quads (orbs + tails +
+// glows + warning beam); 64 left no headroom once the index-init bug was fixed
+// and everything actually rendered. ~11KB of static buffers, still tiny.
+#define MAX_NUM_ENEMY_FX 192
 typedef struct enemy_fx_lib_t
 {
 	xf_sprite_t ss_vertices[4*MAX_NUM_ENEMY_FX];

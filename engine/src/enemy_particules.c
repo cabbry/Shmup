@@ -58,7 +58,12 @@ void ENPAR_Init(void)
 	}
 	
 	numVertices=0;
-	for (i=0; i < MAX_NUM_ENEMY_FX ; ) 
+	// This loop used to stop at MAX_NUM_ENEMY_FX -- the QUAD count -- instead of
+	// MAX_NUM_ENEMY_FX*6, the INDEX count (2010 bug). Only the first 11 quads of
+	// enemy FX ever had valid indices; every quad pushed past them drew as
+	// degenerate triangles on vertex 0, i.e. nothing. The boss charge/beam FX
+	// were pushing dozens of quads into the void.
+	for (i=0; i < MAX_NUM_ENEMY_FX*6 ; )
 	{
 		enFxLib.indices[i+0] = numVertices + 0;
 		enFxLib.indices[i+1] = numVertices + 1;

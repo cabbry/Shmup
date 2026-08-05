@@ -517,6 +517,9 @@ void COLL_CheckEnemies(void)
 					LOFB_DamageArm(a, MAX(bullets[j].energy, 0));
 					engine.playerStats.bulletsHit[i]++;
 					bullets[j].expirationTime = simulationTime;
+					// Same visible bullet burst as a body hit -- arm hits used to
+					// eat the bullet with almost no feedback ("il ne se passe rien").
+					Spawn_BulletParticules(&bullets[j], i);
 					{
 						static int lastArmImpact = -1000;
 						if (simulationTime - lastArmImpact > 40 || simulationTime < lastArmImpact)
@@ -578,14 +581,17 @@ void COLL_CheckEnemies(void)
 					continue;
 					
 				engine.playerStats.bulletsHit[i]++;
-				
-				//We have a collision here
-				enemy->shouldFlicker = 1;
 
-				// The boss is huge and tanky, so the 1-frame full-body flash reads
-				// as "nothing is happening". Spray localised impact sparks where the
-				// shots actually land (on the arms) so hits are visible. Throttled so
-				// it stays a spark stream, not a wall of explosions.
+				//We have a collision here. Everything flickers except the boss: it
+				// is a single huge mesh, so the GL_ADD flash lit up the WHOLE ship
+				// (arms included) on any body hit. Boss hits read through the
+				// localised impact sparks below instead.
+				if (enemy->type != ENEMY_LOFB)
+					enemy->shouldFlicker = 1;
+
+				// The boss is huge and tanky: spray localised impact sparks where
+				// the shots actually land so hits are visible. Throttled so it
+				// stays a spark stream, not a wall of explosions.
 				if (enemy->type == ENEMY_LOFB)
 				{
 					static int lastBossImpact = -1000;
@@ -652,9 +658,10 @@ void COLL_CheckEnemies(void)
 				
 				tmpEnergy = ghost->energy ;
 				ghost->energy -= MAX(enemy->energy,0);
-				enemy->energy -= MAX(tmpEnergy,0);		
-				
-				enemy->shouldFlicker = 1;
+				enemy->energy -= MAX(tmpEnergy,0);
+
+				if (enemy->type != ENEMY_LOFB)	// no full-ship flash on the boss
+					enemy->shouldFlicker = 1;
 				
 				if (ghost->energy <= 0)
 				{

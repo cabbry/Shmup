@@ -58,11 +58,27 @@ static int    gCamHavePrev = 0;
 // we already flew past keep their frozen visible faces, so we ping-pong BACKWARD
 // and forward over that stretch -- the decor keeps scrolling (Fabien's "repartir
 // dans l'autre sens") and the camera never passes the anchor into the void.
+//
+// v1.4.2: the ANCHOR VIEW ITSELF already faces the void (the decor -- and its
+// bake -- literally end there), so an oscillation that returned to the anchor
+// every period flashed black<->decor ("yoyo"). The patrol now dives once to the
+// far end and then oscillates over the BACK portion of the stretch only, never
+// coming closer to the anchor than CAM_END_NEAR of the amplitude. And instead of
+// freezing on the path's final orientation (the rail is cut mid-turn, leaving
+// the view stuck ~45 deg banked), the orientation eases back to a slow-trailing
+// pre-turn quaternion, so the end state reads as a level patrol over the city.
+// (A true 180 U-turn can't work here: the baked delta-visibility has already
+// deleted the faces behind the camera, so looking back shows nothing.)
 static vec3_t gCamEndAnchor;
 static int    gCamEndActive = 0;
 static float  gCamEndPhase  = 0;
 #define CAM_END_PERIOD_MS	7000.0f		// one full back-and-forth
 #define CAM_END_SECONDS		3.0f		// how many seconds of travel to drift back
+#define CAM_END_NEAR		0.35f		// closest approach to the anchor (x amp)
+#define CAM_END_DETILT_MS	2500.0f		// time to ease out of the final bank
+static quat4_t gCamLastQuat;			// last baked orientation (frozen at end)
+static quat4_t gCamCalmQuat;			// slow-trailing orientation (lags turns)
+static int     gCamHaveCalm = 0;
 
 void CAM_InterpolateFrames(camera_frame_t* currentFrame, camera_frame_t* nextFrame, float interpolationFactor, vec3_t position, quat4_t orientation)
 {
@@ -155,9 +171,10 @@ void CAM_Update(void)
 	
 	if (camera.currentFrame->next == 0)
 	{
-		// Path exhausted. Ping-pong BACKWARD/forward over the stretch we just flew
-		// (its tiles keep their frozen visible faces, so they still render); never
-		// pass the anchor forward, which would look into the un-baked void (black).
+		// Path exhausted. One smooth dive to the far end of the already-flown
+		// stretch, then an endless ping-pong over its BACK portion only: the
+		// frozen city stays in frame the whole time and the screen never shows
+		// the void at the anchor (where the decor and its bake end).
 		if (gCameraDriftAtEnd && gCamHavePrev)
 		{
 			float speed = sqrtf(gCamDriftVel[0]*gCamDriftVel[0] +
@@ -172,13 +189,35 @@ void CAM_Update(void)
 			gCamEndPhase += timediff;
 			if (speed > 1e-8f)
 			{
-				// off goes 0 -> amp -> 0 (always backward from the anchor).
-				float amp   = speed * CAM_END_SECONDS * 1000.0f;
-				float off   = amp * 0.5f * (1.0f - cosf(gCamEndPhase * (float)(2 * M_PI) / CAM_END_PERIOD_MS));
-				float invSp = off / speed;	// backward = -driftVel direction
+				float amp = speed * CAM_END_SECONDS * 1000.0f;
+				float w   = (float)(2 * M_PI) / CAM_END_PERIOD_MS;
+				float off, invSp;
+				if (gCamEndPhase < CAM_END_PERIOD_MS * 0.5f)
+					// First leg: 0 -> amp, smooth start from the anchor.
+					off = amp * 0.5f * (1.0f - cosf(gCamEndPhase * w));
+				else
+					// Then oscillate amp <-> CAM_END_NEAR*amp (C1-continuous at
+					// the handover), never returning to the anchor's void view.
+					off = amp * (0.5f * (1.0f + CAM_END_NEAR)
+							   - 0.5f * (1.0f - CAM_END_NEAR) * cosf(gCamEndPhase * w));
+				invSp = off / speed;	// backward = -driftVel direction
 				camera.position[0] = gCamEndAnchor[0] - gCamDriftVel[0] * invSp;
 				camera.position[1] = gCamEndAnchor[1] - gCamDriftVel[1] * invSp;
 				camera.position[2] = gCamEndAnchor[2] - gCamDriftVel[2] * invSp;
+			}
+			// Ease out of the path's final mid-turn bank toward the calmer
+			// trailing view; without this the camera sat frozen ~45 deg tilted.
+			if (gCamHaveCalm)
+			{
+				quat4_t		q;
+				matrix3x3_t	m;
+				float f = gCamEndPhase / CAM_END_DETILT_MS;
+				if (f > 1) f = 1;
+				Quat_slerp(gCamLastQuat, gCamCalmQuat, f, q);
+				Quat_ConvertToMat3x3(m, q);
+				camera.right[0]   =  m[0]; camera.right[1]   =  m[1]; camera.right[2]   =  m[2];
+				camera.up[0]      =  m[3]; camera.up[1]      =  m[4]; camera.up[2]      =  m[5];
+				camera.forward[0] = -m[6]; camera.forward[1] = -m[7]; camera.forward[2] = -m[8];
 			}
 		}
 		return;
@@ -202,6 +241,23 @@ void CAM_Update(void)
 	}
 	vectorCopy(camera.position, gCamPrevPos);
 	gCamHavePrev = 1;
+
+	// Trail a slow, calmed copy of the baked orientation (time constant ~2s):
+	// when the path ends mid-turn this still points down the corridor, and the
+	// end-of-path patrol eases back to it. Also snapshot the exact current
+	// orientation each frame -- at the end it becomes the blend's start point.
+	if (!gCamHaveCalm)
+	{
+		memcpy(gCamCalmQuat, interpolatedQuaterion, sizeof(quat4_t));
+		gCamHaveCalm = 1;
+	}
+	else
+	{
+		float a = timediff / 2000.0f;
+		if (a > 1) a = 1;
+		Quat_slerp(gCamCalmQuat, interpolatedQuaterion, a, gCamCalmQuat);
+	}
+	memcpy(gCamLastQuat, interpolatedQuaterion, sizeof(quat4_t));
 		
 	//Transforme quat to matrix and set it as orientation
 	Quat_ConvertToMat3x3(interpolatedOrientationMatrix, interpolatedQuaterion);
@@ -237,6 +293,7 @@ void CAM_StartPlaying()
 	camera.playing = 1;
 	gCamHavePrev = 0;	// don't carry a stale drift velocity across scenes
 	gCamEndActive = 0;	// fresh scene: re-arm the end-of-path ping-pong
+	gCamHaveCalm = 0;	// and re-seed the trailing orientation
 }
 
 

@@ -637,11 +637,21 @@ void LOFB_DamageArm(int idx, int dmg)
 	gArmFlashMs[idx] = LOFB_ARM_FLASH_MS;	// the ARM (not the whole ship) lights up
 	if (gArmHP[idx] <= 0)
 	{
+		// Make the kill UNMISSABLE -- a triple burst walking off the arm. During
+		// a laser phase the screen is busy (orbs, beams, dodging) and playtests
+		// misattributed arm deaths ("the laser destroyed its own arms"): the
+		// arms only ever take PLAYER bullet damage, so the reward for landing it
+		// has to cut through the noise.
 		vec2_t p;
 		gArmAlive[idx] = 0;
 		p[X] = gArmSS[idx][X];
 		p[Y] = gArmSS[idx][Y];
-		FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 1.4f, 0);
+		FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 1.6f, 0);
+		p[X] += (idx == 0) ? -0.08f : 0.08f;
+		p[Y] += 0.06f;
+		FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 1.1f, 0);
+		p[Y] -= 0.13f;
+		FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 0.8f, 0);
 		FX_GetSmoke(p, 0.6f, 0.6f);
 		SND_PlaySound(SND_EXPLOSION);
 		gArmChunkDmg += (gBossMaxEnergy * 8) / 100;
@@ -899,13 +909,16 @@ int LOFB_GetBossHealthBar(char* out)
 		if (n > 20) n = 20;
 	}
 
-	// Filled segments are solid '='; spent ones are blank (not '-', which blended
-	// in and made the bar look like a static line). The string stays 25 chars, so
-	// the centred bar keeps a fixed left edge and the '=' marks visibly erase from
-	// the right as the boss loses HP.
+	// Filled segments are 'I', spent ones blank. 'I' -- not '=': on device the
+	// '=' glyph never showed up (bar rendered as just "BOSS"), even though the
+	// atlas cell (13,3) holds one and digits from the same atlas row render fine
+	// in the score. Rather than fight an unreproducible glyph, use a letter:
+	// letters are proven on-screen ("BOSS", "SCORE" render), and a row of I's
+	// reads as a segmented bar anyway. The string stays 25 chars, so the centred
+	// bar keeps a fixed left edge and segments erase from the right as HP drops.
 	memcpy(out, "BOSS ", 5);
 	for (i = 0; i < 20; i++)
-		out[5 + i] = (i < n) ? '=' : ' ';
+		out[5 + i] = (i < n) ? 'I' : ' ';
 	out[25] = '\0';
 	return 1;
 }

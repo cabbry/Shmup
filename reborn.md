@@ -179,6 +179,28 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-05 — round 7 (end-of-decor yoyo, invisible health bar, arm-kill clarity)
+- **No more black/decor yoyo at the end of the city (build 174, v1.4.2)**: the v1.4.0
+  ping-pong swung the camera back **to the exact point where the decor (and its baked
+  visibility) end** — so once per cycle the view stared into the un-built void: black,
+  then decor, then black again. The patrol now dives back once and oscillates **over the
+  back portion of the flown stretch only**, never returning to the void view. The camera
+  also **eases out of the ~45° bank** the rail froze on (the path is cut mid-turn) back
+  to a level down-the-corridor view. *(A true 180° U-turn isn't possible with the 2010
+  bake: the delta-visibility stream deletes faces once they leave the frame, so looking
+  backward shows nothing — this patrol is the closest look we can get without re-baking
+  the path.)*
+- **Boss health bar actually visible**: the bar's `=` glyph never rendered on device
+  (only "BOSS" showed) even though the font atlas contains one — digits and letters from
+  the same atlas render fine, so the bar now uses **`I` segments** (letters are proven
+  on-screen). You'll finally see it drain — and see the **−8% chunk** when an arm dies.
+- **Arm kills are unmistakable now**: a triple explosion walks off the destroyed arm.
+  Playtest read "the laser destroyed its own arms" — in code the arms only ever take
+  **player bullet** damage; what happens is the boss holds still through the 5.7s laser
+  phase, your dodging fire sweeps the arm zones, and the arms tend to die exactly then.
+  The kill needed to cut through that busy screen. (Quick check in play: as long as
+  homing missiles still launch from a side, that arm is alive.)
+
 ### 2026-08-05 (hit feedback where you shoot + a 2010 FX bug)
 - **Found & fixed a 16-year-old engine bug (build 173, v1.4.1)**: the enemy-FX index
   buffer was only initialised for its first **11 quads** (the init loop counted quads

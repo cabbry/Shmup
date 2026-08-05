@@ -179,6 +179,28 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-05 (hit feedback where you shoot + a 2010 FX bug)
+- **Found & fixed a 16-year-old engine bug (build 173, v1.4.1)**: the enemy-FX index
+  buffer was only initialised for its first **11 quads** (the init loop counted quads
+  instead of indices — a bug shipped in the original 2010 source). Everything pushed past
+  those 11 quads — most of the laser charge orbs, the warning line, the muzzle glows —
+  rendered as invisible degenerate triangles. **The whole telegraph now actually shows.**
+  The FX buffer also grew (64 → 192 quads) to fit it all.
+- **Energy concentration before the mega-laser**: the charge orbs now hang wide then
+  **accelerate into the muzzle** (instead of drifting in linearly), spin faster and
+  faster, and each drags a bright **convergence tail pointing into the gun**; over the
+  last half-second the whole gather **strobes**. Combined with the index fix above, the
+  pre-fire tell went from "a faint purple blob" to an unmistakable implosion.
+- **Hits flash where you shoot, not the whole ship**: the boss no longer does the
+  full-body white flicker on every body hit (it's a single huge mesh, so shooting the
+  nose lit up the arms too). Body hits read through the localised impact sparks; **arm
+  hits now flash the arm itself** with a soft glow, plus the same bullet-burst particles
+  as body hits — shooting an arm finally *feels* like hitting something.
+- **Arm damage now shows and counts**: an arm below half HP trails light smoke (visible
+  "keep shooting, it's working" progress), and **destroying an arm carves an 8% chunk
+  off the global boss health bar**. The arms' own HP stays a separate pool (the bar
+  still can't be emptied through the arms — the killing blow stays with direct fire).
+
 ### 2026-07-23 (destructible arms + no more black screen)
 - **Destructible arms (build 172, v1.4.0)**: the two big side arms now have their own HP and
   are what launch the red homing missiles. Shoot an arm down and that side stops firing;

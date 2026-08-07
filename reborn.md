@@ -179,6 +179,26 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-07 — round 8 (the boss health bar, for real this time)
+- **The health bar is now a real graphical bar (v1.4.3)** — a light frame, a dark
+  background and a bright red fill (subtle top-to-bottom gradient) drawn as **solid
+  colored quads** under the score. No font glyphs are involved anymore: the fill
+  drains **smoothly with every hit** (not in 20 coarse steps), the spent portion
+  stays visible as dark background inside the frame, and an arm kill visibly carves
+  its −8% chunk. Only the "BOSS" label is still font text — the one part that always
+  rendered. Fill width rounds up, so the bar reads empty exactly at the kill.
+- *Post-mortem of the three failed text bars*: v1.3.7 (`=`/`-`) read as a static
+  line, v1.4.0 (`=`/blank) read as invisible, and the round-7 `I`-segment fix
+  (v1.4.2) — it turns out — **was never pushed or built**: the fork's latest tag was
+  still v1.4.1, so the last TestFlight build (173) still had the invisible bar.
+  Glyph-segment bars at that size are simply too subtle on device; this round stops
+  fighting the font and draws geometry instead.
+- New engine primitive: `renderer->RenderTexturelessSprites` (untextured,
+  per-vertex-colored 2D quads) — implemented in the GL ES 1.1 fixed renderer the
+  iPhone build uses (same state dance as `FadeScreenF`), stubbed in the GL ES 2.0
+  path like its `FadeScreen`/`DrawControls` siblings. This ships round 7's changes
+  too (end-of-decor yoyo fix, arm-kill triple explosion), which never made it out.
+
 ### 2026-08-05 — round 7 (end-of-decor yoyo, invisible health bar, arm-kill clarity)
 - **No more black/decor yoyo at the end of the city (build 174, v1.4.2)**: the v1.4.0
   ping-pong swung the camera back **to the exact point where the decor (and its baked

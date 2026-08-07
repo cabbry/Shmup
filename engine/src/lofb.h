@@ -48,9 +48,10 @@ void updateLOFBMissile(enemy_t* enemy);
 // choreography (autopilot + epilog; the epilog's end advances the scene).
 void LOFB_OnBossDeath(enemy_t* enemy);
 
-// Fills out (>= 32 bytes) with the "BOSS ====----" health bar and returns 1
-// while a boss fight is active, 0 otherwise. Rendered from the HUD text block.
-int LOFB_GetBossHealthBar(char* out);
+// Boss health for the HUD: returns 1 (and fills energy/maxEnergy) while a boss
+// fight is live on-screen, 0 otherwise. The HUD draws it as a real graphical
+// bar (colored quads) -- the old text-glyph bar proved unreliable on device.
+int LOFB_GetBossHealth(int* energy, int* maxEnergy);
 
 // Mega-laser collision query. When the beam is actively FIRING, returns 1 and
 // fills the beam ray in sprite pixel space: origin (ox,oy), unit direction

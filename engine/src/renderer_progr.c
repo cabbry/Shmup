@@ -1010,6 +1010,12 @@ void RenderColorlessSprites(xf_colorless_sprite_t* vertices, ushort numIndices,u
 
 
 
+void RenderTexturelessSprites(xf_textureless_sprite_t* vertices, ushort numIndices, ushort* indices)
+{
+	Log_Printf("Not implemented (RenderTexturelessSprites) .!\n");
+}
+
+
 void FadeScreen(float alpha)
 {
 	Log_Printf("Not implemented (FadeScreen) .!\n");
@@ -1089,6 +1095,7 @@ void initProgrRenderer(renderer_t* renderer)
 	renderer->UploadVerticesToGPU = UploadVerticesToGPU;
 	renderer->StartCleanFrame= StartCleanFrame;
 	renderer->RenderColorlessSprites = RenderColorlessSprites;
+	renderer->RenderTexturelessSprites = RenderTexturelessSprites;
 	renderer->FadeScreen = FadeScreen;
 	renderer->SetMaterialTextureBlending = SetMaterialTextureBlending;
 	renderer->SetTransparency = SetTransparency;

@@ -838,6 +838,79 @@ float playerDelta[2][2] = {
 	/*p2*/{-200,98}
 };
 
+// Boss health bar (act 3): a REAL graphical bar -- light frame, dark back,
+// bright red fill draining right-to-left -- drawn as untextured colored quads.
+// The previous text-glyph bars ('='/'-', then 'I'/blank segments) kept reading
+// as invisible or static on device; solid quads can't be missed and the fill
+// drains smoothly with every hit instead of in 20 coarse steps.
+#define BOSS_BAR_LEFT		(-186)
+#define BOSS_BAR_RIGHT		( 284)
+#define BOSS_BAR_BORDER		3
+#define BOSS_BAR_LABEL_X	(-244)
+
+static void P_SetBarQuad(xf_textureless_sprite_t* q, short l, short r, short top, short bot,
+						 uchar topRed, uchar topGreen, uchar topBlue,
+						 uchar botRed, uchar botGreen, uchar botBlue, uchar alpha)
+{
+	// 0 2
+	// 1 3   (same corner layout / index pattern as the text quads)
+	q[0].pos[X] = l; q[0].pos[Y] = top;
+	q[1].pos[X] = l; q[1].pos[Y] = bot;
+	q[2].pos[X] = r; q[2].pos[Y] = top;
+	q[3].pos[X] = r; q[3].pos[Y] = bot;
+	q[0].color[R] = topRed; q[0].color[G] = topGreen; q[0].color[B] = topBlue; q[0].color[A] = alpha;
+	q[2].color[R] = topRed; q[2].color[G] = topGreen; q[2].color[B] = topBlue; q[2].color[A] = alpha;
+	q[1].color[R] = botRed; q[1].color[G] = botGreen; q[1].color[B] = botBlue; q[1].color[A] = alpha;
+	q[3].color[R] = botRed; q[3].color[G] = botGreen; q[3].color[B] = botBlue; q[3].color[A] = alpha;
+}
+
+static void P_RenderBossHealthBar(int hp, int maxHp, short barY)
+{
+	static xf_textureless_sprite_t quads[12];
+	static ushort indices[18] = { 0,1,2, 1,3,2,  4,5,6, 5,7,6,  8,9,10, 9,11,10 };
+	short halfH, fillRight;
+	ushort numIndices;
+
+	// Same vertical un-stretch as the text glyphs, so the bar keeps the same
+	// physical thickness on a tall screen as on a 2:3 one.
+	halfH = (short)(9.0f / (renderer.vScale > 0.0f ? renderer.vScale : 1.0f));
+	if (halfH < 5)
+		halfH = 5;
+
+	// Light frame + near-black inner back: the SPENT part of the bar stays
+	// visible, so "how much is left" always has a fixed reference frame.
+	P_SetBarQuad(&quads[0],
+				 BOSS_BAR_LEFT - BOSS_BAR_BORDER, BOSS_BAR_RIGHT + BOSS_BAR_BORDER,
+				 (short)(barY + halfH + BOSS_BAR_BORDER), (short)(barY - halfH - BOSS_BAR_BORDER),
+				 235, 235, 240,  235, 235, 240,  210);
+	P_SetBarQuad(&quads[4],
+				 BOSS_BAR_LEFT, BOSS_BAR_RIGHT,
+				 (short)(barY + halfH), (short)(barY - halfH),
+				 12, 12, 18,  12, 12, 18,  230);
+	numIndices = 12;
+
+	// Fill width rounds UP so the bar only reads empty when the boss is
+	// actually dead (same rule as the old segmented bar).
+	if (hp > 0 && maxHp > 0)
+	{
+		int w = ((BOSS_BAR_RIGHT - BOSS_BAR_LEFT) * hp + maxHp - 1) / maxHp;
+		if (w < 2)
+			w = 2;
+		if (w > BOSS_BAR_RIGHT - BOSS_BAR_LEFT)
+			w = BOSS_BAR_RIGHT - BOSS_BAR_LEFT;
+		fillRight = (short)(BOSS_BAR_LEFT + w);
+
+		// Bright-to-dark vertical gradient so the fill reads as a lit bar.
+		P_SetBarQuad(&quads[8],
+					 BOSS_BAR_LEFT, fillRight,
+					 (short)(barY + halfH), (short)(barY - halfH),
+					 255, 84, 64,  168, 16, 16,  255);
+		numIndices = 18;
+	}
+
+	renderer.RenderTexturelessSprites(quads, numIndices, indices);
+}
+
 char stringScore[64];
 void PL_RenderPlayerPointers(void)
 {
@@ -931,20 +1004,26 @@ void PL_RenderPlayerPointers(void)
 	{
 		float orthoPerPx = (2.0f * SS_H) / (float)renderer.glBuffersDimensions[HEIGHT];
 		short scoreY = (short)(SS_H - renderer.safeInsetTopPx * orthoPerPx - 30.0f);
+		int bossHp = 0, bossMaxHp = 0, bossFight;
+		short bossBarY = 0;
 		SCR_ConvertTextToVertices(stringScore,SCORE_FONT_SIZE,SCORE_POS_X,scoreY,TEXT_NOT_CENTERED);
 		// Tutorial only (scenes 14 = swipe, 15 = virtual pad): a BACK button at the
 		// top-centre to leave the tutorial. The tap zone is hit-tested in EAGLView.
 		if (engine.sceneId == 14 || engine.sceneId == 15)
 			SCR_ConvertTextToVertices("[ BACK ]",SCORE_FONT_SIZE,0,(short)(scoreY - 100),TEXT_CENTERED);
-		// Boss health bar (act 3), just under the score line while the fight is on.
+		// Boss health bar (act 3), just under the score line while the fight is
+		// on. Only the "BOSS" label is font text (letters are proven on-screen);
+		// the bar itself is drawn after the text pass as solid colored quads.
+		bossFight = LOFB_GetBossHealth(&bossHp, &bossMaxHp);
+		if (bossFight)
 		{
-			char bossBar[32];
-			if (LOFB_GetBossHealthBar(bossBar))
-				SCR_ConvertTextToVertices(bossBar, 2.0f, 0, (short)(scoreY - 55), TEXT_CENTERED);
+			bossBarY = (short)(scoreY - 52);
+			SCR_ConvertTextToVertices("BOSS", 1.8f, BOSS_BAR_LABEL_X, bossBarY, TEXT_CENTERED);
 		}
+		SCR_RenderText();
+		if (bossFight)
+			P_RenderBossHealthBar(bossHp, bossMaxHp, bossBarY);
 	}
-	SCR_RenderText();
-	
 }
 
 

@@ -143,6 +143,9 @@ typedef struct renderer_t
 	
 	void (*RenderColorlessSprites)(xf_colorless_sprite_t* vertices, ushort numIndices, ushort* indices);
 
+	// Untextured, per-vertex-colored 2D quads (used by the boss health bar).
+	void (*RenderTexturelessSprites)(xf_textureless_sprite_t* vertices, ushort numIndices, ushort* indices);
+
 	
 	void (*FadeScreen)(float alpha);
 	void (*SetMaterialTextureBlending)(char modulate);

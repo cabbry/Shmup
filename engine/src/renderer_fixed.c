@@ -964,6 +964,23 @@ void RenderColorlessSpritesF(xf_colorless_sprite_t* vertices, ushort numIndices,
 
 
 
+void RenderTexturelessSpritesF(xf_textureless_sprite_t* vertices, ushort numIndices, ushort* indices)
+{
+	glDisable(GL_TEXTURE_2D);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glVertexPointer(  2, GL_SHORT,  sizeof(xf_textureless_sprite_t), vertices->pos);
+	glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(xf_textureless_sprite_t), vertices->color);
+	glDrawElements(GL_TRIANGLES, numIndices, GL_UNSIGNED_SHORT, indices);
+	STATS_AddTriangles(numIndices/3);
+
+	glDisableClientState(GL_COLOR_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	glEnable(GL_TEXTURE_2D);
+}
+
+
 void FadeScreenF(float alpha)
 {
 
@@ -1047,6 +1064,7 @@ void initFixedRenderer(renderer_t* renderer)
 	renderer->UploadVerticesToGPU = UploadVerticesToGPUF;
 	renderer->StartCleanFrame = StartCleanFrameF;
 	renderer->RenderColorlessSprites = RenderColorlessSpritesF;
+	renderer->RenderTexturelessSprites = RenderTexturelessSpritesF;
 	renderer->FadeScreen = FadeScreenF;
 	renderer->SetMaterialTextureBlending = SetMaterialTextureBlendingF;
 	renderer->SetTransparency = SetTransparencyF;

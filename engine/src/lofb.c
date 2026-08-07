@@ -94,7 +94,7 @@ extern void EV_AutoPilotPls(event_t* event);				// event.c: fly players to rest 
 #define LOFB_ORB_W				((ushort)(16.0f / 128.0f * SHRT_MAX))
 #define LOFB_ORB_H				((ushort)(16.0f / 128.0f * SHRT_MAX))
 
-// Boss HUD state (read by LOFB_GetBossHealthBar, rendered with the score).
+// Boss HUD state (read by LOFB_GetBossHealth, rendered with the score).
 static int gBossEnergy = 0;
 static int gBossMaxEnergy = 0;
 static int gBossHudStamp = -100000;	// simulationTime of the last boss update
@@ -888,37 +888,14 @@ void LOFB_OnBossDeath(enemy_t* enemy)
 	gLaserState   = LOFB_LASER_OFF;	// kill any beam in flight
 }
 
-int LOFB_GetBossHealthBar(char* out)
+int LOFB_GetBossHealth(int* energy, int* maxEnergy)
 {
-	int i, n;
-
 	if (gBossMaxEnergy <= 0)
 		return 0;
 	if (simulationTime - gBossHudStamp > 300 || gBossHudStamp > simulationTime)
 		return 0;
 
-	// Round UP so any remaining HP keeps at least one segment lit -- the bar now
-	// empties exactly when the boss dies (floor division used to read empty at
-	// the last ~5%, so the boss looked dead-but-alive).
-	if (gBossEnergy <= 0)
-		n = 0;
-	else
-	{
-		n = (gBossEnergy * 20 + gBossMaxEnergy - 1) / gBossMaxEnergy;
-		if (n < 1)  n = 1;
-		if (n > 20) n = 20;
-	}
-
-	// Filled segments are 'I', spent ones blank. 'I' -- not '=': on device the
-	// '=' glyph never showed up (bar rendered as just "BOSS"), even though the
-	// atlas cell (13,3) holds one and digits from the same atlas row render fine
-	// in the score. Rather than fight an unreproducible glyph, use a letter:
-	// letters are proven on-screen ("BOSS", "SCORE" render), and a row of I's
-	// reads as a segmented bar anyway. The string stays 25 chars, so the centred
-	// bar keeps a fixed left edge and segments erase from the right as HP drops.
-	memcpy(out, "BOSS ", 5);
-	for (i = 0; i < 20; i++)
-		out[5 + i] = (i < n) ? 'I' : ' ';
-	out[25] = '\0';
+	*energy    = (gBossEnergy < 0) ? 0 : gBossEnergy;
+	*maxEnergy = gBossMaxEnergy;
 	return 1;
 }

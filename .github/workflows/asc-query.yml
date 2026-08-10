@@ -51,4 +51,22 @@ jobs:
               print(f'build {a["version"]:>4}  v{trains.get(pr, "?"):<7}'
                     f' state={a["processingState"]:<10} expired={a["expired"]}'
                     f' uploaded={a["uploadedDate"]}')
+
+          # Distribution detail for the two most recent builds: beta state + groups.
+          for b in (r.get("data") or [])[:2]:
+              bid = b["id"]
+              det = requests.get(base + f"/v1/builds/{bid}/buildBetaDetail", headers=H).json()
+              da = det.get("data", {}).get("attributes", {})
+              grps = requests.get(base + f"/v1/builds/{bid}/betaGroups", headers=H).json()
+              gnames = [g["attributes"]["name"] + (" (internal)" if g["attributes"].get("isInternalGroup") else "")
+                        for g in grps.get("data", [])]
+              print(f'build {b["attributes"]["version"]}: internalState={da.get("internalBuildState")}'
+                    f' externalState={da.get("externalBuildState")} groups={gnames}')
+
+          # App-level beta groups and their auto-distribution setting.
+          ag = requests.get(base + f"/v1/apps/{app_id}/betaGroups"
+                            "?fields[betaGroups]=name,isInternalGroup,hasAccessToAllBuilds", headers=H).json()
+          for g in ag.get("data", []):
+              ga = g["attributes"]
+              print(f'group "{ga["name"]}" internal={ga["isInternalGroup"]} autoAllBuilds={ga.get("hasAccessToAllBuilds")}')
           EOF

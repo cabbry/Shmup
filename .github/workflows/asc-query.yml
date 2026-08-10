@@ -1,0 +1,54 @@
+name: ASC — list recent builds
+
+# Diagnostic helper: queries the App Store Connect API with the repo's proven
+# upload credentials and prints the recent builds + their processingState
+# (PROCESSING / VALID / FAILED / INVALID). Used when a build "never arrives"
+# in TestFlight — tells apart upload issues from Apple-side processing issues.
+# Read-only; prints no secret material.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  list-builds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query builds
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          pip install --quiet pyjwt cryptography requests
+          python3 - <<'EOF'
+          import os, time, jwt, requests
+
+          token = jwt.encode(
+              {"iss": os.environ["ISSUER_ID"], "iat": int(time.time()) - 30,
+               "exp": int(time.time()) + 1200, "aud": "appstoreconnect-v1"},
+              os.environ["PRIVATE_KEY"], algorithm="ES256",
+              headers={"kid": os.environ["KEY_ID"]})
+          H = {"Authorization": "Bearer " + token}
+          base = "https://api.appstoreconnect.apple.com"
+
+          apps = requests.get(base + "/v1/apps?filter[bundleId]=com.cabbry.shmup", headers=H).json()
+          if not apps.get("data"):
+              print("APP LOOKUP FAILED:", apps)
+              raise SystemExit(1)
+          app_id = apps["data"][0]["id"]
+          print("app:", app_id, apps["data"][0]["attributes"]["name"])
+
+          r = requests.get(
+              base + f"/v1/builds?filter[app]={app_id}&sort=-uploadedDate&limit=10"
+                     "&fields[builds]=version,processingState,uploadedDate,expired"
+                     "&include=preReleaseVersion&fields[preReleaseVersions]=version",
+              headers=H).json()
+          trains = {i["id"]: i["attributes"]["version"] for i in r.get("included", [])}
+          for b in r.get("data", []):
+              a = b["attributes"]
+              pr = (b["relationships"]["preReleaseVersion"]["data"] or {}).get("id")
+              print(f'build {a["version"]:>4}  v{trains.get(pr, "?"):<7}'
+                    f' state={a["processingState"]:<10} expired={a["expired"]}'
+                    f' uploaded={a["uploadedDate"]}')
+          EOF

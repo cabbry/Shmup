@@ -41,13 +41,13 @@ jobs:
 
           r = requests.get(
               base + f"/v1/builds?filter[app]={app_id}&sort=-uploadedDate&limit=10"
-                     "&fields[builds]=version,processingState,uploadedDate,expired"
+                     "&fields[builds]=version,processingState,uploadedDate,expired,preReleaseVersion"
                      "&include=preReleaseVersion&fields[preReleaseVersions]=version",
               headers=H).json()
           trains = {i["id"]: i["attributes"]["version"] for i in r.get("included", [])}
           for b in r.get("data", []):
               a = b["attributes"]
-              pr = (b["relationships"]["preReleaseVersion"]["data"] or {}).get("id")
+              pr = ((b.get("relationships", {}).get("preReleaseVersion", {}).get("data")) or {}).get("id")
               print(f'build {a["version"]:>4}  v{trains.get(pr, "?"):<7}'
                     f' state={a["processingState"]:<10} expired={a["expired"]}'
                     f' uploaded={a["uploadedDate"]}')

@@ -55,26 +55,26 @@ static vec3_t gCamDriftVel;			// world units per ms, from the last segment
 static int    gCamHavePrev = 0;
 // When the path ends we can't coast FORWARD: baked visibility is frozen at the
 // last frame, so tiles ahead never become visible (-> black void). But the tiles
-// we already flew past keep their frozen visible faces, so we ping-pong BACKWARD
-// and forward over that stretch -- the decor keeps scrolling (Fabien's "repartir
-// dans l'autre sens") and the camera never passes the anchor into the void.
+// we already flew past keep their frozen visible faces, so the end move plays
+// out over that stretch and the camera never passes the anchor into the void.
 //
-// v1.4.2: the ANCHOR VIEW ITSELF already faces the void (the decor -- and its
-// bake -- literally end there), so an oscillation that returned to the anchor
-// every period flashed black<->decor ("yoyo"). The patrol now dives once to the
-// far end and then oscillates over the BACK portion of the stretch only, never
-// coming closer to the anchor than CAM_END_NEAR of the amplitude. And instead of
-// freezing on the path's final orientation (the rail is cut mid-turn, leaving
-// the view stuck ~45 deg banked), the orientation eases back to a slow-trailing
-// pre-turn quaternion, so the end state reads as a level patrol over the city.
+// v1.4.4: the v1.4.2 patrol OSCILLATED endlessly over the back stretch, which
+// read as "the ship sets off / comes back / sets off again" -- a yoyo (user
+// report). Now there is NO oscillation: one smooth pull-back from the anchor,
+// then the camera sets off forward again ever more slowly (exponential decay
+// toward CAM_END_NEAR of the pull-back) and never reverses -- the motion fades
+// into a calm hover over the city, always short of the anchor's void view. The
+// orientation still eases out of the path's frozen mid-turn bank toward a
+// slow-trailing pre-turn quaternion, so the end state reads as a level hover.
 // (A true 180 U-turn can't work here: the baked delta-visibility has already
 // deleted the faces behind the camera, so looking back shows nothing.)
 static vec3_t gCamEndAnchor;
 static int    gCamEndActive = 0;
 static float  gCamEndPhase  = 0;
-#define CAM_END_PERIOD_MS	7000.0f		// one full back-and-forth
-#define CAM_END_SECONDS		3.0f		// how many seconds of travel to drift back
-#define CAM_END_NEAR		0.35f		// closest approach to the anchor (x amp)
+#define CAM_END_DIVE_MS		3500.0f		// the single pull-back from the anchor
+#define CAM_END_SECONDS		3.0f		// how many seconds of travel to pull back
+#define CAM_END_NEAR		0.35f		// closest re-approach to the anchor (x amp)
+#define CAM_END_CREEP_TAU	25000.0f	// decay time of the forward re-advance
 #define CAM_END_DETILT_MS	2500.0f		// time to ease out of the final bank
 static quat4_t gCamLastQuat;			// last baked orientation (frozen at end)
 static quat4_t gCamCalmQuat;			// slow-trailing orientation (lags turns)
@@ -171,10 +171,10 @@ void CAM_Update(void)
 	
 	if (camera.currentFrame->next == 0)
 	{
-		// Path exhausted. One smooth dive to the far end of the already-flown
-		// stretch, then an endless ping-pong over its BACK portion only: the
-		// frozen city stays in frame the whole time and the screen never shows
-		// the void at the anchor (where the decor and its bake end).
+		// Path exhausted. One smooth pull-back over the already-flown stretch,
+		// then a forward re-advance that decays to a hover: no reversals, and
+		// the screen never shows the void at the anchor (where the decor and
+		// its bake end).
 		if (gCameraDriftAtEnd && gCamHavePrev)
 		{
 			float speed = sqrtf(gCamDriftVel[0]*gCamDriftVel[0] +
@@ -190,16 +190,17 @@ void CAM_Update(void)
 			if (speed > 1e-8f)
 			{
 				float amp = speed * CAM_END_SECONDS * 1000.0f;
-				float w   = (float)(2 * M_PI) / CAM_END_PERIOD_MS;
 				float off, invSp;
-				if (gCamEndPhase < CAM_END_PERIOD_MS * 0.5f)
-					// First leg: 0 -> amp, smooth start from the anchor.
-					off = amp * 0.5f * (1.0f - cosf(gCamEndPhase * w));
+				if (gCamEndPhase < CAM_END_DIVE_MS)
+					// The single pull-back: 0 -> amp, half-cosine (starts and
+					// ends at rest).
+					off = amp * 0.5f * (1.0f - cosf((float)M_PI * gCamEndPhase / CAM_END_DIVE_MS));
 				else
-					// Then oscillate amp <-> CAM_END_NEAR*amp (C1-continuous at
-					// the handover), never returning to the anchor's void view.
-					off = amp * (0.5f * (1.0f + CAM_END_NEAR)
-							   - 0.5f * (1.0f - CAM_END_NEAR) * cosf(gCamEndPhase * w));
+					// Then set off forward again, ever slower: the offset decays
+					// toward CAM_END_NEAR*amp and never reverses (no more yoyo),
+					// never returning to the anchor's void view.
+					off = amp * (CAM_END_NEAR + (1.0f - CAM_END_NEAR)
+							   * expf(-(gCamEndPhase - CAM_END_DIVE_MS) / CAM_END_CREEP_TAU));
 				invSp = off / speed;	// backward = -driftVel direction
 				camera.position[0] = gCamEndAnchor[0] - gCamDriftVel[0] * invSp;
 				camera.position[1] = gCamEndAnchor[1] - gCamDriftVel[1] * invSp;
@@ -292,7 +293,7 @@ void CAM_StartPlaying()
 {
 	camera.playing = 1;
 	gCamHavePrev = 0;	// don't carry a stale drift velocity across scenes
-	gCamEndActive = 0;	// fresh scene: re-arm the end-of-path ping-pong
+	gCamEndActive = 0;	// fresh scene: re-arm the end-of-path pull-back
 	gCamHaveCalm = 0;	// and re-seed the trailing orientation
 }
 

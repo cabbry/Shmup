@@ -179,6 +179,18 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-10 — round 9 (no more end-of-map yoyo + boss HP tune)
+- **The end-of-map camera yoyo is gone (v1.4.4)**: when the baked rails run out
+  mid-fight, the v1.4.2 patrol oscillated endlessly over the flown stretch — it
+  read as "the ship sets off, comes back, sets off again…". Now the camera pulls
+  back **once** (same smooth dive), then sets off forward again **ever more
+  slowly** (exponential decay) and **never reverses**: the motion fades into a
+  calm hover over the city, always stopping short of the void where the decor's
+  bake ends. Same safety guarantees as before (never shows the un-baked black),
+  just no more back-and-forth.
+- **Boss HP −15%**: 4000 → 3400 (6800 in multiplayer) — round-8 playtest found
+  the fight a touch long now that the health bar makes progress readable.
+
 ### 2026-08-07 — round 8 (the boss health bar, for real this time)
 - **The health bar is now a real graphical bar (v1.4.3)** — a light frame, a dark
   background and a bright red fill (subtle top-to-bottom gradient) drawn as **solid

@@ -24,7 +24,12 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Write the compressed test rail + point act3 at it
+      # NOTE: the repo's act3.scene is left pointing at the REAL rail, so phase A
+      # below flies what the player actually flies. Patching the scene here (as
+      # this test used to) is exactly how a broken rail OPENING shipped: the
+      # compressed rail starts mid-city top-down, so it could never reproduce
+      # "we fly backwards into the black" from the real rail's first seconds.
+      - name: Write the compressed turn rail (used by phase B only)
         run: |
           cat > data/data/cameraPath/act3smoke.cp <<'EOF'
           cp1
@@ -37,8 +42,7 @@ jobs:
           time 21000:  position (0 162 -6200)  lookat (0 -162 -6200)  upVector (0 -0.173 0.984)
           time 45000:  position (0 162 -3000)  lookat (0 -162 -3000)  upVector (0 -0.173 0.984)
           EOF
-          sed -i '' 's|data/cameraPath/act3boss.cp|data/cameraPath/act3smoke.cp|' data/data/scenes/act3.scene
-          grep "path:" data/data/scenes/act3.scene
+          grep "path:" data/data/scenes/act3.scene   # must still be act3boss.cp
 
       - name: Build (iphonesimulator, arm64, no signing)
         working-directory: engine/iOS
@@ -69,15 +73,70 @@ jobs:
           xcrun simctl bootstatus "$UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
-      - name: Launch act 3 and shoot the U-turn
+      - name: Phase A -- the REAL rail's opening seconds
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
           APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
           BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
           xcrun simctl install "$UDID" "$APP"
           mkdir -p shots
+          echo "bundle=$BUNDLE_ID" >> "$GITHUB_ENV"
+
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
+          FILELOG="$CONTAINER/Documents/shmup_log.txt"
+          rm -f "$FILELOG"
+
+          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
+            SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
+            xcrun simctl launch --console --terminate-running-process "$UDID" "$BUNDLE_ID" \
+            > "$RUNNER_TEMP/phaseA.log" 2>&1 &
+
+          # Fly the first ~25s of the real rail (opening + the t=9000 handover).
+          for i in $(seq 1 45); do
+            grep -q "CAM_LoadPath" "$RUNNER_TEMP/phaseA.log" "$FILELOG" 2>/dev/null && break
+            sleep 2
+          done
+          sleep 25
+
+          cp "$FILELOG" shots/phaseA_log.txt 2>/dev/null || cp "$RUNNER_TEMP/phaseA.log" shots/phaseA_log.txt
+          SAMPLES=$(grep -c "act3 cull" shots/phaseA_log.txt || echo 0)
+          BLACK=$(grep "act3 cull" shots/phaseA_log.txt | grep -c "drew 0/" || echo 0)
+          echo "--- phase A: $SAMPLES cull samples, $BLACK drew NOTHING ---"
+          grep "act3 cull" shots/phaseA_log.txt | head -15 || true
+
+          # THE assertion this test was missing: the opening must draw decor.
+          if [ "$SAMPLES" -lt 1 ]; then
+            echo "::error::No cull samples -- the renderer never ran the boss act."
+            tail -40 shots/phaseA_log.txt || true
+            exit 1
+          fi
+          if [ "$BLACK" -gt 0 ]; then
+            echo "::error::$BLACK frame(s) drew no decor at the START of act 3 (black screen)."
+            grep "act3 cull" shots/phaseA_log.txt | grep "drew 0/" | head -10
+            exit 1
+          fi
+
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+
+      - name: Phase B -- the U-turn (compressed rail, patched into the bundle)
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="$bundle"
+          # Repoint the INSTALLED bundle instead of rebuilding: same binary, other rail.
+          APPDIR=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" app)
+          cp data/data/cameraPath/act3smoke.cp "$APPDIR/data/cameraPath/act3smoke.cp"
+          sed -i '' 's|act3boss.cp|act3smoke.cp|' "$APPDIR/data/scenes/act3.scene"
+          grep "path:" "$APPDIR/data/scenes/act3.scene"
 
           LOG="$RUNNER_TEMP/smoke.log"
+          # The reliable channel: the engine's own file log inside the container
+          # (flushed per line, so it survives a crash). Console capture is flaky.
+          # Cleared first, or phase A's samples would be counted as phase B's.
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
+          FILELOG="$CONTAINER/Documents/shmup_log.txt"
+          echo "file log: $FILELOG"
+          rm -f "$FILELOG"
+
           # --console (not --console-pty): the pty variant produced an empty log
           # under nohup+redirect in CI. Printf output is the engine's only log
           # channel (log.c LOG_TO_FILE 0).
@@ -85,12 +144,6 @@ jobs:
             SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
             xcrun simctl launch --console --terminate-running-process "$UDID" "$BUNDLE_ID" \
             > "$LOG" 2>&1 &
-
-          # The reliable channel: the engine's own file log inside the container
-          # (flushed per line, so it survives a crash). Console capture is flaky.
-          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
-          FILELOG="$CONTAINER/Documents/shmup_log.txt"
-          echo "file log: $FILELOG"
 
           alive () {
             xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -qi "dEngine\|Shmup" && echo ALIVE || echo DEAD
@@ -126,13 +179,24 @@ jobs:
           TRACE=shots/shmup_log.txt
           [ -s "$TRACE" ] || TRACE="$LOG"
 
-          echo "--- act3 cull trace ---"
+          echo "--- act3 cull trace (through the turn) ---"
           grep "act3 cull" "$TRACE" | head -40 || echo "NO CULL TRACE (renderer never ran?)"
-          echo "--- cull samples: $(grep -c 'act3 cull' "$TRACE" 2>/dev/null || echo 0) ---"
-          echo "--- samples that drew NOTHING (would be black): $(grep 'act3 cull' "$TRACE" 2>/dev/null | grep -c 'drew 0/' || echo 0) ---"
+          SAMPLES=$(grep -c "act3 cull" "$TRACE" 2>/dev/null || echo 0)
+          BLACK=$(grep "act3 cull" "$TRACE" 2>/dev/null | grep -c "drew 0/" || echo 0)
+          echo "--- phase B: $SAMPLES cull samples, $BLACK drew NOTHING ---"
 
           echo "--- log tail ---"; tail -40 "$TRACE" || true
           ls -la shots/
+
+          if [ "$SAMPLES" -lt 1 ]; then
+            echo "::error::No cull samples in phase B -- the renderer never ran."
+            exit 1
+          fi
+          if [ "$BLACK" -gt 0 ]; then
+            echo "::error::$BLACK frame(s) drew no decor THROUGH THE U-TURN (black screen)."
+            grep "act3 cull" "$TRACE" | grep "drew 0/" | head -10
+            exit 1
+          fi
 
           # A crash is the whole reason a screenshot can show the home screen:
           # dump any report so the reason is in THIS log, not guesswork.
@@ -156,5 +220,6 @@ jobs:
           name: act3-smoke
           path: |
             shots/
+            ${{ runner.temp }}/phaseA.log
             ${{ runner.temp }}/smoke.log
           if-no-files-found: warn

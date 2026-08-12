@@ -1,5 +1,5 @@
 cp1
-num_frames 36
+num_frames 34
 
 # Act-3 boss rail.
 #
@@ -19,9 +19,17 @@ num_frames 36
 # so none of this needs a baked visibility set: the city is simply there,
 # whichever way the camera faces.
 
-time 00000:  position (14 100 -410)     lookat (0 110 -380)      upVector (0 1 0)
-time 04000:  position (14 115 -1345)    lookat (0 110 -1345)     upVector (0 1 0)
-time 08000:  position (14 117 -2250)    lookat (60 100 -300000)  upVector (0 1 0)
+# Opening: top-down over the city, already flying INTO the level at the same
+# ~240 units/s as the rest of the rail, so it flows straight into the t=9000
+# keyframe (identical position/orientation) with no seam.
+#
+# It does NOT reuse act2.cp's first three keyframes any more. Those look toward
+# +Z while the flight travels toward -Z: the camera faced AWAY from the city and
+# flew backwards through it -- "on part a l'envers dans le noir". They are an
+# act-2 authoring draft; act 2 itself ships the BAKED act2.cp.cp2b, whose
+# content does NOT match the .cp text sitting next to it. Never assume a 2010
+# .cp is the source of the .cp2b beside it.
+time 00000:  position (0 162 -400)      lookat (0 -110 -400)     upVector (0 0 -1)
 
 time 09000:  position (0 162 -2560)     lookat (0 -110 -2560)    upVector (0 0 -1)
 time 15000:  position (0 162 -4040)     lookat (0 -100 -4040)    upVector (0 -0.173 -0.984)

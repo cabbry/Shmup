@@ -1,0 +1,122 @@
+name: Smoke test act 3 (screenshots)
+
+# Visual proof that the boss act renders with LIVE decor culling
+# (gRuntimeCullMap) -- especially THROUGH the 180 U-turn, which the old baked
+# visibility set could never show (it deleted the faces behind the camera).
+#
+# Runs the game in the iOS Simulator on a COMPRESSED test rail (U-turn at ~18s
+# instead of ~140s, generated here, never committed) and grabs screenshots
+# before / during / after the turn. Black frames = culling regression.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Write the compressed test rail + point act3 at it
+        run: |
+          cat > data/data/cameraPath/act3smoke.cp <<'EOF'
+          cp1
+          num_frames 6
+
+          time 00000:  position (0,162,-2560)  lookat (0,-110,-2560)  upVector (0,0,-1)
+          time 09000:  position (0,162,-4040)  lookat (0,-100,-4040)  upVector (0,-0.173,-0.984)
+          time 15000:  position (0,162,-6000)  lookat (0,-162,-6000)  upVector (0,-0.173,-0.984)
+          time 18000:  position (0,162,-6150)  lookat (0,-162,-6150)  upVector (-0.984,-0.173,0)
+          time 21000:  position (0,162,-6200)  lookat (0,-162,-6200)  upVector (0,-0.173,0.984)
+          time 45000:  position (0,162,-3000)  lookat (0,-162,-3000)  upVector (0,-0.173,0.984)
+          EOF
+          sed -i '' 's|data/cameraPath/act3boss.cp|data/cameraPath/act3smoke.cp|' data/data/scenes/act3.scene
+          grep "path:" data/data/scenes/act3.scene
+
+      - name: Build (iphonesimulator, arm64, no signing)
+        working-directory: engine/iOS
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project dEngine.xcodeproj \
+            -target Shmup \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -arch arm64 \
+            SYMROOT="$PWD/build" \
+            IPHONEOS_DEPLOYMENT_TARGET=13.0 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            GCC_TREAT_WARNINGS_AS_ERRORS=NO \
+            OTHER_CFLAGS='$(inherited) -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-function-pointer-types -Wno-error=incompatible-pointer-types' \
+            build | tail -5
+
+      - name: Boot a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone 1[5-9]" | head -1 | grep -oE "[0-9A-F-]{36}")
+          [ -z "$UDID" ] && UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
+          echo "Using simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Launch act 3 and shoot the U-turn
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p shots
+
+          LOG="$RUNNER_TEMP/smoke.log"
+          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 \
+            xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
+            > "$LOG" 2>&1 &
+
+          # Start the clock when the rail is loaded: that is when gameplay (and
+          # so the rail's own timeline) begins, whatever the asset load took.
+          for i in $(seq 1 90); do
+            grep -q "CAM_LoadPath" "$LOG" && break
+            sleep 2
+          done
+          echo "--- log head ---"; head -30 "$LOG" || true
+          START=$(date +%s)
+
+          shoot () {   # shoot <rail_seconds> <name>
+            local now
+            now=$(( $(date +%s) - START ))
+            [ "$now" -lt "$1" ] && sleep $(( $1 - now ))
+            xcrun simctl io "$UDID" screenshot "shots/$2.png" >/dev/null 2>&1 || true
+            echo "shot $2 at ~$(( $(date +%s) - START ))s of rail"
+          }
+
+          # The test rail turns between 15s and 21s.
+          shoot 6  01_straight
+          shoot 13 02_approach
+          shoot 16 03_turn_start
+          shoot 18 04_turn_mid
+          shoot 20 05_turn_end
+          shoot 24 06_flying_back
+          shoot 34 07_return_leg
+
+          echo "--- log tail ---"; tail -20 "$LOG" || true
+          ls -la shots/
+
+      - name: Upload screenshots and log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: act3-smoke
+          path: |
+            shots/
+            ${{ runner.temp }}/smoke.log
+          if-no-files-found: warn

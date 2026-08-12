@@ -198,7 +198,7 @@ to the true screen edges, and the touch-coordinate mapping.
   was the full-screen fix from the start of the project), so the bake had been
   reduced to switching whole buildings on and off. Doing that switch live costs one
   bounding-box test per building and removes a class of bugs — plus the rail is now
-  an editable text file, expanded in memory at load, no multi-hour bake step.
+  an editable text file, expanded in memory at load, with no offline bake step at all.
 - **Two traps worth recording for anyone touching the 2010 data pipeline**:
   the lexer has `,` **disabled** as a separator, so a comma-separated `.cp` rail
   (like the shipped ones) parses to garbage through the text path — every frame

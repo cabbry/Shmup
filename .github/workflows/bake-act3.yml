@@ -15,6 +15,15 @@ name: Bake act-3 camera path
 #
 # The app exits by itself right after saving (the post-bake read-back looks in
 # the read-only bundle and aborts) -- that log line is EXPECTED.
+#
+# MOOT for act 3 since v1.4.5: that act culls the decor live (gRuntimeCullMap)
+# and expands its TEXT rail in memory, so it needs no baked visibility set.
+#
+# !! BEFORE dispatching this on any rail: make sure the .cp is SPACE separated.
+# The lexer has ',' disabled as a separator, so a comma rail parses to garbage,
+# the camera orientation is degenerate, EVERY city face counts as visible, and
+# PREPROC's insertion sort goes quadratic -- two runs burned 55 min and 5h25
+# stuck on frame 0 that way. The genuine per-frame bake cost is unmeasured.
 
 on:
   workflow_dispatch:

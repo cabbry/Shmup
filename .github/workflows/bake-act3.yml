@@ -7,16 +7,26 @@ name: Bake act-3 camera path
 # then committed as data/data/cameraPath/act3boss.cp.cp2b (shipped scenes load
 # the precompiled file directly -- no on-device bake).
 #
+# The engine logs to STDOUT only (log.c: LOG_TO_FILE 0), so we launch with
+# --console-pty and tee it: PREPROC prints one "processing frame t=" line per
+# baked frame, which is our ONLY progress signal (the .cp2b is written in one
+# go at the very end). The poll loop reports the rate so a too-slow bake is
+# visible early instead of after a silent timeout.
+#
 # The app exits by itself right after saving (the post-bake read-back looks in
 # the read-only bundle and aborts) -- that log line is EXPECTED.
 
 on:
   workflow_dispatch:
+    inputs:
+      scene:
+        description: "Scene id to load (3 = act 3 boss)"
+        default: "3"
 
 jobs:
   bake:
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 330      # the bake is O(frames x faces); measured via the log
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -62,35 +72,66 @@ jobs:
           xcrun simctl bootstatus "$UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
-      - name: Install and launch with the bake hook
+      - name: Launch with the bake hook (stdout captured)
         id: run
         run: |
           APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
-          echo "App: $APP"
           BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
-          echo "Bundle id: $BUNDLE_ID"
           UDID="${{ steps.sim.outputs.udid }}"
+          echo "App: $APP / bundle: $BUNDLE_ID"
           xcrun simctl install "$UDID" "$APP"
-          SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 xcrun simctl launch "$UDID" "$BUNDLE_ID"
-          echo "bundle=$BUNDLE_ID" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for the baked .cp2b
+          # --console-pty streams the app's stdout; run it detached and tee to a
+          # file so the poll step can read the frame counter.
+          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE="${{ inputs.scene }}" \
+            xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
+            > "$RUNNER_TEMP/bake.log" 2>&1 &
+          echo "bundle=$BUNDLE_ID" >> "$GITHUB_OUTPUT"
+          sleep 45
+          echo "--- first log lines ---"
+          head -40 "$RUNNER_TEMP/bake.log" || true
+
+      - name: Wait for the baked .cp2b (with progress)
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
           BUNDLE_ID="${{ steps.run.outputs.bundle }}"
           CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
           OUT="$CONTAINER/Documents/act3boss.cp.cp2b"
-          echo "Waiting for $OUT (bake runs ~19000 frames; this can take many minutes)"
-          for i in $(seq 1 150); do
+          LOG="$RUNNER_TEMP/bake.log"
+          START=$(date +%s)
+
+          for i in $(seq 1 320); do
             if [ -f "$OUT" ]; then
-              S1=$(stat -f %z "$OUT"); sleep 10; S2=$(stat -f %z "$OUT")
+              S1=$(stat -f %z "$OUT"); sleep 15; S2=$(stat -f %z "$OUT")
               if [ "$S1" = "$S2" ] && [ "$S1" -gt 100000 ]; then
-                echo "Baked: $S1 bytes"; cp "$OUT" act3boss.cp.cp2b; exit 0
+                echo "Baked: $S1 bytes in $((($(date +%s)-START)/60)) min"
+                cp "$OUT" act3boss.cp.cp2b
+                exit 0
               fi
             fi
-            sleep 20
+
+            # Progress: PREPROC prints one line per baked frame.
+            FRAMES=$(grep -c "processing frame" "$LOG" 2>/dev/null || echo 0)
+            LAST=$(grep "processing frame" "$LOG" 2>/dev/null | tail -1)
+            MIN=$((($(date +%s)-START)/60))
+            echo "[$MIN min] baked frames=$FRAMES  last: ${LAST:-<none>}"
+
+            # Nothing at all after 3 min means the app never reached the bake.
+            if [ "$MIN" -ge 3 ] && [ "$FRAMES" = "0" ]; then
+              echo "::error::No bake progress -- the app is not baking. Log tail:"
+              tail -60 "$LOG" || true
+              echo "--- crash reports ---"
+              ls -la ~/Library/Logs/DiagnosticReports/ 2>/dev/null || true
+              for c in ~/Library/Logs/DiagnosticReports/Shmup*; do
+                [ -f "$c" ] && { echo "== $c"; head -40 "$c"; }
+              done
+              exit 1
+            fi
+            sleep 60
           done
-          echo "Timed out waiting for the bake output."
+
+          echo "::error::Timed out. Log tail:"
+          tail -40 "$LOG" || true
           ls -la "$CONTAINER/Documents/" || true
           exit 1
 
@@ -100,3 +141,11 @@ jobs:
           name: act3boss-cp2b
           path: act3boss.cp.cp2b
           if-no-files-found: error
+
+      - name: Upload the bake log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bake-log
+          path: ${{ runner.temp }}/bake.log
+          if-no-files-found: ignore

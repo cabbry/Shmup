@@ -179,6 +179,34 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-12 — round 10 (a real U-turn: the boss act stops obeying the bake)
+- **The city now turns around and scrolls back (v1.4.5)**. Previous rounds fought
+  the same wall: at the end of the rail the camera could only pull back and hover,
+  because the 2010 pipeline bakes *per camera frame* which faces of the city are
+  visible and the renderer skips any entity the bake left empty — look anywhere
+  else and the decor is simply gone (black). Round 9 removed the yoyo but left a
+  ~90° pivot into the void, inherited from act 2's **outro keyframe** (a 2s dive +
+  bank meant as the act-2 exit shot, never as a boss backdrop).
+- **What changed**: the boss act now culls the decor **live** — one frustum test
+  per building, per frame, using the very same test the offline bake uses. That
+  frees the camera completely, so act 3 gets its own rail: act 2's flight verbatim
+  (minus the outro keyframe), a **true 180° U-turn**, a full top-down return flight
+  over the whole city, a second U-turn, then off again — over 5 minutes of scrolling
+  after the boss arrives, and no baked visibility set to obey.
+- *Why this was always the right move on modern hardware*: on a tall iPhone the
+  renderer **already** threw the baked face lists away and redrew full meshes (that
+  was the full-screen fix from the start of the project), so the bake had been
+  reduced to switching whole buildings on and off. Doing that switch live costs one
+  bounding-box test per building and removes a class of bugs — plus the rail is now
+  an editable text file, expanded in memory at load, no multi-hour bake step.
+- **Two traps worth recording for anyone touching the 2010 data pipeline**:
+  the lexer has `,` **disabled** as a separator, so a comma-separated `.cp` rail
+  (like the shipped ones) parses to garbage through the text path — every frame
+  lands at t=0 and the camera sits at the origin; new rails are space-separated.
+  And the engine's file logging had been compiled out since 2010, which is now
+  runtime-enabled (`SHMUP_LOG_FILE`) — the only reliable way to see what the game
+  did on a device or a CI Simulator.
+
 ### 2026-08-10 — round 9 (no more end-of-map yoyo + boss HP tune)
 - **The end-of-map camera yoyo is gone (v1.4.4)**: when the baked rails run out
   mid-fight, the v1.4.2 patrol oscillated endlessly over the flown stretch — it

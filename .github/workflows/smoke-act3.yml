@@ -30,12 +30,12 @@ jobs:
           cp1
           num_frames 6
 
-          time 00000:  position (0,162,-2560)  lookat (0,-110,-2560)  upVector (0,0,-1)
-          time 09000:  position (0,162,-4040)  lookat (0,-100,-4040)  upVector (0,-0.173,-0.984)
-          time 15000:  position (0,162,-6000)  lookat (0,-162,-6000)  upVector (0,-0.173,-0.984)
-          time 18000:  position (0,162,-6150)  lookat (0,-162,-6150)  upVector (-0.984,-0.173,0)
-          time 21000:  position (0,162,-6200)  lookat (0,-162,-6200)  upVector (0,-0.173,0.984)
-          time 45000:  position (0,162,-3000)  lookat (0,-162,-3000)  upVector (0,-0.173,0.984)
+          time 00000:  position (0 162 -2560)  lookat (0 -110 -2560)  upVector (0 0 -1)
+          time 09000:  position (0 162 -4040)  lookat (0 -100 -4040)  upVector (0 -0.173 -0.984)
+          time 15000:  position (0 162 -6000)  lookat (0 -162 -6000)  upVector (0 -0.173 -0.984)
+          time 18000:  position (0 162 -6150)  lookat (0 -162 -6150)  upVector (-0.984 -0.173 0)
+          time 21000:  position (0 162 -6200)  lookat (0 -162 -6200)  upVector (0 -0.173 0.984)
+          time 45000:  position (0 162 -3000)  lookat (0 -162 -3000)  upVector (0 -0.173 0.984)
           EOF
           sed -i '' 's|data/cameraPath/act3boss.cp|data/cameraPath/act3smoke.cp|' data/data/scenes/act3.scene
           grep "path:" data/data/scenes/act3.scene

@@ -36,6 +36,11 @@
 
 int logPreproc;
 
+// When set, skip the per-frame visibility bake and its per-frame logging (see
+// preproc.h). Declared here because the expansion/conversion helpers above
+// PREPROC_SetSkipVis read it.
+static int preprocSkipVis = 0;
+
 
 
 #ifndef min
@@ -592,7 +597,10 @@ void PREPROC_ExpandCameraWayPoints(prec_camera_frame_t* startFrame,prec_camera_f
 		interpolationFactor = (newFrame->time - startFrame->time) / (float)timeDifference;
 		PREPROC_InterpolateFrames(startFrame,endFrame,interpolationFactor,newFrame->position,newFrame->orientation);
 		
-		Log_Printf("Expanded frame t=%d\n",newFrame->time);
+		// Per-frame logging is bake diagnostics: silenced for an in-memory load,
+		// where ~19000 lines through the iOS logging system would stall the act.
+		if (!preprocSkipVis)
+			Log_Printf("Expanded frame t=%d\n",newFrame->time);
 		
 		currentFrame = newFrame;
 		extraAccuracyTimeStep += 0.6666667f;
@@ -1075,7 +1083,8 @@ void PREPROC_ConvertPrecToRuntime(prec_camera_frame_t* prevFrame,prec_camera_fra
 		debug = FS_OpenFile(debugFilename, "wt");
 	}
 	
-	Log_Printf("Converting frame t=%d to camera_frame_t.\n",currentFrame->time);
+	if (!preprocSkipVis)
+		Log_Printf("Converting frame t=%d to camera_frame_t.\n",currentFrame->time);
 	
 	runTimeFrame->time = currentFrame->time;
 	runTimeFrame->next = 0;
@@ -1414,9 +1423,6 @@ void PREPROC_ConvertPrecToRuntime(prec_camera_frame_t* prevFrame,prec_camera_fra
 
 
 
-
-// When set, skip the per-frame visibility bake (see preproc.h).
-static int preprocSkipVis = 0;
 
 void PREPROC_SetSkipVis(int skip)
 {

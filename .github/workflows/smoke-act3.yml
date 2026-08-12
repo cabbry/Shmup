@@ -82,8 +82,15 @@ jobs:
           # under nohup+redirect in CI. Printf output is the engine's only log
           # channel (log.c LOG_TO_FILE 0).
           nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
+            SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
             xcrun simctl launch --console --terminate-running-process "$UDID" "$BUNDLE_ID" \
             > "$LOG" 2>&1 &
+
+          # The reliable channel: the engine's own file log inside the container
+          # (flushed per line, so it survives a crash). Console capture is flaky.
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
+          FILELOG="$CONTAINER/Documents/shmup_log.txt"
+          echo "file log: $FILELOG"
 
           alive () {
             xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -qi "dEngine\|Shmup" && echo ALIVE || echo DEAD
@@ -92,7 +99,7 @@ jobs:
           # Start the clock when the rail is loaded: that is when gameplay (and
           # so the rail's own timeline) begins, whatever the asset load took.
           for i in $(seq 1 45); do
-            grep -q "CAM_LoadPath" "$LOG" && { echo "rail loaded after ~$((i*2))s"; break; }
+            grep -q "CAM_LoadPath" "$LOG" "$FILELOG" 2>/dev/null && { echo "rail loaded after ~$((i*2))s"; break; }
             sleep 2
           done
           echo "--- app state: $(alive) ---"
@@ -114,13 +121,17 @@ jobs:
           # THE verification: how much decor the live cull kept, frame by frame,
           # right through the U-turn. Screenshots cannot be trusted here (the CI
           # Simulator does not capture the GL layer), these counters can.
-          echo "--- act3 cull trace ---"
-          grep "act3 cull" "$LOG" | head -60 || echo "NO CULL TRACE (renderer never ran?)"
-          echo "--- cull samples: $(grep -c 'act3 cull' "$LOG" 2>/dev/null || echo 0) ---"
-          echo "--- frames that drew NOTHING (would be black) ---"
-          grep "act3 cull" "$LOG" | grep -c "drew 0/" || true
+          # Prefer the file log (reliable); fall back to the console capture.
+          cp "$FILELOG" shots/shmup_log.txt 2>/dev/null && echo "got the file log ($(wc -l < shots/shmup_log.txt) lines)" || echo "NO FILE LOG"
+          TRACE=shots/shmup_log.txt
+          [ -s "$TRACE" ] || TRACE="$LOG"
 
-          echo "--- log tail ---"; tail -30 "$LOG" || true
+          echo "--- act3 cull trace ---"
+          grep "act3 cull" "$TRACE" | head -40 || echo "NO CULL TRACE (renderer never ran?)"
+          echo "--- cull samples: $(grep -c 'act3 cull' "$TRACE" 2>/dev/null || echo 0) ---"
+          echo "--- samples that drew NOTHING (would be black): $(grep 'act3 cull' "$TRACE" 2>/dev/null | grep -c 'drew 0/' || echo 0) ---"
+
+          echo "--- log tail ---"; tail -40 "$TRACE" || true
           ls -la shots/
 
           # A crash is the whole reason a screenshot can show the home screen:

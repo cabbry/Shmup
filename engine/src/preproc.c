@@ -1471,27 +1471,26 @@ camera_frame_t* PREPROC_ConvertCp1Tocp2b(char* cpFilename, char* cp2bFilename, c
 	}
 
 
-	// The face <-> indice indexes only serve the visibility bake.
-	if (!preprocSkipVis)
+	// These index tables are needed even with the bake skipped: every key frame
+	// zeroes indicesPerObjectId in PREPROC_ConvertPrecToRuntime. They are cheap
+	// (one ushort per face) -- it is the per-frame face work that is expensive.
+	//Alloc faceIdToModelIndice for each object in the map
+	entityIndiceToModelIndice = calloc(num_map_entities, sizeof(ushort*));
+	for(i=0; i < num_map_entities; i++)
 	{
-		//Alloc faceIdToModelIndice for each object in the map
-		entityIndiceToModelIndice = calloc(num_map_entities, sizeof(ushort*));
-		for(i=0; i < num_map_entities; i++)
-		{
-			entity = &map[i];
-			entityIndiceToModelIndice[i] = calloc(entity->numIndices, sizeof(ushort));
-		}
-
-		//Alloc revert index: faceIdToModelIndice
-		modelIndiceToEntityIndice = calloc(num_map_entities, sizeof(ushort*));
-		for(i=0; i < num_map_entities; i++)
-		{
-			entity = &map[i];
-			modelIndiceToEntityIndice[i] = calloc(entity->numIndices, sizeof(ushort));
-		}
-
-		indicesPerObjectId = calloc(num_map_entities, sizeof(ushort));
+		entity = &map[i];
+		entityIndiceToModelIndice[i] = calloc(entity->numIndices, sizeof(ushort));
 	}
+
+	//Alloc revert index: faceIdToModelIndice
+	modelIndiceToEntityIndice = calloc(num_map_entities, sizeof(ushort*));
+	for(i=0; i < num_map_entities; i++)
+	{
+		entity = &map[i];
+		modelIndiceToEntityIndice[i] = calloc(entity->numIndices, sizeof(ushort));
+	}
+
+	indicesPerObjectId = calloc(num_map_entities, sizeof(ushort));
 
 	
 	LE_readToken(); //num_frames
@@ -1594,18 +1593,15 @@ camera_frame_t* PREPROC_ConvertCp1Tocp2b(char* cpFilename, char* cp2bFilename, c
 
 
 	//free face <-> indice indexes
-	if (!preprocSkipVis)
-	{
-		for(i=0; i < num_map_entities; i++)
-			free(entityIndiceToModelIndice[i]);
-		free(entityIndiceToModelIndice);
+	for(i=0; i < num_map_entities; i++)
+		free(entityIndiceToModelIndice[i]);
+	free(entityIndiceToModelIndice);
 
-		for(i=0; i < num_map_entities; i++)
-			free(modelIndiceToEntityIndice[i]);
-		free(modelIndiceToEntityIndice);
+	for(i=0; i < num_map_entities; i++)
+		free(modelIndiceToEntityIndice[i]);
+	free(modelIndiceToEntityIndice);
 
-		free(indicesPerObjectId);
-	}
+	free(indicesPerObjectId);
 
 	return rootRunTimeFrame.next;
 }

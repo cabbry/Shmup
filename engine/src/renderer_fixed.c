@@ -51,6 +51,7 @@
 #endif
 
 
+#include <stdlib.h>
 #include "stats.h"
 #include "collisions.h"	// live decor culling (frustum vs entity bbox)
 #include "world.h"
@@ -600,6 +601,12 @@ void RenderEntitiesF(void)
 	frustrum_t	cullFrustrum;
 	matrix_t	cullView, cullProj, cullPV;
 	vec3_t		cullLookat;
+	int			cullDrawn = 0;
+	// Diagnostic counter, off unless SHMUP_CULL_DEBUG is set: reports how much
+	// decor the live cull keeps. The only way to check the boss act headlessly
+	// (a CI Simulator screenshot does not capture the GL layer).
+	static int	cullDebug = -1;
+	static int	cullLogTick = 0;
 
 	//Log_Printf("Starting rendering frame, t=%d.\n",simulationTime);
 
@@ -647,6 +654,7 @@ void RenderEntitiesF(void)
 		{
 			if (COLL_CheckBoxAgainstFrustrum(entity->worldSpacebbox,cullFrustrum) == INT_OUT)
 				continue;
+			cullDrawn++;
 		}
 		else if (entity->numIndices == 0)
 			continue;
@@ -675,6 +683,7 @@ void RenderEntitiesF(void)
 		{
 			if (COLL_CheckBoxAgainstFrustrum(entity->worldSpacebbox,cullFrustrum) == INT_OUT)
 				continue;
+			cullDrawn++;
 		}
 		else if (entity->numIndices == 0)
 			continue;
@@ -682,6 +691,21 @@ void RenderEntitiesF(void)
 		RenderEntityF(entity);
 	}
 	glEnable(GL_CULL_FACE);
+
+	if (gRuntimeCullMap)
+	{
+		if (cullDebug < 0)
+			cullDebug = getenv("SHMUP_CULL_DEBUG") ? 1 : 0;
+		if (cullDebug && ++cullLogTick >= 60)
+		{
+			cullLogTick = 0;
+			Log_Printf("[act3 cull] t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) drew %d/%d\n",
+					   simulationTime,
+					   camera.position[0], camera.position[1], camera.position[2],
+					   camera.forward[0], camera.forward[1], camera.forward[2],
+					   cullDrawn, num_map_entities);
+		}
+	}
 	
 	
 	

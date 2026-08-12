@@ -81,7 +81,7 @@ jobs:
           # --console (not --console-pty): the pty variant produced an empty log
           # under nohup+redirect in CI. Printf output is the engine's only log
           # channel (log.c LOG_TO_FILE 0).
-          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 \
+          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
             xcrun simctl launch --console --terminate-running-process "$UDID" "$BUNDLE_ID" \
             > "$LOG" 2>&1 &
 
@@ -107,14 +107,18 @@ jobs:
             echo "shot $2 at ~$(( $(date +%s) - START ))s of rail ($(alive))"
           }
 
-          # The test rail turns between 15s and 21s.
-          shoot 6  01_straight
-          shoot 13 02_approach
-          shoot 16 03_turn_start
-          shoot 18 04_turn_mid
-          shoot 20 05_turn_end
-          shoot 24 06_flying_back
-          shoot 34 07_return_leg
+          # Let the rail play well past the turn (15s -> 21s) and the return leg.
+          sleep 50
+          xcrun simctl io "$UDID" screenshot "shots/after_turn.png" >/dev/null 2>&1 || true
+
+          # THE verification: how much decor the live cull kept, frame by frame,
+          # right through the U-turn. Screenshots cannot be trusted here (the CI
+          # Simulator does not capture the GL layer), these counters can.
+          echo "--- act3 cull trace ---"
+          grep "act3 cull" "$LOG" | head -60 || echo "NO CULL TRACE (renderer never ran?)"
+          echo "--- cull samples: $(grep -c 'act3 cull' "$LOG" 2>/dev/null || echo 0) ---"
+          echo "--- frames that drew NOTHING (would be black) ---"
+          grep "act3 cull" "$LOG" | grep -c "drew 0/" || true
 
           echo "--- log tail ---"; tail -30 "$LOG" || true
           ls -la shots/

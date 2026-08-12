@@ -101,6 +101,17 @@ extern camera_t camera;
 // once the baked path ends, instead of freezing the decor. 0 elsewhere.
 extern int gCameraDriftAtEnd;
 
+// Runtime decor culling (boss act). The 2010 pipeline bakes, per camera frame,
+// which faces of the city are visible; the renderer then skips any entity the
+// bake left empty. That ties the camera to its baked rail: look anywhere else
+// (backwards, past the end) and the decor is simply gone -- black. On a tall
+// iPhone the renderer ALREADY redraws full meshes (the baked face lists are
+// discarded, see RenderEntityF), so the bake only gates entities on/off there.
+// With this set, the boss act does that gating with a live per-entity frustum
+// test instead, which frees the camera to fly and turn anywhere -- and makes
+// the (hours-long) bake unnecessary for that act.
+extern int gRuntimeCullMap;
+
 
 void CAM_Update(void);
 void CAM_InitUnitCube(void);

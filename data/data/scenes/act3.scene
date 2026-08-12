@@ -26,12 +26,13 @@ light
 
 camera
 {
-	# Act-3 boss rail (act3boss.cp): act 2's flight verbatim minus its outro
-	# keyframe, then a 180 U-turn, a full return flight over the city, a second
-	# U-turn and a last forward leg -- so the decor keeps scrolling however long
-	# the fight lasts, with no yoyo and no un-baked black. The .cp2b is baked in
-	# CI (bake-act3.yml) from the .cp text next to it.
-	path:  data/cameraPath/act3boss.cp.cp2b
+	# Act-3 boss rail: act 2's flight verbatim minus its outro keyframe, then a
+	# true 180 U-turn, a full return flight over the city, a second U-turn and a
+	# last forward leg -- so the decor keeps scrolling however long the fight
+	# lasts, with no yoyo and no black. Loaded as TEXT: the boss act culls the
+	# decor live (gRuntimeCullMap), so it needs no baked visibility set and the
+	# rail is expanded in memory at load -- edit this file and it just works.
+	path:  data/cameraPath/act3boss.cp
 
 	fov:	55
 	zNear:	2

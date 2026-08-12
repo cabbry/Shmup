@@ -29,6 +29,7 @@
 
 #include "math.h"
 #include "quaternion.h"
+#include "camera.h"
 
 //#define PREPROC_INTRO
 //#define TIME_STEP 33
@@ -112,6 +113,12 @@ typedef struct entity_sort_t
 } entity_sort_t ;
 
 
-void PREPROC_ConvertCp1Tocp2b(char* cpFilename, char* cp2bFilename, char* logfilename);
+// Expands a TEXT camera path (.cp) into runtime frames and RETURNS the list.
+// cp2bFilename may be NULL: then nothing is written to disk (in-memory load).
+// With PREPROC_SetSkipVis(1) the per-frame visibility bake -- by far the most
+// expensive part, hours for a long rail -- is skipped and the frames carry no
+// vis sets: for scenes whose renderer culls the decor at runtime instead.
+camera_frame_t* PREPROC_ConvertCp1Tocp2b(char* cpFilename, char* cp2bFilename, char* logfilename);
+void PREPROC_SetSkipVis(int skip);
 
 #endif

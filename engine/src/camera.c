@@ -50,6 +50,7 @@ int cameraVisMemSize;
 // is preserved. Gated to the boss act by dEngine (gCameraDriftAtEnd) so the
 // other acts, which end on their own script, are untouched.
 int           gCameraDriftAtEnd = 0;
+int           gRuntimeCullMap = 0;	// see camera.h
 static vec3_t gCamPrevPos;
 static vec3_t gCamDriftVel;			// world units per ms, from the last segment
 static int    gCamHavePrev = 0;
@@ -495,18 +496,22 @@ void CAM_LoadPath(void)
 	
 	if (!strcmp(extension, "cp"))
 	{
-		// Text path: recompile it (visibility bake included). The .cp2b lands
-		// in the FS WRITABLE dir root (FS_OpenFile roots "w" modes there) --
-		// 2010 wrote to a hardcoded Mac-only path. Used by the CI bake
-		// workflow; shipped scenes point directly at precompiled .cp2b files.
-		// The read-back below looks in the READ-ONLY game dir, so on a first
-		// bake it typically fails after the file is saved: expected -- the
-		// bake harness only needs the written file.
-		memset(binPath, 0, 256);
-		sprintf(binPath, "%s.cp2b", FS_GetFilenameOnly(camera.pathFilename));
+		// TEXT rail. A runtime-culled scene needs no baked visibility, so the
+		// rail is just expanded in memory (instant) -- that is how the boss act
+		// loads, and why its rail can be edited as text and turn anywhere.
+		// Otherwise this is the offline bake path (CI): the visibility set is
+		// computed and the .cp2b written to the FS writable dir root, to be
+		// committed next to the .cp (2010 wrote to a dead Mac-only path).
+		PREPROC_SetSkipVis(gRuntimeCullMap ? 1 : 0);
 
-		PREPROC_ConvertCp1Tocp2b(camera.pathFilename,binPath,0);
-		camera.path =          CAM_ReadFileCP2Binary(binPath,0);
+		if (gRuntimeCullMap)
+			camera.path = PREPROC_ConvertCp1Tocp2b(camera.pathFilename,NULL,0);
+		else
+		{
+			memset(binPath, 0, 256);
+			sprintf(binPath, "%s.cp2b", FS_GetFilenameOnly(camera.pathFilename));
+			camera.path = PREPROC_ConvertCp1Tocp2b(camera.pathFilename,binPath,0);
+		}
 	}
 	else 
 	{

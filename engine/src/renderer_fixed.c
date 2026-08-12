@@ -52,6 +52,7 @@
 
 
 #include "stats.h"
+#include "collisions.h"	// live decor culling (frustum vs entity bbox)
 #include "world.h"
 #include "player.h"
 #include "enemy.h"
@@ -552,7 +553,7 @@ static void RenderEntityF(entity_t* entity)
 	// are present. Fully off-screen entities are still skipped by the caller, so
 	// we never pay for far-away level sections. On a non-stretched view
 	// (vScale==1: 2:3 / iPad) the baked set matches the frustum, so keep using it.
-	if (entity->usage == ENT_PARTIAL_DRAW && renderer.vScale <= 1.0f)
+	if (entity->usage == ENT_PARTIAL_DRAW && renderer.vScale <= 1.0f && !gRuntimeCullMap)
 	{
 		glDrawElements (GL_TRIANGLES, entity->numIndices, GL_UNSIGNED_SHORT, entity->indices);
 		STATS_AddTriangles(entity->numIndices/3);
@@ -594,7 +595,12 @@ void RenderEntitiesF(void)
 	int i;
 	entity_t* entity;
 	enemy_t* enemy;
-	
+
+	// Live decor culling (boss act -- see gRuntimeCullMap in camera.h).
+	frustrum_t	cullFrustrum;
+	matrix_t	cullView, cullProj, cullPV;
+	vec3_t		cullLookat;
+
 	//Log_Printf("Starting rendering frame, t=%d.\n",simulationTime);
 
 
@@ -609,7 +615,20 @@ void RenderEntitiesF(void)
 
 	
 	SetupCameraF();
-		
+
+	// Build this frame's world-space frustum once, from the camera the scene is
+	// actually using. A few degrees wider than the real view so an entity is
+	// admitted just BEFORE it slides on screen (the offline bake used the same
+	// margin), otherwise buildings pop in at the edges.
+	if (gRuntimeCullMap)
+	{
+		vectorAdd(camera.position,camera.forward,cullLookat);
+		gluLookAt(camera.position, cullLookat, camera.up, cullView);
+		gluPerspective(camera.fov + 4, camera.aspect, camera.zNear, camera.zFar, cullProj);
+		matrix_multiply(cullProj,cullView,cullPV);
+		COLL_GenerateFrustrum(cullPV,cullFrustrum);
+	}
+
 	if (light.enabled)
 		SetupLightingF();
 
@@ -623,10 +642,15 @@ void RenderEntitiesF(void)
 	for(i=0; i < numBackgroundEntities; i++)
 	{
 		entity = &map[i];
-		
-		if (entity->numIndices == 0)
+
+		if (gRuntimeCullMap)
+		{
+			if (COLL_CheckBoxAgainstFrustrum(entity->worldSpacebbox,cullFrustrum) == INT_OUT)
+				continue;
+		}
+		else if (entity->numIndices == 0)
 			continue;
-		
+
 		RenderEntityF(entity);
 	}
 	
@@ -646,10 +670,15 @@ void RenderEntitiesF(void)
 	for(i=numBackgroundEntities; i < num_map_entities; i++)
 	{
 		entity = &map[i];
-		
-		if (entity->numIndices == 0)
+
+		if (gRuntimeCullMap)
+		{
+			if (COLL_CheckBoxAgainstFrustrum(entity->worldSpacebbox,cullFrustrum) == INT_OUT)
+				continue;
+		}
+		else if (entity->numIndices == 0)
 			continue;
-		
+
 		RenderEntityF(entity);
 	}
 	glEnable(GL_CULL_FACE);

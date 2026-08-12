@@ -1415,7 +1415,15 @@ void PREPROC_ConvertPrecToRuntime(prec_camera_frame_t* prevFrame,prec_camera_fra
 
 
 
-void PREPROC_ConvertCp1Tocp2b(char* cpFilename, char* cp2bFilename, char* logFilename)
+// When set, skip the per-frame visibility bake (see preproc.h).
+static int preprocSkipVis = 0;
+
+void PREPROC_SetSkipVis(int skip)
+{
+	preprocSkipVis = skip;
+}
+
+camera_frame_t* PREPROC_ConvertCp1Tocp2b(char* cpFilename, char* cp2bFilename, char* logFilename)
 {
 	filehandle_t*			file ;
 	uint					num_frames;
@@ -1448,39 +1456,43 @@ void PREPROC_ConvertCp1Tocp2b(char* cpFilename, char* cp2bFilename, char* logFil
 	if (!file)
 	{
 		Log_Printf("CP file cannot be opened. Aborting.\n");
-		return;
+		return NULL;
 	}
-	
+
 	LE_init(file);
-	
+
 	LE_readToken(); //CP1
-	
-	
+
+
 	if (strcmp("cp1", LE_getCurrentToken()))
 	{
 		Log_Printf("CP file found but magic number check failed. Aborting.\n");
-		return;
+		return NULL;
 	}
-		
-		
-	//Alloc faceIdToModelIndice for each object in the map
-	entityIndiceToModelIndice = calloc(num_map_entities, sizeof(ushort*));
-	for(i=0; i < num_map_entities; i++)
+
+
+	// The face <-> indice indexes only serve the visibility bake.
+	if (!preprocSkipVis)
 	{
-		entity = &map[i];
-		entityIndiceToModelIndice[i] = calloc(entity->numIndices, sizeof(ushort));
+		//Alloc faceIdToModelIndice for each object in the map
+		entityIndiceToModelIndice = calloc(num_map_entities, sizeof(ushort*));
+		for(i=0; i < num_map_entities; i++)
+		{
+			entity = &map[i];
+			entityIndiceToModelIndice[i] = calloc(entity->numIndices, sizeof(ushort));
+		}
+
+		//Alloc revert index: faceIdToModelIndice
+		modelIndiceToEntityIndice = calloc(num_map_entities, sizeof(ushort*));
+		for(i=0; i < num_map_entities; i++)
+		{
+			entity = &map[i];
+			modelIndiceToEntityIndice[i] = calloc(entity->numIndices, sizeof(ushort));
+		}
+
+		indicesPerObjectId = calloc(num_map_entities, sizeof(ushort));
 	}
-	
-	//Alloc revert index: faceIdToModelIndice
-	modelIndiceToEntityIndice = calloc(num_map_entities, sizeof(ushort*));
-	for(i=0; i < num_map_entities; i++)
-	{
-		entity = &map[i];
-		modelIndiceToEntityIndice[i] = calloc(entity->numIndices, sizeof(ushort));
-	}
-	
-	indicesPerObjectId = calloc(num_map_entities, sizeof(ushort));
-	
+
 	
 	LE_readToken(); //num_frames
 	num_frames = LE_readReal();	
@@ -1544,12 +1556,17 @@ void PREPROC_ConvertCp1Tocp2b(char* cpFilename, char* cp2bFilename, char* logFil
 	
 	while(currentFrame != NULL)
 	{
-		
-		currentFrame->visSet.visFaces = calloc(sizeof(prec_face_t), MAX_POLY_VIS_PER_FRAME+1);
-		
-		// Generate raw list of visFaces
-		PREPROC_PopulateRawFaceSet(currentFrame);
-		
+		// The visibility bake: skipped for runtime-culled scenes (visFaces stays
+		// NULL -- the frames are calloc'd -- so the frees below are no-ops and
+		// ConvertPrecToRuntime emits empty vis sets).
+		if (!preprocSkipVis)
+		{
+			currentFrame->visSet.visFaces = calloc(sizeof(prec_face_t), MAX_POLY_VIS_PER_FRAME+1);
+
+			// Generate raw list of visFaces
+			PREPROC_PopulateRawFaceSet(currentFrame);
+		}
+
 		// Convert to normal camera_frame_t
 		currentRunTimeFrame = calloc(1, sizeof(camera_frame_t));
 		PREPROC_ConvertPrecToRuntime(prevFrame,currentFrame,currentRunTimeFrame);
@@ -1571,18 +1588,25 @@ void PREPROC_ConvertCp1Tocp2b(char* cpFilename, char* cp2bFilename, char* logFil
 				
 	
 	
-	PREPROC_SaveFramesToCP2Binary(cp2bFilename,rootRunTimeFrame.next);
-		
-		
+	// NULL = in-memory load (runtime-culled scenes): nothing to write.
+	if (cp2bFilename)
+		PREPROC_SaveFramesToCP2Binary(cp2bFilename,rootRunTimeFrame.next);
+
+
 	//free face <-> indice indexes
-	for(i=0; i < num_map_entities; i++)
-		free(entityIndiceToModelIndice[i]);
-	free(entityIndiceToModelIndice);
-	
-	for(i=0; i < num_map_entities; i++)
-		free(modelIndiceToEntityIndice[i]);
-	free(modelIndiceToEntityIndice);
-	
-	free(indicesPerObjectId);
+	if (!preprocSkipVis)
+	{
+		for(i=0; i < num_map_entities; i++)
+			free(entityIndiceToModelIndice[i]);
+		free(entityIndiceToModelIndice);
+
+		for(i=0; i < num_map_entities; i++)
+			free(modelIndiceToEntityIndice[i]);
+		free(modelIndiceToEntityIndice);
+
+		free(indicesPerObjectId);
+	}
+
+	return rootRunTimeFrame.next;
 }
 

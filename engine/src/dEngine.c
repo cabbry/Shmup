@@ -437,6 +437,10 @@ void dEngine_LoadScene(int sceneId)
 	// end on their own script and keep the original freeze behaviour.
 	gCameraDriftAtEnd = (sceneId == 3);
 
+	// ...and it culls the decor live instead of reading the baked visibility
+	// set, so its rail is free to turn around and fly back (see camera.h).
+	gRuntimeCullMap = (sceneId == 3);
+
 	// Progression: remember the furthest act ever reached (solo or multiplayer).
 	if (sceneId >= 1 && sceneId <= 3 && sceneId > gHighestActReached)
 	{

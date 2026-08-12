@@ -24,6 +24,7 @@
  */
 
 #include "dEngine.h"
+#include <stdlib.h>
 
 #include "globals.h"
 #include "math.h"
@@ -368,10 +369,20 @@ bool dEngine_Init(void)
 	ENE_Mem_Init();
 	
 	SND_Init();
-	
-	
+
+
 	MENU_Init();
-	
+
+	// CI bake hook: SHMUP_BAKE_SCENE=<n> jumps straight to that scene at boot.
+	// With the scene pointing at a .cp TEXT camera path, loading it recompiles
+	// the rail (visibility bake included) and saves the .cp2b to the writable
+	// dir -- run in the iOS Simulator, where the file is easy to extract.
+	{
+		char* bakeScene = getenv("SHMUP_BAKE_SCENE");
+		if (bakeScene)
+			dEngine_RequireSceneId(atoi(bakeScene));
+	}
+
 	return true;
 }
 

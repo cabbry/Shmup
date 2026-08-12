@@ -477,11 +477,9 @@ void CAM_ExpandCameraWayPoints(camera_frame_t* startFrame,camera_frame_t* endFra
 void CAM_LoadPath(void)
 {	
 	//Check extension
-	char* extension; 
-	int traceID;
-	char binPath[256]; 
-	//char logPath[256]; 
-	
+	char* extension;
+	char binPath[256];
+
 	cameraVisMemSize = 0;
 	
 	if (camera.pathFilename[0] == '\0')
@@ -495,24 +493,20 @@ void CAM_LoadPath(void)
 	
 	camera.path = NULL;
 	
-	if (!strcmp(extension, "cp")) 
+	if (!strcmp(extension, "cp"))
 	{
-		//Need to transform from CP to CP2B
-		traceID = rand();
+		// Text path: recompile it (visibility bake included). The .cp2b lands
+		// in the FS WRITABLE dir root (FS_OpenFile roots "w" modes there) --
+		// 2010 wrote to a hardcoded Mac-only path. Used by the CI bake
+		// workflow; shipped scenes point directly at precompiled .cp2b files.
+		// The read-back below looks in the READ-ONLY game dir, so on a first
+		// bake it typically fails after the file is saved: expected -- the
+		// bake harness only needs the written file.
 		memset(binPath, 0, 256);
-		sprintf(binPath, "/Users/fabiensanglard/tmp/%i",traceID);
-		strcat(binPath,"intro.cp.cp2b");
-		
-		/*
-		memset(logPath, 0, 256);
-		sprintf(logPath, "/Users/fabiensanglard/tmp/%i",traceID);
-		strcat(logPath,".log.txt");
-		*/
-		
+		sprintf(binPath, "%s.cp2b", FS_GetFilenameOnly(camera.pathFilename));
+
 		PREPROC_ConvertCp1Tocp2b(camera.pathFilename,binPath,0);
 		camera.path =          CAM_ReadFileCP2Binary(binPath,0);
-		
-		//camera.path = CAM_ReadFileCP(camera.pathFilename);
 	}
 	else 
 	{

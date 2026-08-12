@@ -26,10 +26,12 @@ light
 
 camera
 {
-	# Act 3 rides act 2's camera rails: same decor (act2.map), so its long straight
-	# flight -- and its baked visibility -- are valid here. Fabien's original act3.cp
-	# was a short test path that turned then froze before the boss arrived.
-	path:  data/cameraPath/act2.cp.cp2b
+	# Act-3 boss rail (act3boss.cp): act 2's flight verbatim minus its outro
+	# keyframe, then a 180 U-turn, a full return flight over the city, a second
+	# U-turn and a last forward leg -- so the decor keeps scrolling however long
+	# the fight lasts, with no yoyo and no un-baked black. The .cp2b is baked in
+	# CI (bake-act3.yml) from the .cp text next to it.
+	path:  data/cameraPath/act3boss.cp.cp2b
 
 	fov:	55
 	zNear:	2

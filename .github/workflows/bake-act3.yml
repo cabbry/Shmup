@@ -1,0 +1,102 @@
+name: Bake act-3 camera path
+
+# Recompiles data/cameraPath/act3boss.cp into its .cp2b (visibility bake
+# included) by running the game in the iOS Simulator with SHMUP_BAKE_SCENE=3:
+# the scene load converts the TEXT rail and saves the .cp2b into the app's
+# Documents dir, which we pull out and upload as an artifact. The artifact is
+# then committed as data/data/cameraPath/act3boss.cp.cp2b (shipped scenes load
+# the precompiled file directly -- no on-device bake).
+#
+# The app exits by itself right after saving (the post-bake read-back looks in
+# the read-only bundle and aborts) -- that log line is EXPECTED.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bake:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Point act3 at the TEXT rail (bake input)
+        run: |
+          sed -i '' 's|data/cameraPath/act3boss.cp.cp2b|data/cameraPath/act3boss.cp|' data/data/scenes/act3.scene
+          grep "path:" data/data/scenes/act3.scene
+
+      - name: Build (iphonesimulator, arm64, no signing)
+        working-directory: engine/iOS
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project dEngine.xcodeproj \
+            -target Shmup \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -arch arm64 \
+            SYMROOT="$PWD/build" \
+            IPHONEOS_DEPLOYMENT_TARGET=13.0 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            GCC_TREAT_WARNINGS_AS_ERRORS=NO \
+            OTHER_CFLAGS='$(inherited) -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-function-pointer-types -Wno-error=incompatible-pointer-types' \
+            build | tail -5
+
+      - name: Boot a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone (1[5-9]|SE)" | head -1 | grep -oE "[0-9A-F-]{36}")
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
+          fi
+          echo "Using simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Install and launch with the bake hook
+        id: run
+        run: |
+          APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
+          echo "App: $APP"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+          echo "Bundle id: $BUNDLE_ID"
+          UDID="${{ steps.sim.outputs.udid }}"
+          xcrun simctl install "$UDID" "$APP"
+          SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 xcrun simctl launch "$UDID" "$BUNDLE_ID"
+          echo "bundle=$BUNDLE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the baked .cp2b
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="${{ steps.run.outputs.bundle }}"
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
+          OUT="$CONTAINER/Documents/act3boss.cp.cp2b"
+          echo "Waiting for $OUT (bake runs ~19000 frames; this can take many minutes)"
+          for i in $(seq 1 150); do
+            if [ -f "$OUT" ]; then
+              S1=$(stat -f %z "$OUT"); sleep 10; S2=$(stat -f %z "$OUT")
+              if [ "$S1" = "$S2" ] && [ "$S1" -gt 100000 ]; then
+                echo "Baked: $S1 bytes"; cp "$OUT" act3boss.cp.cp2b; exit 0
+              fi
+            fi
+            sleep 20
+          done
+          echo "Timed out waiting for the bake output."
+          ls -la "$CONTAINER/Documents/" || true
+          exit 1
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: act3boss-cp2b
+          path: act3boss.cp.cp2b
+          if-no-files-found: error

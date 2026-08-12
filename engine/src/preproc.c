@@ -888,11 +888,12 @@ void PREPROC_SaveFramesToCP2Binary(char* filename, camera_frame_t* firstFrame)
 	
 		
 	memset(newFileName, 0, 256*sizeof(char));
-	
-	strcat(newFileName, "/Users/fabiensanglard/tmp/");
+
+	// Write to the FS writable dir root (FS_OpenFile roots "w" modes there);
+	// 2010 hardcoded a Mac-only absolute path here.
 	strcat(newFileName, FS_GetFilenameOnly(filename));
 
-	
+
 	fileHandle = FS_OpenFile(newFileName, "wb");
 	
 	if (!fileHandle)

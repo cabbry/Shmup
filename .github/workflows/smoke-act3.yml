@@ -78,17 +78,25 @@ jobs:
           mkdir -p shots
 
           LOG="$RUNNER_TEMP/smoke.log"
+          # --console (not --console-pty): the pty variant produced an empty log
+          # under nohup+redirect in CI. Printf output is the engine's only log
+          # channel (log.c LOG_TO_FILE 0).
           nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 \
-            xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
+            xcrun simctl launch --console --terminate-running-process "$UDID" "$BUNDLE_ID" \
             > "$LOG" 2>&1 &
+
+          alive () {
+            xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -qi "dEngine\|Shmup" && echo ALIVE || echo DEAD
+          }
 
           # Start the clock when the rail is loaded: that is when gameplay (and
           # so the rail's own timeline) begins, whatever the asset load took.
-          for i in $(seq 1 90); do
-            grep -q "CAM_LoadPath" "$LOG" && break
+          for i in $(seq 1 45); do
+            grep -q "CAM_LoadPath" "$LOG" && { echo "rail loaded after ~$((i*2))s"; break; }
             sleep 2
           done
-          echo "--- log head ---"; head -30 "$LOG" || true
+          echo "--- app state: $(alive) ---"
+          echo "--- log head ---"; head -40 "$LOG" || true
           START=$(date +%s)
 
           shoot () {   # shoot <rail_seconds> <name>
@@ -96,7 +104,7 @@ jobs:
             now=$(( $(date +%s) - START ))
             [ "$now" -lt "$1" ] && sleep $(( $1 - now ))
             xcrun simctl io "$UDID" screenshot "shots/$2.png" >/dev/null 2>&1 || true
-            echo "shot $2 at ~$(( $(date +%s) - START ))s of rail"
+            echo "shot $2 at ~$(( $(date +%s) - START ))s of rail ($(alive))"
           }
 
           # The test rail turns between 15s and 21s.
@@ -108,8 +116,23 @@ jobs:
           shoot 24 06_flying_back
           shoot 34 07_return_leg
 
-          echo "--- log tail ---"; tail -20 "$LOG" || true
+          echo "--- log tail ---"; tail -30 "$LOG" || true
           ls -la shots/
+
+          # A crash is the whole reason a screenshot can show the home screen:
+          # dump any report so the reason is in THIS log, not guesswork.
+          echo "--- crash reports ---"
+          mkdir -p shots/crash
+          for d in ~/Library/Logs/DiagnosticReports \
+                   ~/Library/Developer/CoreSimulator/Devices/"$UDID"/data/Library/Logs/DiagnosticReports; do
+            ls -la "$d" 2>/dev/null || true
+            for c in "$d"/*hmup* "$d"/*dEngine*; do
+              [ -f "$c" ] || continue
+              echo "===== $c"
+              head -60 "$c"
+              cp "$c" shots/crash/ 2>/dev/null || true
+            done
+          done
 
       - name: Upload screenshots and log
         if: always()

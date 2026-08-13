@@ -206,9 +206,15 @@ jobs:
           # Only the frames AFTER the rail ran out are the subject here: this rail
           # is text, so it carries no baked visibility and nothing is drawn while it
           # still plays (L0). The patrol (L1) is what has to hold up.
-          PATROL=$(grep "cull] scene=3" "$TRACE" | grep "L1" || true)
-          N=$(printf '%s\n' "$PATROL" | grep -c "cull]" || echo 0)
-          BLACK=$(printf '%s\n' "$PATROL" | grep -c "drew 0/" || echo 0)
+          # The renderer logs "live=1" (the L field only exists in the on-screen
+          # readout). And note the plain `|| true`: with `|| echo 0` an empty match
+          # made N the two-word string "0 0", which turns the numeric test below
+          # into a silent bash error -- the job then passed while asserting nothing.
+          PATROL=$(grep "cull] scene=3" "$TRACE" | grep "live=1" || true)
+          N=$(printf '%s' "$PATROL" | grep -c "cull]" || true)
+          BLACK=$(printf '%s' "$PATROL" | grep -c "drew 0/" || true)
+          [ -z "$N" ] && N=0
+          [ -z "$BLACK" ] && BLACK=0
           echo "--- phase B: $N patrol samples, $BLACK drew NOTHING ---"
 
           if [ "$N" -lt 4 ]; then
@@ -275,7 +281,7 @@ jobs:
           grep "cull] scene=2" shots/phaseC_log.txt | head -12 || echo "no samples"
           A2=$(grep "cull] scene=2" shots/phaseC_log.txt | grep -o "luma=[0-9]*" | cut -d= -f2 | sort -n | awk '{a[NR]=$1} END{if(NR)print a[int(NR/2)+1]}')
           A3=$(grep "cull] scene=3" shots/phaseA_log.txt | grep -o "luma=[0-9]*" | cut -d= -f2 | sort -n | awk '{a[NR]=$1} END{if(NR)print a[int(NR/2)+1]}')
-          echo "=== median decor luma: act2(baked)=${A2:-?}  act3(live cull)=${A3:-?} ==="
+          echo "=== median decor luma: act2(baked)=${A2:-?}  act3(baked flight)=${A3:-?} ==="
 
       - name: Upload screenshots and log
         if: always()

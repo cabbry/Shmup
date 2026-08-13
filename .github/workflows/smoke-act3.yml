@@ -36,12 +36,16 @@ jobs:
           num_frames 6
 
           time 00000:  position (0 162 -2560)  lookat (0 -110 -2560)  upVector (0 0 -1)
-          time 09000:  position (0 162 -4040)  lookat (0 -100 -4040)  upVector (0 -0.173 -0.984)
-          time 15000:  position (0 162 -6000)  lookat (0 -162 -6000)  upVector (0 -0.173 -0.984)
-          time 18000:  position (0 162 -6150)  lookat (0 -162 -6150)  upVector (-0.984 -0.173 0)
-          time 21000:  position (0 162 -6200)  lookat (0 -162 -6200)  upVector (0 -0.173 0.984)
-          time 45000:  position (0 162 -3000)  lookat (0 -162 -3000)  upVector (0 -0.173 0.984)
+          time 06000:  position (0 162 -4040)  lookat (0 -100 -4040)  upVector (0 -0.173 -0.984)
+          time 09000:  position (0 162 -5000)  lookat (0 -162 -5000)  upVector (0 -0.173 -0.984)
+          time 10500:  position (0 162 -5100)  lookat (0 -162 -5100)  upVector (-0.984 -0.173 0)
+          time 12000:  position (0 162 -5150)  lookat (0 -162 -5150)  upVector (0 -0.173 0.984)
+          time 19000:  position (0 162 -3000)  lookat (0 -162 -3000)  upVector (0 -0.173 0.984)
           EOF
+          # Everything fits inside ~19s ON PURPOSE: with nobody at the controls the
+          # ship dies three times and the game drops to the menu at ~20s of rail
+          # time. The previous version turned at 18s and returned until 45s, so the
+          # RETURN LEG -- the whole point of the U-turn -- was never observed.
           grep "path:" data/data/scenes/act3.scene   # must still be act3boss.cp
 
       - name: Build (iphonesimulator, arm64, no signing)

@@ -607,6 +607,8 @@ void RenderEntitiesF(void)
 	// (a CI Simulator screenshot does not capture the GL layer).
 	static int	cullDebug = -1;
 	static int	cullLogTick = 0;
+	static char	cullIds[160] = "";	// which entities survived the cull
+	static int	cullTris = 0;		// and how much geometry that actually is
 
 	//Log_Printf("Starting rendering frame, t=%d.\n",simulationTime);
 
@@ -655,6 +657,14 @@ void RenderEntitiesF(void)
 			if (COLL_CheckBoxAgainstFrustrum(entity->worldSpacebbox,cullFrustrum) == INT_OUT)
 				continue;
 			cullDrawn++;
+			if (cullDebug == 1)
+			{
+				char idbuf[16];
+				sprintf(idbuf, "%d,", i);
+				if (strlen(cullIds) + strlen(idbuf) < sizeof(cullIds))
+					strcat(cullIds, idbuf);
+				cullTris += entity->model->numIndices / 3;
+			}
 		}
 		else if (entity->numIndices == 0)
 			continue;
@@ -684,6 +694,14 @@ void RenderEntitiesF(void)
 			if (COLL_CheckBoxAgainstFrustrum(entity->worldSpacebbox,cullFrustrum) == INT_OUT)
 				continue;
 			cullDrawn++;
+			if (cullDebug == 1)
+			{
+				char idbuf[16];
+				sprintf(idbuf, "%d,", i);
+				if (strlen(cullIds) + strlen(idbuf) < sizeof(cullIds))
+					strcat(cullIds, idbuf);
+				cullTris += entity->model->numIndices / 3;
+			}
 		}
 		else if (entity->numIndices == 0)
 			continue;
@@ -699,11 +717,20 @@ void RenderEntitiesF(void)
 		if (cullDebug && ++cullLogTick >= 60)
 		{
 			cullLogTick = 0;
-			Log_Printf("[act3 cull] t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) drew %d/%d\n",
+			Log_Printf("[act3 cull] t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d\n",
 					   simulationTime,
 					   camera.position[0], camera.position[1], camera.position[2],
 					   camera.forward[0], camera.forward[1], camera.forward[2],
-					   cullDrawn, num_map_entities);
+					   camera.up[0], camera.up[1], camera.up[2],
+					   cullDrawn, num_map_entities, cullIds, cullTris);
+			// Which entities survived matters more than how many: ids 0..2 are the
+			// sky domes (numBackgroundEntities), so "only sky" means the camera is
+			// pointed away from the city -- a black screen with a valid cull.
+		}
+		if (cullDebug)
+		{
+			cullIds[0] = '\0';
+			cullTris = 0;
 		}
 	}
 	

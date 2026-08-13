@@ -179,6 +179,32 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-13 — round 11 (a 2010 lexer bug that silently zeroed every camera rail)
+- **Act 3 opened flying backwards into the void (v1.4.6 fixes it)**. Two causes, and
+  the second one is the interesting one.
+- **Cause 1 — a borrowed outro shot.** The new rail's first keyframes were copied
+  from `act2.cp`'s text: they look toward +Z while the flight travels toward −Z, so
+  the camera faced *away* from the city and flew backwards through it. That text file
+  turned out **not** to be the source of the `act2.cp.cp2b` act 2 actually ships —
+  never assume a 2010 `.cp` matches the `.cp2b` sitting beside it. The act-3 rail now
+  opens on its own top-down keyframe, already cruising at the rail's own ~240 u/s.
+- **Cause 2 — `LE_skipWhiteSpace` mis-parsed consecutive comment lines.** After
+  skipping a `#` line the lexer fell through to its whitespace test instead of
+  re-entering its loop; if the next line was *also* a comment, its `#` is not
+  whitespace, so the lexer returned and handed the comment's words back **as tokens**.
+  Every read after that shifted by one, and in a `.cp` rail *every number became 0*:
+  all keyframes at t=0, position (0,0,0). The camera sat at the origin while the
+  end-of-rail hover pushed it slowly backwards — precisely the "we start backwards in
+  the black" report. Any commented data file in the engine was exposed to this; the
+  fix is one `continue`.
+- **The smoke test now proves the rail is flown, not just that pixels exist.** It ran
+  green through all of this because it swapped in a compressed test rail (starting
+  mid-city, top-down) and only asserted "some decor was drawn" — which a camera stuck
+  at the origin satisfies happily. It now flies the **real** rail first, dumps what
+  the lexer made of each keyframe, and fails unless the camera is looking down and
+  advancing into the level. Verified: `pos=(0,162,-640)` → `(0,162,-6183)` through the
+  U-turn, never a frame without decor.
+
 ### 2026-08-12 — round 10 (a real U-turn: the boss act stops obeying the bake)
 - **The city now turns around and scrolls back (v1.4.5)**. Previous rounds fought
   the same wall: at the end of the rail the camera could only pull back and hover,

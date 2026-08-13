@@ -40,6 +40,7 @@ int logPreproc;
 // preproc.h). Declared here because the expansion/conversion helpers above
 // PREPROC_SetSkipVis read it.
 static int preprocSkipVis = 0;
+static int preprocKeyframeDebug = -1;	// -1 = env not read yet
 
 
 
@@ -545,8 +546,21 @@ prec_camera_frame_t* PREPROC_ReadFrameFromFile(void)
 		rotMatrix[2] = Xaxis[2]; rotMatrix[5] = Yaxis[2];	rotMatrix[8] = Zaxis[2] ; 
 		
 		Quat_CreateFromMat3x3(rotMatrix,frame->orientation);
-	}	
-	
+	}
+
+	// Rail parsing is silent and its failures look like engine bugs (a rail that
+	// mis-parses leaves every frame at t=0 and the camera at the origin, which
+	// reads on screen as "the level starts in the void"). Dump what the lexer
+	// actually produced when SHMUP_CULL_DEBUG is set.
+	if (preprocKeyframeDebug < 0)
+		preprocKeyframeDebug = getenv("SHMUP_CULL_DEBUG") ? 1 : 0;
+	if (preprocKeyframeDebug)
+		Log_Printf("[cp keyframe] t=%d pos=(%.0f,%.0f,%.0f) quat=(%.3f,%.3f,%.3f,%.3f)\n",
+				   frame->time,
+				   frame->position[0], frame->position[1], frame->position[2],
+				   frame->orientation[0], frame->orientation[1],
+				   frame->orientation[2], frame->orientation[3]);
+
 	return frame;
 }
 
@@ -1500,7 +1514,8 @@ camera_frame_t* PREPROC_ConvertCp1Tocp2b(char* cpFilename, char* cp2bFilename, c
 
 	
 	LE_readToken(); //num_frames
-	num_frames = LE_readReal();	
+	num_frames = LE_readReal();
+	Log_Printf("[cp] %s: num_frames=%d\n", camera.pathFilename, num_frames);
 	
 		
 	//Reading every key frames

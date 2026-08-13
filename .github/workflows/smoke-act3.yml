@@ -104,7 +104,31 @@ jobs:
           echo "--- phase A: $SAMPLES cull samples, $BLACK drew NOTHING ---"
           grep "act3 cull" shots/phaseA_log.txt | head -15 || true
 
-          # THE assertion this test was missing: the opening must draw decor.
+          echo "--- parsed keyframes (what the lexer made of the rail) ---"
+          grep -E "^\[cp\]|\[cp keyframe\]" shots/phaseA_log.txt | head -12 || echo "NO KEYFRAME DUMP"
+
+          # "Decor was drawn" is NOT enough: a rail that mis-parses leaves the
+          # camera at the origin, which still sees buildings. Assert the camera
+          # actually FLIES THE RAIL -- top-down (forward mostly -Y) and heading
+          # into the level (z decreasing).
+          FIRST=$(grep "act3 cull" shots/phaseA_log.txt | head -1)
+          LAST=$(grep "act3 cull" shots/phaseA_log.txt | tail -1)
+          echo "first: $FIRST"
+          echo "last : $LAST"
+          FY=$(echo "$FIRST" | sed -n 's/.*fwd=(\([^,]*\),\([^,]*\),.*/\2/p')
+          Z1=$(echo "$FIRST" | sed -n 's/.*pos=([^,]*,[^,]*,\([-0-9]*\)).*/\1/p')
+          Z2=$(echo "$LAST"  | sed -n 's/.*pos=([^,]*,[^,]*,\([-0-9]*\)).*/\1/p')
+          echo "forward Y=$FY   z: $Z1 -> $Z2"
+          case "$FY" in -0.9*|-1.0*) ;; *)
+            echo "::error::Camera is not looking down at the start (fwd Y=$FY) -- rail not applied."
+            exit 1 ;;
+          esac
+          if [ "${Z2:-0}" -ge "${Z1:-0}" ]; then
+            echo "::error::Camera is not advancing into the level (z $Z1 -> $Z2) -- flying backwards or stuck."
+            exit 1
+          fi
+
+          # And the opening must draw decor.
           if [ "$SAMPLES" -lt 1 ]; then
             echo "::error::No cull samples -- the renderer never ran the boss act."
             tail -40 shots/phaseA_log.txt || true

@@ -198,9 +198,19 @@ jobs:
             echo "shot $2 at ~$(( $(date +%s) - START ))s of rail ($(alive))"
           }
 
-          # The rail ends at 6s; let the patrol settle (2s), turn (4.5s) and fly a
-          # good stretch of its return leg.
-          sleep 25
+          # WALL CLOCK IS NOT GAME TIME HERE. The engine runs a FIXED timestep
+          # (16.67ms per rendered frame, timer.c), and this Simulator renders well
+          # below real time -- 25s of sleep bought only ~4s of game time, which
+          # covered the settle and barely the start of the turn. So wait for the
+          # THING instead of a duration: poll until screen-up has flipped along Z
+          # (that is the 180 completing), with a generous ceiling.
+          for i in $(seq 1 30); do
+            UZ=$(grep "cull] scene=3" "$FILELOG" 2>/dev/null | grep "live=1" | tail -1 \
+                 | sed -n 's/.*up=([^,]*,[^,]*,\([-0-9.]*\)).*/\1/p')
+            echo "  [$((i*5))s] screen-up Z = ${UZ:-none}"
+            case "$UZ" in 0.[5-9]*|1.*) echo "  turn complete"; break ;; esac
+            sleep 5
+          done
           xcrun simctl io "$UDID" screenshot "shots/after_turn.png" >/dev/null 2>&1 || true
 
           cp "$FILELOG" shots/shmup_log.txt 2>/dev/null && echo "got the file log ($(wc -l < shots/shmup_log.txt) lines)" || echo "NO FILE LOG"

@@ -735,7 +735,7 @@ void RenderEntitiesF(void)
 			decorLuma = sum / (16*16*3);
 
 			cullLogTick = 0;
-			Log_Printf("[act3 cull] scene=%d live=%d t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d luma=%d\n",
+			Log_Printf("[cull] scene=%d live=%d t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d luma=%d\n",
 					   engine.sceneId, gRuntimeCullMap,
 					   simulationTime,
 					   camera.position[0], camera.position[1], camera.position[2],

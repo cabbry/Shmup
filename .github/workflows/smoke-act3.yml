@@ -99,10 +99,10 @@ jobs:
           sleep 25
 
           cp "$FILELOG" shots/phaseA_log.txt 2>/dev/null || cp "$RUNNER_TEMP/phaseA.log" shots/phaseA_log.txt
-          SAMPLES=$(grep -c "act3 cull" shots/phaseA_log.txt || echo 0)
-          BLACK=$(grep "act3 cull" shots/phaseA_log.txt | grep -c "drew 0/" || echo 0)
+          SAMPLES=$(grep -c "cull] scene=3" shots/phaseA_log.txt || echo 0)
+          BLACK=$(grep "cull] scene=3" shots/phaseA_log.txt | grep -c "drew 0/" || echo 0)
           echo "--- phase A: $SAMPLES cull samples, $BLACK drew NOTHING ---"
-          grep "act3 cull" shots/phaseA_log.txt | head -15 || true
+          grep "cull] scene=3" shots/phaseA_log.txt | head -15 || true
 
           echo "--- parsed keyframes (what the lexer made of the rail) ---"
           grep -E "^\[cp\]|\[cp keyframe\]" shots/phaseA_log.txt | head -12 || echo "NO KEYFRAME DUMP"
@@ -111,8 +111,8 @@ jobs:
           # camera at the origin, which still sees buildings. Assert the camera
           # actually FLIES THE RAIL -- top-down (forward mostly -Y) and heading
           # into the level (z decreasing).
-          FIRST=$(grep "act3 cull" shots/phaseA_log.txt | head -1)
-          LAST=$(grep "act3 cull" shots/phaseA_log.txt | tail -1)
+          FIRST=$(grep "cull] scene=3" shots/phaseA_log.txt | head -1)
+          LAST=$(grep "cull] scene=3" shots/phaseA_log.txt | tail -1)
           echo "first: $FIRST"
           echo "last : $LAST"
           FY=$(echo "$FIRST" | sed -n 's/.*fwd=(\([^,]*\),\([^,]*\),.*/\2/p')
@@ -136,7 +136,7 @@ jobs:
           fi
           if [ "$BLACK" -gt 0 ]; then
             echo "::error::$BLACK frame(s) drew no decor at the START of act 3 (black screen)."
-            grep "act3 cull" shots/phaseA_log.txt | grep "drew 0/" | head -10
+            grep "cull] scene=3" shots/phaseA_log.txt | grep "drew 0/" | head -10
             exit 1
           fi
 
@@ -204,9 +204,9 @@ jobs:
           [ -s "$TRACE" ] || TRACE="$LOG"
 
           echo "--- act3 cull trace (through the turn) ---"
-          grep "act3 cull" "$TRACE" | head -40 || echo "NO CULL TRACE (renderer never ran?)"
-          SAMPLES=$(grep -c "act3 cull" "$TRACE" 2>/dev/null || echo 0)
-          BLACK=$(grep "act3 cull" "$TRACE" 2>/dev/null | grep -c "drew 0/" || echo 0)
+          grep "cull] scene=3" "$TRACE" | head -40 || echo "NO CULL TRACE (renderer never ran?)"
+          SAMPLES=$(grep -c "cull] scene=3" "$TRACE" 2>/dev/null || echo 0)
+          BLACK=$(grep "cull] scene=3" "$TRACE" 2>/dev/null | grep -c "drew 0/" || echo 0)
           echo "--- phase B: $SAMPLES cull samples, $BLACK drew NOTHING ---"
 
           echo "--- log tail ---"; tail -40 "$TRACE" || true
@@ -218,7 +218,7 @@ jobs:
           fi
           if [ "$BLACK" -gt 0 ]; then
             echo "::error::$BLACK frame(s) drew no decor THROUGH THE U-TURN (black screen)."
-            grep "act3 cull" "$TRACE" | grep "drew 0/" | head -10
+            grep "cull] scene=3" "$TRACE" | grep "drew 0/" | head -10
             exit 1
           fi
 
@@ -262,9 +262,9 @@ jobs:
           cp "$FILELOG" shots/phaseC_log.txt 2>/dev/null || cp "$RUNNER_TEMP/phaseC.log" shots/phaseC_log.txt
 
           echo "--- ACT 2 (baked, the look we ship) ---"
-          grep "luma=" shots/phaseC_log.txt | head -12 || echo "no samples"
-          A2=$(grep -o "luma=[0-9]*" shots/phaseC_log.txt | cut -d= -f2 | sort -n | awk '{a[NR]=$1} END{if(NR)print a[int(NR/2)+1]}')
-          A3=$(grep -o "luma=[0-9]*" shots/phaseA_log.txt | cut -d= -f2 | sort -n | awk '{a[NR]=$1} END{if(NR)print a[int(NR/2)+1]}')
+          grep "cull] scene=2" shots/phaseC_log.txt | head -12 || echo "no samples"
+          A2=$(grep "cull] scene=2" shots/phaseC_log.txt | grep -o "luma=[0-9]*" | cut -d= -f2 | sort -n | awk '{a[NR]=$1} END{if(NR)print a[int(NR/2)+1]}')
+          A3=$(grep "cull] scene=3" shots/phaseA_log.txt | grep -o "luma=[0-9]*" | cut -d= -f2 | sort -n | awk '{a[NR]=$1} END{if(NR)print a[int(NR/2)+1]}')
           echo "=== median decor luma: act2(baked)=${A2:-?}  act3(live cull)=${A3:-?} ==="
 
       - name: Upload screenshots and log

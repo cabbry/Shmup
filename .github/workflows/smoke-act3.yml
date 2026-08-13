@@ -149,8 +149,15 @@ jobs:
           # Repoint the INSTALLED bundle instead of rebuilding: same binary, other rail.
           APPDIR=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" app)
           cp data/data/cameraPath/act3smoke.cp "$APPDIR/data/cameraPath/act3smoke.cp"
-          sed -i '' 's|act3boss.cp|act3smoke.cp|' "$APPDIR/data/scenes/act3.scene"
+          # Rewrite the path line WHATEVER it points at. Matching a specific rail
+          # name silently did nothing once act 3 went back to its baked rail, so
+          # this phase flew the real 142s rail and never reached the patrol.
+          sed -i '' -E 's#^([[:space:]]*path:).*#\1  data/cameraPath/act3smoke.cp#' "$APPDIR/data/scenes/act3.scene"
           grep "path:" "$APPDIR/data/scenes/act3.scene"
+          grep -q "act3smoke.cp" "$APPDIR/data/scenes/act3.scene" || {
+            echo "::error::Could not repoint the bundle's act3.scene at the test rail."
+            exit 1
+          }
 
           LOG="$RUNNER_TEMP/smoke.log"
           # The reliable channel: the engine's own file log inside the container

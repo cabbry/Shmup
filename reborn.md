@@ -179,6 +179,21 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-13 — round 12 (the sky was painted over the city)
+- **Act 3 was black from the first second (v1.4.7 fixes it)**. The map's three
+  "background entities" are sky domes, and they *enclose* the camera — so a
+  per-entity frustum test can never reject them, unlike the 2010 bake, which
+  simply dropped their faces whenever the view pointed down. Under the new live
+  culling they were therefore drawn every frame, **unfogged**, covering the whole
+  city with a near-black night sky. They are now drawn as a proper skybox, with
+  depth writes off, so the city painted afterwards always wins.
+- *Why the smoke test kept saying "fine"*: its brightness probe took a single
+  sample after the frame was complete, so it was measuring **the dome** while
+  reporting that the decor rendered. It now samples before *and* after the city
+  is drawn — two equal numbers mean something is hiding it. (The simulator also
+  only admitted the domes intermittently, where a real iPhone's wider field of
+  view admits them constantly: CI was green while the device was black.)
+
 ### 2026-08-13 — round 11 (a 2010 lexer bug that silently zeroed every camera rail)
 - **Act 3 opened flying backwards into the void (v1.4.6 fixes it)**. Two causes, and
   the second one is the interesting one.

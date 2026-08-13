@@ -127,11 +127,17 @@ void LE_skipWhiteSpace(void)
 		//SQL comment style (just because I wanted those too :P !
 		if (*fileParsed.ptrCurrent == '#')
 		{
+			// Re-enter the loop: without this, a comment line followed by
+			// ANOTHER comment line fell straight through to the whitespace
+			// test below, which sees '#' (not whitespace) and returns -- so
+			// the second '#' and its whole sentence came back as TOKENS. Any
+			// file with two comment lines in a row parsed to garbage from
+			// there on; in a .cp camera rail every number then read as 0, so
+			// the camera sat at the origin and the level opened in the void.
 			LE_SkipRestOfLine();
-			//LE_skipWhiteSpace();	
-			//return;
+			continue;
 		}
-		
+
 		//Legacy C comment style //
 		if (*fileParsed.ptrCurrent == '/')
 		{
@@ -139,8 +145,9 @@ void LE_skipWhiteSpace(void)
 			{
 				fileParsed.ptrCurrent++;
 				LE_SkipRestOfLine();
+				continue;
 			}
-			
+
 		}
 		
 		//C++ comment style /* */

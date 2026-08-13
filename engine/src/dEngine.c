@@ -437,9 +437,12 @@ void dEngine_LoadScene(int sceneId)
 	// end on their own script and keep the original freeze behaviour.
 	gCameraDriftAtEnd = (sceneId == 3);
 
-	// ...and it culls the decor live instead of reading the baked visibility
-	// set, so its rail is free to turn around and fly back (see camera.h).
-	gRuntimeCullMap = (sceneId == 3);
+	// Live decor culling is OFF for now: it made act 3 black on device (the sky
+	// domes enclose the camera, so a per-entity frustum test cannot reject them,
+	// and more that the device numbers still have to explain) while the Simulator
+	// rendered it correctly. Act 3 is back on its baked rail; the code stays, to
+	// be re-enabled once the on-screen A3 diagnostic says what the device sees.
+	gRuntimeCullMap = 0;
 
 	// Progression: remember the furthest act ever reached (solo or multiplayer).
 	if (sceneId >= 1 && sceneId <= 3 && sceneId > gHighestActReached)

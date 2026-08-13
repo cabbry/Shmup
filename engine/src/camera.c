@@ -51,6 +51,10 @@ int cameraVisMemSize;
 // other acts, which end on their own script, are untouched.
 int           gCameraDriftAtEnd = 0;
 int           gRuntimeCullMap = 0;	// see camera.h
+int           gA3DiagDrawn = -1;	// act-3 on-screen diagnostic (see camera.h)
+int           gA3DiagSky = -1;
+int           gA3DiagLuma = -1;
+int           gA3DiagLive = -1;
 static vec3_t gCamPrevPos;
 static vec3_t gCamDriftVel;			// world units per ms, from the last segment
 static int    gCamHavePrev = 0;

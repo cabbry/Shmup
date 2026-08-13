@@ -26,13 +26,14 @@ light
 
 camera
 {
-	# Act-3 boss rail: act 2's flight verbatim minus its outro keyframe, then a
-	# true 180 U-turn, a full return flight over the city, a second U-turn and a
-	# last forward leg -- so the decor keeps scrolling however long the fight
-	# lasts, with no yoyo and no black. Loaded as TEXT: the boss act culls the
-	# decor live (gRuntimeCullMap), so it needs no baked visibility set and the
-	# rail is expanded in memory at load -- edit this file and it just works.
-	path:  data/cameraPath/act3boss.cp
+	# BACK to act 2's shipped BAKED rail -- the configuration act 3 flew for
+	# months, with its visibility set and a decor that shows up on device.
+	# The text rail act3boss.cp (a real 180 U-turn, live decor culling) made act 3
+	# black on device while rendering correctly in the Simulator; it stays in the
+	# repo, unused, until the device numbers say why (see the on-screen A3 diag).
+	# Restoring a known-good act 3 comes first -- the U-turn is not worth an
+	# unplayable level.
+	path:  data/cameraPath/act2.cp.cp2b
 
 	fov:	55
 	zNear:	2

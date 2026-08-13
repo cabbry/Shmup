@@ -611,6 +611,7 @@ void RenderEntitiesF(void)
 	static int	cullTris = 0;		// and how much geometry that actually is
 	static int	decorLuma = -1;		// mean brightness after the city is drawn
 	static int	skyLuma = -1;		// ...and before it: equal means the sky hides the city
+	static int	diagTick = 0;		// throttle for the on-screen act-3 readout
 
 	//Log_Printf("Starting rendering frame, t=%d.\n",simulationTime);
 
@@ -739,10 +740,35 @@ void RenderEntitiesF(void)
 		}
 		else if (entity->numIndices == 0)
 			continue;
+		else
+			cullDrawn++;	// count the baked path too, for the on-screen readout
 
 		RenderEntityF(entity);
 	}
 	glEnable(GL_CULL_FACE);
+
+	// On-screen diagnostic for the boss act (see gA3Diag* in camera.h). The
+	// Simulator renders act 3 correctly while the device shows black, so the
+	// numbers have to come off the DEVICE: they are drawn with the HUD. Sampled
+	// every 30th frame -- glReadPixels stalls the pipeline.
+	if (engine.sceneId == 3)
+	{
+		if (++diagTick >= 30)
+		{
+			uchar dpx[8*8*4];
+			int   dk, dsum = 0;
+			diagTick = 0;
+			glReadPixels(renderer.glBuffersDimensions[WIDTH]/2 - 4,
+						 renderer.glBuffersDimensions[HEIGHT]/2 - 4,
+						 8, 8, GL_RGBA, GL_UNSIGNED_BYTE, dpx);
+			for (dk = 0; dk < 8*8; dk++)
+				dsum += dpx[dk*4] + dpx[dk*4+1] + dpx[dk*4+2];
+			gA3DiagLuma = dsum / (8*8*3);
+			gA3DiagSky  = skyLuma;
+			gA3DiagDrawn = cullDrawn;
+			gA3DiagLive = gRuntimeCullMap;
+		}
+	}
 
 	// Runs for ANY scene when the env is set, not just the live-culled boss act:
 	// the only way to judge "act 3 is too dark" is to measure a shipped act that

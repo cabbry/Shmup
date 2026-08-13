@@ -112,6 +112,16 @@ extern int gCameraDriftAtEnd;
 // the (hours-long) bake unnecessary for that act.
 extern int gRuntimeCullMap;
 
+// Act-3 on-screen diagnostic, filled by the renderer and drawn with the HUD.
+// The Simulator renders act 3 fine while a device shows black, so these numbers
+// have to be read OFF THE DEVICE: how many decor entities were drawn, the centre
+// brightness before the city (sky) and after it (luma), and whether the live
+// cull is on. sky == luma means something is painting over the city.
+extern int gA3DiagDrawn;
+extern int gA3DiagSky;
+extern int gA3DiagLuma;
+extern int gA3DiagLive;
+
 
 void CAM_Update(void);
 void CAM_InitUnitCube(void);

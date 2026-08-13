@@ -1020,6 +1020,19 @@ void PL_RenderPlayerPointers(void)
 			bossBarY = (short)(scoreY - 52);
 			SCR_ConvertTextToVertices("BOSS", 1.8f, BOSS_BAR_LABEL_X, bossBarY, TEXT_CENTERED);
 		}
+		// TEMPORARY act-3 diagnostic. The Simulator draws act 3 correctly while
+		// the device shows black, so the numbers are put on screen for the tester
+		// to photograph: entities drawn, centre brightness before the city (SKY)
+		// and after it (LIT), and whether live culling is on. SKY == LIT means
+		// something is painting over the city. Remove once act 3 is settled.
+		if (engine.sceneId == 3)
+		{
+			char diag[64];
+			sprintf(diag, "D%d SKY%d LIT%d L%d CZ%d",
+					gA3DiagDrawn, gA3DiagSky, gA3DiagLuma, gA3DiagLive,
+					(int)camera.position[2]);
+			SCR_ConvertTextToVertices(diag, 1.5f, SCORE_POS_X, (short)(scoreY - 90), TEXT_NOT_CENTERED);
+		}
 		SCR_RenderText();
 		if (bossFight)
 			P_RenderBossHealthBar(bossHp, bossMaxHp, bossBarY);

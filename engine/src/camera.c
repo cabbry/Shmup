@@ -58,32 +58,48 @@ int           gA3DiagLive = -1;
 static vec3_t gCamPrevPos;
 static vec3_t gCamDriftVel;			// world units per ms, from the last segment
 static int    gCamHavePrev = 0;
-// When the path ends we can't coast FORWARD: baked visibility is frozen at the
-// last frame, so tiles ahead never become visible (-> black void). But the tiles
-// we already flew past keep their frozen visible faces, so the end move plays
-// out over that stretch and the camera never passes the anchor into the void.
+// END OF THE RAIL (boss act). The whole flight runs on its shipped BAKED rail
+// and baked visibility -- untouched, opening included. Only here, where the rail
+// runs out, does the bake stop being usable: it is frozen on its last frame, so
+// the decor beyond simply is not in it. Measured on device: the readout drops to
+// ONE drawn entity (the sky dome) -- the void the earlier rounds kept fighting.
 //
-// v1.4.4: the v1.4.2 patrol OSCILLATED endlessly over the back stretch, which
-// read as "the ship sets off / comes back / sets off again" -- a yoyo (user
-// report). Now there is NO oscillation: one smooth pull-back from the anchor,
-// then the camera sets off forward again ever more slowly (exponential decay
-// toward CAM_END_NEAR of the pull-back) and never reverses -- the motion fades
-// into a calm hover over the city, always short of the anchor's void view. The
-// orientation still eases out of the path's frozen mid-turn bank toward a
-// slow-trailing pre-turn quaternion, so the end state reads as a level hover.
-// (A true 180 U-turn can't work here: the baked delta-visibility has already
-// deleted the faces behind the camera, so looking back shows nothing.)
-static vec3_t gCamEndAnchor;
+// So this is the one place that switches to LIVE culling (gRuntimeCullMap), and
+// with the camera then free of the bake it flies a real patrol: settle, a TRUE
+// 180 turn, a long leg back over the city already flown, another turn, and so on.
+// Earlier attempts (a pull-back that hovered, then an oscillation) both failed
+// because they had to stay inside a frozen visible set; that constraint is gone.
+static vec3_t gCamEndAnchor;			// where the rail ended
+static vec3_t gCamEndAxis;				// the rail's travel direction there (XZ, unit)
+static vec3_t gCamEndFrozen[3];			// right/up/forward at the handover, for the blend
 static int    gCamEndActive = 0;
 static float  gCamEndPhase  = 0;
-#define CAM_END_DIVE_MS		3500.0f		// the single pull-back from the anchor
-#define CAM_END_SECONDS		3.0f		// how many seconds of travel to pull back
-#define CAM_END_NEAR		0.35f		// closest re-approach to the anchor (x amp)
-#define CAM_END_CREEP_TAU	25000.0f	// decay time of the forward re-advance
-#define CAM_END_DETILT_MS	2500.0f		// time to ease out of the final bank
+static float  gCamEndTheta  = 0;		// heading: screen-up direction in the XZ plane
+static float  gCamEndTurnFrom = 0, gCamEndTurnTo = 0;
+static float  gCamEndSpeed  = 0;		// units per ms, taken from the rail
+static int    gCamEndState  = 0;		// 0 settle, 1 turn, 2 cruise
+static int    gCamEndLegDir = 1;		// +1 heading away from the city start, -1 back
+#define CAM_END_SETTLE_MS	2000.0f		// ease out of the rail's frozen outro pose
+#define CAM_END_TURN_MS		4500.0f		// one 180 turn
+#define CAM_END_TURN_SPEED	0.35f		// keep arcing through the turn, don't stop dead
+#define CAM_END_LEG			30000.0f	// how far back over the city each leg goes
+#define CAM_END_FWD_MARGIN	400.0f		// never fly much past the anchor
+#define CAM_END_SPEED_FALLBACK	0.24f	// units/ms, if the rail's own speed is unusable
 static quat4_t gCamLastQuat;			// last baked orientation (frozen at end)
 static quat4_t gCamCalmQuat;			// slow-trailing orientation (lags turns)
 static int     gCamHaveCalm = 0;
+
+// The camera basis for a top-down view whose SCREEN-UP points at angle theta in
+// the XZ plane (theta 0 = screen-up toward -Z, the rail's own convention). Also
+// the direction the camera travels: on screen it always flies "up the screen".
+static void CAM_EndBasis(float theta, vec3_t right, vec3_t up, vec3_t forward)
+{
+	float s = sinf(theta), c = cosf(theta);
+
+	right[0]   =  c;	right[1]   = 0;		right[2]   =  s;
+	up[0]      =  s;	up[1]      = 0;		up[2]      = -c;
+	forward[0] =  0;	forward[1] = -1;	forward[2] =  0;
+}
 
 void CAM_InterpolateFrames(camera_frame_t* currentFrame, camera_frame_t* nextFrame, float interpolationFactor, vec3_t position, quat4_t orientation)
 {
@@ -176,54 +192,129 @@ void CAM_Update(void)
 	
 	if (camera.currentFrame->next == 0)
 	{
-		// Path exhausted. One smooth pull-back over the already-flown stretch,
-		// then a forward re-advance that decays to a hover: no reversals, and
-		// the screen never shows the void at the anchor (where the decor and
-		// its bake end).
+		// Path exhausted: hand over to the free patrol (see the block comment on
+		// gCamEndAnchor). The baked visibility is unusable from here, so this is
+		// where live decor culling takes over -- and with it, a real 180 turn.
 		if (gCameraDriftAtEnd && gCamHavePrev)
 		{
-			float speed = sqrtf(gCamDriftVel[0]*gCamDriftVel[0] +
-								gCamDriftVel[1]*gCamDriftVel[1] +
-								gCamDriftVel[2]*gCamDriftVel[2]);
+			vec3_t	right, up, forward;
+			float	step, along;
+
 			if (!gCamEndActive)
 			{
+				float vx = gCamDriftVel[0], vz = gCamDriftVel[2];
+				float planar = sqrtf(vx*vx + vz*vz);
+
 				vectorCopy(camera.position, gCamEndAnchor);
-				gCamEndPhase  = 0;
-				gCamEndActive = 1;
-			}
-			gCamEndPhase += timediff;
-			if (speed > 1e-8f)
-			{
-				float amp = speed * CAM_END_SECONDS * 1000.0f;
-				float off, invSp;
-				if (gCamEndPhase < CAM_END_DIVE_MS)
-					// The single pull-back: 0 -> amp, half-cosine (starts and
-					// ends at rest).
-					off = amp * 0.5f * (1.0f - cosf((float)M_PI * gCamEndPhase / CAM_END_DIVE_MS));
+				vectorCopy(camera.right,   gCamEndFrozen[0]);
+				vectorCopy(camera.up,      gCamEndFrozen[1]);
+				vectorCopy(camera.forward, gCamEndFrozen[2]);
+
+				if (planar > 1e-8f)
+				{
+					gCamEndAxis[0] = vx / planar;
+					gCamEndAxis[1] = 0;
+					gCamEndAxis[2] = vz / planar;
+					gCamEndSpeed   = planar;
+					// Heading whose screen-up matches the way the rail was going.
+					gCamEndTheta   = atan2f(gCamEndAxis[0], -gCamEndAxis[2]);
+				}
 				else
-					// Then set off forward again, ever slower: the offset decays
-					// toward CAM_END_NEAR*amp and never reverses (no more yoyo),
-					// never returning to the anchor's void view.
-					off = amp * (CAM_END_NEAR + (1.0f - CAM_END_NEAR)
-							   * expf(-(gCamEndPhase - CAM_END_DIVE_MS) / CAM_END_CREEP_TAU));
-				invSp = off / speed;	// backward = -driftVel direction
-				camera.position[0] = gCamEndAnchor[0] - gCamDriftVel[0] * invSp;
-				camera.position[1] = gCamEndAnchor[1] - gCamDriftVel[1] * invSp;
-				camera.position[2] = gCamEndAnchor[2] - gCamDriftVel[2] * invSp;
+				{
+					gCamEndAxis[0] = 0; gCamEndAxis[1] = 0; gCamEndAxis[2] = -1;
+					gCamEndSpeed   = CAM_END_SPEED_FALLBACK;
+					gCamEndTheta   = 0;
+				}
+				if (gCamEndSpeed < 1e-6f)
+					gCamEndSpeed = CAM_END_SPEED_FALLBACK;
+
+				gCamEndPhase  = 0;
+				gCamEndState  = 0;		// settle first: leave the outro pose gently
+				gCamEndLegDir = 1;
+				gCamEndActive = 1;
+
+				// The bake ends here; from now on the decor is culled live, which
+				// is what lets the camera turn around at all.
+				gRuntimeCullMap = 1;
 			}
-			// Ease out of the path's final mid-turn bank toward the calmer
-			// trailing view; without this the camera sat frozen ~45 deg tilted.
-			if (gCamHaveCalm)
+
+			gCamEndPhase += timediff;
+
+			switch (gCamEndState)
 			{
-				quat4_t		q;
-				matrix3x3_t	m;
-				float f = gCamEndPhase / CAM_END_DETILT_MS;
-				if (f > 1) f = 1;
-				Quat_slerp(gCamLastQuat, gCamCalmQuat, f, q);
-				Quat_ConvertToMat3x3(m, q);
-				camera.right[0]   =  m[0]; camera.right[1]   =  m[1]; camera.right[2]   =  m[2];
-				camera.up[0]      =  m[3]; camera.up[1]      =  m[4]; camera.up[2]      =  m[5];
-				camera.forward[0] = -m[6]; camera.forward[1] = -m[7]; camera.forward[2] = -m[8];
+			case 0:		// SETTLE -- keep cruising, ease out of the frozen outro pose
+				{
+					float f = gCamEndPhase / CAM_END_SETTLE_MS;
+					int   k;
+					if (f > 1) f = 1;
+					CAM_EndBasis(gCamEndTheta, right, up, forward);
+					for (k = 0; k < 3; k++)
+					{
+						right[k]   = gCamEndFrozen[0][k] + (right[k]   - gCamEndFrozen[0][k]) * f;
+						up[k]      = gCamEndFrozen[1][k] + (up[k]      - gCamEndFrozen[1][k]) * f;
+						forward[k] = gCamEndFrozen[2][k] + (forward[k] - gCamEndFrozen[2][k]) * f;
+					}
+					normalize(right); normalize(up); normalize(forward);
+					step = gCamEndSpeed * timediff;
+					if (gCamEndPhase >= CAM_END_SETTLE_MS)
+					{
+						gCamEndState    = 1;
+						gCamEndPhase    = 0;
+						gCamEndTurnFrom = gCamEndTheta;
+						gCamEndTurnTo   = gCamEndTheta + (float)M_PI;
+					}
+				}
+				break;
+
+			case 1:		// TURN -- a true 180, arcing (not a dead stop)
+				{
+					float f = gCamEndPhase / CAM_END_TURN_MS;
+					float e;
+					if (f > 1) f = 1;
+					e = 0.5f * (1.0f - cosf((float)M_PI * f));	// ease in and out
+					gCamEndTheta = gCamEndTurnFrom + (gCamEndTurnTo - gCamEndTurnFrom) * e;
+					CAM_EndBasis(gCamEndTheta, right, up, forward);
+					step = gCamEndSpeed * CAM_END_TURN_SPEED * timediff;
+					if (gCamEndPhase >= CAM_END_TURN_MS)
+					{
+						gCamEndState  = 2;
+						gCamEndPhase  = 0;
+						gCamEndLegDir = -gCamEndLegDir;
+					}
+				}
+				break;
+
+			default:	// CRUISE -- a long leg over the city, then turn again
+				CAM_EndBasis(gCamEndTheta, right, up, forward);
+				step = gCamEndSpeed * timediff;
+				break;
+			}
+
+			// Fly up the screen, whichever way the camera is now facing.
+			camera.position[0] += up[0] * step;
+			camera.position[1] += up[1] * step;
+			camera.position[2] += up[2] * step;
+
+			vectorCopy(right,   camera.right);
+			vectorCopy(up,      camera.up);
+			vectorCopy(forward, camera.forward);
+
+			// Turn around at the ends of the patrol: never much past the anchor
+			// (the city stops shortly after it), and never further back than one
+			// leg over the stretch already flown.
+			if (gCamEndState == 2)
+			{
+				along = (camera.position[0] - gCamEndAnchor[0]) * gCamEndAxis[0]
+					  + (camera.position[2] - gCamEndAnchor[2]) * gCamEndAxis[2];
+
+				if ((gCamEndLegDir > 0 && along >= CAM_END_FWD_MARGIN) ||
+					(gCamEndLegDir < 0 && along <= -CAM_END_LEG))
+				{
+					gCamEndState    = 1;
+					gCamEndPhase    = 0;
+					gCamEndTurnFrom = gCamEndTheta;
+					gCamEndTurnTo   = gCamEndTheta + (float)M_PI;
+				}
 			}
 		}
 		return;
@@ -298,7 +389,8 @@ void CAM_StartPlaying()
 {
 	camera.playing = 1;
 	gCamHavePrev = 0;	// don't carry a stale drift velocity across scenes
-	gCamEndActive = 0;	// fresh scene: re-arm the end-of-path pull-back
+	gCamEndActive = 0;	// fresh scene: re-arm the end-of-path patrol
+	gRuntimeCullMap = 0;	// ...and go back to the baked visibility until it runs out
 	gCamHaveCalm = 0;	// and re-seed the trailing orientation
 }
 

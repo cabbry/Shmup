@@ -437,11 +437,12 @@ void dEngine_LoadScene(int sceneId)
 	// end on their own script and keep the original freeze behaviour.
 	gCameraDriftAtEnd = (sceneId == 3);
 
-	// Live decor culling is OFF for now: it made act 3 black on device (the sky
-	// domes enclose the camera, so a per-entity frustum test cannot reject them,
-	// and more that the device numbers still have to explain) while the Simulator
-	// rendered it correctly. Act 3 is back on its baked rail; the code stays, to
-	// be re-enabled once the on-screen A3 diagnostic says what the device sees.
+	// Live decor culling starts OFF: the act flies its baked rail with its baked
+	// visibility, exactly as shipped. CAM_Update turns it on only when the rail
+	// runs out -- the one place the bake is unusable (on device the readout there
+	// dropped to a single drawn entity) and the only place the camera needs to be
+	// free. Applying it to the whole act, as v1.4.5-v1.4.7 did, is what made act 3
+	// black: the sky domes enclose the camera and no per-entity test can reject them.
 	gRuntimeCullMap = 0;
 
 	// Progression: remember the furthest act ever reached (solo or multiplayer).

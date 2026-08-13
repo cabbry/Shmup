@@ -48,7 +48,10 @@ fog
 {
 	enabled 1
 	density 0.1
-	startAt 0.1
+	# startAt matches act 2 (70, not 0.1): with the ramp starting at the camera
+	# the city kept only ~60% of its texture where act 2 keeps ~73%, so act 3 was
+	# needlessly ~18% darker. Measured on device: the readout showed LIT12.
+	startAt 70
 	endAt   405.0
 	color:  0.0  0.02  0.10
 }

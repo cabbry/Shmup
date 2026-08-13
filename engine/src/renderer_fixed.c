@@ -609,7 +609,8 @@ void RenderEntitiesF(void)
 	static int	cullLogTick = 0;
 	static char	cullIds[160] = "";	// which entities survived the cull
 	static int	cullTris = 0;		// and how much geometry that actually is
-	static int	decorLuma = -1;		// mean brightness of the rendered decor (0 = black)
+	static int	decorLuma = -1;		// mean brightness after the city is drawn
+	static int	skyLuma = -1;		// ...and before it: equal means the sky hides the city
 
 	//Log_Printf("Starting rendering frame, t=%d.\n",simulationTime);
 
@@ -648,7 +649,18 @@ void RenderEntitiesF(void)
 	
 	//traceRenderEntity = 0;
 	glTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-	
+
+	// The background entities are the three sky domes, and they ENCLOSE the
+	// camera: their lower half sits between the camera and the city. The 2010
+	// bake hid them whenever the view pointed down (their faces dropped out of
+	// the visible set), but a per-entity frustum test can never reject a volume
+	// that contains the viewpoint -- so under live culling they were drawn every
+	// frame, unfogged, and painted a near-black night sky OVER the whole city.
+	// That was the black act 3. Treat them as a proper skybox instead: no depth
+	// writes, so whatever is drawn afterwards (the city) always wins.
+	if (gRuntimeCullMap)
+		glDepthMask(GL_FALSE);
+
 	for(i=0; i < numBackgroundEntities; i++)
 	{
 		entity = &map[i];
@@ -672,7 +684,28 @@ void RenderEntitiesF(void)
 
 		RenderEntityF(entity);
 	}
-	
+
+	if (gRuntimeCullMap)
+	{
+		glDepthMask(GL_TRUE);
+
+		// Sky-only brightness, sampled BEFORE the city is drawn. Compared with
+		// the final number below it says whether the city actually reached the
+		// screen -- the single-sample probe could not tell city from sky, and
+		// read the dome while reporting "the decor renders fine".
+		if (cullDebug == 1 && cullLogTick + 1 >= 60)
+		{
+			uchar spx[16*16*4];
+			int   sk, ssum = 0;
+			glReadPixels(renderer.glBuffersDimensions[WIDTH]/2 - 8,
+						 renderer.glBuffersDimensions[HEIGHT]/2 - 8,
+						 16, 16, GL_RGBA, GL_UNSIGNED_BYTE, spx);
+			for (sk = 0; sk < 16*16; sk++)
+				ssum += spx[sk*4] + spx[sk*4+1] + spx[sk*4+2];
+			skyLuma = ssum / (16*16*3);
+		}
+	}
+
 	if (engine.fogEnabled && (renderer.props & PROP_FOG) == PROP_FOG )
 	{
 		glEnable(GL_FOG);
@@ -735,13 +768,13 @@ void RenderEntitiesF(void)
 			decorLuma = sum / (16*16*3);
 
 			cullLogTick = 0;
-			Log_Printf("[cull] scene=%d live=%d t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d luma=%d\n",
+			Log_Printf("[cull] scene=%d live=%d t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d sky=%d luma=%d\n",
 					   engine.sceneId, gRuntimeCullMap,
 					   simulationTime,
 					   camera.position[0], camera.position[1], camera.position[2],
 					   camera.forward[0], camera.forward[1], camera.forward[2],
 					   camera.up[0], camera.up[1], camera.up[2],
-					   cullDrawn, num_map_entities, cullIds, cullTris, decorLuma);
+					   cullDrawn, num_map_entities, cullIds, cullTris, skyLuma, decorLuma);
 			// Which entities survived matters more than how many: ids 0..2 are the
 			// sky domes (numBackgroundEntities), so "only sky" means the camera is
 			// pointed away from the city -- a black screen with a valid cull.

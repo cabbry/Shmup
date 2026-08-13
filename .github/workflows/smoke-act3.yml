@@ -109,21 +109,20 @@ jobs:
           grep -E "^\[cp\]|\[cp keyframe\]" shots/phaseA_log.txt | head -12 || echo "NO KEYFRAME DUMP"
 
           # "Decor was drawn" is NOT enough: a rail that mis-parses leaves the
-          # camera at the origin, which still sees buildings. Assert the camera
-          # actually FLIES THE RAIL -- top-down (forward mostly -Y) and heading
-          # into the level (z decreasing).
+          # camera at the origin, which still sees buildings. Assert it actually
+          # FLIES THE RAIL, i.e. advances into the level (z decreasing).
+          # NOTE: do NOT assert a top-down view here. The act flies act 2's baked
+          # rail, which opens on its cinematic banked flyby (fwd Y ~ +0.09) before
+          # settling overhead -- that opening is the shipped one, confirmed on
+          # device. An earlier version of this check demanded top-down and only
+          # passed against a hand-authored opening that should never have existed.
           FIRST=$(grep "cull] scene=3" shots/phaseA_log.txt | head -1)
           LAST=$(grep "cull] scene=3" shots/phaseA_log.txt | tail -1)
           echo "first: $FIRST"
           echo "last : $LAST"
-          FY=$(echo "$FIRST" | sed -n 's/.*fwd=(\([^,]*\),\([^,]*\),.*/\2/p')
           Z1=$(echo "$FIRST" | sed -n 's/.*pos=([^,]*,[^,]*,\([-0-9]*\)).*/\1/p')
           Z2=$(echo "$LAST"  | sed -n 's/.*pos=([^,]*,[^,]*,\([-0-9]*\)).*/\1/p')
-          echo "forward Y=$FY   z: $Z1 -> $Z2"
-          case "$FY" in -0.9*|-1.0*) ;; *)
-            echo "::error::Camera is not looking down at the start (fwd Y=$FY) -- rail not applied."
-            exit 1 ;;
-          esac
+          echo "z: $Z1 -> $Z2"
           if [ "${Z2:-0}" -ge "${Z1:-0}" ]; then
             echo "::error::Camera is not advancing into the level (z $Z1 -> $Z2) -- flying backwards or stuck."
             exit 1

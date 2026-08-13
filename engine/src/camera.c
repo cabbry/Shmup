@@ -23,6 +23,7 @@
  *
  */
 
+#include <stdlib.h>	// getenv (offline visibility bake switch)
 #include "camera.h"
 #include "renderer.h"
 #include "timer.h"
@@ -613,15 +614,25 @@ void CAM_LoadPath(void)
 		// Otherwise this is the offline bake path (CI): the visibility set is
 		// computed and the .cp2b written to the FS writable dir root, to be
 		// committed next to the .cp (2010 wrote to a dead Mac-only path).
-		PREPROC_SetSkipVis(gRuntimeCullMap ? 1 : 0);
-
-		if (gRuntimeCullMap)
-			camera.path = PREPROC_ConvertCp1Tocp2b(camera.pathFilename,NULL,0);
-		else
+		// A runtime text load expands the rail ONLY (no visibility bake): that is
+		// seconds instead of a very long grind, but it also means such a rail
+		// carries no visible face set -- the decor then shows only where live
+		// culling is active. Shipped acts therefore point at a baked .cp2b.
+		// SHMUP_BAKE_VIS is the offline path (see bake-act3.yml): compute the
+		// visibility set and write the .cp2b out to be committed.
+		// NOTE: this used to be keyed on gRuntimeCullMap, which now starts OFF --
+		// so every text rail silently took the slow bake at load time.
+		if (getenv("SHMUP_BAKE_VIS"))
 		{
+			PREPROC_SetSkipVis(0);
 			memset(binPath, 0, 256);
 			sprintf(binPath, "%s.cp2b", FS_GetFilenameOnly(camera.pathFilename));
 			camera.path = PREPROC_ConvertCp1Tocp2b(camera.pathFilename,binPath,0);
+		}
+		else
+		{
+			PREPROC_SetSkipVis(1);
+			camera.path = PREPROC_ConvertCp1Tocp2b(camera.pathFilename,NULL,0);
 		}
 	}
 	else 

@@ -93,6 +93,7 @@ jobs:
           # --console-pty streams the app's stdout; run it detached and tee to a
           # file so the poll step can read the frame counter.
           nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE="${{ inputs.scene }}" \
+            SIMCTL_CHILD_SHMUP_BAKE_VIS=1 \
             xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
             > "$RUNNER_TEMP/bake.log" 2>&1 &
           echo "bundle=$BUNDLE_ID" >> "$GITHUB_OUTPUT"

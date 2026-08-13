@@ -69,8 +69,10 @@ static int    gCamHavePrev = 0;
 // 180 turn, a long leg back over the city already flown, another turn, and so on.
 // Earlier attempts (a pull-back that hovered, then an oscillation) both failed
 // because they had to stay inside a frozen visible set; that constraint is gone.
+static vec3_t gCamPathStart;			// where the rail BEGAN (bounds the patrol)
 static vec3_t gCamEndAnchor;			// where the rail ended
 static vec3_t gCamEndAxis;				// the rail's travel direction there (XZ, unit)
+static float  gCamEndLeg = 0;			// length of one leg, derived from the flight
 static vec3_t gCamEndFrozen[3];			// right/up/forward at the handover, for the blend
 static int    gCamEndActive = 0;
 static float  gCamEndPhase  = 0;
@@ -82,7 +84,8 @@ static int    gCamEndLegDir = 1;		// +1 heading away from the city start, -1 bac
 #define CAM_END_SETTLE_MS	2000.0f		// ease out of the rail's frozen outro pose
 #define CAM_END_TURN_MS		4500.0f		// one 180 turn
 #define CAM_END_TURN_SPEED	0.35f		// keep arcing through the turn, don't stop dead
-#define CAM_END_LEG			30000.0f	// how far back over the city each leg goes
+#define CAM_END_LEG			30000.0f	// cap on one leg (see gCamEndLeg)
+#define CAM_END_LEG_MIN		1200.0f		// ...and a floor, for very short rails
 #define CAM_END_FWD_MARGIN	400.0f		// never fly much past the anchor
 #define CAM_END_SPEED_FALLBACK	0.24f	// units/ms, if the rail's own speed is unusable
 static quat4_t gCamLastQuat;			// last baked orientation (frozen at end)
@@ -228,6 +231,18 @@ void CAM_Update(void)
 				if (gCamEndSpeed < 1e-6f)
 					gCamEndSpeed = CAM_END_SPEED_FALLBACK;
 
+				// One leg spans the stretch actually FLOWN, not a fixed distance:
+				// the decor only exists where the rail went, so measuring from the
+				// rail's own start keeps the patrol inside the city whatever rail
+				// this act uses (a fixed 30000 would sail out of a short one).
+				gCamEndLeg = (gCamEndAnchor[0] - gCamPathStart[0]) * gCamEndAxis[0]
+						   + (gCamEndAnchor[2] - gCamPathStart[2]) * gCamEndAxis[2];
+				if (gCamEndLeg < 0)
+					gCamEndLeg = -gCamEndLeg;
+				gCamEndLeg -= 500.0f;					// stop short of the very start
+				if (gCamEndLeg > CAM_END_LEG)  gCamEndLeg = CAM_END_LEG;
+				if (gCamEndLeg < CAM_END_LEG_MIN) gCamEndLeg = CAM_END_LEG_MIN;
+
 				gCamEndPhase  = 0;
 				gCamEndState  = 0;		// settle first: leave the outro pose gently
 				gCamEndLegDir = 1;
@@ -308,7 +323,7 @@ void CAM_Update(void)
 					  + (camera.position[2] - gCamEndAnchor[2]) * gCamEndAxis[2];
 
 				if ((gCamEndLegDir > 0 && along >= CAM_END_FWD_MARGIN) ||
-					(gCamEndLegDir < 0 && along <= -CAM_END_LEG))
+					(gCamEndLegDir < 0 && along <= -gCamEndLeg))
 				{
 					gCamEndState    = 1;
 					gCamEndPhase    = 0;
@@ -624,6 +639,10 @@ void CAM_LoadPath(void)
 	
 	camera.currentFrame = camera.path;
 	simulationTime = camera.currentFrame->time;
+
+	// Remembered before the frames start being consumed and freed: the end-of-rail
+	// patrol sizes its legs from it, so it stays over the stretch actually flown.
+	vectorCopy(camera.path->position, gCamPathStart);
 	
 	Log_Printf("[CAM_LoadPath] found and loaded %s.\n",camera.pathFilename);
 //	Log_Printf("Camera path is taking %d kb in main memory.\n",cameraVisMemSize/1024);

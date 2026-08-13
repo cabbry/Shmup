@@ -29,24 +29,21 @@ jobs:
       # this test used to) is exactly how a broken rail OPENING shipped: the
       # compressed rail starts mid-city top-down, so it could never reproduce
       # "we fly backwards into the black" from the real rail's first seconds.
-      - name: Write the compressed turn rail (used by phase B only)
+      - name: Write the short rail that ends early (used by phase B only)
         run: |
           cat > data/data/cameraPath/act3smoke.cp <<'EOF'
           cp1
-          num_frames 6
+          num_frames 3
 
-          time 00000:  position (0 162 -2560)  lookat (0 -110 -2560)  upVector (0 0 -1)
-          time 06000:  position (0 162 -4040)  lookat (0 -100 -4040)  upVector (0 -0.173 -0.984)
-          time 09000:  position (0 162 -5000)  lookat (0 -162 -5000)  upVector (0 -0.173 -0.984)
-          time 10500:  position (0 162 -5100)  lookat (0 -162 -5100)  upVector (-0.984 -0.173 0)
-          time 12000:  position (0 162 -5150)  lookat (0 -162 -5150)  upVector (0 -0.173 0.984)
-          time 19000:  position (0 162 -3000)  lookat (0 -162 -3000)  upVector (0 -0.173 0.984)
+          time 00000:  position (0 162 -3000)  lookat (0 -110 -3000)  upVector (0 0 -1)
+          time 03000:  position (0 162 -3720)  lookat (0 -110 -3720)  upVector (0 0 -1)
+          time 06000:  position (0 162 -4440)  lookat (0 -110 -4440)  upVector (0 0 -1)
           EOF
-          # Everything fits inside ~19s ON PURPOSE: with nobody at the controls the
-          # ship dies three times and the game drops to the menu at ~20s of rail
-          # time. The previous version turned at 18s and returned until 45s, so the
-          # RETURN LEG -- the whole point of the U-turn -- was never observed.
-          grep "path:" data/data/scenes/act3.scene   # must still be act3boss.cp
+          # The rail ENDS at 6s on purpose: that hands over to the end-of-rail
+          # patrol (settle -> 180 turn -> leg back) which is what act 3 now uses,
+          # and which the real 142s rail could never reach in a test -- the idle
+          # ship dies and the game drops to the menu around 20s.
+          grep "path:" data/data/scenes/act3.scene   # the REAL act uses the baked rail
 
       - name: Build (iphonesimulator, arm64, no signing)
         working-directory: engine/iOS
@@ -195,36 +192,46 @@ jobs:
             echo "shot $2 at ~$(( $(date +%s) - START ))s of rail ($(alive))"
           }
 
-          # Let the rail play well past the turn (15s -> 21s) and the return leg.
-          sleep 50
+          # The rail ends at 6s; let the patrol settle (2s), turn (4.5s) and fly a
+          # good stretch of its return leg.
+          sleep 25
           xcrun simctl io "$UDID" screenshot "shots/after_turn.png" >/dev/null 2>&1 || true
 
-          # THE verification: how much decor the live cull kept, frame by frame,
-          # right through the U-turn. Screenshots cannot be trusted here (the CI
-          # Simulator does not capture the GL layer), these counters can.
-          # Prefer the file log (reliable); fall back to the console capture.
           cp "$FILELOG" shots/shmup_log.txt 2>/dev/null && echo "got the file log ($(wc -l < shots/shmup_log.txt) lines)" || echo "NO FILE LOG"
           TRACE=shots/shmup_log.txt
           [ -s "$TRACE" ] || TRACE="$LOG"
 
-          echo "--- act3 cull trace (through the turn) ---"
+          echo "--- act3 trace ---"
           grep "cull] scene=3" "$TRACE" | head -40 || echo "NO CULL TRACE (renderer never ran?)"
-          SAMPLES=$(grep -c "cull] scene=3" "$TRACE" 2>/dev/null || echo 0)
-          BLACK=$(grep "cull] scene=3" "$TRACE" 2>/dev/null | grep -c "drew 0/" || echo 0)
-          echo "--- phase B: $SAMPLES cull samples, $BLACK drew NOTHING ---"
 
-          echo "--- log tail ---"; tail -40 "$TRACE" || true
-          ls -la shots/
+          # Only the frames AFTER the rail ran out are the subject here: this rail
+          # is text, so it carries no baked visibility and nothing is drawn while it
+          # still plays (L0). The patrol (L1) is what has to hold up.
+          PATROL=$(grep "cull] scene=3" "$TRACE" | grep "L1" || true)
+          N=$(printf '%s\n' "$PATROL" | grep -c "cull]" || echo 0)
+          BLACK=$(printf '%s\n' "$PATROL" | grep -c "drew 0/" || echo 0)
+          echo "--- phase B: $N patrol samples, $BLACK drew NOTHING ---"
 
-          if [ "$SAMPLES" -lt 1 ]; then
-            echo "::error::No cull samples in phase B -- the renderer never ran."
+          if [ "$N" -lt 4 ]; then
+            echo "::error::The end-of-rail patrol never engaged (only $N samples with live culling)."
+            tail -30 "$TRACE" || true
             exit 1
           fi
           if [ "$BLACK" -gt 0 ]; then
-            echo "::error::$BLACK frame(s) drew no decor THROUGH THE U-TURN (black screen)."
-            grep "cull] scene=3" "$TRACE" | grep "drew 0/" | head -10
+            echo "::error::$BLACK patrol frame(s) drew no decor -- the void is back."
+            printf '%s\n' "$PATROL" | grep "drew 0/" | head -10
             exit 1
           fi
+
+          # And prove the 180 actually happens: screen-up (up=) must END UP pointing
+          # the opposite way along Z from where it started. A patrol that never
+          # turned would keep the same sign, and "decor was drawn" would not notice.
+          UZ1=$(printf '%s\n' "$PATROL" | head -1 | sed -n 's/.*up=([^,]*,[^,]*,\([-0-9.]*\)).*/\1/p')
+          UZ2=$(printf '%s\n' "$PATROL" | tail -1 | sed -n 's/.*up=([^,]*,[^,]*,\([-0-9.]*\)).*/\1/p')
+          echo "screen-up Z: $UZ1 -> $UZ2 (must change sign: that IS the 180)"
+          case "$UZ1$UZ2" in
+            -*-*|[0-9]*[0-9]*) echo "::error::screen-up never flipped ($UZ1 -> $UZ2): no U-turn happened."; exit 1 ;;
+          esac
 
           # A crash is the whole reason a screenshot can show the home screen:
           # dump any report so the reason is in THIS log, not guesswork.

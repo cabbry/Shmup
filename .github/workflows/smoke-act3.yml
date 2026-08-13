@@ -245,15 +245,20 @@ jobs:
             exit 1
           fi
 
-          # And prove the 180 actually happens: screen-up (up=) must END UP pointing
-          # the opposite way along Z from where it started. A patrol that never
-          # turned would keep the same sign, and "decor was drawn" would not notice.
-          UZ1=$(printf '%s\n' "$PATROL" | head -1 | sed -n 's/.*up=([^,]*,[^,]*,\([-0-9.]*\)).*/\1/p')
-          UZ2=$(printf '%s\n' "$PATROL" | tail -1 | sed -n 's/.*up=([^,]*,[^,]*,\([-0-9.]*\)).*/\1/p')
-          echo "screen-up Z: $UZ1 -> $UZ2 (must change sign: that IS the 180)"
-          case "$UZ1$UZ2" in
-            -*-*|[0-9]*[0-9]*) echo "::error::screen-up never flipped ($UZ1 -> $UZ2): no U-turn happened."; exit 1 ;;
-          esac
+          # And prove the 180 actually happens. Screen-up starts at Z = -1 (flying
+          # away) so at least one patrol frame must show it near +1. Comparing the
+          # FIRST and LAST frame would not do: this test rail is short, so its legs
+          # are short too and the patrol turns every few seconds of game time --
+          # by the last sample it can already be back on its original heading.
+          UZS=$(printf '%s\n' "$PATROL" | sed -n 's/.*up=([^,]*,[^,]*,\([-0-9.]*\)).*/\1/p')
+          FLIPPED=$(printf '%s\n' "$UZS" | grep -c '^0\.[5-9]\|^1\.' || true)
+          [ -z "$FLIPPED" ] && FLIPPED=0
+          echo "screen-up Z over the patrol: $(printf '%s' "$UZS" | tr '\n' ' ')"
+          echo "frames facing the other way: $FLIPPED"
+          if [ "$FLIPPED" -lt 1 ]; then
+            echo "::error::screen-up never flipped: the 180 never happened."
+            exit 1
+          fi
 
           # A crash is the whole reason a screenshot can show the home screen:
           # dump any report so the reason is in THIS log, not guesswork.

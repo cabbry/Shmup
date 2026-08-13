@@ -609,6 +609,7 @@ void RenderEntitiesF(void)
 	static int	cullLogTick = 0;
 	static char	cullIds[160] = "";	// which entities survived the cull
 	static int	cullTris = 0;		// and how much geometry that actually is
+	static int	decorLuma = -1;		// mean brightness of the rendered decor (0 = black)
 
 	//Log_Printf("Starting rendering frame, t=%d.\n",simulationTime);
 
@@ -716,13 +717,27 @@ void RenderEntitiesF(void)
 			cullDebug = getenv("SHMUP_CULL_DEBUG") ? 1 : 0;
 		if (cullDebug && ++cullLogTick >= 60)
 		{
+			// Is the DECOR actually on screen? Sampled here, after the map loops
+			// and before the sprites/HUD, so it measures the city alone. Counting
+			// entities and triangles proved not to answer this: a submitted draw
+			// can still put nothing on screen. Simulator screenshots do not
+			// capture the GL layer, so this number is the only honest witness.
+			uchar px[16*16*4];
+			int   k, sum = 0;
+			int   cx = renderer.glBuffersDimensions[WIDTH] / 2 - 8;
+			int   cy = renderer.glBuffersDimensions[HEIGHT] / 2 - 8;
+			glReadPixels(cx, cy, 16, 16, GL_RGBA, GL_UNSIGNED_BYTE, px);
+			for (k = 0; k < 16*16; k++)
+				sum += px[k*4] + px[k*4+1] + px[k*4+2];
+			decorLuma = sum / (16*16*3);
+
 			cullLogTick = 0;
-			Log_Printf("[act3 cull] t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d\n",
+			Log_Printf("[act3 cull] t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d luma=%d\n",
 					   simulationTime,
 					   camera.position[0], camera.position[1], camera.position[2],
 					   camera.forward[0], camera.forward[1], camera.forward[2],
 					   camera.up[0], camera.up[1], camera.up[2],
-					   cullDrawn, num_map_entities, cullIds, cullTris);
+					   cullDrawn, num_map_entities, cullIds, cullTris, decorLuma);
 			// Which entities survived matters more than how many: ids 0..2 are the
 			// sky domes (numBackgroundEntities), so "only sky" means the camera is
 			// pointed away from the city -- a black screen with a valid cull.

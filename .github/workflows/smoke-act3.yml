@@ -237,6 +237,36 @@ jobs:
             done
           done
 
+      # Reference measurement: act 2 flies this same city on its shipped baked
+      # rail and looks right on device. Its luma is the yardstick for judging
+      # whether act 3 is too dark -- an absolute number means nothing alone.
+      - name: Phase C -- act 2 (baked rail) as the brightness reference
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="$bundle"
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
+          FILELOG="$CONTAINER/Documents/shmup_log.txt"
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+          rm -f "$FILELOG"
+
+          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=2 SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
+            SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
+            xcrun simctl launch --console --terminate-running-process "$UDID" "$BUNDLE_ID" \
+            > "$RUNNER_TEMP/phaseC.log" 2>&1 &
+
+          for i in $(seq 1 45); do
+            grep -q "CAM_LoadPath" "$RUNNER_TEMP/phaseC.log" "$FILELOG" 2>/dev/null && break
+            sleep 2
+          done
+          sleep 30
+          cp "$FILELOG" shots/phaseC_log.txt 2>/dev/null || cp "$RUNNER_TEMP/phaseC.log" shots/phaseC_log.txt
+
+          echo "--- ACT 2 (baked, the look we ship) ---"
+          grep "luma=" shots/phaseC_log.txt | head -12 || echo "no samples"
+          A2=$(grep -o "luma=[0-9]*" shots/phaseC_log.txt | cut -d= -f2 | sort -n | awk '{a[NR]=$1} END{if(NR)print a[int(NR/2)+1]}')
+          A3=$(grep -o "luma=[0-9]*" shots/phaseA_log.txt | cut -d= -f2 | sort -n | awk '{a[NR]=$1} END{if(NR)print a[int(NR/2)+1]}')
+          echo "=== median decor luma: act2(baked)=${A2:-?}  act3(live cull)=${A3:-?} ==="
+
       - name: Upload screenshots and log
         if: always()
         uses: actions/upload-artifact@v4

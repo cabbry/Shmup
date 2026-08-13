@@ -711,10 +711,13 @@ void RenderEntitiesF(void)
 	}
 	glEnable(GL_CULL_FACE);
 
-	if (gRuntimeCullMap)
+	// Runs for ANY scene when the env is set, not just the live-culled boss act:
+	// the only way to judge "act 3 is too dark" is to measure a shipped act that
+	// looks right (act 2 flies this very city on its baked rail) and compare.
+	if (cullDebug < 0)
+		cullDebug = getenv("SHMUP_CULL_DEBUG") ? 1 : 0;
+	if (cullDebug || gRuntimeCullMap)
 	{
-		if (cullDebug < 0)
-			cullDebug = getenv("SHMUP_CULL_DEBUG") ? 1 : 0;
 		if (cullDebug && ++cullLogTick >= 60)
 		{
 			// Is the DECOR actually on screen? Sampled here, after the map loops
@@ -732,7 +735,8 @@ void RenderEntitiesF(void)
 			decorLuma = sum / (16*16*3);
 
 			cullLogTick = 0;
-			Log_Printf("[act3 cull] t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d luma=%d\n",
+			Log_Printf("[act3 cull] scene=%d live=%d t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d luma=%d\n",
+					   engine.sceneId, gRuntimeCullMap,
 					   simulationTime,
 					   camera.position[0], camera.position[1], camera.position[2],
 					   camera.forward[0], camera.forward[1], camera.forward[2],

@@ -759,13 +759,17 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowOthersMenu,NULL, buttonPos, buttonDim);
 
-	MENU_CreateText(currentMenu,0,200,2.2f,TEXT_CENTERED,  "Producer:     Fabien Sanglard"); 
-	MENU_CreateText(currentMenu,0,150,2.2f,TEXT_CENTERED,  "Game engine:  Fabien Sanglard"); 
-	MENU_CreateText(currentMenu,0,100,2.2f,TEXT_CENTERED,  "Graphics:     Fabien Sanglard"); 
-	MENU_CreateText(currentMenu,0, 50,2.2f,TEXT_CENTERED,  "Music:            Future Crew"); 
-	
-	pos[X] = 0 ; 
-	pos[Y] = 3 ;
+	// 5 lines in this block now (the Reborn credit joins the original four), so the
+	// step tightens from 50 to 42 to keep the whole roll between the title card and
+	// the Back button.
+	MENU_CreateText(currentMenu,0,200,2.2f,TEXT_CENTERED,  "Producer:     Fabien Sanglard");
+	MENU_CreateText(currentMenu,0,158,2.2f,TEXT_CENTERED,  "Game engine:  Fabien Sanglard");
+	MENU_CreateText(currentMenu,0,116,2.2f,TEXT_CENTERED,  "Graphics:     Fabien Sanglard");
+	MENU_CreateText(currentMenu,0, 74,2.2f,TEXT_CENTERED,  "Music:            Future Crew");
+	MENU_CreateText(currentMenu,0, 32,2.2f,TEXT_CENTERED,  "Reborn:             Jr Cabbry");
+
+	pos[X] = 0 ;
+	pos[Y] = 0 ;
 	dimensions[WIDTH] = 240*2.0; 
 	dimensions[HEIGHT] = 7*2.1;
 	textPos[X] = 7/(float)512 ; 
@@ -776,12 +780,12 @@ void MENU_Init(void)
 	MENU_CreateImage(currentMenu,pos,dimensions,textPos,textDim);
 	
 	
-	MENU_CreateText(currentMenu,0, -20,2.2f,TEXT_CENTERED, "Artists:          Phil Walker");
-	MENU_CreateText(currentMenu,0, -60,2.2f,TEXT_CENTERED, "                  Mike Jensen");
-	MENU_CreateText(currentMenu,0, -100,2.2f,TEXT_CENTERED,"                 Sean Weisman");	
-	
-	pos[X] = 0 ; 
-	pos[Y] =  -133;
+	MENU_CreateText(currentMenu,0, -30,2.2f,TEXT_CENTERED, "Artists:          Phil Walker");
+	MENU_CreateText(currentMenu,0, -70,2.2f,TEXT_CENTERED, "                  Mike Jensen");
+	MENU_CreateText(currentMenu,0,-110,2.2f,TEXT_CENTERED, "                 Sean Weisman");
+
+	pos[X] = 0 ;
+	pos[Y] =  -142;
 	dimensions[WIDTH] = 240*2.0; 
 	dimensions[HEIGHT] = 7*2.1;
 	textPos[X] = 7/(float)512 ; 
@@ -791,9 +795,9 @@ void MENU_Init(void)
 	
 	MENU_CreateImage(currentMenu,pos,dimensions,textPos,textDim);
 	
-	MENU_CreateText(currentMenu,0, -170,2.2f,TEXT_CENTERED,"Special Thanks:     Soojin Yi");			
-	MENU_CreateText(currentMenu,0, -220,2.2f,TEXT_CENTERED,"                Jeremy Vernet");	
-	MENU_CreateText(currentMenu,0, -270,2.2f,TEXT_CENTERED,"            Aurelien Sanglard");
+	MENU_CreateText(currentMenu,0, -175,2.2f,TEXT_CENTERED,"Special Thanks:     Soojin Yi");
+	MENU_CreateText(currentMenu,0, -217,2.2f,TEXT_CENTERED,"                Jeremy Vernet");
+	MENU_CreateText(currentMenu,0, -259,2.2f,TEXT_CENTERED,"            Aurelien Sanglard");
 
 
 		

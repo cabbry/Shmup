@@ -1007,9 +1007,9 @@ void PL_RenderPlayerPointers(void)
 		int bossHp = 0, bossMaxHp = 0, bossFight;
 		short bossBarY = 0;
 		SCR_ConvertTextToVertices(stringScore,SCORE_FONT_SIZE,SCORE_POS_X,scoreY,TEXT_NOT_CENTERED);
-		// Tutorial only (scenes 14 = swipe, 15 = virtual pad): a BACK button at the
-		// top-centre to leave the tutorial. The tap zone is hit-tested in EAGLView.
-		if (engine.sceneId == 14 || engine.sceneId == 15)
+		// Tutorial (scenes 14 = swipe, 15 = virtual pad) and Demo (scene 13): a
+		// BACK button at the top-centre to leave. Hit-tested in EAGLView.
+		if (engine.sceneId == 13 || engine.sceneId == 14 || engine.sceneId == 15)
 			SCR_ConvertTextToVertices("[ BACK ]",SCORE_FONT_SIZE,0,(short)(scoreY - 100),TEXT_CENTERED);
 		// Boss health bar (act 3), just under the score line while the fight is
 		// on. Only the "BOSS" label is font text (letters are proven on-screen);

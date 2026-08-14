@@ -644,9 +644,10 @@ void loadNativePNG(texture_t* tmpTex)
         CGPoint touchLocation = [myTouch locationInView:nil];
         CGPoint prevTouchLocation = [myTouch previousLocationInView:nil];
 
-        // Tutorial (scenes 14 = swipe, 15 = virtual pad): a top-centre BACK button
-        // to leave the tutorial and return to the main menu. Swallow the touch.
-        if ((engine.sceneId == 14 || engine.sceneId == 15) && myTouch.phase == UITouchPhaseBegan)
+        // Tutorial (scenes 14 = swipe, 15 = virtual pad) and Demo (scene 13): a
+        // top-centre BACK button to leave and return to the main menu. Swallow
+        // the touch.
+        if ((engine.sceneId == 13 || engine.sceneId == 14 || engine.sceneId == 15) && myTouch.phase == UITouchPhaseBegan)
         {
             CGPoint local = [myTouch locationInView:self];
             CGFloat fx = local.x / self.bounds.size.width;

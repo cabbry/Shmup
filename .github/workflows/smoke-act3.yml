@@ -33,12 +33,18 @@ jobs:
         run: |
           cat > data/data/cameraPath/act3smoke.cp <<'EOF'
           cp1
-          num_frames 3
+          num_frames 4
 
           time 00000:  position (0 162 -3000)  lookat (0 -110 -3000)  upVector (0 0 -1)
           time 03000:  position (0 162 -3720)  lookat (0 -110 -3720)  upVector (0 0 -1)
-          time 06000:  position (0 162 -4440)  lookat (0 -110 -4440)  upVector (0 0 -1)
+          time 05500:  position (0 162 -4320)  lookat (0 -110 -4320)  upVector (0 0 -1)
+          time 06000:  position (-25 150 -4440) lookat (-25 -110 -4440) upVector (0 0 -1)
           EOF
+          # That last keyframe is a deliberate OUTRO FLOURISH, copied in spirit from
+          # act 2's: it veers ~3 degrees sideways over the final stretch. Steering
+          # the return leg by the last segment's heading turned that into >1500
+          # units of lateral drift off the city -- half the screen went black, then
+          # all of it. A straight test rail could never have caught it.
           # The rail ENDS at 6s on purpose: that hands over to the end-of-rail
           # patrol (settle -> 180 turn -> leg back) which is what act 3 now uses,
           # and which the real 142s rail could never reach in a test -- the idle
@@ -257,6 +263,18 @@ jobs:
           echo "frames facing the other way: $FLIPPED"
           if [ "$FLIPPED" -lt 1 ]; then
             echo "::error::screen-up never flipped: the 180 never happened."
+            exit 1
+          fi
+
+          # The patrol must also STAY OVER THE CITY. Steering the return by the
+          # rail's last segment inherited its outro flourish, so the camera crept
+          # sideways out of the corridor: the far half of the screen went dark,
+          # then all of it -- while every frame still "drew decor" and passed.
+          XS=$(printf '%s\n' "$PATROL" | sed -n 's/.*pos=(\([-0-9]*\),.*/\1/p')
+          XMAX=$(printf '%s\n' "$XS" | tr -d '-' | sort -n | tail -1)
+          echo "camera |X| over the patrol: max ${XMAX:-?} (corridor is a few hundred units wide)"
+          if [ "${XMAX:-0}" -gt 400 ]; then
+            echo "::error::The patrol drifted ${XMAX} units off the corridor -- the decor slides out of frame."
             exit 1
           fi
 

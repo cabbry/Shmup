@@ -208,27 +208,44 @@ void CAM_Update(void)
 			{
 				float vx = gCamDriftVel[0], vz = gCamDriftVel[2];
 				float planar = sqrtf(vx*vx + vz*vz);
+				float cx, cz, corridor;
 
 				vectorCopy(camera.position, gCamEndAnchor);
 				vectorCopy(camera.right,   gCamEndFrozen[0]);
 				vectorCopy(camera.up,      gCamEndFrozen[1]);
 				vectorCopy(camera.forward, gCamEndFrozen[2]);
 
-				if (planar > 1e-8f)
+				// The patrol axis is the CORRIDOR the act actually flew (start to
+				// end), NOT the last segment's velocity. Act 2's rail finishes on
+				// an outro flourish that veers ~3 degrees sideways; steering the
+				// return by that tilt drifted the camera >1500 units off the city
+				// over a 30000-unit leg -- the far side of the screen went black,
+				// then all of it. Measured over the whole flight the same rail is
+				// straight to within a fraction of a degree.
+				cx = gCamEndAnchor[0] - gCamPathStart[0];
+				cz = gCamEndAnchor[2] - gCamPathStart[2];
+				corridor = sqrtf(cx*cx + cz*cz);
+
+				if (corridor > 1000.0f)
+				{
+					gCamEndAxis[0] = cx / corridor;
+					gCamEndAxis[1] = 0;
+					gCamEndAxis[2] = cz / corridor;
+				}
+				else if (planar > 1e-8f)		// no usable corridor: last heading
 				{
 					gCamEndAxis[0] = vx / planar;
 					gCamEndAxis[1] = 0;
 					gCamEndAxis[2] = vz / planar;
-					gCamEndSpeed   = planar;
-					// Heading whose screen-up matches the way the rail was going.
-					gCamEndTheta   = atan2f(gCamEndAxis[0], -gCamEndAxis[2]);
 				}
 				else
 				{
 					gCamEndAxis[0] = 0; gCamEndAxis[1] = 0; gCamEndAxis[2] = -1;
-					gCamEndSpeed   = CAM_END_SPEED_FALLBACK;
-					gCamEndTheta   = 0;
 				}
+				// Heading whose screen-up matches the way the rail was going.
+				gCamEndTheta = atan2f(gCamEndAxis[0], -gCamEndAxis[2]);
+
+				gCamEndSpeed = (planar > 1e-8f) ? planar : CAM_END_SPEED_FALLBACK;
 				if (gCamEndSpeed < 1e-6f)
 					gCamEndSpeed = CAM_END_SPEED_FALLBACK;
 

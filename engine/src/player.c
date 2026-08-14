@@ -1028,9 +1028,11 @@ void PL_RenderPlayerPointers(void)
 		if (engine.sceneId == 3)
 		{
 			char diag[64];
-			sprintf(diag, "D%d SKY%d LIT%d L%d CZ%d",
+			// CX matters as much as CZ: drifting sideways off the city corridor is
+			// what put the far half of the screen in the dark on the return leg.
+			sprintf(diag, "D%d SKY%d LIT%d L%d CX%d CZ%d",
 					gA3DiagDrawn, gA3DiagSky, gA3DiagLuma, gA3DiagLive,
-					(int)camera.position[2]);
+					(int)camera.position[0], (int)camera.position[2]);
 			SCR_ConvertTextToVertices(diag, 1.5f, SCORE_POS_X, (short)(scoreY - 90), TEXT_NOT_CENTERED);
 		}
 		SCR_RenderText();

@@ -179,6 +179,26 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-14 — round 18 (the ending screen, and two menu papercuts)
+- **🆕 A real end-of-game screen (v1.5.4)**. Beating the LOFB used to reuse the
+  per-act "act completed" strip — the same four stat lines, gone in 7 seconds,
+  with the score row and lives still drawn on top. The last act's epilog now has
+  its own card: **MISSION COMPLETE**, the run's numbers (difficulty, bullets fired,
+  hits, **accuracy**, enemy cleared, total score) and a **RANK** from D to S,
+  weighted mostly on how much of the map you cleared with accuracy and the
+  difficulty level as tie-breakers. It holds **16 s** instead of 7, on a full-screen
+  veil (the per-act epilog only dims the title strip at the top), fading in over
+  1.2 s and back out over the last second. The in-game HUD steps aside while it is
+  up, and the player is made **immune** for its duration — a stray escort bullet
+  turning the victory card into a GAME OVER would have been a rotten way to end
+  the game.
+- **Back button in the Demo**, identical to the tutorial's: same top-centre
+  `[ BACK ]`, same tap zone, same exit to the main menu. The demo used to be a
+  142-second one-way trip.
+- **Credits: `Reborn:  Jr Cabbry`** added to the top block, and the line spacing
+  tightened (50 → 42 in that block, the rest re-balanced) so the whole roll still
+  fits between the title card and the Back button.
+
 ### 2026-08-14 — round 17 ("Enemy cleared: 100%+" — the boss broke the maths)
 - **The end-of-act stat could exceed 100% in act 3 (v1.5.3 fixes it)**. The
   denominator is counted once at scene load by walking the *scripted* spawn list —

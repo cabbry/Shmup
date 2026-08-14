@@ -179,6 +179,18 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-14 — round 14 (the return leg stays on the corridor)
+- **Fixed the off-axis return (v1.5.0)**: the round-13 U-turn worked, but the flight
+  back drifted sideways — half the screen slid into the dark, then all of it. The
+  patrol was steering by the **last segment** of the rail, and act 2's rail ends on
+  an outro flourish that veers ~3° sideways; over a 30 000-unit leg that's >1 500
+  units off the city corridor. The axis now comes from the corridor **actually
+  flown** (rail start → rail end), which is straight to a fraction of a degree.
+- The smoke rail now ends on the same kind of flourish, and the test asserts the
+  patrol stays within the corridor (measured |X| max 181 units, vs >1 500 with the
+  bug) — every frame still "drew decor" while the real thing failed, so counting
+  draws was again not enough.
+
 ### 2026-08-13 — round 13 (the U-turn, where it actually belongs)
 - **The city turns around and scrolls back — without touching the flight (v1.4.9)**.
   The act flies its shipped **baked** rail, opening included: nothing re-authored.

@@ -179,6 +179,16 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-14 — round 17 ("Enemy cleared: 100%+" — the boss broke the maths)
+- **The end-of-act stat could exceed 100% in act 3 (v1.5.3 fixes it)**. The
+  denominator is counted once at scene load by walking the *scripted* spawn list —
+  but the boss spawns its escorts and seekers at runtime, straight through
+  `EV_SpawnEnemy`. Every reinforcement you shot down counted as a kill the total
+  never knew about; a long fight pushed the ratio past 100%. Only act 3 spawns
+  enemies dynamically, which is why sixteen years of acts 1–2 never showed it.
+  Each dynamic spawn now increments the total too — the stat is honest again (and
+  escorts that cross the screen unkilled now count against you, as they should).
+
 ### 2026-08-14 — round 16 (the finale can't be skipped anymore)
 - **Playtest of round 15 surfaced a silent interaction (v1.5.2)**: the homing
   seekers unlocked at −75% but launched *from the arms* — and at 200 HP each, the

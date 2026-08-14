@@ -1020,21 +1020,8 @@ void PL_RenderPlayerPointers(void)
 			bossBarY = (short)(scoreY - 52);
 			SCR_ConvertTextToVertices("BOSS", 1.8f, BOSS_BAR_LABEL_X, bossBarY, TEXT_CENTERED);
 		}
-		// TEMPORARY act-3 diagnostic. The Simulator draws act 3 correctly while
-		// the device shows black, so the numbers are put on screen for the tester
-		// to photograph: entities drawn, centre brightness before the city (SKY)
-		// and after it (LIT), and whether live culling is on. SKY == LIT means
-		// something is painting over the city. Remove once act 3 is settled.
-		if (engine.sceneId == 3)
-		{
-			char diag[64];
-			// CX matters as much as CZ: drifting sideways off the city corridor is
-			// what put the far half of the screen in the dark on the return leg.
-			sprintf(diag, "D%d SKY%d LIT%d L%d CX%d CZ%d",
-					gA3DiagDrawn, gA3DiagSky, gA3DiagLuma, gA3DiagLive,
-					(int)camera.position[0], (int)camera.position[2]);
-			SCR_ConvertTextToVertices(diag, 1.5f, SCORE_POS_X, (short)(scoreY - 90), TEXT_NOT_CENTERED);
-		}
+		// (The temporary act-3 on-screen diagnostic lived here through rounds
+		// 12-14; removed once the U-turn patrol was confirmed on device.)
 		SCR_RenderText();
 		if (bossFight)
 			P_RenderBossHealthBar(bossHp, bossMaxHp, bossBarY);

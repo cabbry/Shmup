@@ -179,6 +179,18 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-14 — round 16 (the finale can't be skipped anymore)
+- **Playtest of round 15 surfaced a silent interaction (v1.5.2)**: the homing
+  seekers unlocked at −75% but launched *from the arms* — and at 200 HP each, the
+  arms rarely survived that long, so most players would never see the finale at all.
+  New split, per the designer's call: the **body** launches the seekers (one per
+  volley, alternating ports — the finale always shows up), the **arms** fire the
+  big energy shots (destroy one to silence a side, both to cancel the attack — the
+  strategic reward stays, moved to the −50% tier), and the arms are beefed up
+  **200 → 400 HP** so they plausibly live to their unlock.
+- Energy shots now aim from the arm that fires them, and the seeker cadence is one
+  every 4.5s (the old arm pair fired two per 6.5s).
+
 ### 2026-08-14 — round 15 (boss pacing: attacks join one at a time)
 - **The boss's arsenal now unlocks as a ladder (v1.5.1)** instead of everything
   arriving together at 85% HP: the fight opens on the aimed fan alone, then each

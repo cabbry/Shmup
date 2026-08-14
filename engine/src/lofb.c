@@ -113,17 +113,23 @@ static float gSwayClock = 0;		// hover-sway time; pauses while the laser is up
 // Homing-missile launcher (fired from the arms). Cooldown is a file static like
 // the laser -- single boss, advanced deterministically from updateLOFB.
 static float gMissileCooldown = 0;
+static float gSeekerPort  = 1;	// body launch port alternates left/right per seeker
+static float gArmShotSide = 1;	// which arm fires the next energy shot (alternates)
 #define LOFB_MISSILE_SPEED	0.85f	// ss units / second
 #define LOFB_MISSILE_TURN	2.0f	// max turn rate (rad / second) -- low enough to juke
 #define LOFB_MISSILE_TTL	6000	// ms before it fizzles out
 #define LOFB_MISSILE_ARM_X	0.24f	// arm offset from the boss centre
-#define LOFB_MISSILE_CD		6500.0f	// launch interval (they unlock at -75% HP)
+#define LOFB_MISSILE_CD		4500.0f	// seeker interval (ONE per volley now, from the
+									// body -- the old arm pair fired two per 6500ms)
 #define P_MISSILE_HEADING	0		// missile's own parameters[] slot (its heading)
 
-// Destructible arms. The two big side arms have their own HP; the homing missiles
-// come from them, and once an arm is destroyed that side stops launching. Shot the
-// arms down to shut off the missiles. State is file-static (single boss).
-#define LOFB_ARM_HP			200		// per arm (doubled in multiplayer)
+// Destructible arms. The two big side arms have their own HP; the BIG ENERGY
+// SHOTS (-50% unlock) fire from them, alternating sides -- destroy an arm and
+// that side goes quiet, destroy both and the energy shots stop entirely. The
+// homing seekers (-75%) come from the BODY instead, so the finale can't be
+// pre-empted by early arm kills. State is file-static (single boss).
+#define LOFB_ARM_HP			400		// per arm (doubled in multiplayer) -- beefy
+									// enough to plausibly live until the -50% unlock
 #define LOFB_ARM_OFFX		0.34f	// arm hit-zone offset from the boss centre (ss)
 #define LOFB_ARM_OFFY		0.06f	// arms sit just above the body centre
 #define LOFB_ARM_RADIUS		0.15f	// arm hit radius (ss)
@@ -139,9 +145,9 @@ static float  gArmFlashMs[2] = {0, 0};	// arm-localised hit-flash countdown (ms)
 // boss bar -- applied from updateLOFB, which holds the enemy pointer.
 static int    gArmChunkDmg = 0;
 
-static float LOFB_AimAngle(enemy_t* enemy)
+static float LOFB_AimAngleFrom(float sx, float sy)
 {
-	// Angle (screen space) from the boss toward the nearest player. Player
+	// Angle (screen space) from (sx,sy) toward the nearest player. Player
 	// positions are lockstep-synced, so this stays deterministic in multiplayer.
 	int i;
 	float best = 1e9f;
@@ -149,12 +155,17 @@ static float LOFB_AimAngle(enemy_t* enemy)
 
 	for (i = 0; i < numPlayers; i++)
 	{
-		float dx = players[i].ss_position[X] - enemy->ss_position[X];
-		float dy = players[i].ss_position[Y] - enemy->ss_position[Y];
+		float dx = players[i].ss_position[X] - sx;
+		float dy = players[i].ss_position[Y] - sy;
 		float d2 = dx*dx + dy*dy;
 		if (d2 < best) { best = d2; tx = dx; ty = dy; }
 	}
 	return atan2f(ty, tx);
+}
+
+static float LOFB_AimAngle(enemy_t* enemy)
+{
+	return LOFB_AimAngleFrom(enemy->ss_position[X], enemy->ss_position[Y]);
 }
 
 static void LOFB_FireFan(enemy_t* enemy, int count, float spread)
@@ -210,7 +221,7 @@ static void LOFB_FireMissile(enemy_t* enemy, float side)
 	EV_SpawnEnemy(&ev);
 }
 
-// A boss homing missile: pops out at its arm, then steers toward the nearest
+// A boss homing missile: pops out at a body launch port, then steers toward the nearest
 // player at a capped turn rate (dodgeable). Deterministic (player positions are
 // lockstep-synced). Its HP + destruction are handled by COLL_CheckEnemies; this
 // only drives motion, a red tint (to read as a missile, not an escort) and TTL.
@@ -291,20 +302,24 @@ void updateLOFBMissile(enemy_t* enemy)
 #define LOFB_TEXT_BULLET_V      (0/128.0f*SHRT_MAX)
 #define LOFB_TEXT_BULLET_WIDTH  (16/128.0f*SHRT_MAX)
 #define LOFB_TEXT_BULLET_HEIGHT (16/128.0f*SHRT_MAX)
-static void LOFB_FireBigShot(enemy_t* enemy)
+// offX shifts the muzzle sideways: the energy shots fire from the ARMS now
+// (offX = +/-LOFB_ARM_OFFX), aimed from the arm's own position.
+static void LOFB_FireBigShot(enemy_t* enemy, float offX)
 {
 	enemy_part_t* bullet;
-	float angle = LOFB_AimAngle(enemy);
+	float ox = enemy->ss_position[X] + offX;
+	float oy = enemy->ss_position[Y] + LOFB_ARM_OFFY;
+	float angle = LOFB_AimAngleFrom(ox, oy);
 
 	bullet = ENPAR_GetNextParticule();
 
 	bullet->ttl = LOFB_BIG_TTL;
 	bullet->originalTTL = LOFB_BIG_TTL;
 
-	bullet->ss_boudaries[UP]    = bullet->ss_starting_boudaries[UP]    = enemy->ss_position[Y] * SS_H + LOFB_BIG_SIZE /2 * SS_H / gVScale;
-	bullet->ss_boudaries[DOWN]  = bullet->ss_starting_boudaries[DOWN]  = enemy->ss_position[Y] * SS_H - LOFB_BIG_SIZE /2 * SS_H / gVScale;
-	bullet->ss_boudaries[LEFT]  = bullet->ss_starting_boudaries[LEFT]  = enemy->ss_position[X] * SS_W - LOFB_BIG_SIZE /2 *SS_H/(float)SS_W * SS_W;
-	bullet->ss_boudaries[RIGHT] = bullet->ss_starting_boudaries[RIGHT] = enemy->ss_position[X] * SS_W + LOFB_BIG_SIZE /2 *SS_H/(float)SS_W * SS_W;
+	bullet->ss_boudaries[UP]    = bullet->ss_starting_boudaries[UP]    = oy * SS_H + LOFB_BIG_SIZE /2 * SS_H / gVScale;
+	bullet->ss_boudaries[DOWN]  = bullet->ss_starting_boudaries[DOWN]  = oy * SS_H - LOFB_BIG_SIZE /2 * SS_H / gVScale;
+	bullet->ss_boudaries[LEFT]  = bullet->ss_starting_boudaries[LEFT]  = ox * SS_W - LOFB_BIG_SIZE /2 *SS_H/(float)SS_W * SS_W;
+	bullet->ss_boudaries[RIGHT] = bullet->ss_starting_boudaries[RIGHT] = ox * SS_W + LOFB_BIG_SIZE /2 *SS_H/(float)SS_W * SS_W;
 
 	bullet->text[0][U] = LOFB_TEXT_BULLET_U;
 	bullet->text[0][V] = LOFB_TEXT_BULLET_V;
@@ -714,6 +729,8 @@ void updateLOFB(enemy_t* enemy)
 			gLaserCooldown   = LOFB_LASER_FIRST_MS;
 			gSwayClock       = 0;
 			gMissileCooldown = LOFB_MISSILE_CD;
+			gSeekerPort  = 1;	// fresh fight: same first launch port in both sims
+			gArmShotSide = 1;
 			gArmMaxHP = (short)(LOFB_ARM_HP * (engine.mode == DE_MODE_MULTIPLAYER ? 2 : 1));
 			gArmHP[0] = gArmHP[1] = gArmMaxHP;
 			gArmAlive[0] = gArmAlive[1] = 1;
@@ -730,7 +747,7 @@ void updateLOFB(enemy_t* enemy)
 	//   -15%  the rotating spray ("tirs aleatoires")
 	//   -25%  escort waves
 	//   -50%  the big energy shots
-	//   -75%  the red homing seekers (from the arms)
+	//   -75%  the red homing seekers (from the body)
 	// The last quarter doubles as the frenzy: wider fan, faster cadences.
 	hpPct = 100;
 	if (gBossMaxEnergy > 0)
@@ -828,27 +845,34 @@ void updateLOFB(enemy_t* enemy)
 			}
 		}
 
-		// Attack 4 (-50%): THE BIG SHOT -- a large, slower aimed energy orb.
-		if (hpPct <= 50)
+		// Attack 4 (-50%): THE BIG ENERGY SHOT -- fired from the ARMS, alternating
+		// sides. Destroying an arm silences that side; destroying both cancels the
+		// attack entirely -- that is the strategic reward for focusing the arms.
+		if (hpPct <= 50 && (gArmAlive[0] || gArmAlive[1]))
 		{
 			enemy->parameters[P_BIGSHOT_CD] -= timediff;
 			if (enemy->parameters[P_BIGSHOT_CD] <= 0)
 			{
-				LOFB_FireBigShot(enemy);
+				// Alternate arms; if the preferred one is gone, the survivor fires.
+				int want = (gArmShotSide < 0) ? 0 : 1;
+				if (!gArmAlive[want])
+					want = 1 - want;
+				LOFB_FireBigShot(enemy, (want == 0) ? -LOFB_ARM_OFFX : LOFB_ARM_OFFX);
+				gArmShotSide = -gArmShotSide;
 				enemy->parameters[P_BIGSHOT_CD] = frenzy ? 6000 : 8500;
 			}
 		}
 
-		// Attack 5 (-75%): each surviving arm launches a destructible homing
-		// missile. Destroy an arm and that side goes quiet; destroy both and the
-		// homing missiles stop entirely.
-		if (hpPct <= 25 && (gArmAlive[0] || gArmAlive[1]))
+		// Attack 5 (-75%): the BODY launches the destructible homing seekers, one
+		// per volley from alternating launch ports -- the finale always shows up,
+		// arms or no arms.
+		if (hpPct <= 25)
 		{
 			gMissileCooldown -= timediff;
 			if (gMissileCooldown <= 0)
 			{
-				if (gArmAlive[0]) LOFB_FireMissile(enemy, -1.0f);
-				if (gArmAlive[1]) LOFB_FireMissile(enemy,  1.0f);
+				LOFB_FireMissile(enemy, gSeekerPort * 0.5f);
+				gSeekerPort = -gSeekerPort;
 				gMissileCooldown = LOFB_MISSILE_CD;
 			}
 		}

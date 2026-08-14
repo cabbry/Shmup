@@ -759,45 +759,64 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowOthersMenu,NULL, buttonPos, buttonDim);
 
-	// 5 lines in this block now (the Reborn credit joins the original four), so the
-	// step tightens from 50 to 42 to keep the whole roll between the title card and
-	// the Back button.
-	MENU_CreateText(currentMenu,0,200,2.2f,TEXT_CENTERED,  "Producer:     Fabien Sanglard");
-	MENU_CreateText(currentMenu,0,158,2.2f,TEXT_CENTERED,  "Game engine:  Fabien Sanglard");
-	MENU_CreateText(currentMenu,0,116,2.2f,TEXT_CENTERED,  "Graphics:     Fabien Sanglard");
-	MENU_CreateText(currentMenu,0, 74,2.2f,TEXT_CENTERED,  "Music:            Future Crew");
-	MENU_CreateText(currentMenu,0, 32,2.2f,TEXT_CENTERED,  "Reborn:             Jr Cabbry");
+	// FOUR sections now (production / artists / tester / special thanks), 12 lines
+	// and 3 rules between the title card and the Back button (whose top edge sits
+	// at -316). At the original size 2.2 a glyph cell is 35 units tall and 12 of
+	// them no longer fit: the roll is size 2.0 (cell 32) on a 36 step, and 58
+	// across a rule -- ~6 clear units between a cell and the rule, which is more
+	// than the 2 the shipped layout had under its first rule. Everything hangs
+	// off the first line at 200: that ceiling is the title card's, don't go up.
+	// NOTE: 4 images (title + 3 rules) is exactly MAX_NUM_MENU_IMAGES -- a fifth
+	// section would need that raised.
+	MENU_CreateText(currentMenu,0,200,2.0f,TEXT_CENTERED,  "Producer:     Fabien Sanglard");
+	MENU_CreateText(currentMenu,0,164,2.0f,TEXT_CENTERED,  "Game engine:  Fabien Sanglard");
+	MENU_CreateText(currentMenu,0,128,2.0f,TEXT_CENTERED,  "Graphics:     Fabien Sanglard");
+	MENU_CreateText(currentMenu,0, 92,2.0f,TEXT_CENTERED,  "Music:            Future Crew");
+	MENU_CreateText(currentMenu,0, 56,2.0f,TEXT_CENTERED,  "Reborn:             Jr Cabbry");
 
 	pos[X] = 0 ;
-	pos[Y] = 0 ;
-	dimensions[WIDTH] = 240*2.0; 
+	pos[Y] = 27 ;
+	dimensions[WIDTH] = 240*2.0;
 	dimensions[HEIGHT] = 7*2.1;
-	textPos[X] = 7/(float)512 ; 
+	textPos[X] = 7/(float)512 ;
 	textPos[Y] = 85/(float)512 ;
-	textDim[WIDTH] = 251/(float)512 ; 
+	textDim[WIDTH] = 251/(float)512 ;
 	textDim[HEIGHT] =6/(float)512 ;
 	//MENU_CreateImage(menu_screen_t* screen, vec2_t pos, vec2_t dimensions, vec2_t text[4])
 	MENU_CreateImage(currentMenu,pos,dimensions,textPos,textDim);
-	
-	
-	MENU_CreateText(currentMenu,0, -30,2.2f,TEXT_CENTERED, "Artists:          Phil Walker");
-	MENU_CreateText(currentMenu,0, -70,2.2f,TEXT_CENTERED, "                  Mike Jensen");
-	MENU_CreateText(currentMenu,0,-110,2.2f,TEXT_CENTERED, "                 Sean Weisman");
+
+
+	MENU_CreateText(currentMenu,0,  -2,2.0f,TEXT_CENTERED, "Artists:          Phil Walker");
+	MENU_CreateText(currentMenu,0, -38,2.0f,TEXT_CENTERED, "                  Mike Jensen");
+	MENU_CreateText(currentMenu,0, -74,2.0f,TEXT_CENTERED, "                 Sean Weisman");
 
 	pos[X] = 0 ;
-	pos[Y] =  -142;
-	dimensions[WIDTH] = 240*2.0; 
+	pos[Y] =  -103;
+	dimensions[WIDTH] = 240*2.0;
 	dimensions[HEIGHT] = 7*2.1;
-	textPos[X] = 7/(float)512 ; 
+	textPos[X] = 7/(float)512 ;
 	textPos[Y] = 85/(float)512 ;
-	textDim[WIDTH] = 251/(float)512 ; 
+	textDim[WIDTH] = 251/(float)512 ;
 	textDim[HEIGHT] =6/(float)512 ;
-	
+
 	MENU_CreateImage(currentMenu,pos,dimensions,textPos,textDim);
-	
-	MENU_CreateText(currentMenu,0, -175,2.2f,TEXT_CENTERED,"Special Thanks:     Soojin Yi");
-	MENU_CreateText(currentMenu,0, -217,2.2f,TEXT_CENTERED,"                Jeremy Vernet");
-	MENU_CreateText(currentMenu,0, -259,2.2f,TEXT_CENTERED,"            Aurelien Sanglard");
+
+	MENU_CreateText(currentMenu,0,-132,2.0f,TEXT_CENTERED, "Tester:                 Leo B");
+
+	pos[X] = 0 ;
+	pos[Y] =  -161;
+	dimensions[WIDTH] = 240*2.0;
+	dimensions[HEIGHT] = 7*2.1;
+	textPos[X] = 7/(float)512 ;
+	textPos[Y] = 85/(float)512 ;
+	textDim[WIDTH] = 251/(float)512 ;
+	textDim[HEIGHT] =6/(float)512 ;
+
+	MENU_CreateImage(currentMenu,pos,dimensions,textPos,textDim);
+
+	MENU_CreateText(currentMenu,0,-190,2.0f,TEXT_CENTERED,"Special Thanks:     Soojin Yi");
+	MENU_CreateText(currentMenu,0,-226,2.0f,TEXT_CENTERED,"                Jeremy Vernet");
+	MENU_CreateText(currentMenu,0,-262,2.0f,TEXT_CENTERED,"            Aurelien Sanglard");
 
 
 		

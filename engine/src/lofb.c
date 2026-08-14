@@ -117,8 +117,7 @@ static float gMissileCooldown = 0;
 #define LOFB_MISSILE_TURN	2.0f	// max turn rate (rad / second) -- low enough to juke
 #define LOFB_MISSILE_TTL	6000	// ms before it fizzles out
 #define LOFB_MISSILE_ARM_X	0.24f	// arm offset from the boss centre
-#define LOFB_MISSILE_CD		6500.0f	// launch interval (phase 2)
-#define LOFB_MISSILE_CD_P3	4500.0f	// launch interval (phase 3)
+#define LOFB_MISSILE_CD		6500.0f	// launch interval (they unlock at -75% HP)
 #define P_MISSILE_HEADING	0		// missile's own parameters[] slot (its heading)
 
 // Destructible arms. The two big side arms have their own HP; the homing missiles
@@ -408,8 +407,15 @@ static void LOFB_PushBeamSoft(float ox, float oy, float dx, float dy,
 		ubyte g  = (ubyte)(255.0f - m *  55.0f);
 		ubyte b  = 255;
 
-		float n0x = ox + px * p0,           n0y = oy + py * p0;
-		float n1x = ox + px * p1,           n1y = oy + py * p1;
+		// Rounded base: instead of a straight cut across the origin, each strip's
+		// near edge pulls back along -d by the circle's height at its lateral
+		// offset -- the six strips then trace a semicircular cap (capsule end).
+		float q0 = hw*hw - p0*p0;  if (q0 < 0) q0 = 0;
+		float q1 = hw*hw - p1*p1;  if (q1 < 0) q1 = 0;
+		float b0 = sqrtf(q0), b1 = sqrtf(q1);
+
+		float n0x = ox - dx * b0 + px * p0,  n0y = oy - dy * b0 + py * p0;
+		float n1x = ox - dx * b1 + px * p1,  n1y = oy - dy * b1 + py * p1;
 		float f0x = ox + dx * len + px * p0, f0y = oy + dy * len + py * p0;
 		float f1x = ox + dx * len + px * p1, f1y = oy + dy * len + py * p1;
 
@@ -661,7 +667,7 @@ void LOFB_DamageArm(int idx, int dmg)
 void updateLOFB(enemy_t* enemy)
 {
 	float t;
-	int phase;
+	int hpPct, frenzy;
 
 	enemy->parameters[P_TIME] += timediff;
 	t = enemy->parameters[P_TIME];
@@ -718,15 +724,18 @@ void updateLOFB(enemy_t* enemy)
 		return;
 	}
 
-	// Phase 1/2/3 by remaining HP. Phase 1 (triple-fan-only) is deliberately
-	// short now (top 15%) -- Fabien found it dragged; the varied attacks start
-	// almost right away.
-	phase = 1;
+	// Attack ladder by HP LOST (user-tuned): the fight opens on the aimed fan
+	// alone (the original short phase 1), then the attacks join ONE AT A TIME
+	// instead of everything arriving together at 85%:
+	//   -15%  the rotating spray ("tirs aleatoires")
+	//   -25%  escort waves
+	//   -50%  the big energy shots
+	//   -75%  the red homing seekers (from the arms)
+	// The last quarter doubles as the frenzy: wider fan, faster cadences.
+	hpPct = 100;
 	if (gBossMaxEnergy > 0)
-	{
-		if (enemy->energy <= (85 * gBossMaxEnergy) / 100) phase = 2;
-		if (enemy->energy <= (40 * gBossMaxEnergy) / 100) phase = 3;
-	}
+		hpPct = (100 * enemy->energy) / gBossMaxEnergy;
+	frenzy = (hpPct <= 25);
 
 	// The mega-laser runs on its own clock, independent of HP phases, so a beam
 	// shows up every ~30-45s whatever the boss's health.
@@ -780,16 +789,16 @@ void updateLOFB(enemy_t* enemy)
 	// the phase. (Escort minions already on-screen keep coming -- and get fried.)
 	if (gLaserState == LOFB_LASER_OFF)
 	{
-		// Attack 1: aimed fan at the nearest player (always on; widens in phase 3).
+		// Attack 1: aimed fan at the nearest player (always on; widens in the frenzy).
 		enemy->parameters[P_FAN_CD] -= timediff;
 		if (enemy->parameters[P_FAN_CD] <= 0)
 		{
-			LOFB_FireFan(enemy, phase == 3 ? 5 : 3, 0.22f);
-			enemy->parameters[P_FAN_CD] = 1700 - phase * 200;	// 1500 / 1300 / 1100 ms
+			LOFB_FireFan(enemy, frenzy ? 5 : 3, 0.22f);
+			enemy->parameters[P_FAN_CD] = frenzy ? 1100 : 1500;
 		}
 
-		// Attack 2 (phase 2+): twin rotating spiral, SHAB-style.
-		if (phase >= 2)
+		// Attack 2 (-15%): twin rotating spray, SHAB-style.
+		if (hpPct <= 85)
 		{
 			enemy->parameters[P_SPIRAL_CD] -= timediff;
 			if (enemy->parameters[P_SPIRAL_CD] <= 0)
@@ -798,13 +807,13 @@ void updateLOFB(enemy_t* enemy)
 				emitSHABBullet(enemy, a);
 				emitSHABBullet(enemy, a + (float)M_PI);
 				enemy->parameters[P_SPIRAL_ANGLE] = a + 0.75f;
-				enemy->parameters[P_SPIRAL_CD] = (phase == 3) ? 170 : 260;
+				enemy->parameters[P_SPIRAL_CD] = frenzy ? 170 : 260;
 			}
 		}
 
-		// Attack 3 (phase 2+): FHT escort waves -- three per side now (Fabien
-		// wanted twice as many gêneurs).
-		if (phase >= 2)
+		// Attack 3 (-25%): FHT escort waves -- three per side (Fabien wanted
+		// twice as many gêneurs).
+		if (hpPct <= 75)
 		{
 			enemy->parameters[P_MINION_CD] -= timediff;
 			if (enemy->parameters[P_MINION_CD] <= 0)
@@ -815,32 +824,32 @@ void updateLOFB(enemy_t* enemy)
 				LOFB_SpawnMinion( 1.0f, 0.60f);
 				LOFB_SpawnMinion(-1.0f, 0.30f);
 				LOFB_SpawnMinion( 1.0f, 0.30f);
-				enemy->parameters[P_MINION_CD] = (phase == 3) ? 5000 : 6500;
+				enemy->parameters[P_MINION_CD] = frenzy ? 5000 : 6500;
 			}
 		}
 
-		// Attack 4 (phase 2+): THE BIG SHOT -- a large, slower aimed orb.
-		if (phase >= 2)
+		// Attack 4 (-50%): THE BIG SHOT -- a large, slower aimed energy orb.
+		if (hpPct <= 50)
 		{
 			enemy->parameters[P_BIGSHOT_CD] -= timediff;
 			if (enemy->parameters[P_BIGSHOT_CD] <= 0)
 			{
 				LOFB_FireBigShot(enemy);
-				enemy->parameters[P_BIGSHOT_CD] = (phase == 3) ? 6000 : 8500;
+				enemy->parameters[P_BIGSHOT_CD] = frenzy ? 6000 : 8500;
 			}
 		}
 
-		// Attack 5 (phase 2+): each surviving arm launches a destructible homing
+		// Attack 5 (-75%): each surviving arm launches a destructible homing
 		// missile. Destroy an arm and that side goes quiet; destroy both and the
 		// homing missiles stop entirely.
-		if (phase >= 2 && (gArmAlive[0] || gArmAlive[1]))
+		if (hpPct <= 25 && (gArmAlive[0] || gArmAlive[1]))
 		{
 			gMissileCooldown -= timediff;
 			if (gMissileCooldown <= 0)
 			{
 				if (gArmAlive[0]) LOFB_FireMissile(enemy, -1.0f);
 				if (gArmAlive[1]) LOFB_FireMissile(enemy,  1.0f);
-				gMissileCooldown = (phase == 3) ? LOFB_MISSILE_CD_P3 : LOFB_MISSILE_CD;
+				gMissileCooldown = LOFB_MISSILE_CD;
 			}
 		}
 	}

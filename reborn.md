@@ -179,6 +179,20 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-14 — round 15 (boss pacing: attacks join one at a time)
+- **The boss's arsenal now unlocks as a ladder (v1.5.1)** instead of everything
+  arriving together at 85% HP: the fight opens on the aimed fan alone, then each
+  milestone of health LOST adds one attack — **−15%** the rotating spray, **−25%**
+  the escort waves, **−50%** the big energy shots, **−75%** the red homing seekers.
+  The last quarter doubles as the frenzy (wider fan, faster cadences). The
+  mega-laser keeps its own independent clock — its rhythm was judged right as is.
+- **Boss HP 3400 → 2500** (5000 in multiplayer): with the readable health bar and
+  the staged arsenal, the fight's length now comes from its pacing, not a sponge.
+- **The beam finally has a rounded base**: each of the beam's six alpha strips now
+  pulls its near edge back along a semicircle, so the laser starts as a capsule
+  cap instead of a flat cut. Same trick as everything else in this fight's VFX:
+  pure per-vertex geometry on the white texel, no new art.
+
 ### 2026-08-14 — round 14 (the return leg stays on the corridor)
 - **Fixed the off-axis return (v1.5.0)**: the round-13 U-turn worked, but the flight
   back drifted sideways — half the screen slid into the dark, then all of it. The

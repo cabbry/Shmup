@@ -39,6 +39,7 @@
 #include "enemy_particules.h"
 #include "renderer.h"
 #include "native_services.h"
+#include "titles.h"
 
 //WARNING...if THIS IS CHANGED
 unsigned char numPlayerRespawn[] = {PLAYER_NUM_LIVES,3,1};
@@ -919,7 +920,12 @@ void PL_RenderPlayerPointers(void)
 	
 	if (!entitiesAttachedToCamera)
 		return;
-	
+
+	// The end-of-game card owns the frame: no score row, no lives, no leftovers
+	// from the fight on top of it.
+	if (TITLE_IsEndOfGameScreen())
+		return;
+
 	spriteVertice = &diverSpriteLib.vertices[diverSpriteLib.numVertices];
 
 	// Lives row: align with the score (same iOS safe-area anchor) and squash the

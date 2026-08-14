@@ -198,6 +198,113 @@ void TITLE_Show_epilog(int tr)
 	SCR_SetFadeScreenCoo(upperLeft,upperRight,lowerRight,lowerLeft);
 }
 
+// The epilog of the LAST act is the end of the game: it gets its own full-screen
+// ending card (see TITLE_RenderEndOfGame) instead of the per-act "completed"
+// stats strip, and it holds much longer so the run's numbers can be read.
+static int TITLE_IsLastAct(void)
+{
+	return (engine.sceneId == engine.numScenes - 1);
+}
+
+int TITLE_IsEndOfGameScreen(void)
+{
+	return (timeRemaining > 0 && title_mode == MODE_EPILOG && TITLE_IsLastAct());
+}
+
+// Fade the ending card in over a fixed time (not a fraction of the duration, so
+// making the screen last longer doesn't make it fade in slower), and back out at
+// the very end so the return to the menu isn't a hard cut.
+#define END_FADE_IN_MS  1200.0f
+#define END_FADE_OUT_MS 1000.0f
+static float TITLE_EndOfGameAlpha(void)
+{
+	float alpha = (initTimeRemaining - timeRemaining) / END_FADE_IN_MS;
+	float out;
+
+	if (alpha > 1.0f)
+		alpha = 1.0f;
+
+	if (timeRemaining < END_FADE_OUT_MS)
+	{
+		out = timeRemaining / END_FADE_OUT_MS;
+		if (out < alpha)
+			alpha = out;
+	}
+
+	return (alpha < 0.0f) ? 0.0f : alpha;
+}
+
+// Rank: mostly "did you clear the map", with accuracy and the difficulty level
+// as the tie-breakers (rapid fire keeps raw accuracy low, so it weighs less).
+static const char* TITLE_Rank(float accuracy, float cleared)
+{
+	float grade = cleared * 0.75f + accuracy * 0.25f + engine.difficultyLevel * 5.0f;
+
+	if (grade >= 85) return "S";
+	if (grade >= 70) return "A";
+	if (grade >= 55) return "B";
+	if (grade >= 40) return "C";
+	return "D";
+}
+
+static const char* TITLE_DifficultyName(void)
+{
+	switch (engine.difficultyLevel)
+	{
+		case DIFFICULTY_EASY:   return "EASY";
+		case DIFFICULTY_INSANE: return "INSANE";
+		default:                return "NORMAL";
+	}
+}
+
+static void TITLE_RenderEndOfGame(void)
+{
+	char line[64];
+	int fired	= engine.playerStats.bulletsFired[controlledPlayer];
+	int hits	= engine.playerStats.bulletsHit[controlledPlayer];
+	float accuracy	= (fired > 0) ? (hits / (float)fired * 100.0f) : 0.0f;
+	float cleared	= (engine.playerStats.numEnemies > 0)
+					? (engine.playerStats.enemyDestroyed[controlledPlayer] / engine.playerStats.numEnemies * 100.0f)
+					: 0.0f;
+	// Whole card sits below the iOS safe area (status bar / notch / Dynamic
+	// Island), same anchor as the score line and the act-title card.
+	short off = (short)(renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]));
+
+	if (cleared > 100.0f)
+		cleared = 100.0f;
+
+	SCR_StartConvertText();
+
+	SCR_ConvertTextToVertices("MISSION COMPLETE",3.6f,0,300-off,TEXT_CENTERED);
+	SCR_ConvertTextToVertices("THE CITY IS SAFE",2.2f,0,240-off,TEXT_CENTERED);
+
+	sprintf(line,"Difficulty:  %6s",TITLE_DifficultyName());
+	SCR_ConvertTextToVertices(line,2.6f,-200,150-off,TEXT_NOT_CENTERED);
+
+	sprintf(line,"Bullets fired:  %4d",fired);
+	SCR_ConvertTextToVertices(line,2.6f,-200,100-off,TEXT_NOT_CENTERED);
+
+	sprintf(line,"Bullet # hits:  %4d",hits);
+	SCR_ConvertTextToVertices(line,2.6f,-200,50-off,TEXT_NOT_CENTERED);
+
+	sprintf(line,"Accuracy:      %3.0f%%",accuracy);
+	SCR_ConvertTextToVertices(line,2.6f,-200,0-off,TEXT_NOT_CENTERED);
+
+	sprintf(line,"Enemy cleared: %3.0f%%",cleared);
+	SCR_ConvertTextToVertices(line,2.6f,-200,-50-off,TEXT_NOT_CENTERED);
+
+	sprintf(line,"Total Score:  %6d",players[controlledPlayer].score);
+	SCR_ConvertTextToVertices(line,2.6f,-200,-100-off,TEXT_NOT_CENTERED);
+
+	sprintf(line,"RANK  %s",TITLE_Rank(accuracy,cleared));
+	SCR_ConvertTextToVertices(line,4.0f,0,-190-off,TEXT_CENTERED);
+
+	SCR_ConvertTextToVertices("THANK YOU FOR PLAYING",2.2f,0,-290-off,TEXT_CENTERED);
+	SCR_ConvertTextToVertices("SHMUP REBORN",2.2f,0,-330-off,TEXT_CENTERED);
+
+	SCR_RenderText();
+}
+
 void TITLE_RenderCompletedTitle(void)
 {
 	renderer.SetTexture(pointersTexture.textureId);
@@ -222,18 +329,32 @@ void TITLE_Render(void)
 	
 	
 	renderer.Set2D();
-	
-	
-	
+
+
+
 	renderer.SetMaterialTextureBlending(1);
-	
-	
-	
+
+
+
+	// End of the game: its own card, on a FULL-screen veil (the per-act epilog only
+	// dims the title strip at the top) so the numbers read against the victory lap
+	// still playing behind. FadeScreen writes its own vertex alpha, so the fade-in
+	// has to be folded into the veil's alpha as well as into SetTransparency.
+	if (TITLE_IsEndOfGameScreen())
+	{
+		float endAlpha = TITLE_EndOfGameAlpha();
+		SCR_SetFadeFullScreen();
+		renderer.SetTransparency(endAlpha);
+		renderer.FadeScreen(0.82f * endAlpha);
+		TITLE_RenderEndOfGame();
+		return;
+	}
+
 	renderer.SetTransparency((1-timeRemaining/initTimeRemaining)*4);
-	
+
 	renderer.FadeScreen(0.4);
-	
-	
+
+
 	//Render the title
 	renderer.SetTexture(titleTexture.textureId);
 	{

@@ -921,8 +921,10 @@ void LOFB_OnBossDeath(enemy_t* enemy)
 	// End-of-act choreography, same as the other acts: the ships fly to their
 	// rest position and the epilog title shows; when it ends, TITLE_Update calls
 	// dEngine_GoToNextScene (which, act 3 being the last act, returns to the menu).
+	// Act 3 being the END OF THE GAME, its epilog is the ending card (drawn by
+	// TITLE_RenderEndOfGame) and holds long enough to read the run's numbers.
 	EV_AutoPilotPls(0);
-	TITLE_Show_epilog(7000);
+	TITLE_Show_epilog(16000);
 
 	gBossHudStamp = -100000;	// hide the health bar right away
 	gLaserState   = LOFB_LASER_OFF;	// kill any beam in flight

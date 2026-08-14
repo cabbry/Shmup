@@ -141,6 +141,7 @@
 #include "enemy_particules.h"
 #include "lofb.h"
 #include "globals.h"
+#include "titles.h"
 
 plan_t unitCubePlans[6];
 
@@ -415,6 +416,12 @@ void COLL_CheckPlayers(void)
 	// stray bullets used to "kill" it again and end the multiplayer match while
 	// the other player was still alive.
 	if (players[controlledPlayer].respawnCounter <= 0 && players[controlledPlayer].shouldDraw == 0)
+		return;
+
+	// The game is WON: no stray escort bullet gets to turn the ending card into a
+	// GAME OVER while the ships fly their victory lap. (Both sims evaluate the
+	// same title state, so multiplayer stays in step.)
+	if (TITLE_IsEndOfGameScreen())
 		return;
 
 	for (j=0; j < partLib.numParticules; j++)

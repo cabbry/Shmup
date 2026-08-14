@@ -35,6 +35,9 @@ void TITLE_Show_epilog(int dr);
 void TITLE_Render(void);
 void TITLE_Update(void);
 void TITLE_Clear(void);
+// True while the end-of-game card (last act's epilog) is on screen: it owns the
+// whole frame, so the in-game HUD steps aside.
+int TITLE_IsEndOfGameScreen(void);
 
 extern texture_t titleTexture;
 #define MODE_PROLOG 0

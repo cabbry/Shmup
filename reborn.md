@@ -179,6 +179,25 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-13 — round 13 (the U-turn, where it actually belongs)
+- **The city turns around and scrolls back — without touching the flight (v1.4.9)**.
+  The act flies its shipped **baked** rail, opening included: nothing re-authored.
+  Live decor culling now switches on at exactly **one** point — when the rail runs
+  out. That is the only place the 2010 bake stops being usable (frozen on its last
+  frame), and measured on device it is where the decor collapsed to a single drawn
+  entity. From there the camera is free, so the act flies a real patrol: it settles
+  out of the rail's outro pose, turns a **true 180°**, flies a long leg back over
+  the city already flown, turns again, and repeats — bounded by the stretch actually
+  flown, so it can never sail out of the built world.
+- *The lesson from three failed builds*: applying live culling to the **whole** act
+  is what made act 3 black. The sky domes enclose the camera, so no per-entity
+  frustum test can ever reject them — and unfogged, drawn every frame, they painted
+  night sky over the entire city. Scope the freedom to where the constraint actually
+  binds, and leave the working 95% alone.
+- **Act 3 is no longer needlessly dark**: its fog ramp started at the camera while
+  act 2's starts at 70 units, costing the city ~18% of its texture for nothing.
+  Now measured at parity — 46 against act 2's 44.
+
 ### 2026-08-13 — round 12 (the sky was painted over the city)
 - **Act 3 was black from the first second (v1.4.7 fixes it)**. The map's three
   "background entities" are sky domes, and they *enclose* the camera — so a

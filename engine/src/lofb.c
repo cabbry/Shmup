@@ -195,6 +195,11 @@ static void LOFB_SpawnMinion(float side, float startX)
 	ev.type = EV_SPAWN_ENEMY;
 	ev.payload = &pl;
 	EV_SpawnEnemy(&ev);
+
+	// The end-of-act "Enemy cleared" ratio divides kills by ENE_Precache's count
+	// of the SCRIPTED spawns -- reinforcements spawned here at runtime were kills
+	// the denominator never knew about, so long fights read over 100%.
+	engine.playerStats.numEnemies++;
 }
 
 // Launch one homing missile from an arm (side = -1 left, +1 right). It spawns as
@@ -219,6 +224,8 @@ static void LOFB_FireMissile(enemy_t* enemy, float side)
 	ev.type = EV_SPAWN_ENEMY;
 	ev.payload = &pl;
 	EV_SpawnEnemy(&ev);
+
+	engine.playerStats.numEnemies++;	// same bookkeeping as LOFB_SpawnMinion
 }
 
 // A boss homing missile: pops out at a body launch port, then steers toward the nearest

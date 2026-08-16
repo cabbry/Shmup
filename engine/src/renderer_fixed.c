@@ -661,12 +661,47 @@ void RenderEntitiesF(void)
 	if (gRuntimeCullMap)
 		glDepthMask(GL_FALSE);
 
+	// Under live culling, draw ONLY the dome nearest to the camera. The domes
+	// overlap along the corridor and are drawn without depth writes, so with
+	// all of them submitted the LAST one painted wins per pixel -- and a far
+	// dome's near-black rim would wipe the sky the near dome just drew (the
+	// "blue, then black" sky of the first TTB side view on device). The baked
+	// path never had the problem: the bake dropped far domes' faces.
+	{
+		int nearestDome = -1;
+
+		if (gRuntimeCullMap && numBackgroundEntities > 1)
+		{
+			float bestD2 = 0;
+			for(i=0; i < numBackgroundEntities; i++)
+			{
+				// bbox_t is the 8 world-space corners: centroid = their mean.
+				float cxd = 0, czd = 0, d2;
+				int   c;
+				for (c = 0; c < 8; c++)
+				{
+					cxd += map[i].worldSpacebbox[c][0];
+					czd += map[i].worldSpacebbox[c][2];
+				}
+				cxd = cxd * 0.125f - camera.position[0];
+				czd = czd * 0.125f - camera.position[2];
+				d2  = cxd*cxd + czd*czd;
+				if (nearestDome < 0 || d2 < bestD2)
+				{
+					bestD2 = d2;
+					nearestDome = i;
+				}
+			}
+		}
+
 	for(i=0; i < numBackgroundEntities; i++)
 	{
 		entity = &map[i];
 
 		if (gRuntimeCullMap)
 		{
+			if (nearestDome >= 0 && i != nearestDome)
+				continue;
 			if (COLL_CheckBoxAgainstFrustrum(entity->worldSpacebbox,cullFrustrum) == INT_OUT)
 				continue;
 			cullDrawn++;
@@ -684,6 +719,7 @@ void RenderEntitiesF(void)
 
 		RenderEntityF(entity);
 	}
+	}	// nearestDome scope
 
 	if (gRuntimeCullMap)
 	{

@@ -193,12 +193,23 @@ to the true screen edges, and the touch-coordinate mapping.
   simulation-driven angle on both lockstep peers), the capsule sprite rotates
   with them from its center, and the hitbox AABB wraps the rotated capsule.
   Upright, all three reduce exactly to the original code.
-- **The sky was blue, then black** (device screenshot): the side view looks
-  straight at act 1's sky domes, and the flight crosses dawn → evening → night —
-  the evening/night domes are near-black up high. Top-down, that sky is never
-  on screen; nobody had ever seen it. Act 3 now has its own **`act3.map`**:
-  act 1's map with the blue dawn dome in all three sky slots (same entities,
-  same order — the rail's baked visibility stays aligned).
+- **The sky was blue, then black** (device screenshot): two causes, both
+  invisible from the top-down view that had covered this sky for 16 years.
+  (1) Act 1 stages dawn → evening → night with three overlapping domes; under
+  live culling they are all drawn, without depth writes, so the LAST dome
+  painted wins per pixel — and a far dome's near-black rim wiped the sky the
+  near dome had just drawn. The skybox path now draws **only the dome nearest
+  the camera**. (2) The remaining sky was the evening dome — handsome deep
+  blue with a sunset streak, exactly "夕 -Dusk". The act keeps it everywhere:
+  **`act3.map`** puts a new **`SkyDome_DuskStars`** dome (the evening mesh
+  under its own shader name) in all three sky slots. Same entity count and
+  order, so the act-1 rail's baked visibility stays aligned.
+- **🆕 Stars** (user's ask — "si le bleu est foncé, on rajouterait pas des
+  étoiles ?"): `SkyDome_DuskStars.png` = the evening texture plus a generated
+  240-star field — seeded, denser and brighter toward the zenith where the
+  blue is deepest, skipped over the sunset streak and bright clouds, a handful
+  of glow-halo stars among pinpricks. Act 1's own sky is untouched (new
+  shader + material entry, PVR/low-quality falls back to the starless dome).
 - Known cosmetics left for the enemy round: the muzzle flash still sits above
   the ship in side view, and the ghosts' fan is still screen-up.
 - **Process change (user's ask): no more TestFlight builds without an explicit

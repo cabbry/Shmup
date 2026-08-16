@@ -28,3 +28,7 @@ newmtl cityBlue
 map_Kd data/textures/act1/cityBlue.png
 hasAlpha 0
 illum 10
+newmtl SkyDome_DuskStars
+map_Kd data/textures/act1/SkyDome_DuskStars.png
+hasAlpha 0
+illum 10

@@ -7,7 +7,7 @@ matrix
 	0  0 1 0
 	0  0 0 1
 }
-entities MD5 { model	data/models/act1/skydome.obj.md5mesh }
+entities MD5 { model	data/models/act1/SkyDome_DuskStars.obj.md5mesh }
 
 matrix
 {
@@ -16,7 +16,7 @@ matrix
 	0  0 1 -20000
 	0  0 0 1
 }
-entities MD5 { model	data/models/act1/skydome.obj.md5mesh }
+entities MD5 { model	data/models/act1/SkyDome_DuskStars.obj.md5mesh }
 
 matrix
 {
@@ -25,7 +25,7 @@ matrix
 	0  0 1 -40000
 	0  0 0 1
 }
-entities MD5 { model	data/models/act1/skydome.obj.md5mesh }
+entities MD5 { model	data/models/act1/SkyDome_DuskStars.obj.md5mesh }
 
 matrix
 {

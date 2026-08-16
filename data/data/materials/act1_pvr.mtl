@@ -21,3 +21,6 @@ illum 10
 newmtl cityBlue
 map_Kd data/texturesPVR/act1/cityBlue_4bbp.pvr
 illum 10
+newmtl SkyDome_DuskStars
+map_Kd data/texturesPVR/act1/SkyDome_Evening.pvr
+illum 10

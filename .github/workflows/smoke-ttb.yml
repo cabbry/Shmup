@@ -1,0 +1,149 @@
+name: Smoke test the TTB act (act 3)
+
+# Proof-before-build for the TTB beat, in the iOS Simulator (no TestFlight
+# build consumed). Jumps straight into scene 3, lets the act run through the
+# side view (40s..76s of SIMULATION time -- the Simulator is slower than
+# wall-clock, so we poll the engine's own [cull] trace instead of sleeping),
+# then asserts on the numbers the renderer measures itself:
+#   - live=1 lines exist            -> the beat engaged live culling
+#   - top>=15 on t in [45s..70s]    -> the upper-screen sky band is NOT black
+#   - luma>=15 on those lines       -> the city still renders under it
+# (Simulator screenshots do not capture the GL layer; the trace is the only
+# honest witness -- same technique as smoke-boss.yml.)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build (iphonesimulator, arm64, no signing)
+        working-directory: engine/iOS
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project dEngine.xcodeproj \
+            -target Shmup \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -arch arm64 \
+            SYMROOT="$PWD/build" \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            GCC_TREAT_WARNINGS_AS_ERRORS=NO \
+            OTHER_CFLAGS='$(inherited) -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-function-pointer-types -Wno-error=incompatible-pointer-types' \
+            build | tail -5
+
+      - name: Boot a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone (1[5-9]|SE)" | head -1 | grep -oE "[0-9A-F-]{36}")
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
+          fi
+          echo "Using simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Launch scene 3 with the cull trace + file log
+        id: run
+        run: |
+          APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+          UDID="${{ steps.sim.outputs.udid }}"
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch \
+            --terminate-running-process "$UDID" "$BUNDLE_ID" || true
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 \
+            SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
+            SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
+            xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
+            > "$RUNNER_TEMP/ttb.log" 2>&1 &
+          echo "bundle=$BUNDLE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the side view and assert on the trace
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="${{ steps.run.outputs.bundle }}"
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
+          START=$(date +%s)
+
+          # the engine file log lands in Documents (SHMUP_LOG_FILE=1)
+          for i in $(seq 1 90); do
+            LOG=$(ls "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+            [ -z "$LOG" ] && LOG="$RUNNER_TEMP/ttb.log"
+
+            # the beat is over once a live=1 line has sim-t past 70s
+            DONE=$(grep "cull] scene=3 live=1" "$LOG" 2>/dev/null | awk '{for(f=1;f<=NF;f++) if ($f ~ /^t=/) {sub("t=","",$f); if ($f+0>70000) print}}' | head -1)
+            N=$(grep -c "cull] scene=3 live=1" "$LOG" 2>/dev/null || echo 0)
+            MIN=$((($(date +%s)-START)/60))
+            echo "[$MIN min] live-cull samples so far: $N"
+            if [ -n "$DONE" ]; then
+              echo "beat completed (sim-t past 70s)"
+              break
+            fi
+            if [ "$MIN" -ge 25 ]; then
+              echo "::error::Timed out before the beat finished. Log tail:"
+              tail -40 "$LOG" || true
+              exit 1
+            fi
+            sleep 20
+          done
+
+          LOG=$(ls "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+          [ -z "$LOG" ] && LOG="$RUNNER_TEMP/ttb.log"
+          cp "$LOG" ttb-trace.log
+
+          echo "=== all live=1 lines ==="
+          grep "cull] scene=3 live=1" ttb-trace.log || true
+
+          # assertions on the heart of the side view (sim-t 45s..70s)
+          BAD_TOP=0; BAD_CITY=0; SAMPLES=0
+          while read -r line; do
+            T=$(echo "$line"    | grep -oE " t=[0-9]+"   | grep -oE "[0-9]+")
+            TOP=$(echo "$line"  | grep -oE "top=[0-9]+"  | grep -oE "[0-9]+")
+            LUMA=$(echo "$line" | grep -oE " luma=[0-9]+" | grep -oE "[0-9]+")
+            [ -z "$T" ] && continue
+            if [ "$T" -ge 45000 ] && [ "$T" -le 70000 ]; then
+              SAMPLES=$((SAMPLES+1))
+              [ "${TOP:-0}"  -lt 15 ] && BAD_TOP=$((BAD_TOP+1))
+              [ "${LUMA:-0}" -lt 15 ] && BAD_CITY=$((BAD_CITY+1))
+            fi
+          done < <(grep "cull] scene=3 live=1" ttb-trace.log)
+
+          echo "samples in [45s,70s]: $SAMPLES  black-top: $BAD_TOP  black-city: $BAD_CITY"
+          if [ "$SAMPLES" -lt 3 ]; then
+            echo "::error::Too few live samples in the side-view window."
+            exit 1
+          fi
+          if [ "$BAD_TOP" -gt $((SAMPLES / 4)) ]; then
+            echo "::error::The upper-screen sky band still reads black during the side view."
+            exit 1
+          fi
+          if [ "$BAD_CITY" -gt $((SAMPLES / 4)) ]; then
+            echo "::error::The city is not rendering during the side view."
+            exit 1
+          fi
+          echo "SKY AND CITY BOTH PRESENT THROUGH THE SIDE VIEW."
+
+      - name: Upload the trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ttb-trace
+          path: ttb-trace.log
+          if-no-files-found: ignore

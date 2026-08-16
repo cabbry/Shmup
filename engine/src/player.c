@@ -443,8 +443,15 @@ void P_FireBullet(player_t* player,float deltaX, float deltaY)
 	
 	
 	
-	spawningPos[X] = player->ss_position[X]*SS_W + deltaX;
-	spawningPos[Y] = player->ss_position[Y]*SS_H + deltaY;
+	// TTB: the twin-gun spawn offsets live in ship-local space (right, up);
+	// rotate them with the beat so the guns fire from the nose side, not from
+	// "above the ship" while the ship is in profile. Upright (sin 0 / cos 1)
+	// this is the original sum exactly.
+	{
+		float ts = sinf(camera.ttbAngle), tc = cosf(camera.ttbAngle);
+		spawningPos[X] = player->ss_position[X]*SS_W + deltaX * tc + deltaY * ts;
+		spawningPos[Y] = player->ss_position[Y]*SS_H - deltaX * ts + deltaY * tc;
+	}
 	
 	bullet->spawnedY = spawningPos[Y];
 	bullet->spawnedX = spawningPos[X];
@@ -625,12 +632,14 @@ void P_Update(void)
 				}
 				else
 				{
-					// Profile pose in VIEW space (column-major, like fromAbove):
-					// nose (model Z) -> screen-right (flipped with the angle's
-					// sign), ship's BACK (model -Y: fromAbove sends +Y away from
-					// the camera, so -Y is the side the top-down view shows) ->
-					// screen-up; det stays +1 via c2 = c0 x c1 after the blend.
-					// v1.5.7 sent +Y up -- the ship flew on its back on device.
+					// Profile pose, PROVEN on the ship_rig harness (the real
+					// matrix pipeline -- matrix.c + gluLookAt + this very blend
+					// -- with extremity probes on the p1 mesh). Ground truth
+					// from the shipped top-down view: the model's NOSE is -Z
+					// and its visible top is +Y; both earlier guesses (v1.5.7
+					// flew backwards, v1.5.8 on its back) had them inverted.
+					// Of the four sign candidates only this one lands top-up
+					// AND nose leading toward the decor flow.
 					float sgn = (camera.ttbAngle >= 0) ? 1.0f : -1.0f;
 					float c0[3], c1[3], c2[3];
 					matrix_t blended;
@@ -640,13 +649,13 @@ void P_Update(void)
 					if (f > 1.0f) f = 1.0f;
 
 					// fromAbove columns: c0=(1,0,0) c1=(0,0,-1) c2=(0,1,0)
-					// profile   columns: c0=(0,0,sgn) c1=(0,-1,0) c2=(sgn,0,0)
+					// profile   columns: c0=(0,0,sgn) c1=(0,1,0) c2=c0xc1=(-sgn,0,0)
 					c0[0] = 1.0f + (0.0f - 1.0f) * f;
 					c0[1] = 0.0f;
 					c0[2] = 0.0f + (sgn - 0.0f) * f;
 
 					c1[0] = 0.0f;
-					c1[1] = 0.0f + (-1.0f - 0.0f) * f;
+					c1[1] = 0.0f + (1.0f - 0.0f) * f;
 					c1[2] = -1.0f + (0.0f - -1.0f) * f;
 
 					len = sqrtf(c0[0]*c0[0] + c0[1]*c0[1] + c0[2]*c0[2]);
@@ -1152,70 +1161,56 @@ void P_PrepareBulletSprites(void)
 		//doesn't stay lit on-screen during the resume countdown.
 		if (timediff && player->firingUpTo >= simulationTime)
 		{
-			
+			// TTB: the two muzzle flames are authored in ship-local space
+			// (right = gun spread, up = flame length) and rotated with the
+			// beat, like the bullets -- v1.5.8 left them pointing up-screen
+			// while the ship was in profile, so the shots seemed to spawn
+			// above the ship. Upright this is the original layout exactly.
+			float ts = sinf(camera.ttbAngle), tc = cosf(camera.ttbAngle);
+			float shipX = player->ss_position[X] * SS_W;
+			float shipY = player->ss_position[Y] * SS_H;
+			float fh;
+			int   gun;
+
 			flashInterpolation = 1- (player->firingUpTo - simulationTime) / (float)bulletConfig.msBetweenBullets;
-			
-			flashY =	player->ss_position[Y] * SS_H + bulletConfig.flashScreenSpaceYDelta ;
-			leftFlashX =player->ss_position[X] * SS_W  - bulletConfig.flashScreenSpaceXDelta ; 
-			rightFlashX=player->ss_position[X] * SS_W  + bulletConfig.flashScreenSpaceXDelta ; 
-			
-			bulSprite->pos[X] = leftFlashX - bulletConfig.flashHalfWidth  ;
-			bulSprite->pos[Y] = flashY  ;
-			bulSprite->text[X] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX);
-			bulSprite->text[Y] = (64.0f/128*SHRT_MAX) +  (32.0f/128*SHRT_MAX) + player->lastBulletType* (32.0f/128*SHRT_MAX);
-			bulSprite++;
-			
-			bulSprite->pos[X] = leftFlashX - bulletConfig.flashHalfWidth  ;
-			bulSprite->pos[Y] = flashY + bulletConfig.flashHeight * flashInterpolation / gVScale ;
-			bulSprite->text[X] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX);
-			bulSprite->text[Y] = (64.0f/128*SHRT_MAX) + player->lastBulletType* (32.0f/128*SHRT_MAX);
-			bulSprite++;
-			
-			
-			bulSprite->pos[X] = leftFlashX + bulletConfig.flashHalfWidth  ;
-			bulSprite->pos[Y] = flashY + bulletConfig.flashHeight * flashInterpolation / gVScale;
-			bulSprite->text[X] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX) + (24.0f/128*SHRT_MAX);
-			bulSprite->text[Y] = (64.0f/128*SHRT_MAX) + player->lastBulletType* (32.0f/128*SHRT_MAX);
-			bulSprite++;
-			
-			bulSprite->pos[X] = leftFlashX + bulletConfig.flashHalfWidth  ;
-			bulSprite->pos[Y] = flashY  ;
-			bulSprite->text[X] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX) + (24.0f/128*SHRT_MAX);
-			bulSprite->text[Y] = (64.0f/128*SHRT_MAX) + (32.0f/128*SHRT_MAX) + player->lastBulletType* (32.0f/128*SHRT_MAX);
-			bulSprite++;
-	
-						
-			
-			
-			
-			bulSprite->pos[X] = rightFlashX - bulletConfig.flashHalfWidth  ;
-			bulSprite->pos[Y] = flashY   ;
-			bulSprite->text[X] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX);
-			bulSprite->text[Y] = (64.0f/128*SHRT_MAX) +  (32.0f/128*SHRT_MAX) + player->lastBulletType* (32.0f/128*SHRT_MAX);
-			bulSprite++;
-			
-			bulSprite->pos[X] = rightFlashX - bulletConfig.flashHalfWidth  ;
-			bulSprite->pos[Y] = flashY + bulletConfig.flashHeight * flashInterpolation / gVScale  ;
-			bulSprite->text[X] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX);
-			bulSprite->text[Y] = (64.0f/128*SHRT_MAX) + player->lastBulletType* (32.0f/128*SHRT_MAX);
-			bulSprite++;
-			
-			
-			bulSprite->pos[X] = rightFlashX + bulletConfig.flashHalfWidth  ;
-			bulSprite->pos[Y] = flashY + bulletConfig.flashHeight * flashInterpolation / gVScale ;
-			bulSprite->text[X] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX) + (24.0f/128*SHRT_MAX);
-			bulSprite->text[Y] = (64.0f/128*SHRT_MAX) + player->lastBulletType* (32.0f/128*SHRT_MAX);
-			bulSprite++;
-			
-			bulSprite->pos[X] = rightFlashX + bulletConfig.flashHalfWidth  ;
-			bulSprite->pos[Y] = flashY  ;
-			bulSprite->text[X] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX) + (24.0f/128*SHRT_MAX);
-			bulSprite->text[Y] = (64.0f/128*SHRT_MAX) + (32.0f/128*SHRT_MAX) + player->lastBulletType* (32.0f/128*SHRT_MAX);
-			bulSprite++;
-			
+			fh = bulletConfig.flashHeight * flashInterpolation / gVScale;
+
+			for (gun = 0; gun < 2; gun++)
+			{
+				// local corner offsets (a = right, b = up), original order
+				float gx = (gun == 0) ? -bulletConfig.flashScreenSpaceXDelta
+									  :  bulletConfig.flashScreenSpaceXDelta;
+				float a[4], b[4];
+				int   c;
+				short texU[4], texV[4];
+
+				a[0] = gx - bulletConfig.flashHalfWidth;	b[0] = bulletConfig.flashScreenSpaceYDelta;
+				a[1] = gx - bulletConfig.flashHalfWidth;	b[1] = bulletConfig.flashScreenSpaceYDelta + fh;
+				a[2] = gx + bulletConfig.flashHalfWidth;	b[2] = bulletConfig.flashScreenSpaceYDelta + fh;
+				a[3] = gx + bulletConfig.flashHalfWidth;	b[3] = bulletConfig.flashScreenSpaceYDelta;
+
+				texU[0] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX);
+				texV[0] = (64.0f/128*SHRT_MAX) + (32.0f/128*SHRT_MAX) + player->lastBulletType*(32.0f/128*SHRT_MAX);
+				texU[1] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX);
+				texV[1] = (64.0f/128*SHRT_MAX) + player->lastBulletType*(32.0f/128*SHRT_MAX);
+				texU[2] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX) + (24.0f/128*SHRT_MAX);
+				texV[2] = (64.0f/128*SHRT_MAX) + player->lastBulletType*(32.0f/128*SHRT_MAX);
+				texU[3] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX) + (24.0f/128*SHRT_MAX);
+				texV[3] = (64.0f/128*SHRT_MAX) + (32.0f/128*SHRT_MAX) + player->lastBulletType*(32.0f/128*SHRT_MAX);
+
+				for (c = 0; c < 4; c++)
+				{
+					bulSprite->pos[X] = shipX + a[c] * tc + b[c] * ts;
+					bulSprite->pos[Y] = shipY - a[c] * ts + b[c] * tc;
+					bulSprite->text[X] = texU[c];
+					bulSprite->text[Y] = texV[c];
+					bulSprite++;
+				}
+			}
+
 			numPBulletsIndices += 12;
-			
-			
+
+
 		}
 		
       //  char bulletdiagnostic[MAX_PLAYER_BULLETS+1+3];

@@ -156,8 +156,16 @@ void Set2DF(void)
 
 void Set3DF(void)
 {
+	// Clear to the scene's fog colour, not black: any pixel no geometry reaches
+	// (the sliver between the city's silhouette and the sky dome's skirt in the
+	// TTB side view) then reads as more fog instead of a hard black band.
+	if (engine.fogEnabled)
+		glClearColor(renderer.fogColor[0], renderer.fogColor[1], renderer.fogColor[2], 1.0f);
+	else
+		glClearColor(0, 0, 0, 1.0f);
+
 	//SCrew the iPod 2nd generation !! It seems that color gets cleaned anyway.....with PINK !!?!?!
-	glClear (GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT); 
+	glClear (GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 	//glClear (GL_DEPTH_BUFFER_BIT); 
 	
 	glEnable(GL_DEPTH_TEST);
@@ -802,6 +810,7 @@ void RenderEntitiesF(void)
 			// capture the GL layer, so this number is the only honest witness.
 			uchar px[16*16*4];
 			int   k, sum = 0;
+			int   topLuma;
 			int   cx = renderer.glBuffersDimensions[WIDTH] / 2 - 8;
 			int   cy = renderer.glBuffersDimensions[HEIGHT] / 2 - 8;
 			glReadPixels(cx, cy, 16, 16, GL_RGBA, GL_UNSIGNED_BYTE, px);
@@ -809,14 +818,23 @@ void RenderEntitiesF(void)
 				sum += px[k*4] + px[k*4+1] + px[k*4+2];
 			decorLuma = sum / (16*16*3);
 
+			// The UPPER quarter of the screen: where the TTB side view's sky
+			// band lives (GL y grows upward). Black there = the dome's skirt
+			// bug; the dusk dome should read ~30-90.
+			glReadPixels(cx, renderer.glBuffersDimensions[HEIGHT] * 4 / 5, 16, 16, GL_RGBA, GL_UNSIGNED_BYTE, px);
+			sum = 0;
+			for (k = 0; k < 16*16; k++)
+				sum += px[k*4] + px[k*4+1] + px[k*4+2];
+			topLuma = sum / (16*16*3);
+
 			cullLogTick = 0;
-			Log_Printf("[cull] scene=%d live=%d t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d sky=%d luma=%d\n",
+			Log_Printf("[cull] scene=%d live=%d t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d sky=%d luma=%d top=%d\n",
 					   engine.sceneId, gRuntimeCullMap,
 					   simulationTime,
 					   camera.position[0], camera.position[1], camera.position[2],
 					   camera.forward[0], camera.forward[1], camera.forward[2],
 					   camera.up[0], camera.up[1], camera.up[2],
-					   cullDrawn, num_map_entities, cullIds, cullTris, skyLuma, decorLuma);
+					   cullDrawn, num_map_entities, cullIds, cullTris, skyLuma, decorLuma, topLuma);
 			// Which entities survived matters more than how many: ids 0..2 are the
 			// sky domes (numBackgroundEntities), so "only sky" means the camera is
 			// pointed away from the city -- a black screen with a valid cull.

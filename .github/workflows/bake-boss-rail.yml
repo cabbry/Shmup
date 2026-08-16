@@ -1,4 +1,4 @@
-name: Bake act-3 camera path
+name: Bake the boss-act camera path
 
 # Recompiles data/cameraPath/act3boss.cp into its .cp2b (visibility bake
 # included) by running the game in the iOS Simulator with SHMUP_BAKE_SCENE=3:
@@ -29,8 +29,8 @@ on:
   workflow_dispatch:
     inputs:
       scene:
-        description: "Scene id to load (3 = act 3 boss)"
-        default: "3"
+        description: "Scene id to load (4 = the boss act)"
+        default: "4"
 
 jobs:
   bake:
@@ -47,8 +47,8 @@ jobs:
 
       - name: Point act3 at the TEXT rail (bake input)
         run: |
-          sed -i '' 's|data/cameraPath/act3boss.cp.cp2b|data/cameraPath/act3boss.cp|' data/data/scenes/act3.scene
-          grep "path:" data/data/scenes/act3.scene
+          sed -i '' 's|data/cameraPath/act3boss.cp.cp2b|data/cameraPath/act3boss.cp|' data/data/scenes/act4.scene
+          grep "path:" data/data/scenes/act4.scene
 
       - name: Build (iphonesimulator, arm64, no signing)
         working-directory: engine/iOS

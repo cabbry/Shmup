@@ -46,6 +46,7 @@
 #define EV_SAVE_SCORE		0xD
 #define EV_LIMITED_EVENT	0xE
 #define EV_CLEAR_TITLE      0xF
+#define EV_TTB_ROLL			0x10
 
 typedef struct event_t
 {
@@ -100,6 +101,14 @@ typedef struct event_req_menu_t
 {
 	int menuId;
 } event_req_menu_t;
+
+// TTB (see camera.h): roll the camera onto its side and back, scripted from the
+// scene's events block.
+typedef struct event_ttb_payload_t
+{
+	float angleDegrees;
+	int   duration;
+} event_ttb_payload_t;
 
 void EV_InitForScene(void);
 void EV_ReadEnemiesEvents(void);

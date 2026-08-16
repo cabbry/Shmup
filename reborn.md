@@ -167,17 +167,48 @@ to the true screen edges, and the touch-coordinate mapping.
 - Optional deeper modernization: ARC migration, 64-bit audit, `AVAudioSession`, and
   clearing the ~600 deprecation warnings (then re-enabling the strict clang flags).
 - A new level (study `data/scenes`, the `event` system, the on-rails `cameraPath`, and
-  the preprocessor), reusing the existing assets.
+  the preprocessor), reusing the existing assets. **→ started in round 19: Act III.**
 - **TTB system** (homage to the manga *Tokyo Toy Box*): a scripted perspective shift
   mid-level — at preprogrammed points the camera rotates **90° from the usual top-down
   view into a side view**, briefly turning the vertical shooter into a side-scroller,
   then swings up again to the top-down view. The ship keeps flying forward the whole
   time — nothing ever scrolls backwards. Authored as a beat in the new level, with the
   camera path and decor built for it. Made possible by the game being real 3D.
+  **→ DONE in round 19** (`ttbRoll` scene event + camera roll, see the changelog);
+  what remains is content: enemy waves authored for each view, and the act's own art.
 
 ---
 
 ## Changelog
+
+### 2026-08-16 — round 19 (Act III: the TTB act — the game grows a fourth act)
+- **🆕 A new Act III, built around the TTB beat**, inserted before the boss —
+  which becomes **Act IV**, the proper finale. The act flies act 1's baked rail
+  over the dawn city with a dusk-violet fog, and runs the timeline the beat was
+  designed for: **30 s of the usual view, 30 s on the side, 30 s back** — the
+  camera rolls 90° in 3 s (smoothstepped), the vertical shooter reads as a
+  side-scroller for half a minute, then it rolls back up. **No enemies yet, by
+  design**: the level flies empty so the beat can be judged on device first;
+  waves come in a later round, authored per view.
+- **🆕 The TTB system is real** (dormant since the 2026-07 prototype): a pure
+  camera **ROLL around the view axis**, driven by a new scene event
+  (`at 40000 ttbRoll angle 90 duration 3000`, absolute angles). A roll — not a
+  reframing — is what makes it affordable: the camera keeps the rail's position
+  *and* view direction, so the baked visibility stays aligned; the billboards
+  (ship, enemies) are built from the view matrix so they stay upright and the
+  controls need no inversion. The one thing a roll does break is the frustum's
+  footprint, so **live decor culling switches on for exactly the length of the
+  beat** and hands back to the bake once upright — the same "scope the freedom
+  to where the constraint binds" rule the end-of-rail U-turn taught us.
+- **Renumbering fallout, made generic instead of moved**: `driftAtEnd: 1` is now
+  a scene-file camera key (was `sceneId == 3` hardcoded in dEngine); the
+  progression gate and clamp follow `numScenes`; the act-select menu grew a 2×2
+  grid (a fourth stacked button would have sat on the Back button); the per-act
+  stats guard a zero-enemy denominator like the ending card always has. The two
+  boss CI workflows follow the act: `smoke-boss.yml`, `bake-boss-rail.yml`.
+- **Known papercuts, on purpose**: the boss's title card still reads "Act III"
+  (`boss.png`, art to retouch), and the new act borrows `dawnTitle.png` ("Act 1")
+  as a placeholder until it gets its own card.
 
 ### 2026-08-14 — round 18 (the ending screen, and two menu papercuts)
 - **🆕 A real end-of-game screen (v1.5.4)**. Beating the LOFB used to reuse the

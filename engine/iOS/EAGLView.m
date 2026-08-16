@@ -129,7 +129,9 @@ AQ* audiocontroller;
 	if ([standardUserDefaults objectForKey:@"HighestAct"] != nil)
 		gHighestActReached = (int)[standardUserDefaults integerForKey:@"HighestAct"];
 	if (gHighestActReached < 1) gHighestActReached = 1;
-	if (gHighestActReached > 3) gHighestActReached = 3;
+	// 4 playable acts (scenes 1..4). engine.numScenes is not parsed yet at this
+	// point, hence the literal -- keep it in step with config.cfg.
+	if (gHighestActReached > 4) gHighestActReached = 4;
 	NSLog(@"highestAct=%d", gHighestActReached);
 
 

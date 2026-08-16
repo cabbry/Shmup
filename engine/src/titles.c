@@ -391,7 +391,12 @@ void TITLE_Render(void)
 		SCR_ConvertTextToVertices(statsString,2.6f,-200,-200,TEXT_NOT_CENTERED);
 		
 		
-		sprintf(statsString,"Enemy cleared:   %2.0f%%",engine.playerStats.enemyDestroyed[controlledPlayer]/ engine.playerStats.numEnemies*100 );
+		// An act with no scripted spawns (a flythrough beat) would divide by zero
+		// here and print inf/nan; the end-of-game card has always guarded this.
+		sprintf(statsString,"Enemy cleared:   %2.0f%%",
+				(engine.playerStats.numEnemies > 0)
+				? (engine.playerStats.enemyDestroyed[controlledPlayer] / engine.playerStats.numEnemies * 100)
+				: 100.0f );
 		SCR_ConvertTextToVertices(statsString,2.6f,-200,-250,TEXT_NOT_CENTERED);
 		SCR_RenderText();
 	}

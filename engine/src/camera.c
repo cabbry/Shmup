@@ -42,14 +42,14 @@ matrix3x3_t orientationMatrix;
 
 int cameraVisMemSize;
 
-// Infinite decor scroll for the boss act. The baked camera path (act 3 borrows
-// act 2's rails) is finite; when it ran out the camera FROZE, so the city
+// Infinite decor scroll for the boss act. The baked camera path (the boss act
+// borrows act 2's rails) is finite; when it ran out the camera FROZE, so the city
 // stopped dead in the middle of the boss fight. Instead we keep drifting forward
 // at the path's final velocity so the decor keeps flowing past. Baked visibility
 // is frozen at the last frame, so far-ahead tiles fade into the "Water" fog
 // rather than emerging fresh -- but the sense of motion (what Fabien asked for)
-// is preserved. Gated to the boss act by dEngine (gCameraDriftAtEnd) so the
-// other acts, which end on their own script, are untouched.
+// is preserved. Requested by the scene itself (gCameraDriftAtEnd, "driftAtEnd: 1")
+// so the acts that end on their own script are untouched.
 int           gCameraDriftAtEnd = 0;
 int           gRuntimeCullMap = 0;	// see camera.h
 static vec3_t gCamPrevPos;
@@ -152,12 +152,84 @@ void CAM_ClearAllRemainingCameraVS(void)
 	}
 }
 
-void CAM_ToggleFlip(void)
+// ---------------------------------------------------------------------------
+// TTB -- the Tokyo Toy Box beat: the camera rolls 90 degrees onto its side, the
+// game reads as a side-scroller for a while, then it rolls back.
+//
+// The 2026 prototype tried this as a reframing (flip, orbit) on the SHIPPED
+// levels and it fought everything: the on-rails camera, and above all the baked
+// visibility set, which only knows what was visible from the pose the rail flew.
+// A pure ROLL around the view axis is the version that costs nothing: the camera
+// keeps the rail's position AND its view direction, so the same decor is in
+// front of it -- only the horizon tips over. The billboards follow (they are
+// built from the view matrix, see cameraInvRot in player.c), so the ship and the
+// enemies stay upright on screen and the controls need no inversion.
+//
+// The one thing that does change is the frustum's footprint: rolled 90 degrees,
+// a tall viewport covers wide instead of tall, and the bake has no faces for the
+// corners it uncovers. Live culling is therefore switched on for the length of
+// the beat, and off again on the way out -- the position never left the rail, so
+// the baked visibility is still valid when we hand back to it. This is the same
+// "scope the freedom to where the constraint binds" rule that made the act-3
+// end-of-rail U-turn work after three whole-act attempts had turned it black.
+void CAM_SetTTBRoll(float angleDegrees, int durationMs)
 {
-	// TTB is disabled on the existing (shipped) levels: it fights the on-rails
-	// camera, the billboard entities and the baked visibility set. The real
-	// intro-style flyby will be authored as a scripted beat in the new level.
-	// Kept as a no-op so the declaration / any call sites stay valid.
+	camera.ttbFrom     = camera.ttbAngle;
+	camera.ttbTarget   = angleDegrees * (float)M_PI / 180.0f;
+	camera.ttbPhase    = 0;
+	camera.ttbDuration = (durationMs > 0) ? durationMs : 0;
+
+	if (camera.ttbDuration == 0)
+		camera.ttbAngle = camera.ttbTarget;
+}
+
+// Advance the transition and apply the roll to the basis the rail just produced.
+static void CAM_ApplyTTBRoll(void)
+{
+	float c, s, f;
+	int   k;
+	vec3_t rolledRight, rolledUp;
+
+	if (camera.ttbAngle != camera.ttbTarget)
+	{
+		camera.ttbPhase += timediff;
+
+		if (camera.ttbDuration <= 0 || camera.ttbPhase >= camera.ttbDuration)
+		{
+			camera.ttbAngle = camera.ttbTarget;
+		}
+		else
+		{
+			// Smoothstep: the tip-over starts and lands gently, so the beat reads
+			// as a deliberate move rather than a snap.
+			f = camera.ttbPhase / (float)camera.ttbDuration;
+			f = f * f * (3.0f - 2.0f * f);
+			camera.ttbAngle = camera.ttbFrom + (camera.ttbTarget - camera.ttbFrom) * f;
+		}
+	}
+
+	// Live culling for as long as we are off the upright pose the bake was
+	// computed for. Never fight the end-of-rail patrol, which owns the flag once
+	// the path is exhausted.
+	if (!gCamEndActive)
+		gRuntimeCullMap = (camera.ttbAngle > 0.001f || camera.ttbAngle < -0.001f);
+
+	if (camera.ttbAngle == 0.0f)
+		return;
+
+	// Roll right/up around forward. right and up are orthonormal, so the rotation
+	// is just a 2D one in their plane -- no need for a general axis-angle.
+	c = cosf(camera.ttbAngle);
+	s = sinf(camera.ttbAngle);
+
+	for (k = 0; k < 3; k++)
+	{
+		rolledRight[k] = camera.right[k] * c + camera.up[k] * s;
+		rolledUp[k]    = camera.up[k]    * c - camera.right[k] * s;
+	}
+
+	vectorCopy(rolledRight, camera.right);
+	vectorCopy(rolledUp,    camera.up);
 }
 
 void CAM_Update(void)
@@ -346,6 +418,10 @@ void CAM_Update(void)
 				}
 			}
 		}
+
+		// The patrol builds its own basis; the TTB beat still applies on top of
+		// it, so an act can roll over past the end of its rail too.
+		CAM_ApplyTTBRoll();
 		return;
 	}
 
@@ -408,8 +484,8 @@ void CAM_Update(void)
 	camera.forward[1] = -interpolatedOrientationMatrix[7];
 	camera.forward[2] = -interpolatedOrientationMatrix[8];
 
-	// (TTB camera tilt removed on the shipped levels -- reserved for the new level.)
-
+	// TTB: tip the horizon over on top of the pose the rail just produced.
+	CAM_ApplyTTBRoll();
 }
 
 
@@ -421,6 +497,10 @@ void CAM_StartPlaying()
 	gCamEndActive = 0;	// fresh scene: re-arm the end-of-path patrol
 	gRuntimeCullMap = 0;	// ...and go back to the baked visibility until it runs out
 	gCamHaveCalm = 0;	// and re-seed the trailing orientation
+
+	// TTB: every act starts upright, whatever the previous one ended on.
+	camera.ttbAngle = camera.ttbFrom = camera.ttbTarget = 0.0f;
+	camera.ttbPhase = camera.ttbDuration = 0;
 }
 
 
@@ -631,7 +711,7 @@ void CAM_LoadPath(void)
 		// seconds instead of a very long grind, but it also means such a rail
 		// carries no visible face set -- the decor then shows only where live
 		// culling is active. Shipped acts therefore point at a baked .cp2b.
-		// SHMUP_BAKE_VIS is the offline path (see bake-act3.yml): compute the
+		// SHMUP_BAKE_VIS is the offline path (see bake-boss-rail.yml): compute the
 		// visibility set and write the .cp2b out to be committed.
 		// NOTE: this used to be keyed on gRuntimeCullMap, which now starts OFF --
 		// so every text rail silently took the slow bake at load time.

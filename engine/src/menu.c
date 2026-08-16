@@ -425,22 +425,25 @@ void Action_startNewGame(void* tag)
 }
 
 // New Game flow: pick a difficulty, then pick the starting act (full lives
-// either way). Act select makes practicing an act -- and reaching the act-3
+// either way). Act select makes practicing an act -- and reaching the act-4
 // boss -- possible without clearing the whole game in one run. Acts are only
 // selectable once they have been REACHED in play (gHighestActReached).
-static const char* actRoman[] = { "", "I", "II", "III" };
+static const char* actRoman[] = { "", "I", "II", "III", "IV" };
 
-// texts[1] of the act-select screen is its status line; buttons 0..2 are the acts.
+// One button per playable act (scenes 1..numScenes-1), laid out as a 2x2 grid.
+#define NUM_ACT_BUTTONS 4
+
+// texts[1] of the act-select screen is its status line; buttons 0..3 are the acts.
 static void MENU_UpdateActLockStatus(int lockedActTried)
 {
-	static char* actLabels[] = { "", "Act I", "Act II", "Act III" };
+	static char* actLabels[] = { "", "Act I", "Act II", "Act III", "Act IV" };
 	menu_screen_t* screen = &menuScreens[MENU_SELECT_ACT];
 	char* line = screen->texts[1].text;
 	int act;
 
 	// "Grey out" locked acts: swap the button label (button text is a pointer,
 	// so swapping between the two literals is safe; the font is single-colour).
-	for (act = 1; act <= 3; act++)
+	for (act = 1; act <= NUM_ACT_BUTTONS; act++)
 		screen->buttons[act - 1].text = (act <= gHighestActReached) ? actLabels[act] : "Locked";
 
 	if (lockedActTried > 1)
@@ -461,7 +464,7 @@ void Action_PickDifficulty(void* tag)
 void Action_startNewGameAtAct(void* tag)
 {
 	int i;
-	int sceneId = *(char*)tag;	// 1..3 = Act I..III
+	int sceneId = *(char*)tag;	// 1..4 = Act I..IV
 
 	// Progression gate: the act must have been reached in play at least once.
 	if (sceneId > gHighestActReached)
@@ -1048,7 +1051,7 @@ void MENU_Init(void)
 
 
 	// --- Act select (solo), after the difficulty pick: start at any act with full
-	// lives. Practicing an act (and reaching the act-3 boss) no longer requires
+	// lives. Practicing an act (and reaching the act-4 boss) no longer requires
 	// clearing the whole game in one run.
 	currentMenu = &menuScreens[MENU_SELECT_ACT];
 
@@ -1056,29 +1059,25 @@ void MENU_Init(void)
 	// texts[1]: lock/progress status line (filled by MENU_UpdateActLockStatus).
 	MENU_CreateText(currentMenu, 0, (SS_H - 230), 2.0f, TEXT_CENTERED, "");
 
-	buttonPos[X] = 0 ;
-	buttonPos[Y] = (SS_H - 360);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	actId = calloc(1, sizeof(char));
-	*actId = 1;
-	MENU_CreateButtonWithTag(currentMenu, "Act I", 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
+	// A fourth act no longer fits in one column: stacked 150 apart, the last one
+	// would sit on top of the Back button in its standard bottom slot (the very
+	// overlap that had to be fixed on the difficulty screen). Two columns of two,
+	// same cell geometry as the Custom screen.
+	{
+		int a;
+		for (a = 0; a < NUM_ACT_BUTTONS; a++)
+		{
+			static char* gridLabels[NUM_ACT_BUTTONS] = { "Act I", "Act II", "Act III", "Act IV" };
 
-	buttonPos[X] = 0 ;
-	buttonPos[Y] = (SS_H - 510);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	actId = calloc(1, sizeof(char));
-	*actId = 2;
-	MENU_CreateButtonWithTag(currentMenu, "Act II", 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
-
-	buttonPos[X] = 0 ;
-	buttonPos[Y] = (SS_H - 660);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	actId = calloc(1, sizeof(char));
-	*actId = 3;
-	MENU_CreateButtonWithTag(currentMenu, "Act III", 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
+			buttonPos[X] = (a & 1) ? 160 : -160;
+			buttonPos[Y] = (SS_H - 360) - (a >> 1) * 150;
+			buttonDim[WIDTH] = (159 * 2);
+			buttonDim[HEIGHT] = 64 * 2;
+			actId = calloc(1, sizeof(char));
+			*actId = a + 1;
+			MENU_CreateButtonWithTag(currentMenu, gridLabels[a], 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
+		}
+	}
 
 	buttonPos[X] = 0 ;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);

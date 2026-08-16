@@ -1,4 +1,4 @@
-name: Smoke test act 3 (screenshots)
+name: Smoke test the boss act (screenshots)
 
 # Visual proof that the boss act renders with LIVE decor culling
 # (gRuntimeCullMap) -- especially THROUGH the 180 U-turn, which the old baked
@@ -24,7 +24,7 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      # NOTE: the repo's act3.scene is left pointing at the REAL rail, so phase A
+      # NOTE: the repo's act4.scene (the boss act) is left pointing at the REAL rail, so phase A
       # below flies what the player actually flies. Patching the scene here (as
       # this test used to) is exactly how a broken rail OPENING shipped: the
       # compressed rail starts mid-city top-down, so it could never reproduce
@@ -49,7 +49,7 @@ jobs:
           # patrol (settle -> 180 turn -> leg back) which is what act 3 now uses,
           # and which the real 142s rail could never reach in a test -- the idle
           # ship dies and the game drops to the menu around 20s.
-          grep "path:" data/data/scenes/act3.scene   # the REAL act uses the baked rail
+          grep "path:" data/data/scenes/act4.scene   # the REAL act uses the baked rail
 
       - name: Build (iphonesimulator, arm64, no signing)
         working-directory: engine/iOS
@@ -93,7 +93,7 @@ jobs:
           FILELOG="$CONTAINER/Documents/shmup_log.txt"
           rm -f "$FILELOG"
 
-          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
+          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=4 SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
             SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
             xcrun simctl launch --console --terminate-running-process "$UDID" "$BUNDLE_ID" \
             > "$RUNNER_TEMP/phaseA.log" 2>&1 &
@@ -106,10 +106,10 @@ jobs:
           sleep 25
 
           cp "$FILELOG" shots/phaseA_log.txt 2>/dev/null || cp "$RUNNER_TEMP/phaseA.log" shots/phaseA_log.txt
-          SAMPLES=$(grep -c "cull] scene=3" shots/phaseA_log.txt || echo 0)
-          BLACK=$(grep "cull] scene=3" shots/phaseA_log.txt | grep -c "drew 0/" || echo 0)
+          SAMPLES=$(grep -c "cull] scene=4" shots/phaseA_log.txt || echo 0)
+          BLACK=$(grep "cull] scene=4" shots/phaseA_log.txt | grep -c "drew 0/" || echo 0)
           echo "--- phase A: $SAMPLES cull samples, $BLACK drew NOTHING ---"
-          grep "cull] scene=3" shots/phaseA_log.txt | head -15 || true
+          grep "cull] scene=4" shots/phaseA_log.txt | head -15 || true
 
           echo "--- parsed keyframes (what the lexer made of the rail) ---"
           grep -E "^\[cp\]|\[cp keyframe\]" shots/phaseA_log.txt | head -12 || echo "NO KEYFRAME DUMP"
@@ -122,8 +122,8 @@ jobs:
           # settling overhead -- that opening is the shipped one, confirmed on
           # device. An earlier version of this check demanded top-down and only
           # passed against a hand-authored opening that should never have existed.
-          FIRST=$(grep "cull] scene=3" shots/phaseA_log.txt | head -1)
-          LAST=$(grep "cull] scene=3" shots/phaseA_log.txt | tail -1)
+          FIRST=$(grep "cull] scene=4" shots/phaseA_log.txt | head -1)
+          LAST=$(grep "cull] scene=4" shots/phaseA_log.txt | tail -1)
           echo "first: $FIRST"
           echo "last : $LAST"
           Z1=$(echo "$FIRST" | sed -n 's/.*pos=([^,]*,[^,]*,\([-0-9]*\)).*/\1/p')
@@ -142,7 +142,7 @@ jobs:
           fi
           if [ "$BLACK" -gt 0 ]; then
             echo "::error::$BLACK frame(s) drew no decor at the START of act 3 (black screen)."
-            grep "cull] scene=3" shots/phaseA_log.txt | grep "drew 0/" | head -10
+            grep "cull] scene=4" shots/phaseA_log.txt | grep "drew 0/" | head -10
             exit 1
           fi
 
@@ -158,10 +158,10 @@ jobs:
           # Rewrite the path line WHATEVER it points at. Matching a specific rail
           # name silently did nothing once act 3 went back to its baked rail, so
           # this phase flew the real 142s rail and never reached the patrol.
-          sed -i '' -E 's#^([[:space:]]*path:).*#\1  data/cameraPath/act3smoke.cp#' "$APPDIR/data/scenes/act3.scene"
-          grep "path:" "$APPDIR/data/scenes/act3.scene"
-          grep -q "act3smoke.cp" "$APPDIR/data/scenes/act3.scene" || {
-            echo "::error::Could not repoint the bundle's act3.scene at the test rail."
+          sed -i '' -E 's#^([[:space:]]*path:).*#\1  data/cameraPath/act3smoke.cp#' "$APPDIR/data/scenes/act4.scene"
+          grep "path:" "$APPDIR/data/scenes/act4.scene"
+          grep -q "act3smoke.cp" "$APPDIR/data/scenes/act4.scene" || {
+            echo "::error::Could not repoint the bundle's act4.scene at the test rail."
             exit 1
           }
 
@@ -177,7 +177,7 @@ jobs:
           # --console (not --console-pty): the pty variant produced an empty log
           # under nohup+redirect in CI. Printf output is the engine's only log
           # channel (log.c LOG_TO_FILE 0).
-          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
+          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=4 SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
             SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
             xcrun simctl launch --console --terminate-running-process "$UDID" "$BUNDLE_ID" \
             > "$LOG" 2>&1 &
@@ -211,7 +211,7 @@ jobs:
           # THING instead of a duration: poll until screen-up has flipped along Z
           # (that is the 180 completing), with a generous ceiling.
           for i in $(seq 1 30); do
-            UZ=$(grep "cull] scene=3" "$FILELOG" 2>/dev/null | grep "live=1" | tail -1 \
+            UZ=$(grep "cull] scene=4" "$FILELOG" 2>/dev/null | grep "live=1" | tail -1 \
                  | sed -n 's/.*up=([^,]*,[^,]*,\([-0-9.]*\)).*/\1/p')
             echo "  [$((i*5))s] screen-up Z = ${UZ:-none}"
             case "$UZ" in 0.[5-9]*|1.*) echo "  turn complete"; break ;; esac
@@ -223,8 +223,8 @@ jobs:
           TRACE=shots/shmup_log.txt
           [ -s "$TRACE" ] || TRACE="$LOG"
 
-          echo "--- act3 trace ---"
-          grep "cull] scene=3" "$TRACE" | head -40 || echo "NO CULL TRACE (renderer never ran?)"
+          echo "--- boss act trace ---"
+          grep "cull] scene=4" "$TRACE" | head -40 || echo "NO CULL TRACE (renderer never ran?)"
 
           # Only the frames AFTER the rail ran out are the subject here: this rail
           # is text, so it carries no baked visibility and nothing is drawn while it
@@ -233,7 +233,7 @@ jobs:
           # readout). And note the plain `|| true`: with `|| echo 0` an empty match
           # made N the two-word string "0 0", which turns the numeric test below
           # into a silent bash error -- the job then passed while asserting nothing.
-          PATROL=$(grep "cull] scene=3" "$TRACE" | grep "live=1" || true)
+          PATROL=$(grep "cull] scene=4" "$TRACE" | grep "live=1" || true)
           N=$(printf '%s' "$PATROL" | grep -c "cull]" || true)
           BLACK=$(printf '%s' "$PATROL" | grep -c "drew 0/" || true)
           [ -z "$N" ] && N=0
@@ -320,14 +320,14 @@ jobs:
           echo "--- ACT 2 (baked, the look we ship) ---"
           grep "cull] scene=2" shots/phaseC_log.txt | head -12 || echo "no samples"
           A2=$(grep "cull] scene=2" shots/phaseC_log.txt | grep -o "luma=[0-9]*" | cut -d= -f2 | sort -n | awk '{a[NR]=$1} END{if(NR)print a[int(NR/2)+1]}')
-          A3=$(grep "cull] scene=3" shots/phaseA_log.txt | grep -o "luma=[0-9]*" | cut -d= -f2 | sort -n | awk '{a[NR]=$1} END{if(NR)print a[int(NR/2)+1]}')
-          echo "=== median decor luma: act2(baked)=${A2:-?}  act3(baked flight)=${A3:-?} ==="
+          A3=$(grep "cull] scene=4" shots/phaseA_log.txt | grep -o "luma=[0-9]*" | cut -d= -f2 | sort -n | awk '{a[NR]=$1} END{if(NR)print a[int(NR/2)+1]}')
+          echo "=== median decor luma: act2(baked)=${A2:-?}  boss-act(baked flight)=${A3:-?} ==="
 
       - name: Upload screenshots and log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: act3-smoke
+          name: boss-smoke
           path: |
             shots/
             ${{ runner.temp }}/phaseA.log

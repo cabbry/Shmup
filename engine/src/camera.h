@@ -85,9 +85,21 @@ typedef struct
 	camera_frame_t* path;
 	camera_frame_t* currentFrame;
 
-	// TTB system: animated camera roll. 0 = normal top-down view, M_PI = flipped 180.
-	float flipAngle;   // current roll around the view axis (radians)
-	float flipTarget;  // flipAngle eases toward this (0 or M_PI)
+	// TTB system (homage to *Tokyo Toy Box*): an animated camera ROLL around the
+	// view axis, layered on top of whatever pose the rail gives. 0 = the usual
+	// top-down view; M_PI/2 = the side view, where the city's vertical axis lies
+	// across the screen and the world scrolls sideways -- the vertical shooter
+	// reads as a side-scroller for the length of the beat. The ship keeps flying
+	// forward the whole time; nothing ever scrolls backwards.
+	//
+	// A roll, and not a reframing, is what makes this affordable: the camera
+	// POSITION never leaves the baked rail, so the visibility bake stays aligned
+	// and the act goes back to it untouched once the beat is over.
+	float ttbAngle;		// current roll around the view axis (radians)
+	float ttbFrom;		// where the current transition started
+	float ttbTarget;	// where it is heading
+	int   ttbPhase;		// ms elapsed in the transition
+	int   ttbDuration;	// ms the transition lasts (0 = snap)
 
 } camera_t;
 
@@ -97,8 +109,10 @@ typedef struct
 
 extern camera_t camera;
 
-// Set to 1 (by dEngine, for the boss act) to keep the camera drifting forward
-// once the baked path ends, instead of freezing the decor. 0 elsewhere.
+// Set to 1 by the scene ("driftAtEnd: 1" in its camera block) to keep the camera
+// drifting forward once the baked path ends, instead of freezing the decor. The
+// boss act needs it (the fight lasts as long as the boss does, not as long as
+// the rail). 0 elsewhere.
 extern int gCameraDriftAtEnd;
 
 // Runtime decor culling (boss act). The 2010 pipeline bakes, per camera frame,
@@ -117,5 +131,9 @@ void CAM_InitUnitCube(void);
 void CAM_LoadPath(void);
 void CAM_StartPlaying(void);
 void CAM_ClearAllRemainingCameraVS(void);
-void CAM_ToggleFlip(void); // TTB: toggle the 180 camera flip
+
+// TTB: roll the camera to `angleDegrees` around the view axis over `durationMs`
+// (0 = snap). 0 = the usual view, 90 = the side view. Scripted from the scene
+// file: "at 39000 ttbRoll angle 90 duration 2000".
+void CAM_SetTTBRoll(float angleDegrees, int durationMs);
 #endif

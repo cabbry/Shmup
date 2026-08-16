@@ -1,0 +1,170 @@
+
+
+defaultMenu -1
+
+map
+{
+	filename: data/map/act2.map
+}
+
+light
+{
+	enabled 0
+	position : 5000 200 -5000 1
+   lookAt   : 0 -200 -5000
+   upVector : 1 0 0
+   fov      : 70
+   ambientColor  : 0.5 0.5 0.5
+   diffuseColor  : 1.0 1.0 1.0
+
+   speculaColor  : 1 1 1
+   constantAttenuation: 1
+   linearAttenuation: 0
+   attachedToCamera: 0
+
+}
+
+camera
+{
+	# Act 2's shipped BAKED rail -- the configuration the boss act flew for months,
+	# with its visibility set and a decor that shows up on device. The text rail
+	# act3boss.cp (a real 180 U-turn, live decor culling for the whole act) made
+	# this act black on device while rendering correctly in the Simulator; it stays
+	# in the repo, unused. The U-turn is not worth an unplayable level -- it now
+	# happens at the END of the rail only (see driftAtEnd below).
+	path:  data/cameraPath/act2.cp.cp2b
+
+	fov:	55
+	zNear:	2
+	zFar:	22000
+
+	attachAt: 09000
+	detachAt: 900000
+
+	# The fight lasts as long as the boss does, so the rail WILL run out. Hand
+	# over to the end-of-rail patrol (settle -> 180 turn -> leg back over the
+	# city, live decor culling) instead of freezing. Used to be hardcoded in
+	# dEngine as "sceneId == 3"; now that there are two acts past act 2, the
+	# scene says it.
+	driftAtEnd: 1
+}
+
+# "Water" act: deep blue haze.
+fog
+{
+	enabled 1
+	density 0.1
+	# startAt matches act 2 (70, not 0.1): with the ramp starting at the camera
+	# the city kept only ~60% of its texture where act 2 keeps ~73%, so act 3 was
+	# needlessly ~18% darker. Measured on device: the readout showed LIT12.
+	startAt 70
+	endAt   405.0
+	color:  0.0  0.02  0.10
+}
+
+player
+{
+	id 0
+	matrix 1 0 0 -3
+	       0 1 0 110
+		   0 0 1 -386
+		   0 0 0 1
+
+
+}
+
+player
+{
+	id 1
+	matrix 1 0 0 7
+	       0 1 0 110
+		   0 0 1 -386
+		   0 0 0 1
+
+
+}
+
+
+
+playback
+{
+	play 0
+	record 0
+	filename 04act4.scene.io
+}
+
+
+
+music
+{
+	startMusicAt 122
+	trackname data/music/UNREALPM.mp3
+}
+
+title
+{
+	titleName  data/titles/boss.png
+	prolog start 500 duration 8500
+}
+
+
+# Act IV -- the boss act (it was act 3 until the TTB act was inserted before it).
+# A short gauntlet, a warning, then the LOFB.
+# Its behaviour (phases, spirals, escorts) lives in lofb.c; the fight ends when
+# it dies (LOFB_OnBossDeath -> epilog -> back to the menu), not on a timer.
+enemies
+{
+	settime 11000
+	setttl 5000
+
+	# opening dives, criss-crossing
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.8 1.3 endPos 0.6 -1.3 controlPoint -0.8 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 400  spawnEnemy mouvement 1 enemyType 1 startPos 0.8 1.3 endPos -0.6 -1.3 controlPoint 0.8 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 800  spawnEnemy mouvement 1 enemyType 1 startPos -0.5 1.3 endPos 0.4 -1.3 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1200 spawnEnemy mouvement 1 enemyType 1 startPos 0.5 1.3 endPos -0.4 -1.3 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1600 spawnEnemy mouvement 1 enemyType 1 startPos 0 1.3 endPos 0 -1.3 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+
+	addtime 6000
+	setttl 4500
+
+	# weaving columns, left and right
+	at 0    spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.5 enemyType 1 startPos -0.5 1.2 endPos -0.5 -1.2 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 350  spawnEnemy mouvement 2 xOffset 0.5 xWidth 0.5 enemyType 1 startPos 0.5 1.2 endPos 0.5 -1.2 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 700  spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.5 enemyType 1 startPos -0.5 1.2 endPos -0.5 -1.2 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1050 spawnEnemy mouvement 2 xOffset 0.5 xWidth 0.5 enemyType 1 startPos 0.5 1.2 endPos 0.5 -1.2 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1400 spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.5 enemyType 1 startPos -0.5 1.2 endPos -0.5 -1.2 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1750 spawnEnemy mouvement 2 xOffset 0.5 xWidth 0.5 enemyType 1 startPos 0.5 1.2 endPos 0.5 -1.2 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+
+	addtime 7000
+	setttl 6000
+
+	# hardened stragglers
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.7 1.3 endPos -0.7 -1.3 controlPoint 0 0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	at 500  spawnEnemy mouvement 1 enemyType 1 startPos 0.7 1.3 endPos 0.7 -1.3 controlPoint 0 0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	at 1000 spawnEnemy mouvement 1 enemyType 1 startPos -0.3 1.3 endPos -0.3 -1.3 controlPoint 0 -0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	at 1500 spawnEnemy mouvement 1 enemyType 1 startPos 0.3 1.3 endPos 0.3 -1.3 controlPoint 0 -0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+
+	addtime 8000
+	setttl 9000000
+
+	# THE BOSS. Eases down to its hover point, then lofb.c takes over.
+	at 9000 spawnEnemy mouvement 1 enemyType 4 startPos 0 1.35 endPos 0 0.55 controlPoint 0 1 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+
+
+}
+
+texts_events
+{
+	settime 0
+	at 38500 display WARNING size 4.0  for 3000 starting 0 50 ending  0 50
+
+}
+
+events
+{
+	at 40000 uploadScore
+
+}
+
+
+

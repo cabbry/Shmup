@@ -433,20 +433,23 @@ void dEngine_LoadScene(int sceneId)
 
 	gScoreLocked = 0;	// new scene: scoring live again (was frozen at a boss kill)
 
-	// Boss act (3) keeps scrolling forever once the baked path ends; other acts
-	// end on their own script and keep the original freeze behaviour.
-	gCameraDriftAtEnd = (sceneId == 3);
+	// Default: freeze at the end of the baked path, as the original acts do. The
+	// scene turns this on for itself ("driftAtEnd: 1" in its camera block) -- it
+	// used to be hardcoded to the boss act's scene id, which stopped being 3 the
+	// moment an act was inserted before it.
+	gCameraDriftAtEnd = 0;
 
 	// Live decor culling starts OFF: the act flies its baked rail with its baked
-	// visibility, exactly as shipped. CAM_Update turns it on only when the rail
-	// runs out -- the one place the bake is unusable (on device the readout there
-	// dropped to a single drawn entity) and the only place the camera needs to be
-	// free. Applying it to the whole act, as v1.4.5-v1.4.7 did, is what made act 3
+	// visibility, exactly as shipped. It is turned on only where the bake stops
+	// being usable -- past the end of the rail (CAM_Update), and for the length of
+	// a TTB roll (CAM_ApplyTTBRoll), which uncovers frustum corners the bake never
+	// saw. Applying it to the whole act, as v1.4.5-v1.4.7 did, is what made act 3
 	// black: the sky domes enclose the camera and no per-entity test can reject them.
 	gRuntimeCullMap = 0;
 
 	// Progression: remember the furthest act ever reached (solo or multiplayer).
-	if (sceneId >= 1 && sceneId <= 3 && sceneId > gHighestActReached)
+	// Acts are scenes 1..numScenes-1 (the demo/tutorial live at 13..15).
+	if (sceneId >= 1 && sceneId < engine.numScenes && sceneId > gHighestActReached)
 	{
 		gHighestActReached = sceneId;
 #ifdef __APPLE__

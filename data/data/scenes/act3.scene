@@ -2,9 +2,26 @@
 
 defaultMenu -1
 
+# Act III -- the TTB act (homage to *Tokyo Toy Box*). The beat: fly the city as
+# usual, then the camera ROLLS 90 degrees onto its side and the vertical shooter
+# reads as a side-scroller for half a minute, then it rolls back up. The ship
+# keeps flying forward the whole time; nothing ever scrolls backwards.
+#
+# Timeline (the user's spec: 30s top-down / 30s side / 30s top-down):
+#   0- 10s  prolog, camera attaches at 10s
+#  10- 40s  top-down, the usual view
+#  40- 43s  roll to the side view (ttbRoll 90, 3s -- live culling on for the beat)
+#  43- 73s  side view
+#  73- 76s  roll back upright (live culling hands back to the bake)
+#  76-106s  top-down again
+# 106-115s  ships to rest position, epilog, then on to Act IV (the boss).
+#
+# NO ENEMIES yet, by design: the level flies empty so the TTB beat can be judged
+# on device first. Waves come in a later round, authored for each view.
+
 map
 {
-	filename: data/map/act2.map
+	filename: data/map/act1.map
 }
 
 light
@@ -26,42 +43,39 @@ light
 
 camera
 {
-	# BACK to act 2's shipped BAKED rail -- the configuration act 3 flew for
-	# months, with its visibility set and a decor that shows up on device.
-	# The text rail act3boss.cp (a real 180 U-turn, live decor culling) made act 3
-	# black on device while rendering correctly in the Simulator; it stays in the
-	# repo, unused, until the device numbers say why (see the on-screen A3 diag).
-	# Restoring a known-good act 3 comes first -- the U-turn is not worth an
-	# unplayable level.
-	path:  data/cameraPath/act2.cp.cp2b
+	# Act 1's shipped BAKED rail: 142s of city with its visibility set -- known
+	# good on device, and long enough that the rail never runs out under the
+	# 115s act (no end-of-rail patrol needed here, hence no driftAtEnd).
+	path:  data/cameraPath/act1.cp.cp2b
 
 	fov:	55
-	zNear:	2
+	zNear:	10
 	zFar:	22000
 
-	attachAt: 09000
-	detachAt: 900000
+	# detach AFTER movePlayersToDefautlSSLocation (106000), matching act 1's
+	# ordering (movePlayers at 139000, detach at 140000).
+	attachAt: 10000
+	detachAt: 108000
 }
 
-# "Water" act: deep blue haze.
+# Dusk: the act sits between act 2's night city and the boss's deep-blue haze.
 fog
 {
 	enabled 1
 	density 0.1
-	# startAt matches act 2 (70, not 0.1): with the ramp starting at the camera
-	# the city kept only ~60% of its texture where act 2 keeps ~73%, so act 3 was
-	# needlessly ~18% darker. Measured on device: the readout showed LIT12.
+	# startAt 70 like acts 1/2 -- starting the ramp at the camera is what made
+	# the old act 3 needlessly dark (measured on device, see act4.scene).
 	startAt 70
 	endAt   405.0
-	color:  0.0  0.02  0.10
+	color:  0.02  0.0  0.08
 }
 
 player
 {
 	id 0
-	matrix 1 0 0 -3
+	matrix 1 0 0 -7
 	       0 1 0 110
-		   0 0 1 -386
+		   0 0 1 -396
 		   0 0 0 1
 
 
@@ -72,7 +86,7 @@ player
 	id 1
 	matrix 1 0 0 7
 	       0 1 0 110
-		   0 0 1 -386
+		   0 0 1 -396
 		   0 0 0 1
 
 
@@ -97,67 +111,37 @@ music
 
 title
 {
-	titleName  data/titles/boss.png
-	prolog start 500 duration 8500
+	# PLACEHOLDER: reuses act 1's card until the act gets its own art
+	# (dawnTitle says "Act 1" in the small line).
+	titleName  data/titles/dawnTitle.png
+	prolog start 2000 duration 6000
+
+	at 106000 movePlayersToDefautlSSLocation
+	epilog start 109000 duration 6000
+
 }
 
 
-# Act III -- the boss act. A short gauntlet, a warning, then the LOFB.
-# Its behaviour (phases, spirals, escorts) lives in lofb.c; the fight ends when
-# it dies (LOFB_OnBossDeath -> epilog -> back to the menu), not on a timer.
+# Empty on purpose -- see the header comment. (An act with zero scripted spawns
+# is fine: the "Enemy cleared" stat guards the zero denominator.)
 enemies
 {
-	settime 11000
-	setttl 5000
-
-	# opening dives, criss-crossing
-	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.8 1.3 endPos 0.6 -1.3 controlPoint -0.8 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 400  spawnEnemy mouvement 1 enemyType 1 startPos 0.8 1.3 endPos -0.6 -1.3 controlPoint 0.8 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 800  spawnEnemy mouvement 1 enemyType 1 startPos -0.5 1.3 endPos 0.4 -1.3 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1200 spawnEnemy mouvement 1 enemyType 1 startPos 0.5 1.3 endPos -0.4 -1.3 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1600 spawnEnemy mouvement 1 enemyType 1 startPos 0 1.3 endPos 0 -1.3 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-
-	addtime 6000
-	setttl 4500
-
-	# weaving columns, left and right
-	at 0    spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.5 enemyType 1 startPos -0.5 1.2 endPos -0.5 -1.2 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 350  spawnEnemy mouvement 2 xOffset 0.5 xWidth 0.5 enemyType 1 startPos 0.5 1.2 endPos 0.5 -1.2 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 700  spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.5 enemyType 1 startPos -0.5 1.2 endPos -0.5 -1.2 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1050 spawnEnemy mouvement 2 xOffset 0.5 xWidth 0.5 enemyType 1 startPos 0.5 1.2 endPos 0.5 -1.2 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1400 spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.5 enemyType 1 startPos -0.5 1.2 endPos -0.5 -1.2 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1750 spawnEnemy mouvement 2 xOffset 0.5 xWidth 0.5 enemyType 1 startPos 0.5 1.2 endPos 0.5 -1.2 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-
-	addtime 7000
-	setttl 6000
-
-	# hardened stragglers
-	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.7 1.3 endPos -0.7 -1.3 controlPoint 0 0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	at 500  spawnEnemy mouvement 1 enemyType 1 startPos 0.7 1.3 endPos 0.7 -1.3 controlPoint 0 0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	at 1000 spawnEnemy mouvement 1 enemyType 1 startPos -0.3 1.3 endPos -0.3 -1.3 controlPoint 0 -0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	at 1500 spawnEnemy mouvement 1 enemyType 1 startPos 0.3 1.3 endPos 0.3 -1.3 controlPoint 0 -0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-
-	addtime 8000
-	setttl 9000000
-
-	# THE BOSS. Eases down to its hover point, then lofb.c takes over.
-	at 9000 spawnEnemy mouvement 1 enemyType 4 startPos 0 1.35 endPos 0 0.55 controlPoint 0 1 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-
 
 }
 
 texts_events
 {
 	settime 0
-	at 38500 display WARNING size 4.0  for 3000 starting 0 50 ending  0 50
 
 }
 
 events
 {
-	at 40000 uploadScore
+	# The TTB beat. Angles are absolute (0 = upright), so a missed edit cannot
+	# accumulate; each roll takes 3s, smoothstepped in camera.c.
+	at 40000  ttbRoll angle 90 duration 3000
+	at 73000  ttbRoll angle 0  duration 3000
+
+	at 106000 uploadScore
 
 }
-
-
-

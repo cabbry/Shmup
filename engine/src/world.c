@@ -176,6 +176,7 @@ void World_OpenScene(char* filename)
 	event_title_payload_t* titleEventPayload;
 	event_req_scene_t* ev_requestAct_payload;
 	event_req_menu_t* ev_requestMenu_payload;
+	event_ttb_payload_t* ev_ttb_payload;
 	camera.pathFilename[0] = 0;
 	
 	sceneFile = FS_OpenFile(filename, "rt");
@@ -433,10 +434,19 @@ void World_OpenScene(char* filename)
 					event = calloc(1, sizeof(event_t));
 					event->type = EV_DETACH_PLAYER;
 					event->time = LE_readReal();
-					
+
 					EV_AddEvent(event);
 				}
-				
+				else
+				// Keep flying (and turn around) once the baked rail runs out
+				// instead of freezing the decor -- see gCameraDriftAtEnd. Acts
+				// whose length is not the rail's length need this; it used to be
+				// hardcoded to the boss act's scene id.
+				if (!strcmp("driftAtEnd", LE_getCurrentToken()))
+				{
+					gCameraDriftAtEnd = (LE_readReal() != 0);
+				}
+
 				LE_readToken();
 			}
 			// Full-screen: use the real screen aspect, and extend the vertical
@@ -498,9 +508,22 @@ void World_OpenScene(char* filename)
 					else
                     if (!strcmp("clearTitle", LE_getCurrentToken()))
                     {
-                        event->type = EV_CLEAR_TITLE;	
+                        event->type = EV_CLEAR_TITLE;
                         event->payload = 0;
                     }
+					else
+					// TTB (see camera.h): the scripted roll onto the side view.
+					// at 39000 ttbRoll angle 90 duration 2000
+					if (!strcmp("ttbRoll", LE_getCurrentToken()))
+					{
+						event->type = EV_TTB_ROLL;
+						ev_ttb_payload = (event_ttb_payload_t*)calloc(1, sizeof(event_ttb_payload_t));
+						LE_readToken(); // angle
+						ev_ttb_payload->angleDegrees = LE_readReal();
+						LE_readToken(); // duration
+						ev_ttb_payload->duration = LE_readReal();
+						event->payload = ev_ttb_payload;
+					}
 					
                     /*
                     if(event->type == 0)

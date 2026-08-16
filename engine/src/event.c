@@ -393,6 +393,17 @@ void EV_ClearTitle(event_t* event){
     TITLE_Clear();
 }
 
+// TTB beat: hand the scripted roll over to the camera (see camera.h).
+void EV_TTBRoll(event_t* event)
+{
+	event_ttb_payload_t* payload = (event_ttb_payload_t*)event->payload;
+
+	if (payload == NULL)
+		return;
+
+	CAM_SetTTBRoll(payload->angleDegrees, payload->duration);
+}
+
 typedef void (*eventProcessor_ft)(event_t*) ;
 
 
@@ -416,7 +427,8 @@ eventProcessor_ft eventToFunction[32] =
 	EV_AutoPilotPls,
 	EV_SaveScore,
 	EV_LimitedEdition_Action,
-    EV_ClearTitle
+    EV_ClearTitle,
+	EV_TTBRoll
 };
 
 

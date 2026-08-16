@@ -181,6 +181,24 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-16 — round 21 (TTB on-device round 1: the ship flies right-side up, shoots forward)
+- Build 188 on device: the side view itself reads (the act-1 rail's own camera
+  moves in the top-down stretches are **kept** — "c'était bien comme ça"), but
+  the ship flew **on its back** and kept shooting **up-screen**.
+- **Upside-down fix**: the model's back is **-Y** (that is why `fromAbove` sends
+  +Y *away* from the camera in the top-down view); the profile pose now sends
+  -Y to screen-up instead of +Y.
+- **🆕 Bullets follow the beat**: they travel along the rotated gameplay axis
+  (up-screen upright, toward the nose in the side view — sin/cos of the same
+  simulation-driven angle on both lockstep peers), the capsule sprite rotates
+  with them from its center, and the hitbox AABB wraps the rotated capsule.
+  Upright, all three reduce exactly to the original code.
+- Known cosmetics left for the enemy round: the muzzle flash still sits above
+  the ship in side view, and the ghosts' fan is still screen-up.
+- **Process change (user's ask): no more TestFlight builds without an explicit
+  go** — fixes accumulate on master (free compile checks only) until the user
+  calls for a build.
+
 ### 2026-08-16 — round 20 (the TTB beat, redone as a real side view)
 - **The v1.5.6 roll was wrong, and the tester said so immediately**: a pure roll
   around the view axis just rotates the picture — the decor turned on screen

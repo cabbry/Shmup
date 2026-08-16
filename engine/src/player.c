@@ -447,7 +447,8 @@ void P_FireBullet(player_t* player,float deltaX, float deltaY)
 	spawningPos[Y] = player->ss_position[Y]*SS_H + deltaY;
 	
 	bullet->spawnedY = spawningPos[Y];
-	
+	bullet->spawnedX = spawningPos[X];
+
 	bullet->spawnedTime = simulationTime;
 	
 	//Generate ss_boudaries
@@ -626,8 +627,10 @@ void P_Update(void)
 				{
 					// Profile pose in VIEW space (column-major, like fromAbove):
 					// nose (model Z) -> screen-right (flipped with the angle's
-					// sign), ship-up (model Y) -> screen-up, wingspan into the
-					// screen; det stays +1 via c2 = c0 x c1 after the blend.
+					// sign), ship's BACK (model -Y: fromAbove sends +Y away from
+					// the camera, so -Y is the side the top-down view shows) ->
+					// screen-up; det stays +1 via c2 = c0 x c1 after the blend.
+					// v1.5.7 sent +Y up -- the ship flew on its back on device.
 					float sgn = (camera.ttbAngle >= 0) ? 1.0f : -1.0f;
 					float c0[3], c1[3], c2[3];
 					matrix_t blended;
@@ -637,13 +640,13 @@ void P_Update(void)
 					if (f > 1.0f) f = 1.0f;
 
 					// fromAbove columns: c0=(1,0,0) c1=(0,0,-1) c2=(0,1,0)
-					// profile   columns: c0=(0,0,-sgn) c1=(0,1,0) c2=(sgn,0,0)
+					// profile   columns: c0=(0,0,sgn) c1=(0,-1,0) c2=(sgn,0,0)
 					c0[0] = 1.0f + (0.0f - 1.0f) * f;
 					c0[1] = 0.0f;
-					c0[2] = 0.0f + (-sgn - 0.0f) * f;
+					c0[2] = 0.0f + (sgn - 0.0f) * f;
 
 					c1[0] = 0.0f;
-					c1[1] = 0.0f + (1.0f - 0.0f) * f;
+					c1[1] = 0.0f + (-1.0f - 0.0f) * f;
 					c1[2] = -1.0f + (0.0f - -1.0f) * f;
 
 					len = sqrtf(c0[0]*c0[0] + c0[1]*c0[1] + c0[2]*c0[2]);
@@ -687,20 +690,45 @@ void P_Update(void)
 			//END UPDATE MATRIX	
 			
 			//Also update bullets
-			for(j=0; j < MAX_PLAYER_BULLETS ; j++)
+			//
+			// TTB: bullets travel along the beat's rotated axis -- straight up
+			// the screen when upright (sin 0 / cos 1: the original math to the
+			// bit), toward the nose (screen-right, or left for angle < 0) in the
+			// side view. camera.ttbAngle is simulation-driven, so both lockstep
+			// peers rotate identically.
 			{
-				if (player->bullets[j].expirationTime <= simulationTime )	// <=: exp 0 at a timer reset (t=0) means expired
-					continue;
-				
-				bullet = &player->bullets[j];
-				
-				t = (simulationTime - bullet->spawnedTime)/ (float)bulletConfig.ttl ;
-				
-				bulletHeight = bullet->spawnedY +  t* (bulletConfig.distPerLifepsan);
-				
-				
-				bullet->ss_boudaries[UP] = bulletHeight + bulletConfig.halfHeight;
-				bullet->ss_boudaries[DOWN] = bulletHeight - bulletConfig.halfHeight ;
+				float ttbSin = sinf(camera.ttbAngle);
+				float ttbCos = cosf(camera.ttbAngle);
+
+				for(j=0; j < MAX_PLAYER_BULLETS ; j++)
+				{
+					float dist;
+					short bulletX;
+
+					if (player->bullets[j].expirationTime <= simulationTime )	// <=: exp 0 at a timer reset (t=0) means expired
+						continue;
+
+					bullet = &player->bullets[j];
+
+					t = (simulationTime - bullet->spawnedTime)/ (float)bulletConfig.ttl ;
+					dist = t * bulletConfig.distPerLifepsan;
+
+					bulletHeight = bullet->spawnedY + dist * ttbCos;
+					bulletX      = bullet->spawnedX + dist * ttbSin;
+
+					// AABB of the rotated capsule (exact upright, conservative
+					// mid-swing); the sprite is drawn rotated from its center.
+					{
+						float aC = fabsf(ttbCos), aS = fabsf(ttbSin);
+						float bh = bulletConfig.halfHeight * aC + bulletConfig.halfWidth  * aS;
+						float bw = bulletConfig.halfWidth  * aC + bulletConfig.halfHeight * aS;
+
+						bullet->ss_boudaries[UP]    = bulletHeight + bh;
+						bullet->ss_boudaries[DOWN]  = bulletHeight - bh;
+						bullet->ss_boudaries[LEFT]  = bulletX - bw;
+						bullet->ss_boudaries[RIGHT] = bulletX + bw;
+					}
+				}
 			}
 			
 			
@@ -1209,31 +1237,42 @@ void P_PrepareBulletSprites(void)
             
 		    bullet->type++;
 			bullet->type = bullet->type & 3;
-			
-			bulSprite->pos[X] = bullet->ss_boudaries[LEFT];
-			bulSprite->pos[Y] = bullet->ss_boudaries[DOWN];
-			bulSprite->text[X] = colorCol*(16.0f/128*SHRT_MAX) ;
-			bulSprite->text[Y] = bullet->type*(32.0f/128*SHRT_MAX) + 32.0f/128*SHRT_MAX;
-			bulSprite++;
-			
-			bulSprite->pos[X] = bullet->ss_boudaries[LEFT];
-			bulSprite->pos[Y] = bullet->ss_boudaries[UP];
-			bulSprite->text[X] = colorCol*(16.0f/128*SHRT_MAX);
-			bulSprite->text[Y] = bullet->type*(32.0f/128*SHRT_MAX) ;
-			bulSprite++;
-			
-					
-			bulSprite->pos[X] = bullet->ss_boudaries[RIGHT];
-			bulSprite->pos[Y] = bullet->ss_boudaries[UP];
-			bulSprite->text[X] = colorCol*(16.0f/128*SHRT_MAX) + 16.0f/128*SHRT_MAX;
-			bulSprite->text[Y] = bullet->type*(32.0f/128*SHRT_MAX);
-			bulSprite++;
-			
-			bulSprite->pos[X] = bullet->ss_boudaries[RIGHT];
-			bulSprite->pos[Y] = bullet->ss_boudaries[DOWN];
-			bulSprite->text[X] = colorCol*(16.0f/128*SHRT_MAX) + (16.0f/128*SHRT_MAX);
-			bulSprite->text[Y] = bullet->type*(32.0f/128*SHRT_MAX)+32.0f/128*SHRT_MAX;
-			bulSprite++;
+
+			// TTB: the capsule sprite is drawn rotated by the beat's angle from
+			// its center (long axis along the travel), so a side-view bullet is
+			// a horizontal streak, not a sideways-sliding vertical one. Upright
+			// (sin 0 / cos 1) this is the original axis-aligned quad exactly.
+			{
+				float cx = (bullet->ss_boudaries[LEFT] + bullet->ss_boudaries[RIGHT]) * 0.5f;
+				float cy = (bullet->ss_boudaries[UP]   + bullet->ss_boudaries[DOWN])  * 0.5f;
+				float ts = sinf(camera.ttbAngle), tc = cosf(camera.ttbAngle);
+				float dirX  = ts * bulletConfig.halfHeight, dirY  = tc * bulletConfig.halfHeight;
+				float perpX = tc * bulletConfig.halfWidth,  perpY = -ts * bulletConfig.halfWidth;
+
+				bulSprite->pos[X] = cx - perpX - dirX;
+				bulSprite->pos[Y] = cy - perpY - dirY;
+				bulSprite->text[X] = colorCol*(16.0f/128*SHRT_MAX) ;
+				bulSprite->text[Y] = bullet->type*(32.0f/128*SHRT_MAX) + 32.0f/128*SHRT_MAX;
+				bulSprite++;
+
+				bulSprite->pos[X] = cx - perpX + dirX;
+				bulSprite->pos[Y] = cy - perpY + dirY;
+				bulSprite->text[X] = colorCol*(16.0f/128*SHRT_MAX);
+				bulSprite->text[Y] = bullet->type*(32.0f/128*SHRT_MAX) ;
+				bulSprite++;
+
+				bulSprite->pos[X] = cx + perpX + dirX;
+				bulSprite->pos[Y] = cy + perpY + dirY;
+				bulSprite->text[X] = colorCol*(16.0f/128*SHRT_MAX) + 16.0f/128*SHRT_MAX;
+				bulSprite->text[Y] = bullet->type*(32.0f/128*SHRT_MAX);
+				bulSprite++;
+
+				bulSprite->pos[X] = cx + perpX - dirX;
+				bulSprite->pos[Y] = cy + perpY - dirY;
+				bulSprite->text[X] = colorCol*(16.0f/128*SHRT_MAX) + (16.0f/128*SHRT_MAX);
+				bulSprite->text[Y] = bullet->type*(32.0f/128*SHRT_MAX)+32.0f/128*SHRT_MAX;
+				bulSprite++;
+			}
 			
 			
 

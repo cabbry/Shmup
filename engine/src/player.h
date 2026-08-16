@@ -107,11 +107,12 @@ extern xf_colorless_sprite_t pBulletVertices[(MAX_PLAYER_BULLETS*4+4)*MAX_NUM_PL
 
 
 typedef struct bullet_t
-{	
+{
 	short ss_boudaries[4];
-	
+
 	short spawnedY;
-	
+	short spawnedX;	// TTB: bullets travel along the beat's rotated axis
+
 	int expirationTime;
 	int spawnedTime;
 	

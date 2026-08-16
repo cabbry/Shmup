@@ -76,7 +76,9 @@ fog
 	# past the fog's end, a flat wall of fog colour. 2500 keeps the near facades
 	# readable and stages the depth; verified in the ttb_harness renders.
 	endAt   2500.0
-	color:  0.02  0.0  0.08
+	# Tuned to sit between the city's far fade and the dome skirt's navy, so the
+	# clear colour (= fog colour since round 22) blends the horizon seam away.
+	color:  0.04  0.035  0.15
 }
 
 player

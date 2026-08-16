@@ -704,14 +704,29 @@ void RenderEntitiesF(void)
 
 	for(i=0; i < numBackgroundEntities; i++)
 	{
+		float savedTx = 0, savedTz = 0;
 		entity = &map[i];
 
 		if (gRuntimeCullMap)
 		{
 			if (nearestDome >= 0 && i != nearestDome)
 				continue;
-			if (COLL_CheckBoxAgainstFrustrum(entity->worldSpacebbox,cullFrustrum) == INT_OUT)
-				continue;
+
+			// A REAL skybox: the dome FOLLOWS the camera on x/z for this draw.
+			// The domes are flattened caps ~10500 wide, spaced 20000 apart; a
+			// side-view camera spends half its time near a rim, where it looks
+			// clean OVER the cap's far bulge -- a silhouette hole between the
+			// horizon and the ceiling that no texture can paint (the smoke
+			// trace read top=8, the clear colour, with the dome drawn). From
+			// the CENTER the cap covers every upward direction continuously.
+			// Display-only (the matrix is restored), so lockstep is untouched;
+			// and a camera-centred dome always intersects the frustum, so the
+			// per-entity test is moot for it.
+			savedTx = entity->matrix[12];
+			savedTz = entity->matrix[14];
+			entity->matrix[12] = camera.position[0];
+			entity->matrix[14] = camera.position[2];
+
 			cullDrawn++;
 			if (cullDebug == 1)
 			{
@@ -726,6 +741,13 @@ void RenderEntitiesF(void)
 			continue;
 
 		RenderEntityF(entity);
+
+		if (gRuntimeCullMap)
+		{
+			// undo the skybox follow -- the entity table is engine state
+			entity->matrix[12] = savedTx;
+			entity->matrix[14] = savedTz;
+		}
 	}
 	}	// nearestDome scope
 

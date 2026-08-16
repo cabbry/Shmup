@@ -193,6 +193,12 @@ to the true screen edges, and the touch-coordinate mapping.
   simulation-driven angle on both lockstep peers), the capsule sprite rotates
   with them from its center, and the hitbox AABB wraps the rotated capsule.
   Upright, all three reduce exactly to the original code.
+- **The sky was blue, then black** (device screenshot): the side view looks
+  straight at act 1's sky domes, and the flight crosses dawn → evening → night —
+  the evening/night domes are near-black up high. Top-down, that sky is never
+  on screen; nobody had ever seen it. Act 3 now has its own **`act3.map`**:
+  act 1's map with the blue dawn dome in all three sky slots (same entities,
+  same order — the rail's baked visibility stays aligned).
 - Known cosmetics left for the enemy round: the muzzle flash still sits above
   the ship in side view, and the ghosts' fan is still screen-up.
 - **Process change (user's ask): no more TestFlight builds without an explicit

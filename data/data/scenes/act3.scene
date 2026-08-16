@@ -21,7 +21,12 @@ defaultMenu -1
 
 map
 {
-	filename: data/map/act1.map
+	# act1.map with ONE change: all three sky-dome slots use the blue dawn dome.
+	# Act 1 fades dawn -> evening -> night along the flight; top-down that sky is
+	# never seen, but the TTB side view looks straight at it -- and the evening/
+	# night domes are near-black up high ("fond bleu puis noir" on device).
+	# Same entities, same order, so the rail's baked visibility stays aligned.
+	filename: data/map/act3.map
 }
 
 light

@@ -66,7 +66,11 @@ fog
 	# startAt 70 like acts 1/2 -- starting the ramp at the camera is what made
 	# the old act 3 needlessly dark (measured on device, see act4.scene).
 	startAt 70
-	endAt   405.0
+	# endAt is 6x the other acts' 405 ON PURPOSE: the side view stands 420 units
+	# off the corridor (pose B) -- with the stock 405 the whole city would sit
+	# past the fog's end, a flat wall of fog colour. 2500 keeps the near facades
+	# readable and stages the depth; verified in the ttb_harness renders.
+	endAt   2500.0
 	color:  0.02  0.0  0.08
 }
 
@@ -111,9 +115,9 @@ music
 
 title
 {
-	# PLACEHOLDER: reuses act 1's card until the act gets its own art
-	# (dawnTitle says "Act 1" in the small line).
-	titleName  data/titles/dawnTitle.png
+	# The act's own card ("Yuu -Dusk / Act III", generated in the style of the
+	# other cards -- Yu Gothic kanji + Brush Script, white on transparent).
+	titleName  data/titles/duskTitle.png
 	prolog start 2000 duration 6000
 
 	at 106000 movePlayersToDefautlSSLocation

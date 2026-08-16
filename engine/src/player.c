@@ -606,9 +606,65 @@ void P_Update(void)
 			
 			
 			//UPDATE MATRIX
-			
+
 			//Rotation part
-			matrix_multiply(cameraInvRot, fromAboveRotation, playerEntity->matrix);
+			//
+			// TTB: during the side-view beat the ship rolls to its PROFILE (nose
+			// leading the travel, i.e. toward the screen side the decor flows
+			// from) -- the usual top-down billboard would show the ship's top to
+			// a side camera. The blend follows the camera's own swing fraction
+			// (camera.ttbAngle), so both moves land together; f stays 0 on every
+			// act without a ttbRoll and this is the original matrix product.
+			{
+				float f = fabsf(camera.ttbAngle) / ((float)M_PI * 0.5f);
+
+				if (f <= 0.0001f)
+				{
+					matrix_multiply(cameraInvRot, fromAboveRotation, playerEntity->matrix);
+				}
+				else
+				{
+					// Profile pose in VIEW space (column-major, like fromAbove):
+					// nose (model Z) -> screen-right (flipped with the angle's
+					// sign), ship-up (model Y) -> screen-up, wingspan into the
+					// screen; det stays +1 via c2 = c0 x c1 after the blend.
+					float sgn = (camera.ttbAngle >= 0) ? 1.0f : -1.0f;
+					float c0[3], c1[3], c2[3];
+					matrix_t blended;
+					float len, dot;
+					int k;
+
+					if (f > 1.0f) f = 1.0f;
+
+					// fromAbove columns: c0=(1,0,0) c1=(0,0,-1) c2=(0,1,0)
+					// profile   columns: c0=(0,0,-sgn) c1=(0,1,0) c2=(sgn,0,0)
+					c0[0] = 1.0f + (0.0f - 1.0f) * f;
+					c0[1] = 0.0f;
+					c0[2] = 0.0f + (-sgn - 0.0f) * f;
+
+					c1[0] = 0.0f;
+					c1[1] = 0.0f + (1.0f - 0.0f) * f;
+					c1[2] = -1.0f + (0.0f - -1.0f) * f;
+
+					len = sqrtf(c0[0]*c0[0] + c0[1]*c0[1] + c0[2]*c0[2]);
+					if (len > 1e-6f) { c0[0]/=len; c0[1]/=len; c0[2]/=len; }
+					dot = c1[0]*c0[0] + c1[1]*c0[1] + c1[2]*c0[2];
+					for (k = 0; k < 3; k++)
+						c1[k] -= c0[k] * dot;
+					len = sqrtf(c1[0]*c1[0] + c1[1]*c1[1] + c1[2]*c1[2]);
+					if (len > 1e-6f) { c1[0]/=len; c1[1]/=len; c1[2]/=len; }
+					c2[0] = c0[1]*c1[2] - c0[2]*c1[1];
+					c2[1] = c0[2]*c1[0] - c0[0]*c1[2];
+					c2[2] = c0[0]*c1[1] - c0[1]*c1[0];
+
+					blended[0] = c0[0]; blended[1] = c0[1]; blended[2]  = c0[2]; blended[3]  = 0;
+					blended[4] = c1[0]; blended[5] = c1[1]; blended[6]  = c1[2]; blended[7]  = 0;
+					blended[8] = c2[0]; blended[9] = c2[1]; blended[10] = c2[2]; blended[11] = 0;
+					blended[12] = 0;    blended[13] = 0;    blended[14] = 0;     blended[15] = 1;
+
+					matrix_multiply(cameraInvRot, blended, playerEntity->matrix);
+				}
+			}
 			
 			//Translation part
 			vectorScale(camera.forward,distanceZFromCamera,translationForwardTransform);

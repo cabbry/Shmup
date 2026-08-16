@@ -181,6 +181,38 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-16 — round 20 (the TTB beat, redone as a real side view)
+- **The v1.5.6 roll was wrong, and the tester said so immediately**: a pure roll
+  around the view axis just rotates the picture — the decor turned on screen
+  while the ship stayed top-down, "comme si on tournait le téléphone". A side
+  VIEW needs the camera to **move**. The beat is now an **orbit of the flight
+  corridor**: over 3 smoothstepped seconds the camera slides 420 units onto the
+  flank, **climbs** 218 (act 1's towers reach y=319 — higher than the rail at
+  162; a camera at gameplay height would sit inside the skyline), and tips its
+  gaze from straight-down to a 28° look-down at the corridor, all while still
+  flying forward. Horizon level, ground at the bottom, the city scrolling
+  **left** — a side-scroller. The exit at 73 s is the same move in reverse.
+- **🆕 The ship turns to its PROFILE during the beat** (user's call, after a
+  mocked render): the player matrix blends from the usual "top toward the
+  camera" billboard to "nose leading the travel", on the same clock as the
+  camera swing, in both directions. Zero effect on any act without a `ttbRoll`.
+- **🆕 A local, quota-free debug loop** (user's ask: stop burning CI runs to see
+  a camera pose). `ttb_harness.c` (scratch, not committed) `#include`s the real
+  `camera.c`, stubs the engine around it, drives the exact scene timeline, and
+  renders **the real act-1 city mesh** (cityBlue.obj.md5mesh, its 48 map
+  instances, painter-sorted, the scene's linear fog simulated) through the real
+  `CAM_ApplyTTB` into SVG frames — plus numeric assertions (pose at key times,
+  scroll direction, no >1.5°/frame snaps, exact return to the rail). The pose
+  itself (**B**: 420 out / y=380 / 28°) was picked by the user from three
+  candidate renders, and the 40→43 s swing storyboarded frame by frame, all
+  before a single build left the machine. Found this way: **the stock fog
+  (endAt 405) would have drowned the whole side view** — act 3's fog now ends
+  at 2500, tuned in the same renders.
+- **The act cards are honest now**: act 3 gets its own **`duskTitle.png`**
+  ("夕 -Dusk / Act III", generated in the family style — kanji + script + rule),
+  and `boss.png` reads **"Act IV"** (the old "Act iii" strokes located by alpha
+  scan, cleared, redrawn).
+
 ### 2026-08-16 — round 19 (Act III: the TTB act — the game grows a fourth act)
 - **🆕 A new Act III, built around the TTB beat**, inserted before the boss —
   which becomes **Act IV**, the proper finale. The act flies act 1's baked rail

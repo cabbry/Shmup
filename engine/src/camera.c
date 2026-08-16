@@ -153,43 +153,118 @@ void CAM_ClearAllRemainingCameraVS(void)
 }
 
 // ---------------------------------------------------------------------------
-// TTB -- the Tokyo Toy Box beat: the camera rolls 90 degrees onto its side, the
-// game reads as a side-scroller for a while, then it rolls back.
+// TTB -- the Tokyo Toy Box beat: the camera swings from over the city onto the
+// SIDE of the flight corridor, at gameplay height, and looks at it with the
+// horizon flat. Ground at the bottom of the screen, sky at the top, the city
+// streaming horizontally -- the vertical shooter reads as a side-scroller.
+// Then it swings back up.
 //
-// The 2026 prototype tried this as a reframing (flip, orbit) on the SHIPPED
-// levels and it fought everything: the on-rails camera, and above all the baked
-// visibility set, which only knows what was visible from the pose the rail flew.
-// A pure ROLL around the view axis is the version that costs nothing: the camera
-// keeps the rail's position AND its view direction, so the same decor is in
-// front of it -- only the horizon tips over. The billboards follow (they are
-// built from the view matrix, see cameraInvRot in player.c), so the ship and the
-// enemies stay upright on screen and the controls need no inversion.
+// v1.5.6 shipped this as a pure ROLL around the view axis, on the theory that
+// keeping the rail's pose kept the bake aligned. On device it looked like
+// turning the phone: the decor rotated on screen (ship untouched -- it is
+// billboarded through the view matrix) but the view was still the top-down
+// one. The tester's verdict was immediate. A side VIEW needs the camera to
+// MOVE: an orbit of the corridor, which is what the 2026-07 prototype did
+// ("one-shot horizontal orbit", commands.c still says so).
 //
-// The one thing that does change is the frustum's footprint: rolled 90 degrees,
-// a tall viewport covers wide instead of tall, and the bake has no faces for the
-// corners it uncovers. Live culling is therefore switched on for the length of
-// the beat, and off again on the way out -- the position never left the rail, so
-// the baked visibility is still valid when we hand back to it. This is the same
-// "scope the freedom to where the constraint binds" rule that made the act-3
-// end-of-rail U-turn work after three whole-act attempts had turned it black.
+// The orbit, per frame, layered on whatever pose the rail just produced:
+//   T = the rail's travel direction (horizontal, low-passed, frozen per beat)
+//   S = T x worldUp, the side of the corridor (sign of the angle picks which)
+//   position += S * SIDE_DIST * sin(theta) - worldUp * DROP * (1 - cos(theta))
+//   basis    -> blends from the rail's toward { forward=-S, up=worldUp }
+// At theta=90: camera SIDE_DIST out, DROP down, looking at the corridor with
+// world-up as screen-up and screen-right = T, so the decor scrolls LEFT (the
+// classic side-scroller reading; "ttbRoll angle -90" flips side + direction).
+// Gameplay is untouched: ships/bullets live in screen space, which follows the
+// camera basis, and the billboards stay upright on screen (cameraInvRot).
+//
+// The position leaves the rail, so the baked visibility is invalid for the
+// whole beat: live culling switches on while theta != 0 and hands back to the
+// bake once upright -- scope the freedom to where the constraint binds, the
+// U-turn's lesson. Never fights the end-of-rail patrol, which owns the flag.
+// The pose at full deployment, tuned against act 1's REAL city geometry (the
+// cityBlue tile spans x +/-271 with towers up to y=319 -- TALLER than the rail
+// at 162: the act flies BETWEEN towers). A side camera at gameplay height would
+// sit inside the skyline, so the side view stands off past the city's edge and
+// slightly above the near band's rooftops, with a gentle downward pitch to keep
+// the corridor centered. Tuned visually in the ttb_harness (renders the real
+// tile through the real CAM_ApplyTTB -- see reborn.md round 20).
+// Pose "B", picked by the user against two alternatives rendered through the
+// real geometry (650/y300/14deg and 900/y260/8deg): the big towers frame the
+// screen, the canyon reads in depth, the ship stands clear over the rooftops.
+#define CAM_TTB_SIDE_DIST	420.0f	// side offset at full deployment (world units)
+#define CAM_TTB_DROP		(-218.0f)	// negative = RISE (act1 rail y=162 -> y=380)
+#define CAM_TTB_PITCH		(28.0f * (float)M_PI / 180.0f)	// look-down tilt at full deployment
+#define CAM_TTB_MAX_RAD		((float)M_PI / 2.0f)	// the event clamps to +/-90
+
+static vec3_t	gTTBAxis     = {0, 0, -1};	// smoothed travel direction T
+static int		gTTBAxisGood = 0;			// T has been fed at least once
+static int		gTTBFrozen   = 0;			// T frozen for the length of a beat
+static vec3_t	gTTBPrevRail;				// rail position last frame (pre-offset)
+static int		gTTBHavePrev = 0;
+
+// (Name kept from the roll version -- it is the scene-file API: "ttbRoll".)
 void CAM_SetTTBRoll(float angleDegrees, int durationMs)
 {
+	float target = angleDegrees * (float)M_PI / 180.0f;
+
+	if (target >  CAM_TTB_MAX_RAD) target =  CAM_TTB_MAX_RAD;
+	if (target < -CAM_TTB_MAX_RAD) target = -CAM_TTB_MAX_RAD;
+
 	camera.ttbFrom     = camera.ttbAngle;
-	camera.ttbTarget   = angleDegrees * (float)M_PI / 180.0f;
+	camera.ttbTarget   = target;
 	camera.ttbPhase    = 0;
 	camera.ttbDuration = (durationMs > 0) ? durationMs : 0;
+
+	// Heading off the rail: freeze the travel axis so a wobbly rail segment
+	// cannot swing the whole side view around mid-beat. Released when upright.
+	if (target != 0.0f)
+		gTTBFrozen = 1;
 
 	if (camera.ttbDuration == 0)
 		camera.ttbAngle = camera.ttbTarget;
 }
 
-// Advance the transition and apply the roll to the basis the rail just produced.
-static void CAM_ApplyTTBRoll(void)
+// Advance the transition and swing the camera off the pose the rail (or the
+// end-of-rail patrol) just produced. camera.position/right/up/forward hold the
+// RAIL pose on entry and the TTB pose on exit.
+static void CAM_ApplyTTB(void)
 {
-	float c, s, f;
-	int   k;
-	vec3_t rolledRight, rolledUp;
+	float	f, sgn, absAngle, sideDist, drop;
+	int		k;
+	vec3_t	side, fwd, upv, rightv;
+	float	dx, dz, planar;
 
+	// --- Travel axis: estimate from the rail's own motion (pre-offset), low-
+	// passed, and frozen while a beat is on. The estimate must be fed BEFORE the
+	// offset is applied, or it would measure our own swing.
+	if (gTTBHavePrev && !gTTBFrozen)
+	{
+		dx = camera.position[0] - gTTBPrevRail[0];
+		dz = camera.position[2] - gTTBPrevRail[2];
+		planar = sqrtf(dx*dx + dz*dz);
+		if (planar > 1e-4f)
+		{
+			dx /= planar; dz /= planar;
+			if (!gTTBAxisGood)
+			{
+				gTTBAxis[0] = dx; gTTBAxis[1] = 0; gTTBAxis[2] = dz;
+				gTTBAxisGood = 1;
+			}
+			else
+			{
+				// ~5% per tick: steady within a second, deaf to frame noise.
+				gTTBAxis[0] += (dx - gTTBAxis[0]) * 0.05f;
+				gTTBAxis[2] += (dz - gTTBAxis[2]) * 0.05f;
+				planar = sqrtf(gTTBAxis[0]*gTTBAxis[0] + gTTBAxis[2]*gTTBAxis[2]);
+				if (planar > 1e-6f) { gTTBAxis[0] /= planar; gTTBAxis[2] /= planar; }
+			}
+		}
+	}
+	vectorCopy(camera.position, gTTBPrevRail);
+	gTTBHavePrev = 1;
+
+	// --- Advance the scripted transition (smoothstepped).
 	if (camera.ttbAngle != camera.ttbTarget)
 	{
 		camera.ttbPhase += timediff;
@@ -200,36 +275,71 @@ static void CAM_ApplyTTBRoll(void)
 		}
 		else
 		{
-			// Smoothstep: the tip-over starts and lands gently, so the beat reads
-			// as a deliberate move rather than a snap.
 			f = camera.ttbPhase / (float)camera.ttbDuration;
 			f = f * f * (3.0f - 2.0f * f);
 			camera.ttbAngle = camera.ttbFrom + (camera.ttbTarget - camera.ttbFrom) * f;
 		}
 	}
 
-	// Live culling for as long as we are off the upright pose the bake was
-	// computed for. Never fight the end-of-rail patrol, which owns the flag once
-	// the path is exhausted.
+	// Fully upright and no beat pending: release the frozen axis, hand the
+	// culling back to the bake (unless the end-of-rail patrol owns it).
+	if (camera.ttbAngle == 0.0f && camera.ttbTarget == 0.0f)
+		gTTBFrozen = 0;
+
 	if (!gCamEndActive)
 		gRuntimeCullMap = (camera.ttbAngle > 0.001f || camera.ttbAngle < -0.001f);
 
 	if (camera.ttbAngle == 0.0f)
 		return;
 
-	// Roll right/up around forward. right and up are orthonormal, so the rotation
-	// is just a 2D one in their plane -- no need for a general axis-angle.
-	c = cosf(camera.ttbAngle);
-	s = sinf(camera.ttbAngle);
+	sgn      = (camera.ttbAngle >= 0) ? 1.0f : -1.0f;
+	absAngle = camera.ttbAngle * sgn;
 
+	// S = T x worldUp (horizontal, unit since T is), flipped by the angle's sign.
+	side[0] = -gTTBAxis[2] * sgn;
+	side[1] = 0;
+	side[2] =  gTTBAxis[0] * sgn;
+
+	// --- Position: out to the side, down toward the action, on an elliptic arc
+	// that leaves the rail tangentially (sin/1-cos).
+	sideDist = CAM_TTB_SIDE_DIST * sinf(absAngle);
+	drop     = CAM_TTB_DROP * (1.0f - cosf(absAngle));
 	for (k = 0; k < 3; k++)
-	{
-		rolledRight[k] = camera.right[k] * c + camera.up[k] * s;
-		rolledUp[k]    = camera.up[k]    * c - camera.right[k] * s;
-	}
+		camera.position[k] += side[k] * sideDist;
+	camera.position[1] -= drop;
 
-	vectorCopy(rolledRight, camera.right);
-	vectorCopy(rolledUp,    camera.up);
+	// --- Orientation: blend the rail's basis toward the side-view basis
+	// { forward = -S pitched down by CAM_TTB_PITCH, up = worldUp pitched along },
+	// then re-orthonormalize. The two are ~90 degrees apart at most, so
+	// lerp+normalize cannot degenerate.
+	f = absAngle / CAM_TTB_MAX_RAD;
+	if (f > 1.0f) f = 1.0f;
+
+	{
+		float cp = cosf(CAM_TTB_PITCH), sp = sinf(CAM_TTB_PITCH);
+		for (k = 0; k < 3; k++)
+		{
+			float w      = (k == 1) ? 1.0f : 0.0f;			// world up
+			float fwdTgt = -side[k] * cp - w * sp;			// at the corridor, tilted down
+			float upTgt  =  w * cp       - side[k] * sp;	// stays perpendicular
+			fwd[k] = camera.forward[k] + (fwdTgt - camera.forward[k]) * f;
+			upv[k] = camera.up[k]      + (upTgt  - camera.up[k])      * f;
+		}
+	}
+	normalize(fwd);
+	// Gram-Schmidt the up against the new forward.
+	planar = upv[0]*fwd[0] + upv[1]*fwd[1] + upv[2]*fwd[2];
+	for (k = 0; k < 3; k++)
+		upv[k] -= fwd[k] * planar;
+	normalize(upv);
+	// Engine convention (see CAM_EndBasis): right = forward x up.
+	rightv[0] = fwd[1]*upv[2] - fwd[2]*upv[1];
+	rightv[1] = fwd[2]*upv[0] - fwd[0]*upv[2];
+	rightv[2] = fwd[0]*upv[1] - fwd[1]*upv[0];
+
+	vectorCopy(fwd,    camera.forward);
+	vectorCopy(upv,    camera.up);
+	vectorCopy(rightv, camera.right);
 }
 
 void CAM_Update(void)
@@ -421,7 +531,7 @@ void CAM_Update(void)
 
 		// The patrol builds its own basis; the TTB beat still applies on top of
 		// it, so an act can roll over past the end of its rail too.
-		CAM_ApplyTTBRoll();
+		CAM_ApplyTTB();
 		return;
 	}
 
@@ -485,7 +595,7 @@ void CAM_Update(void)
 	camera.forward[2] = -interpolatedOrientationMatrix[8];
 
 	// TTB: tip the horizon over on top of the pose the rail just produced.
-	CAM_ApplyTTBRoll();
+	CAM_ApplyTTB();
 }
 
 

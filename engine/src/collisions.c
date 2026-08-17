@@ -733,8 +733,20 @@ void COLL_CheckEnemies(void)
 	
 	
 	//Now Check local player's collisions
-	
-	
+
+
+	// CI only (see COLL_CheckPlayers): the smoke's idle ship must survive the
+	// waves -- ramming deaths live HERE, not in COLL_CheckPlayers, which is how
+	// the enemies smoke silently game-overed to the menu at ~20s (the 'scene 0
+	// at sim-t 20min' mystery: the timer never resets on the way out).
+	{
+		static int smokeInvuln = -1;
+		if (smokeInvuln < 0)
+			smokeInvuln = getenv("SHMUP_INVULN") ? 1 : 0;
+		if (smokeInvuln)
+			return;
+	}
+
 	// User in invulnerable
 	if (players[controlledPlayer].invulnerableFor > 0)
 		return;

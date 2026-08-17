@@ -133,18 +133,149 @@ title
 }
 
 
-# BISECT step 2: one line of EACH mechanism the full waves use (LEE with its
-# firing params, FHT, SHAB with its 4 params, THA with its 2, one circle wave).
-# Red = one of these five breaks the load; green = volume or a specific line.
+# Empty on purpose -- see the header comment. (An act with zero scripted spawns
+# is fine: the "Enemy cleared" stat guards the zero denominator.)
 enemies
 {
+	#define ENEMY_HAB	0
+	#define ENEMY_FHT	1
+	#define ENEMY_LEE	2
+	#define ENEMY_SHAB	3
+	#define ENEMY_THA	5
+	#
+	# Act III's signature (user brief): MIXED waves -- combos acts 1/2 never
+	# did (they run one type at a time) -- plus a few classics, and a PACKED
+	# side view (the tall screen is the whole corridor there).
+	# Timeline: 12-38s top-down / 40-43 swing (breather) / 45-71 SIDE VIEW
+	# (enemies cross right->left) / 73-76 return (breather) / 78-104 finale.
+	# Enemy pool is 64 live at once; ttls keep the densest overlaps under ~30.
+
+	# ---------- PHASE 1 (top-down): warm up, then the first combos ----------
+
+	# Classic opener: three LEE columns, act-2 style.
 	settime 12000
 	setttl 8000
-	at 0    spawnEnemy mouvement 0 startAngle 0 fireFrequency 50 enemyType 2 startPos -0.6 1.2 endPos -0.6 -1.2 controlPoint -0.6 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
-	at 2000 spawnEnemy mouvement 1 enemyType 1 startPos -0.3 1.2 endPos -0.3 -1.2 controlPoint -0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 4000 spawnEnemy mouvement 1 enemyType 3 startPos 2 0.5 endPos 0.0 0.35 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 5 rotAngle -200
-	at 6000 spawnEnemy mouvement 1 enemyType 5 startPos -1.8 -0.5 endPos 0.6 -0.4 controlPoint -1 -0.4 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection 1 firingTime 5000
-	at 8000 spawnEnemyWave circle enemyNum 12 enemyType 1 percentageInvulnerable 0 angleoffset 0 defaultType 0
+	at 0    spawnEnemy mouvement 0 startAngle 0   fireFrequency 50 enemyType 2 startPos -0.6 1.2 endPos -0.6 -1.2 controlPoint -0.6 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
+	at 400  spawnEnemy mouvement 0 startAngle 120 fireFrequency 50 enemyType 2 startPos  0.0 1.2 endPos  0.0 -1.2 controlPoint  0.0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
+	at 800  spawnEnemy mouvement 0 startAngle 240 fireFrequency 50 enemyType 2 startPos  0.6 1.2 endPos  0.6 -1.2 controlPoint  0.6 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
+
+	# COMBO 1 (never seen together): LEE columns raining THROUGH a parked SHAB
+	# spinner -- thread the maze while the center sprays.
+	addtime 6000
+	setttl 9000
+	at 0    spawnEnemy mouvement 1 enemyType 3 startPos 2 0.5 endPos 0.0 0.35 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 5 rotAngle -200
+	setttl 7000
+	at 900  spawnEnemy mouvement 0 startAngle 0   fireFrequency 60 enemyType 2 startPos -0.8 1.2 endPos -0.8 -1.2 controlPoint -0.8 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.0
+	at 1500 spawnEnemy mouvement 0 startAngle 180 fireFrequency 60 enemyType 2 startPos  0.8 1.2 endPos  0.8 -1.2 controlPoint  0.8 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.0
+	at 2600 spawnEnemy mouvement 0 startAngle 90  fireFrequency 60 enemyType 2 startPos -0.4 1.2 endPos -0.4 -1.2 controlPoint -0.4 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.0
+	at 3200 spawnEnemy mouvement 0 startAngle 270 fireFrequency 60 enemyType 2 startPos  0.4 1.2 endPos  0.4 -1.2 controlPoint  0.4 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.0
+
+	# COMBO 2: an FHT labyrinth line WITH a THA strafing across under it --
+	# vertical rain plus a horizontal sweep.
+	addtime 8500
+	setttl 6500
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.9 1.2 endPos -0.9 -1.2 controlPoint -0.9 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.3 1.2 endPos -0.3 -1.2 controlPoint -0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos  0.3 1.2 endPos  0.3 -1.2 controlPoint  0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos  0.9 1.2 endPos  0.9 -1.2 controlPoint  0.9 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 600  spawnEnemy mouvement 1 enemyType 5 startPos -1.8 -0.5 endPos 0.6 -0.4 controlPoint -1 -0.4 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection 1 firingTime 5000
+
+	# Classic breather wave: an FHT circle.
+	addtime 7500
+	setttl 5000
+	at 0 spawnEnemyWave circle enemyNum 12 enemyType 1 percentageInvulnerable 0 angleoffset 0 defaultType 0
+
+	# ---------- 40-43s: the camera tips over. Nobody shoots at a cutscene. ----------
+
+	# ---------- SIDE VIEW (45-71s): the packed stretch. Everything enters ----------
+	# ---------- from the RIGHT and crosses left, at many heights.          ----------
+
+	# Opening flood: two staggered FHT streams, high and low.
+	settime 45000
+	setttl 7000
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.75 endPos -1.3  0.75 controlPoint 0  0.75 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 500  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.35 endPos -1.3  0.35 controlPoint 0  0.35 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1000 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.05 endPos -1.3 -0.05 controlPoint 0 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1500 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.45 endPos -1.3 -0.45 controlPoint 0 -0.45 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2000 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.85 endPos -1.3 -0.85 controlPoint 0 -0.85 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2600 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.55 endPos -1.3  0.55 controlPoint 0  0.55 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 3100 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.15 endPos -1.3  0.15 controlPoint 0  0.15 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 3600 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.25 endPos -1.3 -0.25 controlPoint 0 -0.25 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 4100 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.65 endPos -1.3 -0.65 controlPoint 0 -0.65 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+
+	# COMBO 3: LEE beams riding the flood -- two horizontal firing lines
+	# crossing while FHTs keep coming between them.
+	addtime 6000
+	setttl 9000
+	at 0    spawnEnemy mouvement 0 startAngle 0   fireFrequency 55 enemyType 2 startPos 1.2  0.6 endPos -1.2  0.6 controlPoint 0  0.6 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
+	at 700  spawnEnemy mouvement 0 startAngle 180 fireFrequency 55 enemyType 2 startPos 1.2 -0.6 endPos -1.2 -0.6 controlPoint 0 -0.6 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
+	setttl 6000
+	at 1200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.2  endPos -1.3  0.2  controlPoint 0  0.2  zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1700 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.2  endPos -1.3 -0.2  controlPoint 0 -0.2  zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.0  endPos -1.3  0.0  controlPoint 0  0.0  zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 2700 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.4  endPos -1.3  0.4  controlPoint 0  0.4  zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 3200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.4  endPos -1.3 -0.4  controlPoint 0 -0.4  zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+
+	# COMBO 4: a SHAB spinner parked mid-sky WHILE a THA sweeps the low lane
+	# and FHT arcs dive through -- the full-height wall of stuff.
+	addtime 9500
+	setttl 10000
+	at 0    spawnEnemy mouvement 1 enemyType 3 startPos 2 0.3 endPos 0.3 0.3 controlPoint 1 0.6 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 6 rotAngle -180
+	setttl 7000
+	at 400  spawnEnemy mouvement 1 enemyType 5 startPos 1.8 -0.7 endPos -0.6 -0.7 controlPoint 1 -0.7 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection -1 firingTime 5500
+	setttl 6000
+	at 900  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.85 endPos -1.3 -0.2 controlPoint 0  0.9 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1400 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.9  endPos -1.3  0.1 controlPoint 0 -0.9 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1900 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.6  endPos -1.3 -0.5 controlPoint 0  0.7 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 2400 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.6  endPos -1.3  0.5 controlPoint 0 -0.7 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 2900 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.1  endPos -1.3  0.1 controlPoint 0  0.1 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+
+	# Closing flood of the side view: tight five-lane FHT wall, then thinning.
+	addtime 9000
+	setttl 6000
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.8 endPos -1.3  0.8 controlPoint 0  0.8 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 300  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.4 endPos -1.3  0.4 controlPoint 0  0.4 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 600  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.0 endPos -1.3  0.0 controlPoint 0  0.0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 900  spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.4 endPos -1.3 -0.4 controlPoint 0 -0.4 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 1200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.8 endPos -1.3 -0.8 controlPoint 0 -0.8 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1900 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.6 endPos -1.3  0.6 controlPoint 0  0.6 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.6 endPos -1.3 -0.6 controlPoint 0 -0.6 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2500 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.2 endPos -1.3  0.2 controlPoint 0  0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2800 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.2 endPos -1.3 -0.2 controlPoint 0 -0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+
+	# ---------- 73-76s: tipping back. Breather. ----------
+
+	# ---------- FINALE (78-104s, top-down): combos at full tilt ----------
+
+	# COMBO 5: circle wave AROUND a hard spinner.
+	settime 78000
+	setttl 10000
+	at 0    spawnEnemy mouvement 1 enemyType 3 startPos 2 0.5 endPos 0.0 0.3 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 1 firingAngle1 0 firingAngle2 360 numThread 7 rotAngle -120
+	setttl 6000
+	at 800  spawnEnemyWave circle enemyNum 12 enemyType 1 percentageInvulnerable 20 angleoffset 0 defaultType 0
+	at 4500 spawnEnemyWave circle enemyNum 10 enemyType 1 percentageInvulnerable 20 angleoffset 45 defaultType 0
+
+	# COMBO 6: twin aimed-fan SHABs WITH LEE columns between them.
+	addtime 10500
+	setttl 8000
+	at 0    spawnEnemy mouvement 1 enemyType 3 startPos  2 0.5 endPos  0.5 0.55 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 -110 firingAngle2 -35 numThread 3 rotAngle 0
+	at 300  spawnEnemy mouvement 1 enemyType 3 startPos -2 0.5 endPos -0.5 0.55 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 -145 firingAngle2 -70 numThread 3 rotAngle 0
+	setttl 7000
+	at 1000 spawnEnemy mouvement 0 startAngle 0   fireFrequency 55 enemyType 2 startPos -0.2 1.2 endPos -0.2 -1.2 controlPoint -0.2 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
+	at 1600 spawnEnemy mouvement 0 startAngle 180 fireFrequency 55 enemyType 2 startPos  0.2 1.2 endPos  0.2 -1.2 controlPoint  0.2 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
+
+	# Classic closer, act-2 flavor: sine FHT weave, one side then the other.
+	addtime 9000
+	setttl 4500
+	at 0    spawnEnemy mouvement 2 xOffset 0 xWidth 1 enemyType 1 startPos -1 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	at 600  spawnEnemy mouvement 2 xOffset 0 xWidth 1 enemyType 1 startPos  1 1.2 endPos  1 -1.2 controlPoint  1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	at 1200 spawnEnemy mouvement 2 xOffset 0 xWidth 1 enemyType 1 startPos -1 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	at 1800 spawnEnemy mouvement 2 xOffset 0 xWidth 1 enemyType 1 startPos  1 1.2 endPos  1 -1.2 controlPoint  1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+
+	# Last word: one big circle, a fifth invulnerable, spinning off-angle.
+	addtime 6500
+	setttl 6000
+	at 0 spawnEnemyWave circle enemyNum 16 enemyType 1 percentageInvulnerable 20 angleoffset 90 defaultType 0
 }
 
 texts_events

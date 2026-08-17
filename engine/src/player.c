@@ -638,36 +638,47 @@ void P_Update(void)
 					// from the shipped top-down view: the model's NOSE is -Z
 					// and its visible top is +Y; both earlier guesses (v1.5.7
 					// flew backwards, v1.5.8 on its back) had them inverted.
-					// Of the four sign candidates only this one lands top-up
-					// AND nose leading toward the decor flow.
+					//
+					// TRANSITION, redone after build 191 ("le vaisseau s'inverse
+					// d'un coup comme s'il reculait"): the old per-column lerp
+					// let the NOSE leave the screen plane -- halfway through it
+					// pointed 55 degrees into the depth, showing the tail. The
+					// nose now stays IN the screen plane the whole way, sweeping
+					// up-screen -> screen-right on an arc (a natural nose-over),
+					// while the hull rolls from top-facing to side-facing.
 					float sgn = (camera.ttbAngle >= 0) ? 1.0f : -1.0f;
 					float c0[3], c1[3], c2[3];
 					matrix_t blended;
-					float len, dot;
+					float len, dot, phi;
 					int k;
 
 					if (f > 1.0f) f = 1.0f;
 
 					// fromAbove columns: c0=(1,0,0) c1=(0,0,-1) c2=(0,1,0)
-					// profile   columns: c0=(0,0,sgn) c1=(0,1,0) c2=c0xc1=(-sgn,0,0)
-					c0[0] = 1.0f + (0.0f - 1.0f) * f;
-					c0[1] = 0.0f;
-					c0[2] = 0.0f + (sgn - 0.0f) * f;
+					// profile   columns: c0=(0,0,sgn) c1=(0,1,0) c2=(-sgn,0,0)
+					// Nose (image of model -Z) = -c2: in-plane arc, z stays 0.
+					phi = f * (float)M_PI * 0.5f;
+					c2[0] = -sgn * sinf(phi);
+					c2[1] = cosf(phi);
+					c2[2] = 0.0f;
 
+					// Hull roll: model Y's image tips from "into the screen"
+					// (top toward the viewer) to "up-screen", orthogonalized
+					// against the nose axis.
 					c1[0] = 0.0f;
-					c1[1] = 0.0f + (1.0f - 0.0f) * f;
-					c1[2] = -1.0f + (0.0f - -1.0f) * f;
-
-					len = sqrtf(c0[0]*c0[0] + c0[1]*c0[1] + c0[2]*c0[2]);
-					if (len > 1e-6f) { c0[0]/=len; c0[1]/=len; c0[2]/=len; }
-					dot = c1[0]*c0[0] + c1[1]*c0[1] + c1[2]*c0[2];
+					c1[1] = f;
+					c1[2] = -(1.0f - f);
+					dot = c1[0]*c2[0] + c1[1]*c2[1] + c1[2]*c2[2];
 					for (k = 0; k < 3; k++)
-						c1[k] -= c0[k] * dot;
+						c1[k] -= c2[k] * dot;
 					len = sqrtf(c1[0]*c1[0] + c1[1]*c1[1] + c1[2]*c1[2]);
 					if (len > 1e-6f) { c1[0]/=len; c1[1]/=len; c1[2]/=len; }
-					c2[0] = c0[1]*c1[2] - c0[2]*c1[1];
-					c2[1] = c0[2]*c1[0] - c0[0]*c1[2];
-					c2[2] = c0[0]*c1[1] - c0[1]*c1[0];
+
+					// Wings complete the frame: c0 = c1 x c2 (checks out at both
+					// endpoints: A gives (1,0,0), B gives (0,0,sgn)).
+					c0[0] = c1[1]*c2[2] - c1[2]*c2[1];
+					c0[1] = c1[2]*c2[0] - c1[0]*c2[2];
+					c0[2] = c1[0]*c2[1] - c1[1]*c2[0];
 
 					// Device verdict on 190: the profile reads TOO THICK. Slim
 					// the hull's screen height by 20% at full deployment (the
@@ -1182,11 +1193,15 @@ void P_PrepareBulletSprites(void)
 			float ts = sinf(camera.ttbAngle), tc = cosf(camera.ttbAngle);
 			float shipX = player->ss_position[X] * SS_W;
 			float shipY = player->ss_position[Y] * SS_H;
-			float fh;
+			float fh, fw;
 			int   gun;
 
 			flashInterpolation = 1- (player->firingUpTo - simulationTime) / (float)bulletConfig.msBetweenBullets;
 			fh = bulletConfig.flashHeight * flashInterpolation / gVScale;
+			// Device verdict on 191: the nose fire is FAR too wide in the side
+			// view. Slim the flame's cross axis with the beat, harder than the
+			// bullets (45% left at 90 degrees); untouched upright.
+			fw = bulletConfig.flashHalfWidth * (1.0f - 0.55f * fabsf(ts));
 
 			for (gun = 0; gun < 2; gun++)
 			{
@@ -1197,10 +1212,10 @@ void P_PrepareBulletSprites(void)
 				int   c;
 				short texU[4], texV[4];
 
-				a[0] = gx - bulletConfig.flashHalfWidth;	b[0] = bulletConfig.flashScreenSpaceYDelta;
-				a[1] = gx - bulletConfig.flashHalfWidth;	b[1] = bulletConfig.flashScreenSpaceYDelta + fh;
-				a[2] = gx + bulletConfig.flashHalfWidth;	b[2] = bulletConfig.flashScreenSpaceYDelta + fh;
-				a[3] = gx + bulletConfig.flashHalfWidth;	b[3] = bulletConfig.flashScreenSpaceYDelta;
+				a[0] = gx - fw;	b[0] = bulletConfig.flashScreenSpaceYDelta;
+				a[1] = gx - fw;	b[1] = bulletConfig.flashScreenSpaceYDelta + fh;
+				a[2] = gx + fw;	b[2] = bulletConfig.flashScreenSpaceYDelta + fh;
+				a[3] = gx + fw;	b[3] = bulletConfig.flashScreenSpaceYDelta;
 
 				texU[0] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX);
 				texV[0] = (64.0f/128*SHRT_MAX) + (32.0f/128*SHRT_MAX) + player->lastBulletType*(32.0f/128*SHRT_MAX);

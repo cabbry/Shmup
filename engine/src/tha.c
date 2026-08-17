@@ -24,6 +24,7 @@
  */
 
 #include "tha.h"
+#include "camera.h"	// CAM_TTBRotateSS: the curtain's direction follows the beat
 #include "player.h"
 #include "enemy_particules.h"
 #include "timer.h"
@@ -104,8 +105,15 @@ void THA_FireBullet(float ssPosX, float ssPosY,enemy_t* enemy)
 	bullet->text[3][V] =bullet->text[1][V] + THA_TEXT_BULLET_HEIGHT;
 	
 	
-	bullet->posDiff[X] = 0;
-	bullet->posDiff[Y] = 2*SS_H*enemy->parameters[PARAMETER_THA_FIRING_DIRECTION];
+	// TTB: the curtain's authored direction (straight up or down the screen)
+	// rotates with the beat -- in the side view it sweeps left/right instead.
+	{
+		float vx = 0;
+		float vy = 2*SS_H*enemy->parameters[PARAMETER_THA_FIRING_DIRECTION];
+		CAM_TTBRotateSS(&vx, &vy);
+		bullet->posDiff[X] = vx;
+		bullet->posDiff[Y] = vy;
+	}
 	
 	//Log_Printf("enemy->parameters[PARAMETER_THA_LAST_BULLET_TYPE]=%.2f\n",enemy->parameters[PARAMETER_THA_LAST_BULLET_TYPE]);
 	//Log_Printf("(int)enemy->parameters[PARAMETER_THA_LAST_BULLET_TYPE]=%d\n",   (int)enemy->parameters[PARAMETER_THA_LAST_BULLET_TYPE]     );

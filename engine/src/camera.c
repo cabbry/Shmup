@@ -269,6 +269,17 @@ void CAM_GetTTBBlend(matrix_t out, float hullSlim)
 	out[12] = 0;    out[13] = 0;    out[14] = 0;     out[15] = 1;
 }
 
+// See camera.h: beat-rotate an AUTHORED screen-space velocity (same clockwise
+// convention as the player's bullets: up->right, down->left at +90).
+void CAM_TTBRotateSS(float* dx, float* dy)
+{
+	float ts = sinf(camera.ttbAngle), tc = cosf(camera.ttbAngle);
+	float x = *dx, y = *dy;
+
+	*dx =  x * tc + y * ts;
+	*dy = -x * ts + y * tc;
+}
+
 // Advance the transition and swing the camera off the pose the rail (or the
 // end-of-rail patrol) just produced. camera.position/right/up/forward hold the
 // RAIL pose on entry and the TTB pose on exit.

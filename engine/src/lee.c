@@ -24,6 +24,7 @@
  */
 
 #include "lee.h"
+#include "camera.h"	// CAM_TTBRotateSS: authored shot directions follow the beat
 #include "timer.h"
 #include "enemy_particules.h"
 #include "globals.h"
@@ -151,9 +152,14 @@ void emitBullet(enemy_t* enemy)
 	else 
 	if (enemy->parameters[PARAMETER_LEE_FIRING_TYPE] == LEE_FIRING_TYPE_DOWN)
 	{
-		
-		bullet->posDiff[X] = LEE_BULLET_DISTANCE_TTL *SS_H*enemy->parameters[PARAMETER_LEE_BULLET_SPEED_FACTOR]*cosf(enemy->entity.yAxisRot+M_PI/2);
-		bullet->posDiff[Y] = LEE_BULLET_DISTANCE_TTL *SS_H*enemy->parameters[PARAMETER_LEE_BULLET_SPEED_FACTOR]*sinf(enemy->entity.yAxisRot+M_PI/2);
+		// TTB: this is an AUTHORED direction, so it rotates with the beat
+		// (identity upright); the aimed mode above is computed in ss space
+		// and stays correct in any view untouched.
+		float vx = LEE_BULLET_DISTANCE_TTL *SS_H*enemy->parameters[PARAMETER_LEE_BULLET_SPEED_FACTOR]*cosf(enemy->entity.yAxisRot+M_PI/2);
+		float vy = LEE_BULLET_DISTANCE_TTL *SS_H*enemy->parameters[PARAMETER_LEE_BULLET_SPEED_FACTOR]*sinf(enemy->entity.yAxisRot+M_PI/2);
+		CAM_TTBRotateSS(&vx, &vy);
+		bullet->posDiff[X] = vx;
+		bullet->posDiff[Y] = vy;
 	}
 	else 
 	if (enemy->parameters[PARAMETER_LEE_FIRING_TYPE] == LEE_FIRING_TYPE_NO_FIRE)

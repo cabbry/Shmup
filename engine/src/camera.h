@@ -145,4 +145,10 @@ void CAM_SetTTBRoll(float angleDegrees, int durationMs);
 // 0.2 = the player ship's 20%). Used by the player AND the enemies, so every
 // craft reads correctly in the side view.
 void CAM_GetTTBBlend(matrix_t out, float hullSlim);
+
+// Rotate a screen-space velocity with the TTB beat (identity upright): what
+// was authored "down at the player" fires screen-left in the side view, etc.
+// For AUTHORED directions only -- aimed-at-player shots are computed in ss
+// space and stay correct in any view untouched.
+void CAM_TTBRotateSS(float* dx, float* dy);
 #endif

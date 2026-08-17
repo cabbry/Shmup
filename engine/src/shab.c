@@ -25,6 +25,7 @@
 
 #include "shab.h"
 
+#include "camera.h"	// CAM_TTBRotateSS: pattern shots follow the TTB beat
 #include "lofb.h"
 #include "globals.h"
 #include "timer.h"
@@ -121,8 +122,16 @@ void emitSHABBullet(enemy_t* enemy,float angle)
 	//sinAngle = sinf(angle);
 	//Log_Printf("[emitSHABBullet] angle=%.2f\n",angle);
 	
-	bullet->posDiff[X] = cosf(angle)*SHAB_BULLET_DISTANCE_TTL*SS_H;//bullet->posDiff[X] * cosAngle - bullet->posDiff[Y] *  sinAngle; 
-	bullet->posDiff[Y] = sinf(angle)*SHAB_BULLET_DISTANCE_TTL*SS_H;//tmp                * sinAngle + bullet->posDiff[Y] *  cosAngle;
+	// TTB: the authored pattern angle rotates with the beat (identity upright;
+	// the boss reuses this emitter but act 4 never rolls). Aimed shots are
+	// unaffected -- their angle is computed in ss space, and ss is the screen.
+	{
+		float vx = cosf(angle)*SHAB_BULLET_DISTANCE_TTL*SS_H;
+		float vy = sinf(angle)*SHAB_BULLET_DISTANCE_TTL*SS_H;
+		CAM_TTBRotateSS(&vx, &vy);
+		bullet->posDiff[X] = vx;
+		bullet->posDiff[Y] = vy;
+	}
 	
 	//Log_Printf("[emitSHABBullet] posDiffX=%d posDiffY=%d\n",bullet->posDiff[X],bullet->posDiff[Y]);
 }

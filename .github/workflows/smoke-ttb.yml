@@ -83,6 +83,23 @@ jobs:
           CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
           START=$(date +%s)
 
+          # Diagnostic: the FIRST minute of the app's own mouth. The two failed
+          # runs only ever showed the tail (menu frames at t=20min); whether the
+          # scene-3 jump ever happened lives in the head.
+          sleep 60
+          echo "=== console head ==="
+          head -60 "$RUNNER_TEMP/ttb.log" || true
+          echo "=== documents logs ==="
+          ls -la "$CONTAINER"/Documents/ || true
+          for L in "$CONTAINER"/Documents/*.log; do
+            [ -f "$L" ] && { echo "== $L head:"; head -40 "$L"; }
+          done
+          echo "=== crash reports ==="
+          ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null || true
+          for c in ~/Library/Logs/DiagnosticReports/Shmup*; do
+            [ -f "$c" ] && { echo "== $c"; head -30 "$c"; }
+          done
+
           # the engine file log lands in Documents (SHMUP_LOG_FILE=1)
           for i in $(seq 1 90); do
             LOG=$(ls "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
@@ -141,10 +158,22 @@ jobs:
           fi
           echo "SKY AND CITY BOTH PRESENT THROUGH THE SIDE VIEW."
 
+      - name: Collect logs even on failure
+        if: always()
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="${{ steps.run.outputs.bundle }}"
+          cp "$RUNNER_TEMP/ttb.log" console.log 2>/dev/null || true
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data 2>/dev/null)
+          [ -n "$CONTAINER" ] && cp "$CONTAINER"/Documents/*.log documents.log 2>/dev/null || true
+
       - name: Upload the trace
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ttb-trace
-          path: ttb-trace.log
+          path: |
+            ttb-trace.log
+            console.log
+            documents.log
           if-no-files-found: ignore

@@ -131,6 +131,7 @@
 
 
 
+#include <stdlib.h>	// getenv (CI smoke invulnerability switch)
 #include "collisions.h"
 #include "player.h"
 #include "enemy.h"
@@ -407,6 +408,16 @@ void Spawn_EntityParticules(vec2_t ss_position)
 void COLL_CheckPlayers(void)
 {
 	int j;
+
+	// CI only: the smoke tests fly the acts with an idle, uncontrolled ship
+	// (SHMUP_BAKE_SCENE) -- now that the TTB act has enemies, that ship would
+	// die and drop to the menu before the probes fire. Env-gated, so it can
+	// never affect a real device or lockstep play.
+	static int smokeInvuln = -1;
+	if (smokeInvuln < 0)
+		smokeInvuln = getenv("SHMUP_INVULN") ? 1 : 0;
+	if (smokeInvuln)
+		return;
 
 	// User in invulnerable
 	if (players[controlledPlayer].invulnerableFor > 0)

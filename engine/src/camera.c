@@ -225,6 +225,50 @@ void CAM_SetTTBRoll(float angleDegrees, int durationMs)
 		camera.ttbAngle = camera.ttbTarget;
 }
 
+// The TTB billboard pose (see camera.h): the exact blend proven on the
+// ship_rig -- fromAbove's TRUE columns at f=0 (c0=(1,0,0) c1=(0,0,1)
+// c2=(0,-1,0)), the profile at f=1, the nose held in the screen plane on an
+// up-to-side arc in between. Shared by the player and the enemies so every
+// craft reads correctly in the side view; enemies keep their own view-space
+// euler spins on top.
+void CAM_GetTTBBlend(matrix_t out, float hullSlim)
+{
+	float f = fabsf(camera.ttbAngle) / ((float)M_PI * 0.5f);
+	float sgn = (camera.ttbAngle >= 0) ? 1.0f : -1.0f;
+	float c0[3], c1[3], c2[3];
+	float len, dot, phi, slim;
+	int k;
+
+	if (f > 1.0f) f = 1.0f;
+
+	phi = f * (float)M_PI * 0.5f;
+	c2[0] = -sgn * sinf(phi);
+	c2[1] = -cosf(phi);
+	c2[2] = 0.0f;
+
+	c1[0] = 0.0f;
+	c1[1] = f;
+	c1[2] = (1.0f - f);
+	dot = c1[0]*c2[0] + c1[1]*c2[1] + c1[2]*c2[2];
+	for (k = 0; k < 3; k++)
+		c1[k] -= c2[k] * dot;
+	len = sqrtf(c1[0]*c1[0] + c1[1]*c1[1] + c1[2]*c1[2]);
+	if (len > 1e-6f) { c1[0]/=len; c1[1]/=len; c1[2]/=len; }
+
+	c0[0] = c1[1]*c2[2] - c1[2]*c2[1];
+	c0[1] = c1[2]*c2[0] - c1[0]*c2[2];
+	c0[2] = c1[0]*c2[1] - c1[1]*c2[0];
+
+	slim = 1.0f - hullSlim * f;
+	for (k = 0; k < 3; k++)
+		c1[k] *= slim;
+
+	out[0] = c0[0]; out[1] = c0[1]; out[2]  = c0[2]; out[3]  = 0;
+	out[4] = c1[0]; out[5] = c1[1]; out[6]  = c1[2]; out[7]  = 0;
+	out[8] = c2[0]; out[9] = c2[1]; out[10] = c2[2]; out[11] = 0;
+	out[12] = 0;    out[13] = 0;    out[14] = 0;     out[15] = 1;
+}
+
 // Advance the transition and swing the camera off the pose the rail (or the
 // end-of-rail patrol) just produced. camera.position/right/up/forward hold the
 // RAIL pose on entry and the TTB pose on exit.

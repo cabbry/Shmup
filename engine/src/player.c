@@ -635,77 +635,11 @@ void P_Update(void)
 				}
 				else
 				{
-					// Profile pose, PROVEN on the ship_rig harness (the real
-					// matrix pipeline -- matrix.c + gluLookAt + this very blend
-					// -- with extremity probes on the p1 mesh). Ground truth
-					// from the shipped top-down view: the model's NOSE is -Z
-					// and its visible top is +Y; both earlier guesses (v1.5.7
-					// flew backwards, v1.5.8 on its back) had them inverted.
-					//
-					// TRANSITION, redone after build 191 ("le vaisseau s'inverse
-					// d'un coup comme s'il reculait"): the old per-column lerp
-					// let the NOSE leave the screen plane -- halfway through it
-					// pointed 55 degrees into the depth, showing the tail. The
-					// nose now stays IN the screen plane the whole way, sweeping
-					// up-screen -> screen-right on an arc (a natural nose-over),
-					// while the hull rolls from top-facing to side-facing.
-					float sgn = (camera.ttbAngle >= 0) ? 1.0f : -1.0f;
-					float c0[3], c1[3], c2[3];
+					// The blend lives in camera.c now (CAM_GetTTBBlend) so the
+					// enemies share the exact same pose; derivation history in
+					// camera.c and the git log.
 					matrix_t blended;
-					float len, dot, phi;
-					int k;
-
-					if (f > 1.0f) f = 1.0f;
-
-					// fromAbove COLUMNS, read as columns this time (the braces
-					// group per column: {1,0,0,0, 0,0,1,0, 0,-1,0,0, ...}):
-					//   c0=(1,0,0)  c1=(0,0,+1)  c2=(0,-1,0)
-					// profile columns: c0=(0,0,sgn) c1=(0,1,0) c2=(-sgn,0,0)
-					// v1.6.1 started the arc from the TRANSPOSED endpoints --
-					// the ship SNAPPED 180 degrees (belly up, nose reversed) on
-					// the beat's first frame, then swept the wrong way round
-					// into the (correct) final pose. Rig-proven now at f=0,
-					// f=0.5 and f=1.
-					// Nose (image of model -Z) = -c2: in-plane arc, z stays 0.
-					phi = f * (float)M_PI * 0.5f;
-					c2[0] = -sgn * sinf(phi);
-					c2[1] = -cosf(phi);
-					c2[2] = 0.0f;
-
-					// Hull roll: model Y's image tips from "toward the viewer"
-					// (the top faces the camera in the shipped top-down view)
-					// to "up-screen", orthogonalized against the nose axis.
-					c1[0] = 0.0f;
-					c1[1] = f;
-					c1[2] = (1.0f - f);
-					dot = c1[0]*c2[0] + c1[1]*c2[1] + c1[2]*c2[2];
-					for (k = 0; k < 3; k++)
-						c1[k] -= c2[k] * dot;
-					len = sqrtf(c1[0]*c1[0] + c1[1]*c1[1] + c1[2]*c1[2]);
-					if (len > 1e-6f) { c1[0]/=len; c1[1]/=len; c1[2]/=len; }
-
-					// Wings complete the frame: c0 = c1 x c2 (checks out at both
-					// endpoints: A gives (1,0,0), B gives (0,0,sgn)).
-					c0[0] = c1[1]*c2[2] - c1[2]*c2[1];
-					c0[1] = c1[2]*c2[0] - c1[0]*c2[2];
-					c0[2] = c1[0]*c2[1] - c1[1]*c2[0];
-
-					// Device verdict on 190: the profile reads TOO THICK. Slim
-					// the hull's screen height by 20% at full deployment (the
-					// up column shrinks on the same clock; 1.0 upright). The
-					// fixed pipeline draws players unlit, so the non-unit axis
-					// is harmless.
-					{
-						float slim = 1.0f - 0.2f * f;
-						for (k = 0; k < 3; k++)
-							c1[k] *= slim;
-					}
-
-					blended[0] = c0[0]; blended[1] = c0[1]; blended[2]  = c0[2]; blended[3]  = 0;
-					blended[4] = c1[0]; blended[5] = c1[1]; blended[6]  = c1[2]; blended[7]  = 0;
-					blended[8] = c2[0]; blended[9] = c2[1]; blended[10] = c2[2]; blended[11] = 0;
-					blended[12] = 0;    blended[13] = 0;    blended[14] = 0;     blended[15] = 1;
-
+					CAM_GetTTBBlend(blended, 0.2f);
 					matrix_multiply(cameraInvRot, blended, playerEntity->matrix);
 				}
 			}

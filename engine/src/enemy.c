@@ -319,8 +319,24 @@ void ENE_Update(void)
 			eulerMatrix[10] = cosf(entity->xAxisRot) * cosf(entity->zAxisRot) ;
 		
 		
-			// cameraInvRot * Rz * Rx * Ry * fromAbove
-			matrix_multiply(eulerMatrix, enemyFromAboveRotation, tmp);
+			// cameraInvRot * Rz * Rx * Ry * (fromAbove blended toward the TTB
+			// profile). Upright the blend IS enemyFromAboveRotation bit-exact;
+			// during the side view every craft tips to its profile like the
+			// player does (enemies face the player, so the same arc that sends
+			// the ship's nose screen-right sends theirs screen-left -- they
+			// cross right-to-left). Their authored spins (eulerMatrix) apply in
+			// view space on top, so spinners keep spinning face-on.
+			{
+				static matrix_t ttbEnemyBlend;
+				static int      ttbBlendStamp = -1;
+				// one build per frame, shared by every enemy
+				if (ttbBlendStamp != simulationTime)
+				{
+					CAM_GetTTBBlend(ttbEnemyBlend, 0.0f);
+					ttbBlendStamp = simulationTime;
+				}
+				matrix_multiply(eulerMatrix, ttbEnemyBlend, tmp);
+			}
 			matrix_multiply(cameraInvRot,tmp,entity->matrix);
 				
 		

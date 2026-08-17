@@ -136,4 +136,13 @@ void CAM_ClearAllRemainingCameraVS(void);
 // (0 = snap). 0 = the usual view, 90 = the side view. Scripted from the scene
 // file: "at 39000 ttbRoll angle 90 duration 2000".
 void CAM_SetTTBRoll(float angleDegrees, int durationMs);
+
+// The TTB billboard pose (column-major, no translation): the "top toward the
+// camera, nose up-screen" billboard at angle 0, blending to the side profile
+// (nose leading the travel) as the camera swings -- the nose stays in the
+// screen plane the whole way (rig-proven; see player.c for the history).
+// hullSlim: how much the model's Y axis shrinks at full deployment (0 = none,
+// 0.2 = the player ship's 20%). Used by the player AND the enemies, so every
+// craft reads correctly in the side view.
+void CAM_GetTTBBlend(matrix_t out, float hullSlim);
 #endif

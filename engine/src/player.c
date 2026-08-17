@@ -445,12 +445,15 @@ void P_FireBullet(player_t* player,float deltaX, float deltaY)
 	
 	// TTB: the twin-gun spawn offsets live in ship-local space (right, up);
 	// rotate them with the beat so the guns fire from the nose side, not from
-	// "above the ship" while the ship is in profile. Upright (sin 0 / cos 1)
-	// this is the original sum exactly.
+	// "above the ship" while the ship is in profile. The gun SPREAD also
+	// tightens with the beat (device verdict on 192: rotated to vertical it
+	// read too far apart -- one shot above the ship, one below). Upright
+	// (sin 0 / cos 1) this is the original sum exactly.
 	{
 		float ts = sinf(camera.ttbAngle), tc = cosf(camera.ttbAngle);
-		spawningPos[X] = player->ss_position[X]*SS_W + deltaX * tc + deltaY * ts;
-		spawningPos[Y] = player->ss_position[Y]*SS_H - deltaX * ts + deltaY * tc;
+		float spread = deltaX * (1.0f - 0.6f * fabsf(ts));
+		spawningPos[X] = player->ss_position[X]*SS_W + spread * tc + deltaY * ts;
+		spawningPos[Y] = player->ss_position[Y]*SS_H - spread * ts + deltaY * tc;
 	}
 	
 	bullet->spawnedY = spawningPos[Y];
@@ -654,20 +657,27 @@ void P_Update(void)
 
 					if (f > 1.0f) f = 1.0f;
 
-					// fromAbove columns: c0=(1,0,0) c1=(0,0,-1) c2=(0,1,0)
-					// profile   columns: c0=(0,0,sgn) c1=(0,1,0) c2=(-sgn,0,0)
+					// fromAbove COLUMNS, read as columns this time (the braces
+					// group per column: {1,0,0,0, 0,0,1,0, 0,-1,0,0, ...}):
+					//   c0=(1,0,0)  c1=(0,0,+1)  c2=(0,-1,0)
+					// profile columns: c0=(0,0,sgn) c1=(0,1,0) c2=(-sgn,0,0)
+					// v1.6.1 started the arc from the TRANSPOSED endpoints --
+					// the ship SNAPPED 180 degrees (belly up, nose reversed) on
+					// the beat's first frame, then swept the wrong way round
+					// into the (correct) final pose. Rig-proven now at f=0,
+					// f=0.5 and f=1.
 					// Nose (image of model -Z) = -c2: in-plane arc, z stays 0.
 					phi = f * (float)M_PI * 0.5f;
 					c2[0] = -sgn * sinf(phi);
-					c2[1] = cosf(phi);
+					c2[1] = -cosf(phi);
 					c2[2] = 0.0f;
 
-					// Hull roll: model Y's image tips from "into the screen"
-					// (top toward the viewer) to "up-screen", orthogonalized
-					// against the nose axis.
+					// Hull roll: model Y's image tips from "toward the viewer"
+					// (the top faces the camera in the shipped top-down view)
+					// to "up-screen", orthogonalized against the nose axis.
 					c1[0] = 0.0f;
 					c1[1] = f;
-					c1[2] = -(1.0f - f);
+					c1[2] = (1.0f - f);
 					dot = c1[0]*c2[0] + c1[1]*c2[1] + c1[2]*c2[2];
 					for (k = 0; k < 3; k++)
 						c1[k] -= c2[k] * dot;
@@ -1205,9 +1215,10 @@ void P_PrepareBulletSprites(void)
 
 			for (gun = 0; gun < 2; gun++)
 			{
-				// local corner offsets (a = right, b = up), original order
-				float gx = (gun == 0) ? -bulletConfig.flashScreenSpaceXDelta
-									  :  bulletConfig.flashScreenSpaceXDelta;
+				// local corner offsets (a = right, b = up), original order;
+				// the gun spread tightens with the beat, like the bullets'.
+				float spread = bulletConfig.flashScreenSpaceXDelta * (1.0f - 0.6f * fabsf(ts));
+				float gx = (gun == 0) ? -spread : spread;
 				float a[4], b[4];
 				int   c;
 				short texU[4], texV[4];

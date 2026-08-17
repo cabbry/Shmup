@@ -133,11 +133,18 @@ title
 }
 
 
-# Empty on purpose -- see the header comment. (An act with zero scripted spawns
-# is fine: the "Enemy cleared" stat guards the zero denominator.)
+# BISECT step 2: one line of EACH mechanism the full waves use (LEE with its
+# firing params, FHT, SHAB with its 4 params, THA with its 2, one circle wave).
+# Red = one of these five breaks the load; green = volume or a specific line.
 enemies
 {
-
+	settime 12000
+	setttl 8000
+	at 0    spawnEnemy mouvement 0 startAngle 0 fireFrequency 50 enemyType 2 startPos -0.6 1.2 endPos -0.6 -1.2 controlPoint -0.6 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
+	at 2000 spawnEnemy mouvement 1 enemyType 1 startPos -0.3 1.2 endPos -0.3 -1.2 controlPoint -0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 4000 spawnEnemy mouvement 1 enemyType 3 startPos 2 0.5 endPos 0.0 0.35 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 5 rotAngle -200
+	at 6000 spawnEnemy mouvement 1 enemyType 5 startPos -1.8 -0.5 endPos 0.6 -0.4 controlPoint -1 -0.4 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection 1 firingTime 5000
+	at 8000 spawnEnemyWave circle enemyNum 12 enemyType 1 percentageInvulnerable 0 angleoffset 0 defaultType 0
 }
 
 texts_events

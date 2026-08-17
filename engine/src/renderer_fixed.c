@@ -591,7 +591,115 @@ static void RenderEntityF(entity_t* entity)
 void SetTransparencyF(float alpha)
 {
 	glColor4f(1, 1, 1, alpha);
-	
+
+}
+
+
+// TTB side view: small stars crossing the sky right-to-left with a short
+// horizontal trail (user-validated SVG mock, 2026-08-17). Drawn between the
+// sky dome and the city, without depth writes, so the buildings cover them --
+// they only live in the sky. Purely a function of simulationTime (no state),
+// so both lockstep peers render the same frame and replays stay stable.
+// Fades in over the last part of the camera swing; invisible upright, so no
+// other act is touched.
+typedef struct ttbstar_vertex_t
+{
+	float pos[3];
+	uchar color[4];
+} ttbstar_vertex_t;
+
+static void RenderTTBStarsF(void)
+{
+	// 3 parallax layers: y (view-space up), units/ms, phase, trail length,
+	// half thickness. Speeds ~ mock: far crosses in ~12s, near in ~5s.
+	static const float star[9][5] = {
+		//   y     speed   phase  trail  half
+		{ 640.0f, 0.045f,    40.0f, 30.0f, 1.2f },
+		{ 480.0f, 0.040f,   270.0f, 30.0f, 1.2f },
+		{ 350.0f, 0.048f,   130.0f, 30.0f, 1.2f },
+		{ 200.0f, 0.042f,   520.0f, 30.0f, 1.2f },
+		{ 560.0f, 0.085f,   350.0f, 50.0f, 1.6f },
+		{ 300.0f, 0.080f,    80.0f, 50.0f, 1.6f },
+		{ 430.0f, 0.090f,   470.0f, 50.0f, 1.6f },
+		{ 610.0f, 0.150f,   200.0f, 80.0f, 2.2f },
+		{ 250.0f, 0.135f,   580.0f, 80.0f, 2.2f },
+	};
+	// From +310 to -310 in view-space x: the visible half width at depth 1000
+	// is ~240 on a tall phone, so heads are born and die off screen.
+	#define TTBSTAR_SPAN  620.0f
+	#define TTBSTAR_DEPTH 1000.0f
+
+	ttbstar_vertex_t v[9 * 12];
+	int nV = 0;
+	float f, fade;
+	int i, k;
+
+	f = fabsf(camera.ttbAngle) / ((float)M_PI * 0.5f);
+	if (f <= 0.6f)
+		return;
+	fade = (f - 0.6f) / 0.4f;
+	if (fade > 1.0f) fade = 1.0f;
+
+	for (i = 0; i < 9; i++)
+	{
+		float x = 310.0f - fmodf(star[i][2] + star[i][1] * simulationTime, TTBSTAR_SPAN);
+		float y = star[i][0];
+		float trail = star[i][3], half = star[i][4];
+		// corners in (view-x, view-y): head quad then trail quad; the trail
+		// stretches BEHIND the motion (+x side), fading to nothing.
+		float qx[12] = { x-2.5f, x-2.5f, x+2.5f,  x+2.5f, x-2.5f, x+2.5f,
+						 x,      x,      x+trail, x+trail, x,     x+trail };
+		float qy[12] = { y-2.0f, y+2.0f, y+2.0f,  y-2.0f, y-2.0f, y+2.0f,
+						 y-half, y+half, y+half,  y-half, y-half, y+half };
+		// tri order: (0,1,2)(3,4,5) head, (6,7,8)(9,10,11) trail
+		static const int headA[6] = {0,1,2, 2,3,0};
+		static const int tail0[6] = {0,1,2, 2,3,0};
+
+		for (k = 0; k < 6; k++)
+		{
+			ttbstar_vertex_t* o = &v[nV++];
+			int c = headA[k];
+			float cq[4][2] = { {qx[0],qy[0]},{qx[1],qy[1]},{qx[2],qy[2]},{qx[3],qy[3]} };
+			o->pos[0] = camera.position[0] + camera.right[0]*cq[c][0] + camera.up[0]*cq[c][1] + camera.forward[0]*TTBSTAR_DEPTH;
+			o->pos[1] = camera.position[1] + camera.right[1]*cq[c][0] + camera.up[1]*cq[c][1] + camera.forward[1]*TTBSTAR_DEPTH;
+			o->pos[2] = camera.position[2] + camera.right[2]*cq[c][0] + camera.up[2]*cq[c][1] + camera.forward[2]*TTBSTAR_DEPTH;
+			o->color[0] = 255; o->color[1] = 255; o->color[2] = 255;
+			o->color[3] = (uchar)(230 * fade);
+		}
+		for (k = 0; k < 6; k++)
+		{
+			ttbstar_vertex_t* o = &v[nV++];
+			int c = tail0[k];
+			float cq[4][2] = { {qx[6],qy[6]},{qx[7],qy[7]},{qx[8],qy[8]},{qx[9],qy[9]} };
+			int atTail = (c == 2 || c == 3);	// the +trail corners fade out
+			o->pos[0] = camera.position[0] + camera.right[0]*cq[c][0] + camera.up[0]*cq[c][1] + camera.forward[0]*TTBSTAR_DEPTH;
+			o->pos[1] = camera.position[1] + camera.right[1]*cq[c][0] + camera.up[1]*cq[c][1] + camera.forward[1]*TTBSTAR_DEPTH;
+			o->pos[2] = camera.position[2] + camera.right[2]*cq[c][0] + camera.up[2]*cq[c][1] + camera.forward[2]*TTBSTAR_DEPTH;
+			o->color[0] = 225; o->color[1] = 232; o->color[2] = 255;
+			o->color[3] = atTail ? 0 : (uchar)(150 * fade);
+		}
+	}
+
+	// Same state discipline as RenderTexturelessSpritesF, plus additive blend
+	// (stars glow over the dome) and an unbound VBO (the dome draw may have
+	// left one bound).
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glDisable(GL_TEXTURE_2D);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glEnableClientState(GL_COLOR_ARRAY);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glVertexPointer(3, GL_FLOAT, sizeof(ttbstar_vertex_t), v[0].pos);
+	glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(ttbstar_vertex_t), v[0].color);
+	glDrawArrays(GL_TRIANGLES, 0, nV);
+	STATS_AddTriangles(nV / 3);
+
+	glDisableClientState(GL_COLOR_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_BLEND);
+	glEnable(GL_TEXTURE_2D);
 }
 
 
@@ -750,6 +858,11 @@ void RenderEntitiesF(void)
 		}
 	}
 	}	// nearestDome scope
+
+	// The crossing stars live between the dome and the city: still no depth
+	// writes here, so the buildings drawn next cover them.
+	if (gRuntimeCullMap)
+		RenderTTBStarsF();
 
 	if (gRuntimeCullMap)
 	{

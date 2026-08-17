@@ -3,7 +3,7 @@ numBackgroundEntities 3
 matrix
 {
 	1  0 0 0
-	0  1 0 -1100
+	0  1 0 -2500
 	0  0 1 0
 	0  0 0 1
 }
@@ -12,7 +12,7 @@ entities MD5 { model	data/models/act1/SkyDome_DuskStars.obj.md5mesh }
 matrix
 {
 	1  0 0 0
-	0  1 0 -1100
+	0  1 0 -2500
 	0  0 1 -20000
 	0  0 0 1
 }
@@ -21,7 +21,7 @@ entities MD5 { model	data/models/act1/SkyDome_DuskStars.obj.md5mesh }
 matrix
 {
 	1  0 0 0
-	0  1 0 -1100
+	0  1 0 -2500
 	0  0 1 -40000
 	0  0 0 1
 }

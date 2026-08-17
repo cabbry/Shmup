@@ -669,6 +669,17 @@ void P_Update(void)
 					c2[1] = c0[2]*c1[0] - c0[0]*c1[2];
 					c2[2] = c0[0]*c1[1] - c0[1]*c1[0];
 
+					// Device verdict on 190: the profile reads TOO THICK. Slim
+					// the hull's screen height by 20% at full deployment (the
+					// up column shrinks on the same clock; 1.0 upright). The
+					// fixed pipeline draws players unlit, so the non-unit axis
+					// is harmless.
+					{
+						float slim = 1.0f - 0.2f * f;
+						for (k = 0; k < 3; k++)
+							c1[k] *= slim;
+					}
+
 					blended[0] = c0[0]; blended[1] = c0[1]; blended[2]  = c0[2]; blended[3]  = 0;
 					blended[4] = c1[0]; blended[5] = c1[1]; blended[6]  = c1[2]; blended[7]  = 0;
 					blended[8] = c2[0]; blended[9] = c2[1]; blended[10] = c2[2]; blended[11] = 0;
@@ -726,11 +737,13 @@ void P_Update(void)
 					bulletX      = bullet->spawnedX + dist * ttbSin;
 
 					// AABB of the rotated capsule (exact upright, conservative
-					// mid-swing); the sprite is drawn rotated from its center.
+					// mid-swing); the sprite is drawn rotated from its center,
+					// slimmed on its cross axis with the beat (see the render).
 					{
 						float aC = fabsf(ttbCos), aS = fabsf(ttbSin);
-						float bh = bulletConfig.halfHeight * aC + bulletConfig.halfWidth  * aS;
-						float bw = bulletConfig.halfWidth  * aC + bulletConfig.halfHeight * aS;
+						float slimW = bulletConfig.halfWidth * (1.0f - 0.5f * aS);
+						float bh = bulletConfig.halfHeight * aC + slimW * aS;
+						float bw = slimW * aC + bulletConfig.halfHeight * aS;
 
 						bullet->ss_boudaries[UP]    = bulletHeight + bh;
 						bullet->ss_boudaries[DOWN]  = bulletHeight - bh;
@@ -1241,8 +1254,13 @@ void P_PrepareBulletSprites(void)
 				float cx = (bullet->ss_boudaries[LEFT] + bullet->ss_boudaries[RIGHT]) * 0.5f;
 				float cy = (bullet->ss_boudaries[UP]   + bullet->ss_boudaries[DOWN])  * 0.5f;
 				float ts = sinf(camera.ttbAngle), tc = cosf(camera.ttbAngle);
+				// The capsule is nearly as wide as it is long (widthRatio 0.15
+				// vs heightRatio 0.18) -- rotated on its side it read FAT on
+				// device ("trop épais, il faut les affiner"). Slim the cross
+				// axis with the beat: full width upright, half width at 90.
+				float slim  = 1.0f - 0.5f * fabsf(ts);
 				float dirX  = ts * bulletConfig.halfHeight, dirY  = tc * bulletConfig.halfHeight;
-				float perpX = tc * bulletConfig.halfWidth,  perpY = -ts * bulletConfig.halfWidth;
+				float perpX = tc * bulletConfig.halfWidth * slim,  perpY = -ts * bulletConfig.halfWidth * slim;
 
 				bulSprite->pos[X] = cx - perpX - dirX;
 				bulSprite->pos[Y] = cy - perpY - dirY;
@@ -1345,10 +1363,17 @@ void P_FireGhosts(player_t* player)
 		ghost->short_ss_position[X] = ghost->ss_position[X] * SS_W;
 		ghost->short_ss_position[Y] = ghost->ss_position[Y] * SS_H;		
 	
-		vector2Copy(ghostDirection[i],ghost->ss_direction);
-		
+		// TTB: the charged fan is authored screen-up; rotate it with the beat
+		// so the volley leads the nose in the side view, like the bullets.
+		// Upright (sin 0 / cos 1) this is vector2Copy(ghostDirection[i], ...).
+		{
+			float ts = sinf(camera.ttbAngle), tc = cosf(camera.ttbAngle);
+			ghost->ss_direction[X] =  ghostDirection[i][X] * tc + ghostDirection[i][Y] * ts;
+			ghost->ss_direction[Y] = -ghostDirection[i][X] * ts + ghostDirection[i][Y] * tc;
+		}
+
 	}
-	
+
 }
 
 void P_UpdateGhosts(player_t* player)

@@ -690,6 +690,13 @@ static void RenderTTBBossCameoF(void)
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glColor4f(r, gr, b, cameoAlpha);
 	}
+	// The runtime-loaded lofb lives in RAM: RenderEntityF's client-array
+	// path never unbinds, so a VBO left bound by an earlier VRAM entity
+	// turns our heap pointers into buffer offsets -- garbage triangles at
+	// best (the invisible cameo of 202-204), a wild read at worst (the
+	// device SIGSEGV in gleRunVertexSubmitARM, build 204, TestFlight crash
+	// B84CF3E7). Same discipline as RenderTexturelessSpritesF.
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	RenderEntityF(&cameo);
 	glColor4f(1, 1, 1, 1);
 	glDisable(GL_BLEND);

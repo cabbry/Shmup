@@ -339,7 +339,7 @@ void ENE_Update(void)
 					CAM_GetTTBBlendCapped(ttbEnemyBlend34, 0.0f, 0.62f);
 					ttbBlendStamp = simulationTime;
 				}
-				if (enemy->type == ENEMY_SHAB || enemy->type == ENEMY_HAB)
+				if (enemy->type == ENEMY_SHAB || enemy->type == ENEMY_HAB || enemy->type == ENEMY_FHT)
 					matrix_multiply(eulerMatrix, ttbEnemyBlend34, tmp);
 				else
 					matrix_multiply(eulerMatrix, ttbEnemyBlend, tmp);

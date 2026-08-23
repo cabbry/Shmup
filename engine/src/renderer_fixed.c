@@ -595,6 +595,69 @@ void SetTransparencyF(float alpha)
 }
 
 
+// THE BOSS CAMEO (user's idea, 2026-08-23): during act III's side view, the
+// LOFB glides once across the dusk sky as a distant dark silhouette -- the
+// player SEES what waits in act IV and cannot touch it. Pure scenery, like
+// the crossing stars: drawn between the dome and the city without depth
+// writes (buildings pass in front), position a pure function of
+// simulationTime (lockstep-safe), dark-tinted via GL_MODULATE. Face-on pose
+// (the iconic crab shape), not the profile -- edge-on its 46-unit wingspan
+// would vanish into a sliver.
+#define CAMEO_T0		50000	// enters (sim ms) -- mid side-view
+#define CAMEO_T1		64000	// gone
+#define CAMEO_SCALE		4.5f	// model is 45.7 wide -> ~205 units
+#define CAMEO_DEPTH		1600.0f	// behind the crossing stars (they fly at 1000)
+
+static void RenderTTBBossCameoF(void)
+{
+	static entity_t cameo;
+	static int      cameoState = 0;	// 0 unloaded, 1 ready, -1 failed
+	// fromAboveRotation, the billboard the whole game uses (column-major).
+	static const matrix_t cameoFromAbove = {1,0,0,0,  0,0,1,0,  0,-1,0,0,  0,0,0,1};
+	matrix_t pose;
+	float u, vx, vy;
+	int k;
+
+	if (engine.sceneId != 3)
+		return;
+
+	// Preload on act III's first rendered frame (a hiccup during the prolog is
+	// invisible; one at t=50s mid-flight would not be). The model cache makes
+	// re-entry after a replay free.
+	if (cameoState == 0)
+		cameoState = ENT_LoadEntity(&cameo, "data/models/enemies/lofb.obj.md5mesh", ENT_FULL_DRAW) ? 1 : -1;
+	if (cameoState < 0 || cameo.model == NULL)
+		return;
+
+	if (fabsf(camera.ttbAngle) < 0.95f * (float)M_PI * 0.5f)
+		return;
+	if (simulationTime < CAMEO_T0 || simulationTime > CAMEO_T1)
+		return;
+
+	// One slow, level crossing right-to-left with a faint bob.
+	u  = (simulationTime - CAMEO_T0) / (float)(CAMEO_T1 - CAMEO_T0);
+	vx = 380.0f - u * 760.0f;
+	vy = 430.0f + 25.0f * sinf(u * 2.0f * (float)M_PI);
+
+	matrix_multiply(cameraInvRot, cameoFromAbove, pose);
+	for (k = 0; k < 12; k++)
+		pose[k] *= CAMEO_SCALE;	// columns 0..2 (their w stays 0)
+	pose[12] = camera.position[0] + camera.right[0]*vx + camera.up[0]*vy + camera.forward[0]*CAMEO_DEPTH;
+	pose[13] = camera.position[1] + camera.right[1]*vx + camera.up[1]*vy + camera.forward[1]*CAMEO_DEPTH;
+	pose[14] = camera.position[2] + camera.right[2]*vx + camera.up[2]*vy + camera.forward[2]*CAMEO_DEPTH;
+	pose[15] = 1;
+	for (k = 0; k < 16; k++)
+		cameo.matrix[k] = pose[k];
+
+	// Dark silhouette against the dusk: modulate the texture way down.
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glColor4f(0.11f, 0.10f, 0.17f, 1.0f);
+	RenderEntityF(&cameo);
+	glColor4f(1, 1, 1, 1);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+}
+
+
 // TTB side view: small stars crossing the sky right-to-left with a short
 // horizontal trail (user-validated SVG mock, 2026-08-17). Drawn between the
 // sky dome and the city, without depth writes, so the buildings cover them --
@@ -859,8 +922,13 @@ void RenderEntitiesF(void)
 	}
 	}	// nearestDome scope
 
-	// The crossing stars live between the dome and the city: still no depth
-	// writes here, so the buildings drawn next cover them.
+	// The boss cameo then the crossing stars, between the dome and the city:
+	// still no depth writes here, so the buildings drawn next cover them --
+	// and the stars, drawn after, pass in FRONT of the distant silhouette.
+	// The cameo call is unconditional so its PRELOAD runs on act III's first
+	// frame; its own gates keep it from drawing outside the side view (where
+	// gRuntimeCullMap is necessarily on, the angle being ~90).
+	RenderTTBBossCameoF();
 	if (gRuntimeCullMap)
 		RenderTTBStarsF();
 

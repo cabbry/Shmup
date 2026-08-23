@@ -146,6 +146,11 @@ void CAM_SetTTBRoll(float angleDegrees, int durationMs);
 // craft reads correctly in the side view.
 void CAM_GetTTBBlend(matrix_t out, float hullSlim);
 
+// Same blend but the deployment stops at fCap (0..1): flat disc-like craft
+// (turrets, Devils) hold a 3/4 pose in the side view instead of thinning to
+// an unrecognizable blade -- device verdict on the full profile.
+void CAM_GetTTBBlendCapped(matrix_t out, float hullSlim, float fCap);
+
 // Rotate a screen-space velocity with the TTB beat (identity upright): what
 // was authored "down at the player" fires screen-left in the side view, etc.
 // For AUTHORED directions only -- aimed-at-player shots are computed in ss

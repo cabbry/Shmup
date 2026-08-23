@@ -328,14 +328,21 @@ void ENE_Update(void)
 			// view space on top, so spinners keep spinning face-on.
 			{
 				static matrix_t ttbEnemyBlend;
+				static matrix_t ttbEnemyBlend34;
 				static int      ttbBlendStamp = -1;
 				// one build per frame, shared by every enemy
 				if (ttbBlendStamp != simulationTime)
 				{
 					CAM_GetTTBBlend(ttbEnemyBlend, 0.0f);
+					// flat discs (turret, Devil) hold a 3/4 pose: their full
+					// profile is a blade nobody recognizes on device
+					CAM_GetTTBBlendCapped(ttbEnemyBlend34, 0.0f, 0.62f);
 					ttbBlendStamp = simulationTime;
 				}
-				matrix_multiply(eulerMatrix, ttbEnemyBlend, tmp);
+				if (enemy->type == ENEMY_SHAB || enemy->type == ENEMY_HAB)
+					matrix_multiply(eulerMatrix, ttbEnemyBlend34, tmp);
+				else
+					matrix_multiply(eulerMatrix, ttbEnemyBlend, tmp);
 			}
 			matrix_multiply(cameraInvRot,tmp,entity->matrix);
 				

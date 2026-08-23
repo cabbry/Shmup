@@ -83,36 +83,54 @@ void THA_FireBullet(float ssPosX, float ssPosY,enemy_t* enemy)
 	// 0 3
 	// 1 2
 	
-	bullet->ss_boudaries[UP]   =  bullet->ss_starting_boudaries[UP] = ssPosY*SS_H + THA_BULLET_HEIGHT / gVScale;
-	bullet->ss_boudaries[DOWN] =  bullet->ss_starting_boudaries[DOWN] = ssPosY*SS_H - THA_BULLET_HEIGHT / gVScale;
-	bullet->ss_boudaries[LEFT] =  bullet->ss_starting_boudaries[LEFT] =  ssPosX*SS_W - THA_BULLET_WIDTH;
-	bullet->ss_boudaries[RIGHT]=  bullet->ss_starting_boudaries[RIGHT] = ssPosX*SS_W + THA_BULLET_WIDTH;
-
-	
-	bullet->text[1][U] = THA_TEXT_BULLET_U + THA_TEXT_BULLET_WIDTH;
-	bullet->text[1][V] = (enemy->parameters[PARAMETER_THA_LAST_BULLET_TYPE ]*THA_TEXT_BULLET_HEIGHT);
-	
-	//Log_Printf("%d\n",bullet->text[1][V]);
-	
-	bullet->text[0][U] = THA_TEXT_BULLET_U + THA_TEXT_BULLET_WIDTH ;
-	bullet->text[0][V] = bullet->text[1][V] + THA_TEXT_BULLET_HEIGHT;
-
-	bullet->text[2][U] = THA_TEXT_BULLET_U;
-	bullet->text[2][V] = bullet->text[1][V] ;
-	
-	
-	bullet->text[3][U] = THA_TEXT_BULLET_U ;
-	bullet->text[3][V] =bullet->text[1][V] + THA_TEXT_BULLET_HEIGHT;
-	
-	
-	// TTB: the curtain's authored direction (straight up or down the screen)
-	// rotates with the beat -- in the side view it sweeps left/right instead.
+	// TTB: the curtain's direction AND the drop sprite follow the beat. The
+	// quad is an axis-aligned rect, so in the side view its long side must go
+	// horizontal and the texture take a quarter turn, head still leading
+	// (device verdict on 197: velocity rotated but "les balles sont
+	// verticales"). Upright the mapping below is the 2010 code bit-exact.
 	{
-		float vx = 0;
-		float vy = 2*SS_H*enemy->parameters[PARAMETER_THA_FIRING_DIRECTION];
-		CAM_TTBRotateSS(&vx, &vy);
-		bullet->posDiff[X] = vx;
-		bullet->posDiff[Y] = vy;
+		float travelX = 0, travelY = enemy->parameters[PARAMETER_THA_FIRING_DIRECTION];
+		ushort uvBase[4][2];
+		int shift, k;
+		float vb;
+
+		CAM_TTBRotateSS(&travelX, &travelY);
+
+		vb = (enemy->parameters[PARAMETER_THA_LAST_BULLET_TYPE ]*THA_TEXT_BULLET_HEIGHT);
+
+		// 2010 corner UVs (screen: 0=TL 1=BL 2=BR 3=TR). Validated upright
+		// look for a downward curtain: the low-V texture edge is the head.
+		uvBase[0][U] = THA_TEXT_BULLET_U + THA_TEXT_BULLET_WIDTH;	uvBase[0][V] = vb + THA_TEXT_BULLET_HEIGHT;
+		uvBase[1][U] = THA_TEXT_BULLET_U + THA_TEXT_BULLET_WIDTH;	uvBase[1][V] = vb;
+		uvBase[2][U] = THA_TEXT_BULLET_U;							uvBase[2][V] = vb;
+		uvBase[3][U] = THA_TEXT_BULLET_U;							uvBase[3][V] = vb + THA_TEXT_BULLET_HEIGHT;
+
+		if (travelX < -0.707f || travelX > 0.707f)
+		{
+			// long side horizontal; head (low-V corners) toward the travel
+			bullet->ss_boudaries[UP]   = bullet->ss_starting_boudaries[UP]   = ssPosY*SS_H + THA_BULLET_WIDTH / gVScale;
+			bullet->ss_boudaries[DOWN] = bullet->ss_starting_boudaries[DOWN] = ssPosY*SS_H - THA_BULLET_WIDTH / gVScale;
+			bullet->ss_boudaries[LEFT] = bullet->ss_starting_boudaries[LEFT] = ssPosX*SS_W - THA_BULLET_HEIGHT;
+			bullet->ss_boudaries[RIGHT]= bullet->ss_starting_boudaries[RIGHT]= ssPosX*SS_W + THA_BULLET_HEIGHT;
+			shift = (travelX < 0) ? 3 : 1;	// quarter turn CW / CCW
+		}
+		else
+		{
+			bullet->ss_boudaries[UP]   = bullet->ss_starting_boudaries[UP]   = ssPosY*SS_H + THA_BULLET_HEIGHT / gVScale;
+			bullet->ss_boudaries[DOWN] = bullet->ss_starting_boudaries[DOWN] = ssPosY*SS_H - THA_BULLET_HEIGHT / gVScale;
+			bullet->ss_boudaries[LEFT] = bullet->ss_starting_boudaries[LEFT] = ssPosX*SS_W - THA_BULLET_WIDTH;
+			bullet->ss_boudaries[RIGHT]= bullet->ss_starting_boudaries[RIGHT]= ssPosX*SS_W + THA_BULLET_WIDTH;
+			shift = 0;
+		}
+
+		for (k = 0; k < 4; k++)
+		{
+			bullet->text[(k+shift)&3][U] = uvBase[k][U];
+			bullet->text[(k+shift)&3][V] = uvBase[k][V];
+		}
+
+		bullet->posDiff[X] = travelX * 2*SS_H;
+		bullet->posDiff[Y] = travelY * 2*SS_H;
 	}
 	
 	//Log_Printf("enemy->parameters[PARAMETER_THA_LAST_BULLET_TYPE]=%.2f\n",enemy->parameters[PARAMETER_THA_LAST_BULLET_TYPE]);
@@ -149,7 +167,18 @@ void THA_Living(enemy_t* enemy)
 		enemy->lastTimeFired = simulationTime;
 	}
 	
-	enemy->ss_position[X] += timediff * 0.0004 ;
+	// Upright the balayeur drifts screen-right under its falling curtain
+	// (2010 behavior, bit-exact). In the side view it CLIMBS the screen while
+	// the curtain sweeps left -- the side-scroller reading of the same move
+	// (device verdict on 197: parked on a lane, "il ne balaye pas").
+	{
+		float qx = 0, qy = -1;
+		CAM_TTBRotateSS(&qx, &qy);
+		if (qx < -0.707f || qx > 0.707f)
+			enemy->ss_position[Y] += timediff * 0.0004 ;
+		else
+			enemy->ss_position[X] += timediff * 0.0004 ;
+	}
 //	enemy->ss_position[X] += timediff * enemy->parameters[THA_DELTA_Y];
 	
 	

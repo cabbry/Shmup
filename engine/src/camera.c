@@ -231,7 +231,7 @@ void CAM_SetTTBRoll(float angleDegrees, int durationMs)
 // up-to-side arc in between. Shared by the player and the enemies so every
 // craft reads correctly in the side view; enemies keep their own view-space
 // euler spins on top.
-void CAM_GetTTBBlend(matrix_t out, float hullSlim)
+void CAM_GetTTBBlendCapped(matrix_t out, float hullSlim, float fCap)
 {
 	float f = fabsf(camera.ttbAngle) / ((float)M_PI * 0.5f);
 	float sgn = (camera.ttbAngle >= 0) ? 1.0f : -1.0f;
@@ -239,7 +239,7 @@ void CAM_GetTTBBlend(matrix_t out, float hullSlim)
 	float len, dot, phi, slim;
 	int k;
 
-	if (f > 1.0f) f = 1.0f;
+	if (f > fCap) f = fCap;
 
 	phi = f * (float)M_PI * 0.5f;
 	c2[0] = -sgn * sinf(phi);
@@ -267,6 +267,11 @@ void CAM_GetTTBBlend(matrix_t out, float hullSlim)
 	out[4] = c1[0]; out[5] = c1[1]; out[6]  = c1[2]; out[7]  = 0;
 	out[8] = c2[0]; out[9] = c2[1]; out[10] = c2[2]; out[11] = 0;
 	out[12] = 0;    out[13] = 0;    out[14] = 0;     out[15] = 1;
+}
+
+void CAM_GetTTBBlend(matrix_t out, float hullSlim)
+{
+	CAM_GetTTBBlendCapped(out, hullSlim, 1.0f);
 }
 
 // See camera.h: beat-rotate an AUTHORED screen-space velocity (same clockwise

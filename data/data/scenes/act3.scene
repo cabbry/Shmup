@@ -201,13 +201,12 @@ enemies
 	at 3420 spawnEnemy mouvement 1 enemyType 1 startPos -0.3 1.2 endPos -0.3 -1.2 controlPoint -0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	at 3420 spawnEnemy mouvement 1 enemyType 1 startPos  0.3 1.2 endPos  0.3 -1.2 controlPoint  0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 
-	# P1-V4 (28.5s): TWO turrets -- a full spiral left, an aimed fan right --
-	# while two FHT columns CONVERGE toward the middle on their way down,
-	# act-1 style: the safe lane narrows as you thread it.
+	# P1-V4 (28.5s): ONE spiral turret (the aimed-fan twin was cut -- user
+	# call) while two FHT columns CONVERGE toward the middle on their way
+	# down, act-1 style: the safe lane narrows as you thread it.
 	settime 28500
 	setttl 7000
 	at 0    spawnEnemy mouvement 1 enemyType 3 startPos -2 0.5 endPos -0.45 0.4 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 5 rotAngle -180
-	at 300  spawnEnemy mouvement 1 enemyType 3 startPos  2 0.5 endPos  0.45 0.45 controlPoint 1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 -130 firingAngle2 -50 numThread 3 rotAngle 0
 	setttl 5000
 	at 800  spawnEnemy mouvement 1 enemyType 1 startPos -0.85 1.2 endPos -0.1 -1.2 controlPoint -0.55 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	at 800  spawnEnemy mouvement 1 enemyType 1 startPos  0.85 1.2 endPos  0.1 -1.2 controlPoint  0.55 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
@@ -232,58 +231,117 @@ enemies
 	# ---------- SIDE VIEW (45-71s): the packed stretch. Everything enters ----------
 	# ---------- from the RIGHT and crosses left, at many heights.          ----------
 
-	# Opening flood: two staggered FHT streams, high and low.
+	# V5 -- OPENING RAIN (45s): hedgehog lances from EVERY height, dead
+	# straight, shuffled lanes so no corridor stays safe twice. The Original
+	# Devil barrel-rolls in mid-rain and opens with his red trident.
 	settime 45000
-	setttl 7000
-	at 0    spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.75 endPos -1.3  0.75 controlPoint 0  0.75 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 500  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.35 endPos -1.3  0.35 controlPoint 0  0.35 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1000 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.05 endPos -1.3 -0.05 controlPoint 0 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1500 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.45 endPos -1.3 -0.45 controlPoint 0 -0.45 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 2000 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.85 endPos -1.3 -0.85 controlPoint 0 -0.85 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 2600 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.55 endPos -1.3  0.55 controlPoint 0  0.55 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
-	at 3100 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.15 endPos -1.3  0.15 controlPoint 0  0.15 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
-	at 3600 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.25 endPos -1.3 -0.25 controlPoint 0 -0.25 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
-	at 4100 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.65 endPos -1.3 -0.65 controlPoint 0 -0.65 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	setttl 5500
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.80 endPos -1.3  0.80 controlPoint 0  0.80 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 300  spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.30 endPos -1.3 -0.30 controlPoint 0 -0.30 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 600  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.50 endPos -1.3  0.50 controlPoint 0  0.50 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 900  spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.70 endPos -1.3 -0.70 controlPoint 0 -0.70 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.15 endPos -1.3  0.15 controlPoint 0  0.15 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 1500 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.50 endPos -1.3 -0.50 controlPoint 0 -0.50 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1800 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.65 endPos -1.3  0.65 controlPoint 0  0.65 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2100 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.10 endPos -1.3 -0.10 controlPoint 0 -0.10 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 2400 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.35 endPos -1.3  0.35 controlPoint 0  0.35 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2700 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.85 endPos -1.3 -0.85 controlPoint 0 -0.85 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 3000 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.00 endPos -1.3  0.00 controlPoint 0  0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 3300 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.75 endPos -1.3  0.75 controlPoint 0  0.75 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 3600 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.60 endPos -1.3 -0.60 controlPoint 0 -0.60 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 3900 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.25 endPos -1.3  0.25 controlPoint 0  0.25 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 4200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.20 endPos -1.3 -0.20 controlPoint 0 -0.20 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 4500 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.55 endPos -1.3  0.55 controlPoint 0  0.55 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 4800 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.40 endPos -1.3 -0.40 controlPoint 0 -0.40 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 5100 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.10 endPos -1.3  0.10 controlPoint 0  0.10 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 5400 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.75 endPos -1.3 -0.75 controlPoint 0 -0.75 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 5700 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.45 endPos -1.3  0.45 controlPoint 0  0.45 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	setttl 5600
+	at 2500 spawnEnemy mouvement 1 enemyType 0 startPos 1.4 0.45 endPos 0.5 0.4 controlPoint 1 0.42 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 0
 
-	# COMBO 3: LEE beams riding the flood -- two horizontal firing lines
-	# crossing while FHTs keep coming between them.
-	addtime 6000
+	# X-CROSS (51.5s): straight diagonals crossing mid-screen -- lances from
+	# every direction at once, no curve anywhere.
+	addtime 6500
+	setttl 5000
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.85 endPos -1.3 -0.55 controlPoint 0  0.15 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 250  spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.85 endPos -1.3  0.55 controlPoint 0 -0.15 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 500  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.60 endPos -1.3 -0.80 controlPoint 0 -0.10 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 750  spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.60 endPos -1.3  0.80 controlPoint 0  0.10 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 1000 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.30 endPos -1.3 -0.90 controlPoint 0 -0.30 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1250 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.30 endPos -1.3  0.90 controlPoint 0  0.30 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1500 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.05 endPos -1.3  0.75 controlPoint 0  0.40 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 1750 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.05 endPos -1.3 -0.75 controlPoint 0 -0.40 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+
+	# V6 -- BEAMS AND THE FIRST CLIMB (53.5s): two LEE firing lines frame the
+	# rain; the balayeur enters low and SWEEPS UP the whole screen, curtain
+	# streaming left. The Anthracite Devil slips in behind, lasso whipping.
+	addtime 2000
 	setttl 9000
 	at 0    spawnEnemy mouvement 0 startAngle 0   fireFrequency 55 enemyType 2 startPos 1.2  0.6 endPos -1.2  0.6 controlPoint 0  0.6 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
 	at 700  spawnEnemy mouvement 0 startAngle 180 fireFrequency 55 enemyType 2 startPos 1.2 -0.6 endPos -1.2 -0.6 controlPoint 0 -0.6 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
 	setttl 6000
-	at 1200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.2  endPos -1.3  0.2  controlPoint 0  0.2  zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1700 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.2  endPos -1.3 -0.2  controlPoint 0 -0.2  zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 2200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.0  endPos -1.3  0.0  controlPoint 0  0.0  zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
-	at 2700 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.4  endPos -1.3  0.4  controlPoint 0  0.4  zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 3200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.4  endPos -1.3 -0.4  controlPoint 0 -0.4  zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 300  spawnEnemy mouvement 1 enemyType 5 startPos 1.7 -0.75 endPos 0.8 -0.9 controlPoint 1.2 -0.82 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection -1 firingTime 5000
+	at 1200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.20 endPos -1.3  0.20 controlPoint 0  0.20 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1600 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.20 endPos -1.3 -0.20 controlPoint 0 -0.20 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 2000 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.00 endPos -1.3  0.00 controlPoint 0  0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2400 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.40 endPos -1.3  0.40 controlPoint 0  0.40 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2800 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.40 endPos -1.3 -0.40 controlPoint 0 -0.40 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 3200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.30 endPos -1.3 -0.30 controlPoint 0  0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 3600 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.30 endPos -1.3  0.30 controlPoint 0  0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 4000 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.10 endPos -1.3  0.10 controlPoint 0  0.10 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	setttl 5600
+	at 2000 spawnEnemy mouvement 1 enemyType 0 startPos 1.4 -0.05 endPos 0.45 0.0 controlPoint 1 -0.02 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
 
-	# COMBO 4: a SHAB spinner parked mid-sky WHILE a THA sweeps the low lane
-	# and FHT arcs dive through -- the full-height wall of stuff.
-	addtime 9500
+	# V7 -- THE WALL (60.5s): the 3/4-tilted spiral turret parks mid-sky, a
+	# second balayeur climbs from the floor, straight lances everywhere --
+	# only two gentle arcs in the whole stretch, everything else flies true.
+	# The Ghost Devil shimmers in low, rippling yellow rings.
+	addtime 7000
 	setttl 10000
 	at 0    spawnEnemy mouvement 1 enemyType 3 startPos 2 0.3 endPos 0.3 0.3 controlPoint 1 0.6 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 6 rotAngle -180
-	setttl 7000
-	at 400  spawnEnemy mouvement 1 enemyType 5 startPos 1.8 -0.7 endPos -0.6 -0.7 controlPoint 1 -0.7 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection -1 firingTime 5500
 	setttl 6000
-	at 900  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.85 endPos -1.3 -0.2 controlPoint 0  0.9 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1400 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.9  endPos -1.3  0.1 controlPoint 0 -0.9 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1900 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.6  endPos -1.3 -0.5 controlPoint 0  0.7 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
-	at 2400 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.6  endPos -1.3  0.5 controlPoint 0 -0.7 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
-	at 2900 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.1  endPos -1.3  0.1 controlPoint 0  0.1 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 600  spawnEnemy mouvement 1 enemyType 5 startPos 1.7 -0.95 endPos 0.55 -1.0 controlPoint 1.1 -0.97 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection -1 firingTime 5000
+	setttl 4500
+	at 900  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.85 endPos -1.3  0.85 controlPoint 0  0.85 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.15 endPos -1.3 -0.15 controlPoint 0 -0.15 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1500 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.55 endPos -1.3  0.55 controlPoint 0  0.55 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 1800 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.55 endPos -1.3 -0.55 controlPoint 0 -0.55 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2100 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.15 endPos -1.3  0.15 controlPoint 0  0.15 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2400 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.75 endPos -1.3 -0.75 controlPoint 0 -0.75 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 2700 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.70 endPos -1.3  0.10 controlPoint 0  0.40 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 3000 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.35 endPos -1.3  0.05 controlPoint 0 -0.15 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 3300 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.05 endPos -1.3  0.05 controlPoint 0  0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 3600 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.65 endPos -1.3 -0.65 controlPoint 0 -0.65 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 3900 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.30 endPos -1.3  0.30 controlPoint 0  0.30 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 4200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.45 endPos -1.3 -0.45 controlPoint 0 -0.45 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	setttl 6000
+	at 1000 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.85 endPos -1.3 -0.20 controlPoint 0  0.90 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.90 endPos -1.3  0.10 controlPoint 0 -0.90 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	setttl 5600
+	at 3000 spawnEnemy mouvement 1 enemyType 0 startPos 1.4 -0.4 endPos 0.5 -0.35 controlPoint 1 -0.37 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
 
-	# Closing flood of the side view: tight five-lane FHT wall, then thinning.
-	addtime 9000
-	setttl 6000
-	at 0    spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.8 endPos -1.3  0.8 controlPoint 0  0.8 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 300  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.4 endPos -1.3  0.4 controlPoint 0  0.4 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
-	at 600  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.0 endPos -1.3  0.0 controlPoint 0  0.0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 900  spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.4 endPos -1.3 -0.4 controlPoint 0 -0.4 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
-	at 1200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.8 endPos -1.3 -0.8 controlPoint 0 -0.8 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1900 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.6 endPos -1.3  0.6 controlPoint 0  0.6 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 2200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.6 endPos -1.3 -0.6 controlPoint 0 -0.6 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 2500 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.2 endPos -1.3  0.2 controlPoint 0  0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 2800 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.2 endPos -1.3 -0.2 controlPoint 0 -0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	# V8 -- CLOSING WALLS (67.5s): two five-lane hedgehog walls, offset lanes,
+	# then a fast trickle. All dead straight, all fast.
+	addtime 7000
+	setttl 5000
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.80 endPos -1.3  0.80 controlPoint 0  0.80 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 250  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.40 endPos -1.3  0.40 controlPoint 0  0.40 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 500  spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.00 endPos -1.3  0.00 controlPoint 0  0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 750  spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.40 endPos -1.3 -0.40 controlPoint 0 -0.40 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 1000 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.80 endPos -1.3 -0.80 controlPoint 0 -0.80 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1600 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.60 endPos -1.3  0.60 controlPoint 0  0.60 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 1850 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.20 endPos -1.3  0.20 controlPoint 0  0.20 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2100 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.20 endPos -1.3 -0.20 controlPoint 0 -0.20 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 2350 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.60 endPos -1.3 -0.60 controlPoint 0 -0.60 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 2600 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -1.00 endPos -1.3 -1.00 controlPoint 0 -1.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 3200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.70 endPos -1.3  0.70 controlPoint 0  0.70 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 3450 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.30 endPos -1.3  0.30 controlPoint 0  0.30 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 3700 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.10 endPos -1.3 -0.10 controlPoint 0 -0.10 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 3950 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.50 endPos -1.3 -0.50 controlPoint 0 -0.50 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 4200 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.50 endPos -1.3  0.50 controlPoint 0  0.50 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
+	at 4450 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.30 endPos -1.3 -0.30 controlPoint 0 -0.30 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 4700 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.10 endPos -1.3  0.10 controlPoint 0  0.10 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	at 4950 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.70 endPos -1.3 -0.70 controlPoint 0 -0.70 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
 
 	# ---------- 73-76s: tipping back. Breather. ----------
 

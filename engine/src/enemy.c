@@ -433,18 +433,17 @@ void updateHAB(enemy_t* enemy)
 	float f;
 	int costume = (int)enemy->parameters[PARAMETER_HAB_COSTUME];
 
-	// Device verdict on 1.6.5: the anthracite Devil is "vraiment trop
-	// furtif". Make it BREATHE: the stealth coat swells to a hot ember
-	// (~every 1.3s, squared so it stays dark most of the cycle) -- pure
-	// function of simulationTime, lockstep-safe. Runs from the first frame
-	// of the barrel-roll in, so the eye catches it entering.
-	if (costume == 1)
+	// Device verdict on 1.6.5: the GHOST is too transparent -- "on ne le
+	// voit a peine". Make it SHIMMER: the veil breathes between a readable
+	// haze and a bright spectral flash (~every 1.3s) -- pure function of
+	// simulationTime, lockstep-safe. Runs from the first frame of the
+	// barrel-roll in, so the eye catches it entering. The anthracite keeps
+	// its static stealth coat: that one read fine on device.
+	if (costume == 2)
 	{
 		float s = 0.5f + 0.5f * sinf(simulationTime * 0.005f);
 		s = s * s;
-		enemy->entity.color[R] = 0.30f + s * 0.70f;
-		enemy->entity.color[G] = 0.32f + s * 0.33f;
-		enemy->entity.color[B] = 0.42f - s * 0.10f;
+		enemy->entity.color[A] = 0.42f + s * 0.33f;
 	}
 
 	if (enemy->timeCounter < DEVIL_TTR)

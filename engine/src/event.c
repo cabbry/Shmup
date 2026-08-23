@@ -201,11 +201,12 @@ void EV_SpawnEnemy(event_t* event)
 				enemy->entity.color[B] = 0.42f;
 				enemy->entity.color[A] = 1;
 				break;
-			case 2:		// ghost
+			case 2:		// ghost -- 0.30 was unreadable on device;
+						// updateHAB shimmers alpha 0.42..0.75 from here
 				enemy->entity.color[R] = 0.85f;
 				enemy->entity.color[G] = 0.95f;
 				enemy->entity.color[B] = 1.0f;
-				enemy->entity.color[A] = 0.30f;
+				enemy->entity.color[A] = 0.42f;
 				break;
 			default:	// the original, as decoded from the 2009 .pvr
 				enemy->entity.color[R] = 1;

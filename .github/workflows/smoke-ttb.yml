@@ -105,13 +105,14 @@ jobs:
             LOG=$(ls "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
             [ -z "$LOG" ] && LOG="$RUNNER_TEMP/ttb.log"
 
-            # the beat is over once a live=1 line has sim-t past 70s
-            DONE=$(grep "cull] scene=3 live=1" "$LOG" 2>/dev/null | awk '{for(f=1;f<=NF;f++) if ($f ~ /^t=/) {sub("t=","",$f); if ($f+0>70000) print}}' | head -1)
+            # run through the whole act INCLUDING the outro (movePlayers 106s,
+            # detach 108s, epilog to 115s): done once any trace line passes 117s
+            DONE=$(grep "cull] scene=3" "$LOG" 2>/dev/null | awk '{for(f=1;f<=NF;f++) if ($f ~ /^t=/) {sub("t=","",$f); if ($f+0>117000) print}}' | head -1)
             N=$(grep -c "cull] scene=3 live=1" "$LOG" 2>/dev/null || echo 0)
             MIN=$((($(date +%s)-START)/60))
             echo "[$MIN min] live-cull samples so far: $N"
             if [ -n "$DONE" ]; then
-              echo "beat completed (sim-t past 70s)"
+              echo "act completed (sim-t past 117s)"
               break
             fi
             if [ "$MIN" -ge 25 ]; then

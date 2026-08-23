@@ -649,7 +649,7 @@ static void RenderTTBBossCameoF(void)
 
 		dive = dive * dive;	// slow tip-over, fast plunge
 		vx = 380.0f - cross * 530.0f;
-		vy = 1040.0f + 25.0f * sinf(u * 4.0f * (float)M_PI) - dive * 1500.0f;
+		vy = 700.0f + 25.0f * sinf(u * 4.0f * (float)M_PI) - dive * 1100.0f;
 
 		matrix_multiply(cameraInvRot, cameoFromAbove, pose);
 		for (k = 0; k < 12; k++)
@@ -1077,13 +1077,16 @@ void RenderEntitiesF(void)
 			topLuma = sum / (16*16*3);
 
 			cullLogTick = 0;
-			Log_Printf("[cull] scene=%d live=%d t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d sky=%d luma=%d top=%d\n",
+			// p0: ship screen position + autopilot flag -- outro diagnostics
+			// (device report on 205: "le vaisseau a disparu" at the act's end)
+			Log_Printf("[cull] scene=%d live=%d t=%d pos=(%.0f,%.0f,%.0f) fwd=(%.2f,%.2f,%.2f) up=(%.2f,%.2f,%.2f) drew %d/%d ids=%s tris=%d sky=%d luma=%d top=%d p0=(%.2f,%.2f,ap%d)\n",
 					   engine.sceneId, gRuntimeCullMap,
 					   simulationTime,
 					   camera.position[0], camera.position[1], camera.position[2],
 					   camera.forward[0], camera.forward[1], camera.forward[2],
 					   camera.up[0], camera.up[1], camera.up[2],
-					   cullDrawn, num_map_entities, cullIds, cullTris, skyLuma, decorLuma, topLuma);
+					   cullDrawn, num_map_entities, cullIds, cullTris, skyLuma, decorLuma, topLuma,
+					   players[0].ss_position[X], players[0].ss_position[Y], players[0].autopilot.enabled);
 			// Which entities survived matters more than how many: ids 0..2 are the
 			// sky domes (numBackgroundEntities), so "only sky" means the camera is
 			// pointed away from the city -- a black screen with a valid cull.

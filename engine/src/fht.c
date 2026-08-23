@@ -26,9 +26,32 @@
 #include "fht.h"
 #include "fx.h"
 #include "sounds.h"
+#include "camera.h"	// CAM_TTBRotateSS: the tumble axis follows the beat
 
 //#define FHT_TTL  6000.0f
 #define FHT_NUM_ROTATION 3
+
+// TTB: the FHT's signature tumble is authored about the billboard's Y axis.
+// Upright that reads as the classic cartwheeling hedgehog -- but in the side
+// view that axis is the SCREEN's vertical, and the tumble reads as the craft
+// doing LOOPINGS on the spot (device verdict on 198, after the trajectories
+// were already dead straight). Sideways, the same spin lands on the screen-
+// plane axis instead: the hedgehog rolls like a saw blade along its lane.
+static void FHT_SetSpin(enemy_t* enemy, float spin)
+{
+	float qx = 0, qy = -1;
+	CAM_TTBRotateSS(&qx, &qy);
+	if (qx < -0.707f || qx > 0.707f)
+	{
+		enemy->entity.zAxisRot = spin;
+		enemy->entity.yAxisRot = 0;
+	}
+	else
+	{
+		enemy->entity.yAxisRot = spin;
+		enemy->entity.zAxisRot = 0;
+	}
+}
 //cos (MINE_ROTATION_SPEED_RAD_MS)
 //#define MINE_ROTATION_COS 0.999980262
 //sin (MINE_ROTATION_SPEED_RAD_MS)
@@ -42,7 +65,7 @@ void updateXSin(enemy_t* enemy)
 	f = enemy->timeCounter / enemy->fttl ;	
 	oneMinusF = 1 -f;
 	
-	enemy->entity.yAxisRot = f * FHT_NUM_ROTATION*1.5 * 2.0f * M_PI;
+	FHT_SetSpin(enemy, f * FHT_NUM_ROTATION*1.5 * 2.0f * M_PI);
 	
 	//enemy->ss_position[X] = oneMinusF*oneMinusF * enemy->spawn_startPosition[X] + 2*oneMinusF*f*enemy->spawn_controlPoint[X]+ f*f*enemy->spawn_endPosition[X];
 	enemy->ss_position[X] = enemy->parameters[PARAMETER_FHT_X_POS] +  enemy->parameters[PARAMETER_FHT_X_WIDTH]*cos(enemy->spawn_startPosition[X]*M_PI/2 + f * M_PI  * 2*2);
@@ -63,7 +86,7 @@ void updateStraight(enemy_t* enemy)
 	f = enemy->timeCounter / enemy->fttl ;	
 	oneMinusF = 1 -f;
 	
-	enemy->entity.yAxisRot = f * FHT_NUM_ROTATION * 2.0f * M_PI;
+	FHT_SetSpin(enemy, f * FHT_NUM_ROTATION * 2.0f * M_PI);
 	
 	//Log_Printf("f=%.2f\n",f);
 	
@@ -88,7 +111,7 @@ void updateCircle(enemy_t* enemy)
 	
 	angle = f * FHT_NUM_ROTATION * 2.0f * M_PI;
 	
-	enemy->entity.yAxisRot = angle;
+	FHT_SetSpin(enemy, angle);
 	
 	//cosAngle = cosf(angle);
 	//sinAngle = sinf(angle);

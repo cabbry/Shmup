@@ -496,16 +496,17 @@ void updateHAB(enemy_t* enemy)
 			break;
 
 		case 2:
-			// GHOST -- THE RIPPLES: every 1.4s a slow ring of the
-			// player's own yellow bullets expands from the hull, like a
-			// stone dropped in water (3 waves over the 4s window).
-			if (simulationTime - enemy->lastTimeFired >= 1400)
+			// GHOST -- THE RIPPLES: a ring of the player's own yellow
+			// bullets expands from the hull, like a stone dropped in
+			// water. Device verdict on 198: 1.4s / 0.75 was too tame --
+			// now ~5 waves over the 4s window and faster fronts.
+			if (simulationTime - enemy->lastTimeFired >= 850)
 			{
 				int i;
 				for (i = 0; i < 14; i++)
 				{
 					float ang = i * (2*M_PI/14);
-					emitDevilBullet(enemy, 0, 0, cosf(ang), sinf(ang), 0.75f,
+					emitDevilBullet(enemy, 0, 0, cosf(ang), sinf(ang), 1.15f,
 					                DEVIL_YELLOW_U, DEVIL_YELLOW_V, DEVIL_YELLOW_W, DEVIL_YELLOW_H);
 				}
 				enemy->lastTimeFired = simulationTime;

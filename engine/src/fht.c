@@ -31,19 +31,33 @@
 //#define FHT_TTL  6000.0f
 #define FHT_NUM_ROTATION 3
 
-// TTB, round 3 of the hedgehog spin. The spin stays authored on yAxisRot
-// (2010), but WHERE that axis lands depends on the view:
-// - upright, enemy.c composes euler*blend: Y is the billboard's vertical =
-//   the classic cartwheeling hedgehog;
-// - side view, enemy.c flips the order to blend*euler for the FHT: Y is
-//   then the model's own DISC AXIS after the 3/4 tilt -- the spikes wheel
-//   inside a FIXED ellipse, a coin spinning at 3/4. Spinning the projected
-//   image instead (the 199/200 attempts: screen-plane spin) reads as a
-//   plate cartwheeling the moment any of the face shows.
+// TTB, round 4 of the hedgehog spin -- the one proven by spin_rig BEFORE
+// shipping. Ground truth from enemy.c's euler formulas: the axis NAMES are
+// permuted -- at x=z=0 "yAxisRot" builds a rotation about the matrix Z, and
+// "zAxisRot" one about the matrix Y (its middle column stays (0,1,0)).
+// - upright, enemy.c composes euler*blend and the classic look is yAxisRot
+//   (2010, untouched);
+// - side view, enemy.c composes blend34*euler for the FHT, so the euler acts
+//   in MODEL space -- and the spin must be about the model's disc axis
+//   (model Y, the thin 4.4-unit axis), which the permuted names spell
+//   "zAxisRot". Rig-measured: disc normal drifts 0.0 degrees over a full
+//   turn (the 3/4 ellipse holds still, the spikes wheel inside it); every
+//   other axis/order combination reproduces a device-rejected build
+//   (198 loopings / 200 yaw / 201 tilted loopings).
 static void FHT_SetSpin(enemy_t* enemy, float spin)
 {
-	enemy->entity.yAxisRot = spin;
-	enemy->entity.zAxisRot = 0;
+	float qx = 0, qy = -1;
+	CAM_TTBRotateSS(&qx, &qy);
+	if (qx < -0.707f || qx > 0.707f)
+	{
+		enemy->entity.zAxisRot = spin;
+		enemy->entity.yAxisRot = 0;
+	}
+	else
+	{
+		enemy->entity.yAxisRot = spin;
+		enemy->entity.zAxisRot = 0;
+	}
 }
 //cos (MINE_ROTATION_SPEED_RAD_MS)
 //#define MINE_ROTATION_COS 0.999980262

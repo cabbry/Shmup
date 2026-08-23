@@ -223,8 +223,8 @@ enemies
 	# the camera tips over.
 	settime 34000
 	setttl 5600
-	at 0    spawnEnemy mouvement 1 enemyType 0 startPos -1.6 0.15 endPos -0.45 0.3 controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
-	at 400  spawnEnemy mouvement 1 enemyType 0 startPos  1.6 0.2  endPos  0.45 0.3 controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
+	at 0    spawnEnemy mouvement 1 enemyType 0 startPos -1.6 0.3 endPos -0.45 0.3 controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
+	at 0    spawnEnemy mouvement 1 enemyType 0 startPos  1.6 0.3 endPos  0.45 0.3 controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
 	setttl 5000
 	at 300  spawnEnemy mouvement 1 enemyType 5 startPos -1.8 -0.75 endPos  0.7 -0.7  controlPoint -1 -0.7  zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection 1 firingTime 4500
 	at 700  spawnEnemy mouvement 1 enemyType 5 startPos  1.8 -0.9  endPos -0.7 -0.85 controlPoint  1 -0.85 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection 1 firingTime 4500

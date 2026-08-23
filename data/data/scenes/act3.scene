@@ -375,10 +375,10 @@ enemies
 	at 1200 spawnEnemy mouvement 2 xOffset 0 xWidth 1 enemyType 1 startPos -1 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
 	at 1800 spawnEnemy mouvement 2 xOffset 0 xWidth 1 enemyType 1 startPos  1 1.2 endPos  1 -1.2 controlPoint  1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
 
-	# Last word: one big circle, a fifth invulnerable, spinning off-angle.
-	addtime 6500
-	setttl 6000
-	at 0 spawnEnemyWave circle enemyNum 16 enemyType 1 percentageInvulnerable 20 angleoffset 90 defaultType 0
+	# (The old "last word" circle at 104s was CUT -- device verdict on 202:
+	# its 6s ttl outlived the 106s control lock, hedgehogs still attacking
+	# a frozen ship in front of the stats card. The sine weave now closes
+	# the act with ~2s of clear sky before the epilog.)
 }
 
 texts_events

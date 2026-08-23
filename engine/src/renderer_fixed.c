@@ -605,7 +605,7 @@ void SetTransparencyF(float alpha)
 // would vanish into a sliver.
 #define CAMEO_T0		50000	// enters (sim ms) -- mid side-view
 #define CAMEO_T1		64000	// gone
-#define CAMEO_SCALE		4.5f	// model is 45.7 wide -> ~205 units
+#define CAMEO_SCALE		7.5f	// model is 45.7 wide -> ~343 units (202: "trop discret" at 4.5)
 #define CAMEO_DEPTH		1600.0f	// behind the crossing stars (they fly at 1000)
 
 static void RenderTTBBossCameoF(void)
@@ -649,7 +649,7 @@ static void RenderTTBBossCameoF(void)
 
 		dive = dive * dive;	// slow tip-over, fast plunge
 		vx = 380.0f - cross * 530.0f;
-		vy = 430.0f + 50.0f * sinf(u * 4.0f * (float)M_PI) - dive * 780.0f;
+		vy = 530.0f + 50.0f * sinf(u * 4.0f * (float)M_PI) - dive * 900.0f;
 
 		matrix_multiply(cameraInvRot, cameoFromAbove, pose);
 		for (k = 0; k < 12; k++)
@@ -664,13 +664,32 @@ static void RenderTTBBossCameoF(void)
 	for (k = 0; k < 16; k++)
 		cameo.matrix[k] = pose[k];
 
-	// Dark silhouette against the dusk: modulate the texture down -- but
-	// less than 1.6.5 (0.11: "trop discrete"). Alpha-blended so the dive
-	// also reads as evaporation.
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glColor4f(0.20f, 0.18f, 0.28f, cameoAlpha);
+	// Dark silhouette against the dusk, LIT BY LIGHTNING (user's call on
+	// 202: "le faire clignoter comme éclairé par un éclair"). A fixed
+	// strike train -- pure function of simulationTime, lockstep-safe --
+	// flashes the hull to storm-white in double strikes with a ~120ms
+	// exponential decay; between strikes it stays a brooding silhouette.
+	// Alpha-blended so the final dive also reads as evaporation.
+	{
+		static const int strikes[] = { 51200, 51420, 55600, 55780, 59300, 62600, 62790 };
+		float L = 0, r, gr, b;
+		for (k = 0; k < (int)(sizeof(strikes)/sizeof(strikes[0])); k++)
+		{
+			int dt = simulationTime - strikes[k];
+			if (dt >= 0 && dt < 600)
+			{
+				float e = expf(-dt / 120.0f);
+				if (e > L) L = e;
+			}
+		}
+		r  = 0.30f + (1.00f - 0.30f) * L;
+		gr = 0.28f + (1.00f - 0.28f) * L;
+		b  = 0.40f + (1.00f - 0.40f) * L;
+		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glColor4f(r, gr, b, cameoAlpha);
+	}
 	RenderEntityF(&cameo);
 	glColor4f(1, 1, 1, 1);
 	glDisable(GL_BLEND);

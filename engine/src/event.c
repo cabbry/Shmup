@@ -192,7 +192,7 @@ void EV_SpawnEnemy(event_t* event)
 	// screen ~4s and must survive focused fire (the MP doubling comes after).
 	if (eventPayload->type == ENEMY_HAB)
 	{
-		enemy->energy = 80;
+		enemy->energy = 55;	// 80 outlived the fun on device ("un peu trop de vie")
 		enemy->parameters[PARAMETER_HAB_COSTUME] = (float)eventPayload->subType;
 		// runtime proof for the smoke log: every Devil spawn, timestamped
 		// (device report of a missing V5 ghost -- the parse was clean, so

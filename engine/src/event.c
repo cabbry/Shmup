@@ -181,6 +181,38 @@ void EV_SpawnEnemy(event_t* event)
 			break;
 	}
 
+	// THE DEVIL'S THREE COSTUMES (act III). For ENEMY_HAB -- Fabien's hidden
+	// enemy, first spawned in 2026 -- the subType picks the SKIN, not the
+	// difficulty: 0 = the resurrected original silver, 1 = the anthracite
+	// stealth (the texture darkens under GL_MODULATE, red stripes survive as
+	// embers), 2 = the translucent ghost (alpha < 1: the enemy pass blends it).
+	// Costumes are cosmetic: energy resets to the type's base, undoing the
+	// generic subType multipliers above (the MP doubling comes after).
+	if (eventPayload->type == ENEMY_HAB)
+	{
+		enemy->energy = enemyTypeEnergy[ENEMY_HAB];
+		switch (eventPayload->subType) {
+			case 1:		// anthracite
+				enemy->entity.color[R] = 0.30f;
+				enemy->entity.color[G] = 0.32f;
+				enemy->entity.color[B] = 0.42f;
+				enemy->entity.color[A] = 1;
+				break;
+			case 2:		// ghost
+				enemy->entity.color[R] = 0.85f;
+				enemy->entity.color[G] = 0.95f;
+				enemy->entity.color[B] = 1.0f;
+				enemy->entity.color[A] = 0.30f;
+				break;
+			default:	// the original, as decoded from the 2009 .pvr
+				enemy->entity.color[R] = 1;
+				enemy->entity.color[G] = 1;
+				enemy->entity.color[B] = 1;
+				enemy->entity.color[A] = 1;
+				break;
+		}
+	}
+
 	// In multiplayer there are two ships firing (~twice the DPS), so enemies felt too
 	// easy with solo HP. Double their energy to keep the challenge comparable. Applied
 	// identically on both devices (same events, same mode) so it stays deterministic.

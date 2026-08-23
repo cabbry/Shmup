@@ -1011,10 +1011,22 @@ void RenderEntitiesF(void)
 			enemy->shouldFlicker = 0;
 			glTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		}
-		else 
+		else
 		{
+			// The Devil's ghost costume (and any future translucent enemy):
+			// alpha < 1 turns blending on for this one draw. GL_MODULATE is
+			// already the enemy pass's texenv, so the color's alpha reaches
+			// the blender as-is.
+			int ghost = entity->color[A] < 0.999f;
+			if (ghost)
+			{
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			}
 			glColor4f(entity->color[R], entity->color[G], entity->color[B], entity->color[A]);
 			RenderEntityF(entity);
+			if (ghost)
+				glDisable(GL_BLEND);
 		}
 
 		

@@ -181,6 +181,124 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-23/24 — round 28 (storm over the city — and a 16-year-old GL landmine)
+- The boss cameo was reported invisible no matter its size or tint, and TestFlight
+  logged a device crash. The crash log (pulled via the App Store Connect API) showed
+  a SIGSEGV inside the GL driver under `RenderTTBBossCameoF`, faulting on address
+  `0x0154014c014b014a` — **consecutive vertex indices read as a pointer**.
+- **Both symptoms were one bug**: the runtime-loaded boss model lives in RAM, and
+  `RenderEntityF`'s client-array path (2010) never unbinds `GL_ARRAY_BUFFER`. Any
+  VRAM entity drawn earlier leaves its VBO bound, turning the cameo's heap pointers
+  into buffer offsets: garbage triangles most frames (invisible), a wild read when
+  the address falls badly (the crash). One `glBindBuffer(GL_ARRAY_BUFFER, 0)` fixes
+  both. The 2010 code was never wrong on 2010's fixed draw order — the new act
+  reordered the frame and armed it.
+- **Belt and suspenders**: the cameo also now flies **above the true horizon**
+  (the camera pitches 28° down; towers top out below camera height, so nothing can
+  ever rise above that line to cover a no-depth-write silhouette drawn before the
+  city). Proven with the scene mock at three crossing positions before pushing.
+- **🆕 Lightning** (the tester's idea: "le faire clignoter comme éclairé par un
+  éclair"): a fixed strike train — doubles, 120 ms exponential decay, pure function
+  of the simulation clock so both lockstep peers see the same storm — flashes the
+  hull from brooding silhouette (0.30) to near-white (0.94). The last strike lights
+  its dive behind the skyline.
+- The finale's last hedgehog circle was cut: its 6 s lifetime outlived the control
+  lock before the stats card. The Devils came down from 80 to 55 HP.
+
+### 2026-08-23 — round 27 (the hedgehog spin saga, or: trust the rig, not the axis names)
+- Four device rounds to make the FHT roll properly in the side view, ending with a
+  lesson worth the price: **the 2010 euler formulas have permuted axis names** — at
+  x=z=0, `yAxisRot` builds a rotation about the matrix **Z**, and `zAxisRot` one
+  about the matrix **Y**. Three shipped attempts each spun a wrong axis (loopings /
+  yaw / tilted loopings, in that order).
+- After the third miss the tester set the rule that should have been round one:
+  *"arrête d'utiliser mon quota GitHub Actions — simule avant d'envoyer."* A local
+  rig (`spin_rig.c`: the real `camera.c` + `matrix.c`, the euler construction
+  verbatim, the real FHT mesh) replayed all four shipped configurations and
+  **reproduced all four device verdicts** — then, and only then, was the fifth
+  configuration believed: compose `blend34 · euler` with the spin on "zAxisRot" =
+  rotation about the model's own tilted disc axis. Disc-normal drift over a full
+  turn: **0.0°** — the 3/4 ellipse holds still, the spikes wheel inside it, a coin
+  spinning at three quarters. Upright keeps the 2010 cartwheel bit-exact.
+- The metric matters: bounding boxes barely move under a yaw (15%) — the
+  discriminator that matches perception is the **projected disc normal**.
+
+### 2026-08-23 — round 26 (the side view fights back)
+- Tester's brief after the first armed pass: hedgehogs everywhere, a sweeper that
+  actually sweeps, and craft you can recognize. Delivered as one round:
+- **FHT ×3** (28 → 84 in the 26 s window), nearly all dead straight — the earlier
+  "loopings" were authored curve control points, not the engine.
+- **The balayeur climbs**: its 2010 drift is a hardcoded `+X` slide; in the side
+  view the same drift now runs up the screen, curtain streaming left — two
+  climbers scale the whole screen while firing.
+- **The drops lie down**: the curtain's quad was axis-aligned; it now swaps extents
+  and quarter-turns its texture with the beat, head leading. Upright emission stays
+  bit-exact 2010. All of it proven in `tha_rig.c` (real `tha.c` compiled, 9 asserts,
+  the bugs reproduced BEFORE the fixes were trusted).
+- **3/4 poses**: `CAM_GetTTBBlendCapped(0.62)` — flat disc craft (turret, Devils,
+  then the hedgehog too) hold a readable three-quarter pose instead of thinning to
+  a 5.7-unit blade (11.5 units tall at 3/4).
+- The three Devils tour the side view one per costume, and the V5 ambush closes as
+  a simultaneous mirror pincer — the smoke log's new `[devil]` trace proved a
+  "missing" ghost had spawned all along, just 400 ms too late to be seen.
+
+### 2026-08-23 — round 25 (the Devils fight — phase 1 validated)
+- **🆕 The Devil's weapons**, one per costume, all drawn from bullets the game
+  already owns (the enemy particle pass binds the PLAYER's bullet atlas — a weapon
+  is just texture coordinates): the Original fires a **trident** of three straight
+  red streams; the Anthracite whips a **lasso** of sweeper drops; the Ghost drops
+  a stone in water — expanding **rings of the player's own yellow shots**.
+- Devils became real elites: a flat 80 HP (the type's 2009 base was 10) and a
+  further ×0.85 mesh trim. The ghost's unreadable 0.30 alpha now **shimmers**
+  0.42..0.75 on the simulation clock.
+- Tester's verdict: *"les devils sont nickel"* — **phase 1 of Act III validated.**
+
+### 2026-08-22/23 — round 24 (the Devil resurrected — a 2009 enemy's first spawn)
+- **🆕 The hidden enemy ships.** `ENEMY_HAB`, "le Devil" — modeled, textured and
+  coded by Fabien in 2009-2010, never once spawned by any shipped scene — enters
+  the game seventeen years later. Its original texture was recovered by decoding
+  the shipped `.pvr` (PVRTC1-4bpp decoder written for the occasion) and installed
+  where `enemies.mtl` had pointed all along.
+- **Three costumes** via the entity tint the boss missiles already used: the
+  resurrected silver, an anthracite stealth coat, a translucent ghost (the enemy
+  pass gained per-entity alpha blending). The tester picked all three: one Devil
+  per phase of the act.
+- Phase 1 redesigned to the tester's plan: three LEE columns under a parked
+  turret; the three Devils; a four-sweeper pincer over hedgehog volleys;
+  converging act-1-style columns; a rear-rake ambush.
+- **🆕 The boss cameo** (tester's idea): the Act IV boss crosses the side-view sky
+  once, face-on, a distant dark silhouette between the dome and the stars —
+  foreshadowing, not a fight.
+
+### 2026-08-17 — round 23 (Act III gets its enemies — and the smoke test earns its keep)
+- **Waves authored per view** (104 events): mixed-type combos the original acts
+  never ran, plus classics; the side view packs staggered hedgehog streams across
+  the tall screen. Enemies blend to **profile** in the side view through the same
+  shared matrix as the player, so their authored spins still read; authored bullet
+  patterns rotate with the beat (`CAM_TTBRotateSS`), aimed shots stay aimed —
+  screen space IS the screen in any view.
+- **The CI mystery**: two red smoke runs showed "scene 0 at twenty minutes". Not a
+  crash — the Simulator's idle ship was being **rammed** by the first hedgehog,
+  game over, menu, and the sim clock never resets. The invulnerability guard only
+  covered the bullet path; ramming deaths live in a second collision routine.
+  Lessons now baked into the harness notes: percussion kills bypass
+  `COLL_CheckPlayers`, the sim timer survives game-over, and stdout is buffered.
+- A one-page **rogues' gallery PDF** (every enemy rendered from its real mesh and
+  texture, the boss enthroned below) became the design table for everything above.
+
+### 2026-08-16/17 — round 22 (the transition lands — "la transition est nickel")
+- Build 190's verdicts closed one by one: the ship's hull reads 20% slimmer in
+  profile, bullets thin with the beat, the ghost fan rotates at fire time, and the
+  sky domes sank to -2500 so the horizon seam vanished behind the skyline.
+- **🆕 Crossing stars**: nine of them on three parallax layers slide across the
+  side-view sky, trails behind the motion, pure function of the simulation clock.
+- **The 180° snap, root-caused**: at both beat transitions the ship flipped
+  belly-first for one arc. The `fromAboveRotation` initializer's braces group **per
+  column**, not per row — the in-plane arc was leaving from a transposed pose. Two
+  sign flips fix it; at f=0 the blend is the original billboard **bit-exact**. The
+  lesson that stuck: probe transitions at intermediate blend values, and read
+  column-major initializers as columns.
+
 ### 2026-08-16 — round 21 (TTB on-device round 1: the ship flies right-side up, shoots forward)
 - Build 188 on device: the side view itself reads (the act-1 rail's own camera
   moves in the top-down stretches are **kept** — "c'était bien comme ça"), but

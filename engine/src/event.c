@@ -186,11 +186,14 @@ void EV_SpawnEnemy(event_t* event)
 	// difficulty: 0 = the resurrected original silver, 1 = the anthracite
 	// stealth (the texture darkens under GL_MODULATE, red stripes survive as
 	// embers), 2 = the translucent ghost (alpha < 1: the enemy pass blends it).
-	// Costumes are cosmetic: energy resets to the type's base, undoing the
-	// generic subType multipliers above (the MP doubling comes after).
+	// The costume also picks the weapon: updateHAB reads it back from the
+	// scratch parameters. Energy is a flat elite pool, not the type's base
+	// (10) nor the generic subType multipliers above -- a Devil stays on
+	// screen ~4s and must survive focused fire (the MP doubling comes after).
 	if (eventPayload->type == ENEMY_HAB)
 	{
-		enemy->energy = enemyTypeEnergy[ENEMY_HAB];
+		enemy->energy = 80;
+		enemy->parameters[PARAMETER_HAB_COSTUME] = (float)eventPayload->subType;
 		switch (eventPayload->subType) {
 			case 1:		// anthracite
 				enemy->entity.color[R] = 0.30f;

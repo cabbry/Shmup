@@ -616,6 +616,7 @@ static void RenderTTBBossCameoF(void)
 	static const matrix_t cameoFromAbove = {1,0,0,0,  0,0,1,0,  0,-1,0,0,  0,0,0,1};
 	matrix_t pose;
 	float u, vx, vy;
+	float cameoAlpha;
 	int k;
 
 	if (engine.sceneId != 3)
@@ -634,14 +635,28 @@ static void RenderTTBBossCameoF(void)
 	if (simulationTime < CAMEO_T0 || simulationTime > CAMEO_T1)
 		return;
 
-	// One slow, level crossing right-to-left with a faint bob.
+	// Device verdict on 1.6.5: too discreet, too static, and it vanished in
+	// place. Now: a livelier crossing (double bob + a slow scale breathing,
+	// as if it surged closer), stopping at the left third of the screen,
+	// then an accelerating DIVE behind the skyline over the last ~3s -- the
+	// city is drawn after us with depth writes, so the buildings swallow the
+	// silhouette; a fade covers any gap in the rooftops.
 	u  = (simulationTime - CAMEO_T0) / (float)(CAMEO_T1 - CAMEO_T0);
-	vx = 380.0f - u * 760.0f;
-	vy = 430.0f + 25.0f * sinf(u * 2.0f * (float)M_PI);
+	{
+		float cross = u < 0.72f ? u / 0.72f : 1.0f;
+		float dive  = u > 0.72f ? (u - 0.72f) / 0.28f : 0.0f;
+		float breathe = 1.0f + 0.05f * sinf(u * 4.0f * (float)M_PI + 1.3f);
 
-	matrix_multiply(cameraInvRot, cameoFromAbove, pose);
-	for (k = 0; k < 12; k++)
-		pose[k] *= CAMEO_SCALE;	// columns 0..2 (their w stays 0)
+		dive = dive * dive;	// slow tip-over, fast plunge
+		vx = 380.0f - cross * 530.0f;
+		vy = 430.0f + 50.0f * sinf(u * 4.0f * (float)M_PI) - dive * 780.0f;
+
+		matrix_multiply(cameraInvRot, cameoFromAbove, pose);
+		for (k = 0; k < 12; k++)
+			pose[k] *= CAMEO_SCALE * breathe;	// columns 0..2 (their w stays 0)
+
+		cameoAlpha = 1.0f - dive;
+	}
 	pose[12] = camera.position[0] + camera.right[0]*vx + camera.up[0]*vy + camera.forward[0]*CAMEO_DEPTH;
 	pose[13] = camera.position[1] + camera.right[1]*vx + camera.up[1]*vy + camera.forward[1]*CAMEO_DEPTH;
 	pose[14] = camera.position[2] + camera.right[2]*vx + camera.up[2]*vy + camera.forward[2]*CAMEO_DEPTH;
@@ -649,11 +664,16 @@ static void RenderTTBBossCameoF(void)
 	for (k = 0; k < 16; k++)
 		cameo.matrix[k] = pose[k];
 
-	// Dark silhouette against the dusk: modulate the texture way down.
+	// Dark silhouette against the dusk: modulate the texture down -- but
+	// less than 1.6.5 (0.11: "trop discrete"). Alpha-blended so the dive
+	// also reads as evaporation.
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	glColor4f(0.11f, 0.10f, 0.17f, 1.0f);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glColor4f(0.20f, 0.18f, 0.28f, cameoAlpha);
 	RenderEntityF(&cameo);
 	glColor4f(1, 1, 1, 1);
+	glDisable(GL_BLEND);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 }
 

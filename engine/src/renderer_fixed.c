@@ -605,7 +605,7 @@ void SetTransparencyF(float alpha)
 // would vanish into a sliver.
 #define CAMEO_T0		50000	// enters (sim ms) -- mid side-view
 #define CAMEO_T1		64000	// gone
-#define CAMEO_SCALE		7.5f	// model is 45.7 wide -> ~343 units (202: "trop discret" at 4.5)
+#define CAMEO_SCALE		6.0f	// 45.7-wide model -> ~274 units; sized so the WHOLE hull fits above the true horizon
 #define CAMEO_DEPTH		1600.0f	// behind the crossing stars (they fly at 1000)
 
 static void RenderTTBBossCameoF(void)
@@ -649,7 +649,7 @@ static void RenderTTBBossCameoF(void)
 
 		dive = dive * dive;	// slow tip-over, fast plunge
 		vx = 380.0f - cross * 530.0f;
-		vy = 530.0f + 50.0f * sinf(u * 4.0f * (float)M_PI) - dive * 900.0f;
+		vy = 1040.0f + 25.0f * sinf(u * 4.0f * (float)M_PI) - dive * 1500.0f;
 
 		matrix_multiply(cameraInvRot, cameoFromAbove, pose);
 		for (k = 0; k < 12; k++)

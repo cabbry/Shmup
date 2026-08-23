@@ -194,6 +194,12 @@ void EV_SpawnEnemy(event_t* event)
 	{
 		enemy->energy = 80;
 		enemy->parameters[PARAMETER_HAB_COSTUME] = (float)eventPayload->subType;
+		// runtime proof for the smoke log: every Devil spawn, timestamped
+		// (device report of a missing V5 ghost -- the parse was clean, so
+		// the truth has to come from the running engine)
+		Log_Printf("[devil] t=%d costume=%d at %.2f,%.2f\n",
+			simulationTime, eventPayload->subType,
+			enemy->ss_position[X], enemy->ss_position[Y]);
 		switch (eventPayload->subType) {
 			case 1:		// anthracite
 				enemy->entity.color[R] = 0.30f;

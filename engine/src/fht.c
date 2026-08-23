@@ -31,26 +31,19 @@
 //#define FHT_TTL  6000.0f
 #define FHT_NUM_ROTATION 3
 
-// TTB: the FHT's signature tumble is authored about the billboard's Y axis.
-// Upright that reads as the classic cartwheeling hedgehog -- but in the side
-// view that axis is the SCREEN's vertical, and the tumble reads as the craft
-// doing LOOPINGS on the spot (device verdict on 198, after the trajectories
-// were already dead straight). Sideways, the same spin lands on the screen-
-// plane axis instead: the hedgehog rolls like a saw blade along its lane.
+// TTB, round 3 of the hedgehog spin. The spin stays authored on yAxisRot
+// (2010), but WHERE that axis lands depends on the view:
+// - upright, enemy.c composes euler*blend: Y is the billboard's vertical =
+//   the classic cartwheeling hedgehog;
+// - side view, enemy.c flips the order to blend*euler for the FHT: Y is
+//   then the model's own DISC AXIS after the 3/4 tilt -- the spikes wheel
+//   inside a FIXED ellipse, a coin spinning at 3/4. Spinning the projected
+//   image instead (the 199/200 attempts: screen-plane spin) reads as a
+//   plate cartwheeling the moment any of the face shows.
 static void FHT_SetSpin(enemy_t* enemy, float spin)
 {
-	float qx = 0, qy = -1;
-	CAM_TTBRotateSS(&qx, &qy);
-	if (qx < -0.707f || qx > 0.707f)
-	{
-		enemy->entity.zAxisRot = spin;
-		enemy->entity.yAxisRot = 0;
-	}
-	else
-	{
-		enemy->entity.yAxisRot = spin;
-		enemy->entity.zAxisRot = 0;
-	}
+	enemy->entity.yAxisRot = spin;
+	enemy->entity.zAxisRot = 0;
 }
 //cos (MINE_ROTATION_SPEED_RAD_MS)
 //#define MINE_ROTATION_COS 0.999980262

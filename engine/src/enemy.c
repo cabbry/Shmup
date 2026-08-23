@@ -330,16 +330,27 @@ void ENE_Update(void)
 				static matrix_t ttbEnemyBlend;
 				static matrix_t ttbEnemyBlend34;
 				static int      ttbBlendStamp = -1;
+				static int      ttbSideways = 0;
 				// one build per frame, shared by every enemy
 				if (ttbBlendStamp != simulationTime)
 				{
+					float qx = 0, qy = -1;
 					CAM_GetTTBBlend(ttbEnemyBlend, 0.0f);
 					// flat discs (turret, Devil) hold a 3/4 pose: their full
 					// profile is a blade nobody recognizes on device
 					CAM_GetTTBBlendCapped(ttbEnemyBlend34, 0.0f, 0.62f);
+					CAM_TTBRotateSS(&qx, &qy);
+					ttbSideways = (qx < -0.707f || qx > 0.707f);
 					ttbBlendStamp = simulationTime;
 				}
-				if (enemy->type == ENEMY_SHAB || enemy->type == ENEMY_HAB || enemy->type == ENEMY_FHT)
+				if (enemy->type == ENEMY_FHT && ttbSideways)
+					// blend FIRST, spin after: the FHT's yAxisRot lands on
+					// its own tilted disc axis -- the spikes wheel inside a
+					// fixed 3/4 ellipse instead of cartwheeling the picture
+					// (spinning the projected image read as loopings on
+					// device the moment any of the face showed)
+					matrix_multiply(ttbEnemyBlend34, eulerMatrix, tmp);
+				else if (enemy->type == ENEMY_SHAB || enemy->type == ENEMY_HAB || enemy->type == ENEMY_FHT)
 					matrix_multiply(eulerMatrix, ttbEnemyBlend34, tmp);
 				else
 					matrix_multiply(eulerMatrix, ttbEnemyBlend, tmp);

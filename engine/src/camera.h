@@ -151,6 +151,12 @@ void CAM_GetTTBBlend(matrix_t out, float hullSlim);
 // an unrecognizable blade -- device verdict on the full profile.
 void CAM_GetTTBBlendCapped(matrix_t out, float hullSlim, float fCap);
 
+// World-Z velocity (units per ms) of the camera's last rail segment; 0 until
+// the first segment of the scene is measured. Scene-safe by construction:
+// CAM_StartPlaying clears the sample at every load. Used by the outro rush
+// (player.c) so the escaping ship always outruns the camera.
+float CAM_GetDriftVelZ(void);
+
 // Rotate a screen-space velocity with the TTB beat (identity upright): what
 // was authored "down at the player" fires screen-left in the side view, etc.
 // For AUTHORED directions only -- aimed-at-player shots are computed in ss

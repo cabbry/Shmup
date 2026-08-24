@@ -274,6 +274,13 @@ void CAM_GetTTBBlend(matrix_t out, float hullSlim)
 	CAM_GetTTBBlendCapped(out, hullSlim, 1.0f);
 }
 
+// See camera.h. Returns 0 before the first measured segment (fresh scene),
+// so a consumer can never read another scene's velocity.
+float CAM_GetDriftVelZ(void)
+{
+	return gCamHavePrev ? gCamDriftVel[2] : 0.0f;
+}
+
 // See camera.h: beat-rotate an AUTHORED screen-space velocity (same clockwise
 // convention as the player's bullets: up->right, down->left at +90).
 void CAM_TTBRotateSS(float* dx, float* dy)
@@ -664,6 +671,7 @@ void CAM_StartPlaying()
 {
 	camera.playing = 1;
 	gCamHavePrev = 0;	// don't carry a stale drift velocity across scenes
+	gCamDriftVel[0] = gCamDriftVel[1] = gCamDriftVel[2] = 0;	// nor its value
 	gCamEndActive = 0;	// fresh scene: re-arm the end-of-path patrol
 	gRuntimeCullMap = 0;	// ...and go back to the baked visibility until it runs out
 	gCamHaveCalm = 0;	// and re-seed the trailing orientation

@@ -16,6 +16,18 @@ filehandle_t* logFile_Handle;
 //Macro to control where to log.
 #define LOG_TO_CONSOLE 1
 
+// One shared gate for the diagnostic probes ([cull], [scene], [title],
+// [devil], [replay]): they only speak when SHMUP_CULL_DEBUG is set (the CI
+// smoke sets it; a player's device never does). Cached once -- getenv is not
+// free and some probes sit near per-frame code.
+int Log_ProbesEnabled(void)
+{
+	static int flag = -1;
+	if (flag < 0)
+		flag = getenv("SHMUP_CULL_DEBUG") ? 1 : 0;
+	return flag;
+}
+
 // File logging, off unless SHMUP_LOG_FILE is set in the environment. It writes
 // shmup_log.txt in the FS writable dir (Documents on iOS) and flushes every
 // line, so the log survives a crash and can be pulled off a device or a CI

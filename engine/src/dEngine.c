@@ -518,14 +518,9 @@ void dEngine_LoadScene(int sceneId)
     
 }
 
-// Bumped on every scene teardown: anything holding a pointer into the mesh
-// cache across scenes (the TTB boss cameo) compares against this to know its
-// model was freed under it. See RenderTTBBossCameoF.
-int gSceneGeneration = 0;
 
 void dEngine_FreeSceneRessources(void)
 {
-	gSceneGeneration++;
 
 	//A LOT A LOT OF THINGS TO FREE HERE !!!!
 	// Scenes
@@ -618,11 +613,15 @@ void dEngine_RequireSceneId(int sceneId)
 
 void dEngine_CheckState(void)
 {
-	
+	int previousScene;
+
 	if (engine.requiredSceneId == engine.sceneId)
 		return;
 
-	Log_Printf("[scene] %d -> %d (t=%d)\n", engine.sceneId, engine.requiredSceneId, simulationTime);
+	previousScene = engine.sceneId;
+
+	if (Log_ProbesEnabled())
+		Log_Printf("[scene] %d -> %d (t=%d)\n", engine.sceneId, engine.requiredSceneId, simulationTime);
 
 	SND_StopSoundTrack();
 	
@@ -637,10 +636,14 @@ void dEngine_CheckState(void)
 	dEngine_JumpInTime();
 
 	// CI hook: SHMUP_REPLAY_SCENE=<n> re-enters scene n ONCE, the first time
-	// any OTHER scene loads. Full teardown (FreeSceneRessources) then a fresh
-	// entry -- the exact path of a player's game-over/menu/retry, which is
-	// where the 205-209 cameo lottery lived: the smoke's single fresh run
-	// could never reproduce a dangling mesh-cache pointer.
+	// we LEAVE it. Full teardown (FreeSceneRessources) then a fresh entry --
+	// the exact path of a player's game-over/menu/retry, which is where the
+	// 205-209 cameo lottery lived: the smoke's single fresh run could never
+	// reproduce a dangling mesh-cache pointer. Keyed on the scene we came
+	// FROM (code review: keyed on the destination, a boot into any other
+	// scene burned the one shot before scene n ever ran, silently coupling
+	// this to SHMUP_BAKE_SCENE). Singleplayer only: a local env jump inside
+	// a lockstep match would desync the peers.
 	{
 		static int replayScene = -2;
 		static int replayed = 0;
@@ -649,10 +652,13 @@ void dEngine_CheckState(void)
 			char* e = getenv("SHMUP_REPLAY_SCENE");
 			replayScene = e ? atoi(e) : 0;
 		}
-		if (replayScene > 0 && !replayed && engine.sceneId != replayScene)
+		if (replayScene > 0 && !replayed &&
+		    engine.mode == DE_MODE_SINGLEPLAYER &&
+		    previousScene == replayScene && engine.sceneId != replayScene)
 		{
 			replayed = 1;
-			Log_Printf("[replay] re-entering scene %d (CI)\n", replayScene);
+			if (Log_ProbesEnabled())
+				Log_Printf("[replay] re-entering scene %d (CI)\n", replayScene);
 			dEngine_RequireSceneId(replayScene);
 		}
 	}

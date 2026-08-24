@@ -176,8 +176,17 @@ void Set3DF(void)
 	
 	
 	
+	// The frame's FULL client-state baseline (mirror of Set2DF for the 3D
+	// chain). Every 2D/FX/HUD pass restores a DIFFERENT partial state
+	// (collision debug even exits with COLOR_ARRAY on); before this was
+	// explicit, what the decor inherited depended on which passes happened
+	// to draw last frame -- the player's own run (the 207/208 gray-dome and
+	// cameo lottery). One known state, written once, every frame.
+	glEnableClientState (GL_VERTEX_ARRAY);
 	glEnableClientState (GL_NORMAL_ARRAY);
-	
+	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+
 	if (light.enabled)
 	{
 		glEnable(GL_LIGHTING);
@@ -605,24 +614,24 @@ void SetTransparencyF(float alpha)
 // would vanish into a sliver.
 #define CAMEO_T0		50000	// enters (sim ms) -- mid side-view
 #define CAMEO_T1		64000	// gone
-#define CAMEO_SCALE		6.0f	// 45.7-wide model -> ~274 units; sized so the WHOLE hull fits above the true horizon
+#define CAMEO_SCALE		6.0f	// 45.7-wide model -> ~274 units
 #define CAMEO_DEPTH		1600.0f	// behind the crossing stars (they fly at 1000)
 
 static void RenderTTBBossCameoF(void)
 {
 	static entity_t cameo;
 	static int      cameoState = 0;	// 0 unloaded, 1 ready, -1 failed
-	static int      cameoGen = -1;	// scene generation our model belongs to
-	extern int      gSceneGeneration;
+	static int      cameoGen = -1;	// mesh-cache generation our model belongs to
 
-	// The mesh cache is wiped on EVERY scene teardown; a model loaded in a
-	// previous generation is freed heap. Belt (here) and suspenders (the
-	// sceneId!=3 reset below): reload whenever the world was rebuilt.
-	if (cameoGen != gSceneGeneration)
+	// The mesh cache frees every non-static mesh on scene teardown; a model
+	// loaded in a previous generation is dangling heap (the 205-209 lottery:
+	// first run fine, every replay a dice roll). The cache itself owns the
+	// generation, so this can never drift from the actual free.
+	if (cameoGen != ENT_CacheGeneration())
 	{
 		cameoState = 0;
 		cameo.model = NULL;
-		cameoGen = gSceneGeneration;
+		cameoGen = ENT_CacheGeneration();
 	}
 	// fromAboveRotation, the billboard the whole game uses (column-major).
 	static const matrix_t cameoFromAbove = {1,0,0,0,  0,0,1,0,  0,-1,0,0,  0,0,0,1};
@@ -632,19 +641,7 @@ static void RenderTTBBossCameoF(void)
 	int k;
 
 	if (engine.sceneId != 3)
-	{
-		// Any other scene means dEngine_FreeSceneRessources has run (or will
-		// before act III comes back): ENT_ClearModelsLibrary FREES every
-		// non-static mesh -- including the one our static entity points at.
-		// Builds 205-209's lottery was exactly this: the FIRST run after app
-		// launch drew a fresh model, every REPLAY (game over, menu, act 4)
-		// dereferenced freed heap -- fine, empty or SIGSEGV depending on what
-		// the player's own run had recycled into it. Drop the stale pointer
-		// so the next act-III frame reloads from disk/cache.
-		cameoState = 0;
-		cameo.model = NULL;
 		return;
-	}
 
 	// Preload on act III's first rendered frame (a hiccup during the prolog is
 	// invisible; one at t=50s mid-flight would not be). The model cache makes
@@ -673,6 +670,13 @@ static void RenderTTBBossCameoF(void)
 
 		dive = dive * dive;	// slow tip-over, fast plunge
 		vx = 380.0f - cross * 530.0f;
+		// vy 700 sits BELOW the true horizon (+28deg = 851 units at this
+		// depth): distant towers CAN overpaint the hull's lower half, since
+		// we draw before the city without depth writes. Deliberate tradeoff,
+		// eyes-validated 3/3 on device (build 210): this height crosses the
+		// smoke's top-band probe patch, so CI measures the cameo every run --
+		// the guaranteed-clear altitude (1040, build 204) was off-screen on
+		// short-aspect devices and invisible to the probe.
 		vy = 700.0f + 25.0f * sinf(u * 4.0f * (float)M_PI) - dive * 1100.0f;
 
 		matrix_multiply(cameraInvRot, cameoFromAbove, pose);
@@ -886,22 +890,8 @@ void RenderEntitiesF(void)
 
 	
 	
-	// STATE BASELINE (device lottery, builds 207/208: cameo seen once,
-	// missing once, and once the whole dome went dark gray -- varying with
-	// the player's own run). This pass used to INHERIT whatever client
-	// state the previous pass left behind -- FX sprites, HUD, the collision
-	// debug all toggle COLOR/TEXCOORD/NORMAL arrays and restore different
-	// baselines. A leftover GL_COLOR_ARRAY tints the dome from a stale
-	// pointer and erases the cameo's glColor. Start every frame's decor
-	// from one known state instead of praying.
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_NORMAL_ARRAY);
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	glDisableClientState(GL_COLOR_ARRAY);
-	glEnable(GL_TEXTURE_2D);
-	glColor4f(1, 1, 1, 1);
-
+	// (The frame's client-state baseline lives in Set3DF, which SCR_RenderFrame
+	// calls immediately before this pass -- one known state, one site.)
 	glMatrixMode(GL_PROJECTION);
 	gluPerspective(camera.fov, camera.aspect,camera.zNear, camera.zFar, projectionMatrix);
 	glLoadMatrixf(projectionMatrix);

@@ -206,13 +206,27 @@ md5_mesh_t*  ENT_Get(const char* meshName)
 
 
 
+// Bumped every time the cache frees its meshes: any consumer that keeps a
+// model pointer across frames (the TTB boss cameo) compares generations to
+// know its pointer died. Owned HERE, next to the free itself, so the counter
+// can never drift out of step with the invalidation (code review: it first
+// lived in dEngine.c, coupled only by call order).
+static int cacheGeneration = 0;
+
+int ENT_CacheGeneration(void)
+{
+	return cacheGeneration;
+}
+
 void ENT_ClearModelsLibrary(void)
 {
 	int i;
 	md5_bucket_t* curr;
 	md5_bucket_t* prev;
 	md5_bucket_t* toDelete;
-	
+
+	cacheGeneration++;
+
 	for (i=0; i < SIZE_MD5_HASHTABLE; i++) 
 	{  
 		prev = NULL;

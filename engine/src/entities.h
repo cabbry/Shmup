@@ -79,6 +79,7 @@ char ENT_LoadEntity(entity_t* entity, const char* filename, uchar usage);
 void ENT_InitCacheSystem(void);
 void ENT_DumpEntityCache(void);
 void ENT_ClearModelsLibrary(void);
+int  ENT_CacheGeneration(void);	// bumps when the mesh cache is freed (see entities.c)
 
 //Variable used to make entities stick to screen
 extern float distanceZFromCamera; 

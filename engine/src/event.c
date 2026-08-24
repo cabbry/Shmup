@@ -197,9 +197,10 @@ void EV_SpawnEnemy(event_t* event)
 		// runtime proof for the smoke log: every Devil spawn, timestamped
 		// (device report of a missing V5 ghost -- the parse was clean, so
 		// the truth has to come from the running engine)
-		Log_Printf("[devil] t=%d costume=%d at %.2f,%.2f\n",
-			simulationTime, eventPayload->subType,
-			enemy->ss_position[X], enemy->ss_position[Y]);
+		if (Log_ProbesEnabled())
+			Log_Printf("[devil] t=%d costume=%d at %.2f,%.2f\n",
+				simulationTime, eventPayload->subType,
+				enemy->ss_position[X], enemy->ss_position[Y]);
 		switch (eventPayload->subType) {
 			case 1:		// anthracite
 				enemy->entity.color[R] = 0.30f;
@@ -263,7 +264,8 @@ void EV_ShowEpilog(event_t* event)
 	event_title_payload_t* pl;
 	pl = event->payload;
 	// outro diagnostics (205: the act never reached scene 4 in the smoke)
-	Log_Printf("[title] epilog event fired t=%d dur=%d\n", simulationTime, pl->duration);
+	if (Log_ProbesEnabled())
+		Log_Printf("[title] epilog event fired t=%d dur=%d\n", simulationTime, pl->duration);
 	TITLE_Show_epilog(pl->duration);
 }
 

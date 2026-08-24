@@ -337,10 +337,15 @@ void P_ResetPlayers(void)
 	// with the shared life pool dry, the FIRST death of the new act ended
 	// the match for both. Gift ONE life to the pool at level entry when it
 	// is empty: the revived duo restarts cleanly, and duos still holding
-	// lives are untouched. Deterministic: both lockstep peers run this same
-	// reset at scene load. Solo is never touched.
+	// lives are untouched. STRICTLY == 0 (code review): the pool sits at 0
+	// while the match is alive-but-dry, and at -1/-1 once GAME OVER was
+	// declared (score uploaded, menu queued) -- a <= would resurrect a LOST
+	// match into a zombie run whenever a scene load races the game-over
+	// events (double death within 5s of the epilog, or the resume path).
+	// Deterministic: both lockstep peers run this same reset at scene load.
+	// Solo is never touched.
 	if (engine.mode == DE_MODE_MULTIPLAYER && numPlayers == 2 &&
-	    players[0].respawnCounter <= 0 && players[1].respawnCounter <= 0)
+	    players[0].respawnCounter == 0 && players[1].respawnCounter == 0)
 	{
 		players[0].respawnCounter = 1;
 		players[1].respawnCounter = 1;
@@ -615,7 +620,9 @@ void P_Update(void)
 					char* e = getenv("SHMUP_AUTOFIRE");
 					autofire = (e && e[0] == '1') ? 1 : 0;
 				}
-				if (autofire)
+				// singleplayer-only: firing from LOCAL env state inside the
+				// sim would desync lockstep peers (code review)
+				if (autofire && engine.mode == DE_MODE_SINGLEPLAYER)
 					P_FireTwoBullet(player);
 			}
 
@@ -775,18 +782,16 @@ void P_Update(void)
 				playerEntity->matrix[14] += -0.24f * timediff ;
 			else
 			{
-				static float prevCamZ = 0;
-				static int   prevCamT = -1;
-				static float camVelZ = 0;
-				if (prevCamT != simulationTime)
-				{
-					if (prevCamT >= 0 && simulationTime > prevCamT)
-						camVelZ = (camera.position[2] - prevCamZ) / (float)(simulationTime - prevCamT);
-					if (camVelZ > 0)
-						camVelZ = 0;	// only forward (-Z) cruise counts
-					prevCamZ = camera.position[2];
-					prevCamT = simulationTime;
-				}
+				// Camera-owned, scene-safe velocity (code review: the private
+				// static tracker here carried another scene's coordinates and
+				// timestamps across Timer_resetTime -- one-frame teleports at
+				// later outros). Clamped so a sparse rail keyframe can't spike
+				// the escape for a frame; only forward (-Z) cruise counts.
+				float camVelZ = CAM_GetDriftVelZ();
+				if (camVelZ > 0)
+					camVelZ = 0;
+				if (camVelZ < -0.6f)
+					camVelZ = -0.6f;
 				playerEntity->matrix[14] += (camVelZ - 0.24f) * timediff ;
 			}
 			//240 units per 1000ms, relative to the camera in the outro

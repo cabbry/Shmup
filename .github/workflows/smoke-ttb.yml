@@ -72,6 +72,7 @@ jobs:
             SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
             SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
             SIMCTL_CHILD_SHMUP_INVULN=1 \
+            SIMCTL_CHILD_SHMUP_AUTOFIRE=1 \
             xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
             > "$RUNNER_TEMP/ttb.log" 2>&1 &
           echo "bundle=$BUNDLE_ID" >> "$GITHUB_OUTPUT"

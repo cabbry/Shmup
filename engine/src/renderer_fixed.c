@@ -862,14 +862,30 @@ void RenderEntitiesF(void)
 
 	
 	
+	// STATE BASELINE (device lottery, builds 207/208: cameo seen once,
+	// missing once, and once the whole dome went dark gray -- varying with
+	// the player's own run). This pass used to INHERIT whatever client
+	// state the previous pass left behind -- FX sprites, HUD, the collision
+	// debug all toggle COLOR/TEXCOORD/NORMAL arrays and restore different
+	// baselines. A leftover GL_COLOR_ARRAY tints the dome from a stale
+	// pointer and erases the cameo's glColor. Start every frame's decor
+	// from one known state instead of praying.
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);
+	glEnable(GL_TEXTURE_2D);
+	glColor4f(1, 1, 1, 1);
+
 	glMatrixMode(GL_PROJECTION);
 	gluPerspective(camera.fov, camera.aspect,camera.zNear, camera.zFar, projectionMatrix);
 	glLoadMatrixf(projectionMatrix);
-	
+
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	
+
 	SetupCameraF();
 
 	// Build this frame's world-space frustum once, from the camera the scene is

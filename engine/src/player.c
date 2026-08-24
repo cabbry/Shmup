@@ -24,6 +24,7 @@
  */
 
 #include "player.h"
+#include <stdlib.h>	// getenv: the SHMUP_AUTOFIRE CI probe
 #include "renderer.h"
 #include "camera.h"
 #include "timer.h"
@@ -588,10 +589,26 @@ void P_Update(void)
 				if (!gScoreLocked)
 					players[i].score += (timediff >> 1 << engine.difficultyLevel) * 2;
 			
+			// CI probe: SHMUP_AUTOFIRE=1 makes the idle Simulator ship fire
+			// continuously, so bullets, impacts and FX sprite passes run every
+			// frame and the smoke's dome/sky luma assertions sample a REAL
+			// frame mix -- the client-state lottery (builds 207/208) never
+			// reproduced on an idle run because no polluting pass ever drew.
+			{
+				static int autofire = -1;
+				if (autofire < 0)
+				{
+					char* e = getenv("SHMUP_AUTOFIRE");
+					autofire = (e && e[0] == '1') ? 1 : 0;
+				}
+				if (autofire)
+					P_FireTwoBullet(player);
+			}
+
 			if (player->autopilot.enabled)
 			{
 				t = player->autopilot.timeCounter/player->autopilot.originalTime;
-				
+
 				//printf("t=%.2f\n",t);
 				//printf("player->autopilot.timeCounter=%d\n",player->autopilot.timeCounter);
 				//printf("player->autopilot.enabled =%d\n",(player->autopilot.timeCounter >0));

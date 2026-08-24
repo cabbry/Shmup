@@ -181,6 +181,77 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Changelog
 
+### 2026-08-24 — round 31 (the second chance, the audit — and v1.8.0 closes the chapter)
+- **🆕 The second-chance life** (the tester's design, formalizing a bug he loves):
+  LAN co-op runs a shared life pool; when it dries up, the dead ship parks and
+  the survivor plays on — and if the survivor finishes the act, the scene reset
+  resurrects the fallen wingman for the next level. That accident is now a rule:
+  the pool receives ONE gift life at level entry, strictly when both counters
+  are at zero. Strictly: a review finding showed `<= 0` would also resurrect a
+  LOST match (-1/-1) into a zombie run with an already-uploaded score whenever
+  a scene load raced the game-over events.
+- **A full 8-angle code review** over the sprint's diff, five parallel reviewers,
+  ten findings, all fixed in one commit: the outro now reads the camera's own
+  scene-safe drift velocity (the private tracker carried another scene's
+  coordinates across the timer reset — the same static-vs-scene disease as the
+  cameo, caught before shipping this time); the CI hooks are singleplayer-gated
+  (local env state inside a lockstep sim is a desync waiting for a peer); the
+  frame's client-state baseline lives once in `Set3DF`, mirroring `Set2DF`; the
+  mesh-cache generation belongs to the cache itself (`ENT_CacheGeneration`,
+  bumped inside the free — the next cross-scene entity holder is safe by
+  construction); every diagnostic probe sits behind one cached gate, silent on
+  player devices; and a lovely bash trap — `grep -c … || echo 0` prints "0\n0"
+  on zero matches under Actions' `bash -e` — had killed the smoke's crash guard
+  exactly in its target case.
+- **🆕 The home screen finally says who it is**: a small *Reborn*, Brush Script
+  like the act cards, scrawled uphill across the P of the 2009 SHMUP logo.
+
+### 2026-08-24 — round 30 (the lottery was a dangling pointer — and the act is DONE)
+- Three device runs of the same build: cameo once, nothing once, one crash — and
+  once, the whole sky went dark gray. Two rounds of GL forensics (a client-state
+  lockdown around the cameo, then a full state baseline for the decor pass,
+  plus a smoke that finally *fires its guns* so the FX passes churn like a real
+  game) hardened the renderer but didn't kill the lottery.
+- The shared TestFlight crash log closed it: same site, but through the driver's
+  client-array path this time — *the content was random*. The real killer:
+  `ENT_ClearModelsLibrary` frees every non-static mesh at EVERY scene change,
+  and the cameo's static entity kept its model pointer forever. First run after
+  app launch: fresh model, works. Every replay — game over, menu, act 4 and
+  back: freed heap, recycled by whatever the player's own run allocated.
+  Drawable garbage, nothing, or SIGSEGV. **The lottery odds were set by the
+  player's own session history — and the smoke, which ran the act exactly once
+  from a cold boot, could never see it.**
+- Cure and proof, both structural: the mesh cache bumps a generation on every
+  purge and the cameo reloads when stale; and the smoke now **plays like a
+  player** — it finishes act III, tears the scene down, re-enters, and a new
+  assertion demands the cameo's probe dip in the REPLAY pass. The run prints
+  its own verdict: *"CAMEO PRESENT ON REPLAY. The lottery is dead."*
+- On device: **cameo with lightning, three runs out of three.** And with the
+  outro rush finally outrunning the camera (the 2010 escape constant assumed a
+  rail that had ended; act 3 detaches mid-cruise, so the camera used to overtake
+  the fleeing ship and swallow it), the tester called it:
+  ***"Pour moi l'act 3 est ok. On n'y touche plus."*** — Act III is frozen.
+
+### 2026-08-24 — round 29 (the probe learns to see — measurement replaces hope)
+- After three invisible-cameo builds, the loop changed: no more shipping and
+  praying. The cameo's flight was moved across the patch of pixels the smoke's
+  `[cull]` trace already measures every second — so a rendering cameo MUST dent
+  the sky-band luma, and the lightning MUST spike it. Two Simulator runs
+  measured exactly that (48 → 26, bumps at the strike timestamps), turning
+  "je ne le vois pas" from a mystery into a differential: renders in the
+  Simulator, invisible on device.
+- That differential killed two hypotheses with one Release-configured smoke
+  (compiler exonerated) and led to the device-only suspects: the silhouette
+  went **untextured** — flat fixed-pipeline color, the exact path of the
+  crossing stars that had always worked on device — erasing every texture-state
+  divergence at once. The outro was mechanized the same way: the ship's escape
+  now adds the camera's own measured speed, so the "fonce tout droit" exit
+  reads identically in every act, and the prolog keeps its 2010 look bit-exact.
+- The end-of-act mystery dissolved under the same instruments: the epilog →
+  transition chain was traced (`[title]`, `[scene]`) and proved *working* — the
+  "disappearing ship" was the classic fly-off playing 1 second under the epilog
+  card's fade instead of 2 seconds on stage, as act 1 stages it.
+
 ### 2026-08-23/24 — round 28 (storm over the city — and a 16-year-old GL landmine)
 - The boss cameo was reported invisible no matter its size or tint, and TestFlight
   logged a device crash. The crash log (pulled via the App Store Connect API) showed

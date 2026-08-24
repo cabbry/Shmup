@@ -149,33 +149,53 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Roadmap
 
-- **🎯 Boss fight** (Fabien's #1 wish — the thing he ran out of money for in 2009): the
-  traces are all there in the repo — an unused **"BOSS" title card** ships in
-  `data/titles/boss.png`, and act 2 ends with a commented-out *"To_Be_Continued..."*.
-  The plan: make the boss the **climax of the new level** — investigate which asset is
-  the boss seen at the end of level 2, then extend the enemy/event system to drive a real
-  encounter (its own HP pool, attack phases, patterns), announced by that title card at last.
+### Done — the 2009 wishlist, delivered
+
+- **🎯 Boss fight — ✅ DONE** (Fabien's #1 wish — the thing he ran out of money for
+  in 2009). The long-dormant LOFB is now a real climax, its own **Act IV**: an HP
+  pool with a quad-drawn health bar, an attack ladder that unlocks with damage
+  (aimed fans → rotating spray → escort waves → big energy shots → red homing
+  seekers → frenzy), **destructible arms** that silence their side, shoot-downable
+  homing missiles, and a **mega-laser** with a readable charge-up telegraph. The
+  `boss.png` card announces it at last, and finishing it ends the game for real
+  (MISSION COMPLETE card, rank D→S). Player-tested over ~18 rounds of feedback.
+- **A new level — ✅ DONE: Act III, "夕 -Dusk"**, inserted before the boss act.
+  Its own title card, a dusk sky with stars and crossing meteors, three phases of
+  mixed-type waves the original acts never ran, the resurrection of **"le Devil"**
+  (`ENEMY_HAB` — modeled and coded by Fabien in 2009, never once spawned by any
+  shipped scene) in three costumes with three weapons, and a storm-lit cameo of
+  the Act IV boss crossing the sky. Declared **frozen** by the tester after
+  round 30: *"Pour moi l'act 3 est ok. On n'y touche plus."*
+- **TTB system — ✅ DONE, and shipped as content** (homage to the manga *Tokyo Toy
+  Box*): mid-level, the camera swings **90° from top-down to a true side view**
+  for thirty seconds — the vertical shooter becomes a side-scroller, enemies,
+  bullets and the ship itself all re-reading correctly — then swings back. The
+  full journey (a naive roll, the corridor orbit, the ship's profile blend, the
+  side-view sky, per-view wave authoring) is rounds 19-31 of the changelog.
+- **Online multiplayer (GKMatch) — ✅ DONE** and listed under features; LAN co-op
+  additionally gained the **second-chance rule** (round 31).
+
+### Open
+
 - **Enemy / boss scripting** (Fabien's suggestion): the `.scene` event format is
-  declarative (spawn timelines); a boss needs *reactive* behaviour (phases, conditions).
-  Evaluate the lightest thing that works — extending the event system with conditional
-  triggers vs. embedding a small VM/Lua for enemy injection and boss scripting.
-- **Gameplay videos on YouTube** (Fabien's suggestion): record short progress videos
-  (solo run, 2-player LAN, online match) so people can see the project evolve.
-- **3–4 player multiplayer** (idea, later): the current netcode is strictly 2-player
-  (peer-to-peer, `controlledPlayer` / `!controlledPlayer`, `numPlayers = 2`), so N players
-  would be a real rewrite — N-way command sync / topology, more ship slots and lives logic.
-- Optional deeper modernization: ARC migration, 64-bit audit, `AVAudioSession`, and
-  clearing the ~600 deprecation warnings (then re-enabling the strict clang flags).
-- A new level (study `data/scenes`, the `event` system, the on-rails `cameraPath`, and
-  the preprocessor), reusing the existing assets. **→ started in round 19: Act III.**
-- **TTB system** (homage to the manga *Tokyo Toy Box*): a scripted perspective shift
-  mid-level — at preprogrammed points the camera rotates **90° from the usual top-down
-  view into a side view**, briefly turning the vertical shooter into a side-scroller,
-  then swings up again to the top-down view. The ship keeps flying forward the whole
-  time — nothing ever scrolls backwards. Authored as a beat in the new level, with the
-  camera path and decor built for it. Made possible by the game being real 3D.
-  **→ DONE in round 19** (`ttbRoll` scene event + camera roll, see the changelog);
-  what remains is content: enemy waves authored for each view, and the act's own art.
+  declarative (spawn timelines); reactive behaviour still lives in C (the boss
+  ladder is hardcoded in `lofb.c`, the Devil's weapons in `enemy.c`). If a
+  second boss or community levels ever happen, evaluate the lightest thing that
+  works — conditional triggers in the event system vs. a small VM/Lua.
+- **Gameplay videos on YouTube** (Fabien's suggestion): record short progress
+  videos (solo run, the Act III TTB beat, 2-player LAN, online match) so people
+  can see the project evolve. With all four acts now playable end to end, this
+  is mostly a recording session away.
+- **App Store release?** The game is feature-complete: four acts, a boss, an
+  ending, online multiplayer, leaderboards. iMessage invites and SharePlay
+  already work in code but are gated by Apple until an App Store release.
+- **3–4 player multiplayer** (idea, later): the current netcode is strictly
+  2-player (peer-to-peer, `controlledPlayer` / `!controlledPlayer`,
+  `numPlayers = 2`), so N players would be a real rewrite — N-way command
+  sync / topology, more ship slots and lives logic.
+- Optional deeper modernization: ARC migration, 64-bit audit, `AVAudioSession`,
+  and clearing the ~600 deprecation warnings (then re-enabling the strict clang
+  flags).
 
 ---
 

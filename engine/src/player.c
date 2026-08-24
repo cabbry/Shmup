@@ -332,6 +332,20 @@ void P_ResetPlayers(void)
 	for (i=0; i < MAX_NUM_PLAYERS ; i++)
 		P_ResetPlayer(i);
 
+	// LAN co-op "second chance" (user design, formalizing a loved accident):
+	// the scene reset already resurrects a dead ship at the next act -- but
+	// with the shared life pool dry, the FIRST death of the new act ended
+	// the match for both. Gift ONE life to the pool at level entry when it
+	// is empty: the revived duo restarts cleanly, and duos still holding
+	// lives are untouched. Deterministic: both lockstep peers run this same
+	// reset at scene load. Solo is never touched.
+	if (engine.mode == DE_MODE_MULTIPLAYER && numPlayers == 2 &&
+	    players[0].respawnCounter <= 0 && players[1].respawnCounter <= 0)
+	{
+		players[0].respawnCounter = 1;
+		players[1].respawnCounter = 1;
+	}
+
 	entitiesAttachedToCamera = 0;
 	playersWereAttached = 0;	// the next detached stretch is a PROLOG again
 	engine.playerStats.numEnemies = 0;

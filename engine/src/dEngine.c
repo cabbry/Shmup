@@ -518,9 +518,15 @@ void dEngine_LoadScene(int sceneId)
     
 }
 
+// Bumped on every scene teardown: anything holding a pointer into the mesh
+// cache across scenes (the TTB boss cameo) compares against this to know its
+// model was freed under it. See RenderTTBBossCameoF.
+int gSceneGeneration = 0;
+
 void dEngine_FreeSceneRessources(void)
 {
-    
+	gSceneGeneration++;
+
 	//A LOT A LOT OF THINGS TO FREE HERE !!!!
 	// Scenes
 	EV_CleanAllRemainingEvents();
@@ -623,14 +629,33 @@ void dEngine_CheckState(void)
 	dEngine_FreeSceneRessources();
 	
 	dEngine_LoadScene(engine.requiredSceneId);
-	
-	
+
+
 	engine.sceneId = engine.requiredSceneId;
-	
-	
+
+
 	dEngine_JumpInTime();
-	
-	
+
+	// CI hook: SHMUP_REPLAY_SCENE=<n> re-enters scene n ONCE, the first time
+	// any OTHER scene loads. Full teardown (FreeSceneRessources) then a fresh
+	// entry -- the exact path of a player's game-over/menu/retry, which is
+	// where the 205-209 cameo lottery lived: the smoke's single fresh run
+	// could never reproduce a dangling mesh-cache pointer.
+	{
+		static int replayScene = -2;
+		static int replayed = 0;
+		if (replayScene == -2)
+		{
+			char* e = getenv("SHMUP_REPLAY_SCENE");
+			replayScene = e ? atoi(e) : 0;
+		}
+		if (replayScene > 0 && !replayed && engine.sceneId != replayScene)
+		{
+			replayed = 1;
+			Log_Printf("[replay] re-entering scene %d (CI)\n", replayScene);
+			dEngine_RequireSceneId(replayScene);
+		}
+	}
 }
 
 void dEngine_HostFrame(void)

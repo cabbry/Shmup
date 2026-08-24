@@ -612,6 +612,18 @@ static void RenderTTBBossCameoF(void)
 {
 	static entity_t cameo;
 	static int      cameoState = 0;	// 0 unloaded, 1 ready, -1 failed
+	static int      cameoGen = -1;	// scene generation our model belongs to
+	extern int      gSceneGeneration;
+
+	// The mesh cache is wiped on EVERY scene teardown; a model loaded in a
+	// previous generation is freed heap. Belt (here) and suspenders (the
+	// sceneId!=3 reset below): reload whenever the world was rebuilt.
+	if (cameoGen != gSceneGeneration)
+	{
+		cameoState = 0;
+		cameo.model = NULL;
+		cameoGen = gSceneGeneration;
+	}
 	// fromAboveRotation, the billboard the whole game uses (column-major).
 	static const matrix_t cameoFromAbove = {1,0,0,0,  0,0,1,0,  0,-1,0,0,  0,0,0,1};
 	matrix_t pose;
@@ -620,7 +632,19 @@ static void RenderTTBBossCameoF(void)
 	int k;
 
 	if (engine.sceneId != 3)
+	{
+		// Any other scene means dEngine_FreeSceneRessources has run (or will
+		// before act III comes back): ENT_ClearModelsLibrary FREES every
+		// non-static mesh -- including the one our static entity points at.
+		// Builds 205-209's lottery was exactly this: the FIRST run after app
+		// launch drew a fresh model, every REPLAY (game over, menu, act 4)
+		// dereferenced freed heap -- fine, empty or SIGSEGV depending on what
+		// the player's own run had recycled into it. Drop the stale pointer
+		// so the next act-III frame reloads from disk/cache.
+		cameoState = 0;
+		cameo.model = NULL;
 		return;
+	}
 
 	// Preload on act III's first rendered frame (a hiccup during the prolog is
 	// invisible; one at t=50s mid-flight would not be). The model cache makes

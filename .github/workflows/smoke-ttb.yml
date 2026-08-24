@@ -17,7 +17,7 @@ on:
 jobs:
   smoke:
     runs-on: macos-15
-    timeout-minutes: 35
+    timeout-minutes: 50
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -73,6 +73,7 @@ jobs:
             SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
             SIMCTL_CHILD_SHMUP_INVULN=1 \
             SIMCTL_CHILD_SHMUP_AUTOFIRE=1 \
+            SIMCTL_CHILD_SHMUP_REPLAY_SCENE=3 \
             xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
             > "$RUNNER_TEMP/ttb.log" 2>&1 &
           echo "bundle=$BUNDLE_ID" >> "$GITHUB_OUTPUT"
@@ -102,16 +103,18 @@ jobs:
           done
 
           # the engine file log lands in Documents (SHMUP_LOG_FILE=1)
-          for i in $(seq 1 90); do
+          for i in $(seq 1 140); do
             # NEWEST log: an alphabetical head -1 once pinned the loop to a
             # stale file while the real one grew (the 25-min timeout of run
             # 32670649769, sim already 17 minutes in)
             LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
             [ -z "$LOG" ] && LOG="$RUNNER_TEMP/ttb.log"
 
-            # run through the whole act INCLUDING the outro (movePlayers 106s,
-            # detach 108s, epilog to 115s): done once any trace line passes 117s
-            DONE=$(grep "cull] scene=" "$LOG" 2>/dev/null | awk '{for(f=1;f<=NF;f++) if ($f ~ /^t=/) {sub("t=","",$f); if ($f+0>117000) print}}' | head -1)
+            # The act must complete TWICE: once fresh, once as a REPLAY
+            # (SHMUP_REPLAY_SCENE re-enters after the first 3->4 transition).
+            # The replay is where the 205-209 cameo lottery lived.
+            DONE=$(grep -c "scene] 3 -> 4" "$LOG" 2>/dev/null || echo 0)
+            [ "${DONE:-0}" -ge 2 ] || DONE=""
             N=$(grep -c "cull] scene=3 live=1" "$LOG" 2>/dev/null || echo 0)
             MIN=$((($(date +%s)-START)/60))
             echo "[$MIN min] live-cull samples so far: $N"
@@ -119,7 +122,7 @@ jobs:
               echo "act completed (sim-t past 117s)"
               break
             fi
-            if [ "$MIN" -ge 25 ]; then
+            if [ "$MIN" -ge 40 ]; then
               echo "::error::Timed out before the beat finished. Log tail:"
               tail -40 "$LOG" || true
               exit 1
@@ -162,6 +165,25 @@ jobs:
             exit 1
           fi
           echo "SKY AND CITY BOTH PRESENT THROUGH THE SIDE VIEW."
+
+          # THE REPLAY REGRESSION TEST: in the SECOND act-3 pass (everything
+          # after the [replay] marker), the cameo must still dent the sky
+          # probe inside its 50-64s window -- a dangling mesh pointer after
+          # the scene teardown (the 205-209 lottery) shows up here as a flat
+          # or missing dip, and a crash stops the log entirely.
+          PASS2=$(sed -n '/\[replay\] re-entering/,$p' ttb-trace.log)
+          P2SAMPLES=$(echo "$PASS2" | grep -c "cull] scene=3 live=1" || echo 0)
+          P2DIP=$(echo "$PASS2" | grep "cull] scene=3" | awk '{t=0;to=999;for(f=1;f<=NF;f++){if($f~/^t=/){sub("t=","",$f);t=$f+0};if($f~/^top=/){sub("top=","",$f);to=$f+0}};if(t>=50000&&t<=64000&&to<42)print "dip",t,to}' | head -3)
+          echo "replay pass: $P2SAMPLES live samples; cameo dips: ${P2DIP:-NONE}"
+          if [ "$P2SAMPLES" -lt 3 ]; then
+            echo "::error::The REPLAY pass never reached the side view (crash or stall on re-entry)."
+            exit 1
+          fi
+          if [ -z "$P2DIP" ]; then
+            echo "::error::The cameo left no trace in the REPLAY pass -- the re-entry lottery is back."
+            exit 1
+          fi
+          echo "CAMEO PRESENT ON REPLAY. The lottery is dead."
 
       - name: Collect logs even on failure
         if: always()

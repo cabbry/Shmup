@@ -682,10 +682,9 @@ static void RenderTTBBossCameoF(void)
 				if (e > L) L = e;
 			}
 		}
-		r  = 0.30f + (1.00f - 0.30f) * L;
-		gr = 0.28f + (1.00f - 0.28f) * L;
-		b  = 0.40f + (1.00f - 0.40f) * L;
-		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		r  = 0.10f + (0.96f - 0.10f) * L;
+		gr = 0.09f + (0.97f - 0.09f) * L;
+		b  = 0.16f + (1.00f - 0.16f) * L;
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glColor4f(r, gr, b, cameoAlpha);
@@ -697,10 +696,16 @@ static void RenderTTBBossCameoF(void)
 	// device SIGSEGV in gleRunVertexSubmitARM, build 204, TestFlight crash
 	// B84CF3E7). Same discipline as RenderTexturelessSpritesF.
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	// UNTEXTURED on purpose (build 206: Simulator probes measured the hull,
+	// the device still showed nothing): a silhouette needs no texture, and
+	// flat-color fixed-pipeline polys are the exact path the crossing stars
+	// use -- proven on device. This removes every texture-state divergence
+	// (PVRTC, MODULATE, texture-unit pollution) between Simulator and GPU.
+	glDisable(GL_TEXTURE_2D);
 	RenderEntityF(&cameo);
+	glEnable(GL_TEXTURE_2D);
 	glColor4f(1, 1, 1, 1);
 	glDisable(GL_BLEND);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 }
 
 

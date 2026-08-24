@@ -34,7 +34,7 @@ jobs:
           xcodebuild \
             -project dEngine.xcodeproj \
             -target Shmup \
-            -configuration Debug \
+            -configuration Release \
             -sdk iphonesimulator \
             -arch arm64 \
             SYMROOT="$PWD/build" \

@@ -83,6 +83,7 @@ player_t players[2];
 diverSpriteLib_t diverSpriteLib;
 
 uchar entitiesAttachedToCamera=0;
+static uchar playersWereAttached=0;	// prolog (never attached) vs outro (detached after flight)
 
 player_bullet_config_t bulletConfig;
 
@@ -172,6 +173,7 @@ void P_AttachToCamera(matrix_t globalMatrix)
 	//printf("pixelWidthAtDistance=%.2f.\n",widthAtDistance);
 
 	entitiesAttachedToCamera= 1;
+	playersWereAttached = 1;
 }
 
 void P_DetachToCamera(void)
@@ -328,8 +330,9 @@ void P_ResetPlayers(void)
 	
 	for (i=0; i < MAX_NUM_PLAYERS ; i++)
 		P_ResetPlayer(i);
-	
+
 	entitiesAttachedToCamera = 0;
+	playersWereAttached = 0;	// the next detached stretch is a PROLOG again
 	engine.playerStats.numEnemies = 0;
 }
 
@@ -725,8 +728,37 @@ void P_Update(void)
 			//playerEntity->matrix[13] += translationTransform[Y] ;
 			
 			//playerEntity->matrix[14] = -0.24f * simulationTime + players[i].spawnWorldPosition[Z] ;
-			playerEntity->matrix[14] += -0.24f * timediff ;
-			//240 units per 1000ms
+			//
+			// The outro rush must OUTRUN the camera. 2010's flat -0.24 assumed
+			// a rail that has ended (acts 1/2 detach ~2s before their rail runs
+			// out, camera nearly still); act 3 detaches mid-cruise with the
+			// camera at ~0.44 u/ms -- FASTER than the ship's escape, so the
+			// camera overtook it and the ship slid off the bottom ("le vaisseau
+			// a disparu", builds 205/206). Escape = the camera's own forward
+			// speed plus the 2010 constant: the ship recedes at the same
+			// RELATIVE pace in every act. Deterministic (camera is sim-driven),
+			// and one measurement shared per frame by both lockstep players.
+			// The PROLOG keeps the 2010 look untouched (the camera catching up
+			// to the drifting ships IS the intro); only the OUTRO compensates.
+			if (!playersWereAttached)
+				playerEntity->matrix[14] += -0.24f * timediff ;
+			else
+			{
+				static float prevCamZ = 0;
+				static int   prevCamT = -1;
+				static float camVelZ = 0;
+				if (prevCamT != simulationTime)
+				{
+					if (prevCamT >= 0 && simulationTime > prevCamT)
+						camVelZ = (camera.position[2] - prevCamZ) / (float)(simulationTime - prevCamT);
+					if (camVelZ > 0)
+						camVelZ = 0;	// only forward (-Z) cruise counts
+					prevCamZ = camera.position[2];
+					prevCamT = simulationTime;
+				}
+				playerEntity->matrix[14] += (camVelZ - 0.24f) * timediff ;
+			}
+			//240 units per 1000ms, relative to the camera in the outro
 			
 			//printf("t= %d: tdiff:%d p pos=%.2f,%.2f,%.2f.\n",simulationTime,timediff,playerEntity->matrix[12],playerEntity->matrix[13],playerEntity->matrix[14]);
 			//Update roll if necessary

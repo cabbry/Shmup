@@ -169,8 +169,11 @@ void TITLE_Update(void)
 		if (title_mode == MODE_EPILOG)
 		{
 			title_mode = MODE_UNKNOWN;
+			Log_Printf("[title] epilog done -> next scene (t=%d)\n", simulationTime);
 			dEngine_GoToNextScene();
 		}
+		else
+			Log_Printf("[title] timer done in mode %d (t=%d)\n", title_mode, simulationTime);
 	
 	}
 	

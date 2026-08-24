@@ -615,7 +615,9 @@ void dEngine_CheckState(void)
 	
 	if (engine.requiredSceneId == engine.sceneId)
 		return;
-	
+
+	Log_Printf("[scene] %d -> %d (t=%d)\n", engine.sceneId, engine.requiredSceneId, simulationTime);
+
 	SND_StopSoundTrack();
 	
 	dEngine_FreeSceneRessources();

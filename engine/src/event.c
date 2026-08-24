@@ -260,9 +260,10 @@ void EV_ShowProlog(event_t* event)
 
 void EV_ShowEpilog(event_t* event)
 {
-	//Log_Printf("EV_ShowEpilog()\n");
 	event_title_payload_t* pl;
 	pl = event->payload;
+	// outro diagnostics (205: the act never reached scene 4 in the smoke)
+	Log_Printf("[title] epilog event fired t=%d dur=%d\n", simulationTime, pl->duration);
 	TITLE_Show_epilog(pl->duration);
 }
 

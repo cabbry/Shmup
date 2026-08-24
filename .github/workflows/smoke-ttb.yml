@@ -102,7 +102,10 @@ jobs:
 
           # the engine file log lands in Documents (SHMUP_LOG_FILE=1)
           for i in $(seq 1 90); do
-            LOG=$(ls "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+            # NEWEST log: an alphabetical head -1 once pinned the loop to a
+            # stale file while the real one grew (the 25-min timeout of run
+            # 32670649769, sim already 17 minutes in)
+            LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
             [ -z "$LOG" ] && LOG="$RUNNER_TEMP/ttb.log"
 
             # run through the whole act INCLUDING the outro (movePlayers 106s,
@@ -123,7 +126,7 @@ jobs:
             sleep 20
           done
 
-          LOG=$(ls "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+          LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
           [ -z "$LOG" ] && LOG="$RUNNER_TEMP/ttb.log"
           cp "$LOG" ttb-trace.log
 

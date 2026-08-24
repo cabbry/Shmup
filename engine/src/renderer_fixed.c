@@ -702,7 +702,22 @@ static void RenderTTBBossCameoF(void)
 	// use -- proven on device. This removes every texture-state divergence
 	// (PVRTC, MODULATE, texture-unit pollution) between Simulator and GPU.
 	glDisable(GL_TEXTURE_2D);
+	// Client-state lockdown (device verdict on 207: seen once, missing once,
+	// one crash -- the classic signature of INHERITED enable flags, which
+	// depend on whatever pass happened to draw last that frame, i.e. on the
+	// player's own run). A flat draw needs VERTICES ONLY: force that array
+	// on, and shut the normal/texcoord fetches so no stale pointer left by
+	// a particle/sprite pass can ever be walked.
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_COLOR_ARRAY);	// a leftover color array would both
+											// override glColor and walk a stale
+											// pointer -- the seen/unseen/crash
+											// lottery in one flag
 	RenderEntityF(&cameo);
+	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	glEnable(GL_TEXTURE_2D);
 	glColor4f(1, 1, 1, 1);
 	glDisable(GL_BLEND);

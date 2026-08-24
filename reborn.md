@@ -189,13 +189,18 @@ to the true screen edges, and the touch-coordinate mapping.
 - **App Store release?** The game is feature-complete: four acts, a boss, an
   ending, online multiplayer, leaderboards. iMessage invites and SharePlay
   already work in code but are gated by Apple until an App Store release.
-- **3–4 player multiplayer** (idea, later): the current netcode is strictly
-  2-player (peer-to-peer, `controlledPlayer` / `!controlledPlayer`,
-  `numPlayers = 2`), so N players would be a real rewrite — N-way command
-  sync / topology, more ship slots and lives logic.
-- Optional deeper modernization: ARC migration, 64-bit audit, `AVAudioSession`,
-  and clearing the ~600 deprecation warnings (then re-enabling the strict clang
-  flags).
+- **🚀 v2 — 3-4 player multiplayer** (the next major version): the current
+  netcode is strictly 2-player (peer-to-peer, `controlledPlayer` /
+  `!controlledPlayer`, `numPlayers = 2`), so N players is a real rewrite —
+  N-way command sync / topology (full mesh or host-relay over GKMatch, which
+  already matches up to 4), playerId-based identity everywhere, more ship
+  slots, lives/balance/HUD for a crowd on a phone screen.
+- **🚀 v3 — the graphics overhaul**: the deep modernization, staged — clear the
+  ~600 deprecation warnings and re-enable the strict clang flags (they catch
+  real bugs; several of this project's landmines were exactly what those
+  silenced warnings scream about), ARC for the Obj-C layer, the 64-bit audit —
+  and the endgame: a **Metal port**, retiring the deprecated-since-iOS-12
+  OpenGL ES 1.1 fixed pipeline the whole renderer stands on.
 
 ---
 

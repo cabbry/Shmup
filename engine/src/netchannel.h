@@ -157,7 +157,6 @@ char NET_IsInitialized();
 
 void Net_SendDie(command_t* command);
 
-void NET_OnActLoaded(void);
 
 void NET_OnNextLevelLoad(void);
 char NET_IsRunning(void);

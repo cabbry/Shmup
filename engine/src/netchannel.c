@@ -35,7 +35,6 @@
 	void NET_Free(void){}
 	char NET_IsInitialized(){return 1;}
 	void Net_SendDie(command_t* command){}
-	void NET_OnActLoaded(void){}
 	void NET_OnNextLevelLoad(void){}
 	char NET_IsRunning(void){return 0;}
 	uint NET_GetDropedPackets(void){return 0;}
@@ -110,6 +109,13 @@ typedef struct net_packet_t
 {
 #define SETUP_PACKET 1
 #define RUNTIME_PACKET 2
+// v2 P0: death packets used to go out with type NET_RUNNING (3) -- a value
+// from an UNRELATED enum that collides with the inner NET_RTM_COMMAND (3),
+// which made the comparison at the receive loop's history hook always-wrong
+// (it fed the dead prediction code with deaths instead of commands). Own,
+// non-overlapping value; still != RUNTIME_PACKET so the transport sends it
+// reliable, and != SETUP_PACKET so the receive loop processes its command.
+#define DEATH_PACKET 4
 	char type;
 	
 	int sequenceNumber;
@@ -267,24 +273,13 @@ void NET_AbortOnlineMatch(void)
 
 
 // PREDICTION
-#define MAX_CMD_HISTORY 4
-typedef struct cmdHistory
-{
-	command_t array [MAX_CMD_HISTORY];
-	uchar ptr;
-} cmdHistory_t;
-cmdHistory_t cmdHistory;
-
-#define MAX_FAKE_CMD_HISTORY 16
-typedef struct fakeCmdHistory_t
-{
-	command_t stack[MAX_FAKE_CMD_HISTORY];
-	uchar num;
-} fakeCmdHistory_t ;
-
-fakeCmdHistory_t fakeCmdHistory;
-
-// END PREDICTION
+// v2 P0: the 2010 extrapolation machinery (cmdHistory / fakeCmdHistory /
+// NET_GenerateFakeCMD and the fake-undo pass) was DEAD CODE -- its only
+// consumer sat after an unconditional return in NET_Receive, and its only
+// feeder was gated on a broken comparison (outer packet type vs an inner
+// command constant, see the DEATH_PACKET note below). ~120 lines removed
+// rather than N-ified for nothing; if 4-player wants extrapolation, it will
+// be written fresh against per-seat state.
 
 
 void NET_Free(void)
@@ -853,6 +848,7 @@ static void NET_SendSetupCmd(char cmdType)
 {
 	net_packet_t p;
 	int i, copies = NET_IsOnline() ? 1 : 6;
+	memset(&p, 0, sizeof(p));	// no uninitialized bytes on the wire
 	p.type = SETUP_PACKET;
 	p.command.type = cmdType;
 	p.numRedundant = 0;
@@ -1208,11 +1204,6 @@ void NET_Setup(void)
 	{
 		Log_Printf("Stoping setup, as we reached NET_RUNNING\n");
 		net.setupRequested = 0;
-		
-		memset(&fakeCmdHistory,0,sizeof(fakeCmdHistory_t));
-		
-		memset(&cmdHistory,0,sizeof(cmdHistory_t));
-
 	}
 	
 	
@@ -1234,93 +1225,18 @@ typedef struct net_message_t
 	
 } net_message_t;
 
-#define deltaT 2
-command_t* NET_GenerateFakeCMD(void)
-{
-	static command_t cmd;
-	command_t* last;
-	command_t* lastMinusOne;
-	command_t* lastMinusTwo;
-	vec3_t delta1;
-	vec3_t delta2;
-	float sumDelta;
-	
-	last = &cmdHistory.array[(cmdHistory.ptr -1) & (MAX_CMD_HISTORY-1) ];
-	lastMinusOne = &cmdHistory.array[(cmdHistory.ptr -2) & (MAX_CMD_HISTORY-1) ];
-	lastMinusTwo = &cmdHistory.array[(cmdHistory.ptr -3) & (MAX_CMD_HISTORY-1) ];
-	
-	delta1[X] =      lastMinusOne->delta[X] - lastMinusTwo->delta[X];
-	delta1[Y] =      lastMinusOne->delta[Y] - lastMinusTwo->delta[Y];
-	delta1[deltaT] = lastMinusOne->time     - lastMinusTwo->time;
-	
-	delta2[X] =      last->delta[X] - lastMinusOne->delta[X];
-	delta2[Y] =      last->delta[Y] - lastMinusOne->delta[Y];
-	delta2[deltaT] = last->time     - lastMinusOne->time;
-	
-	sumDelta = delta1[deltaT]+delta2[deltaT];
-	if (sumDelta == 0)
-	{
-		delta1[X]=0;
-		delta1[Y]=0;
-		delta2[X]=0;
-		delta2[Y]=0;
-		sumDelta=0.001f;
-	}
-	//Need need to use the three previous cmds to generate two deltas.
-	
-	
-	cmd.type = NET_RTM_COMMAND;
-	cmd.time = simulationTime;
-	cmd.playerId = !controlledPlayer;
-	cmd.buttons = 0;
-	cmd.delta[X] = delta1[X]*delta1[deltaT]/sumDelta + delta2[X]*delta2[deltaT] /sumDelta;
-	cmd.delta[Y] = delta1[Y]*delta1[deltaT]/sumDelta + delta2[Y]*delta2[deltaT] /sumDelta;
-	cmd.buttons = last->buttons;
-	
-	return &cmd;
-}
-
-void NET_AddFakeToHistory(command_t* cmd)
-{
-	if (fakeCmdHistory.num == MAX_FAKE_CMD_HISTORY-1)
-		return;
-	
-	fakeCmdHistory.stack[fakeCmdHistory.num].delta[X] = cmd->delta[X];
-	fakeCmdHistory.stack[fakeCmdHistory.num].delta[Y] = cmd->delta[Y];
-	fakeCmdHistory.stack[fakeCmdHistory.num].time = cmd->time;
-	
-	fakeCmdHistory.num++;
-}
-
-void NET_AddCMDToHistory(command_t* cmd)
-{
-	command_t* emptySlot;
-	
-	emptySlot = &cmdHistory.array[cmdHistory.ptr];
-	emptySlot->delta[X] = cmd->delta[X];
-	emptySlot->delta[Y] = cmd->delta[Y];
-	emptySlot->time = simulationTime;
-	emptySlot->buttons = cmd->buttons;
-	cmdHistory.ptr = (cmdHistory.ptr + 1) & (MAX_CMD_HISTORY-1);
-}
-
 
 void NET_Receive(void)
 {
 	int byteReceived = 0;
-	socklen_t len ;
 	net_packet_t rcv_packet;
-	command_buffer_t* cmdBuffer;
-	uchar numDeltaUpdateRecv=0;
 	int i;
-	command_t* cmd;
-	
+
 	//Log_Printf("NET_Receive\n");
-	
+
 	if (!isInitialized)
 		return;
-	
-	cmdBuffer = &commandsBuffers[!controlledPlayer];
+
 	commandsBuffers[!controlledPlayer].numCommands = 0;
 
 	
@@ -1370,12 +1286,6 @@ void NET_Receive(void)
 				slot = commandsBuffers[!controlledPlayer].numCommands;
 				memcpy(&commandsBuffers[!controlledPlayer].cmds[slot], c, sizeof(command_t));
 
-				if (rcv_packet.type == NET_RTM_COMMAND)
-				{
-					NET_AddCMDToHistory(c);
-					numDeltaUpdateRecv += 1;
-				}
-
 				commandsBuffers[!controlledPlayer].cmds[slot].time = simulationTime;
 				commandsBuffers[!controlledPlayer].numCommands++;
 			}
@@ -1383,60 +1293,11 @@ void NET_Receive(void)
 	}
 	
 	
-	Log_Printf("t=%d,numDeltaUpdateRecv=%d\n",simulationTime,numDeltaUpdateRecv);
-
 	// Peer liveness: the peer sends every frame while the match runs, so a long
 	// silence means it quit / was backgrounded / lost the network. End the match
 	// cleanly instead of leaving this player in an abandoned game.
 	if (simulationTime - lastPeerPacketTime > NET_PEER_TIMEOUT_MS)
 		NET_OnPeerLost();
-
-	return;
-	
-	// If no update was received, we need to create a fake one in order to avoid jerky mouvments.
-	if (numDeltaUpdateRecv == 0)
-	{
-		
-		//Gen fake command based on extrapolation
-		cmd = NET_GenerateFakeCMD();
-		
-		//Add it to history
-		NET_AddFakeToHistory(cmd);
-		
-		//Log_Printf("t=%d, missing deltaCmd: fake=%.4f,%.4f\n",simulationTime,cmd->delta[X],cmd->delta[Y]);
-		if (commandsBuffers[!controlledPlayer].numCommands < COMMAND_BUFFER_SIZE-1)
-		{
-			memcpy(&commandsBuffers[!controlledPlayer].cmds[commandsBuffers[!controlledPlayer].numCommands], cmd, sizeof(command_t));
-			cmdBuffer->cmds[commandsBuffers[!controlledPlayer].numCommands].time = simulationTime;
-			commandsBuffers[!controlledPlayer].numCommands++;
-		}
-		
-	}
-	else 
-	{
-		//Log_Printf("t=%d: %d deltaCmd(s).\n",simulationTime,numDeltaUpdateRecv);
-		// If we have received more than 1 update, we can undo that many fake commands previously generated
-		for (i=1; i < numDeltaUpdateRecv && fakeCmdHistory.num >0 && commandsBuffers[!controlledPlayer].numCommands < COMMAND_BUFFER_SIZE-1; i++) 
-		{
-			//Log_Printf("t=%d: Undoing 1 fake deltaCmd.\n",simulationTime);
-			cmd = &cmdBuffer->cmds[commandsBuffers[!controlledPlayer].numCommands];
-			cmd->time = simulationTime;
-			cmd->type = NET_RTM_COMMAND;
-			cmd->delta[X] = -fakeCmdHistory.stack[fakeCmdHistory.num-1].delta[X];
-			cmd->delta[Y] = -fakeCmdHistory.stack[fakeCmdHistory.num-1].delta[Y];
-			cmd->buttons = 0;
-			cmd->playerId = !controlledPlayer;
-			commandsBuffers[!controlledPlayer].numCommands++;
-			
-			
-			
-			fakeCmdHistory.num--;
-		} 
-	}
- 
-	
-	
-	
 }
 
 int lastFullUpdateTime = 0;
@@ -1450,6 +1311,7 @@ void NET_Send()
 
 	seq = net.lastSentSequenceNumber++;
 
+	memset(&send_packet, 0, sizeof(send_packet));	// no uninitialized bytes on the wire
 	send_packet.type = RUNTIME_PACKET;
 	send_packet.command.type = NET_RTM_COMMAND;
 	send_packet.sequenceNumber = seq;
@@ -1502,8 +1364,9 @@ void Net_SendDie(command_t* command)
 	net_packet_t send_packet;
 
 	Log_Printf("Net_SendDie\n");
-	
-	send_packet.type = NET_RUNNING;
+
+	memset(&send_packet, 0, sizeof(send_packet));	// no uninitialized bytes on the wire
+	send_packet.type = DEATH_PACKET;	// own value (was NET_RUNNING -- see the define)
 	send_packet.sequenceNumber = net.lastSentSequenceNumber++;
 	send_packet.ackSequenceNumber = net.lastReceivedSequenceNumber;
 	send_packet.numRedundant = 0;		// no redundant commands on the death packet

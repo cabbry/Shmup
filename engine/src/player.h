@@ -232,7 +232,7 @@ typedef struct player_t
 
 extern uchar numPlayers;
 extern uchar controlledPlayer;
-extern player_t players[2];
+extern player_t players[MAX_NUM_PLAYERS];	// v2 P0: was a literal 2 out of sync with the macro
 extern uchar entitiesAttachedToCamera;
 
 void P_InitPlayers(void);
@@ -282,8 +282,8 @@ extern int gShipChoice;
 #define NUM_BULLET_COLORS 4
 extern int gBulletColor;
 // Multiplayer per-player Custom loadout, synced during the handshake (netchannel.c).
-extern int gMPShipChoice[2];
-extern int gMPBulletColor[2];
+extern int gMPShipChoice[MAX_NUM_PLAYERS];
+extern int gMPBulletColor[MAX_NUM_PLAYERS];
 // Score frozen after the boss's killing blow (victory lap gains don't count).
 extern int gScoreLocked;
 // Re-apply the chosen ship(s) to the player entities (called on scene load, after

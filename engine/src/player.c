@@ -68,8 +68,8 @@ int gBulletColor = 0;
 // column. Defaults = the classic multiplayer look (P1 ship + red, P2 ship + blue).
 // If both players picked the same colour, player two's is shifted deterministically
 // on both ends so the two players' shots stay distinguishable.
-int gMPShipChoice[2]  = { 0, 1 };
-int gMPBulletColor[2] = { 0, 1 };
+int gMPShipChoice[MAX_NUM_PLAYERS]  = { 0, 1 };	// default: seat index
+int gMPBulletColor[MAX_NUM_PLAYERS] = { 0, 1 };
 
 // Set when the act-3 boss dies: the run is scored at the killing blow, so all
 // score gains stop during the victory lap. Cleared on the next scene load.
@@ -79,7 +79,7 @@ int gScoreLocked = 0;
 
 uchar numPlayers;
 uchar controlledPlayer;
-player_t players[2];
+player_t players[MAX_NUM_PLAYERS];
 
 diverSpriteLib_t diverSpriteLib;
 
@@ -301,7 +301,7 @@ void P_LoadPlayer(int playerIdToLoad)
 void P_ReloadShip(void)
 {
 	int i;
-	int last = (engine.mode == DE_MODE_MULTIPLAYER) ? 1 : 0;
+	int last = (engine.mode == DE_MODE_MULTIPLAYER) ? numPlayers-1 : 0;	// v2 P0: was a literal 1
 
 	for (i = 0; i <= last; i++)
 	{
@@ -384,9 +384,12 @@ void P_InitPlayers(void)
 	
 	numPlayers = 1;
 	controlledPlayer = 0;
-	
-	P_LoadPlayer(0);
-	P_LoadPlayer(1);
+
+	{
+		int i;
+		for (i = 0; i < MAX_NUM_PLAYERS; i++)
+			P_LoadPlayer(i);
+	}
 	
 			
 	
@@ -424,7 +427,7 @@ void P_InitPlayers(void)
 	//Also prepare bullets indices
 	numBulletSpriteVertices = 0 ;
 	
-	for (j=0; j < (MAX_PLAYER_BULLETS*2 * 6 + 2*6); j+=6,numBulletSpriteVertices+=4) 
+	for (j=0; j < (MAX_PLAYER_BULLETS*MAX_NUM_PLAYERS * 6 + MAX_NUM_PLAYERS*6); j+=6,numBulletSpriteVertices+=4) 
 	{
 		bulletIndices[j+0] = numBulletSpriteVertices+0;
 		bulletIndices[j+1] = numBulletSpriteVertices+1;
@@ -962,8 +965,11 @@ void P_PreparePointerSprites(void)
 	}
 }
 
-char* playersNames[2] = {"Player 1","Player 2"};
-float playerDelta[2][2] = {
+// v2 P0: sized by the macro (an OOB read waited here at 4 players). The label
+// offsets are hand-tuned per side; seats 2/3 get placeholders until the 4P
+// HUD design lands (P3) -- the initializer count must track MAX_NUM_PLAYERS.
+char* playersNames[MAX_NUM_PLAYERS] = {"Player 1","Player 2"};
+float playerDelta[MAX_NUM_PLAYERS][2] = {
 	/*p1*/{110,-14},   // raised the label so it sits just above the white underline
 	/*p2*/{-200,98}
 };

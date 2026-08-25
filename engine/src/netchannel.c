@@ -214,6 +214,14 @@ typedef struct net_peer_t
 // barrier waiting for it forever, with no way back to the menu.
 #define NET_SETUP_TIMEOUT_FRAMES 900		// ~15s at 60fps
 static int gSetupFrames = 0;
+
+// Set by NET_OnPeerLost when it ends the session from INSIDE the handshake
+// pump, so the pump can tell "this session was just torn down" from "this
+// device has not been seated yet" -- both of which read net.state ==
+// NET_UNDETERMINED. Confusing the two made an unseated device DEAF: it never
+// drained its socket, so it could never learn about the peer that was talking
+// to it, and a LAN pair whose mDNS only flowed one way never started at all.
+static int gSetupTornDown = 0;
 static void NET_ArmSetupFrames(void);
 static net_peer_t	gPeers[MAX_NUM_PLAYERS];
 
@@ -371,6 +379,13 @@ static void LAN_AddRosterIp(unsigned int ip)
 	{
 		net.state = NET_STARTED;
 		NET_ArmSetupFrames();	// v2 P2: fresh handshake watchdog window
+		// The roster is what "we know where to send" MEANS in v2, so it is what
+		// clears this v1 flag. It used to be set only by the mDNS query
+		// callback -- so a device seated purely by gossip (its Bonjour never
+		// resolved anyone) kept it at 0, which made isInitialized false, which
+		// made NET_Send return early: it played the match completely MUTE and
+		// the host dropped it after five seconds of silence.
+		net.serverAddResolved = 1;
 	}
 
 	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Players found: %d -> you are P%d",
@@ -1238,6 +1253,8 @@ void NET_OnPeerLost(void)
 {
 	Log_Printf("NET_OnPeerLost\n");
 
+	gSetupTornDown = 1;				// tell the handshake pump this session is over
+
 	NET_Free();						// also clears the multiplayer text lines
 
 	numPlayers = 1;
@@ -1626,9 +1643,14 @@ void Net_ProcessSetupPacket(void)
 
 	// One tick of the handshake's own clock (the sim clock is paused here).
 	gSetupFrames++;
+	gSetupTornDown = 0;
 	NET_CheckSetupTimeouts();
-	if (net.state == NET_UNDETERMINED)
+	if (gSetupTornDown)
 		return;					// the watchdog just tore the session down
+	// NOTE: do NOT return on net.state == NET_UNDETERMINED here. That is also
+	// the state of a device nobody has seated yet, and such a device MUST keep
+	// draining its socket: hearing a seated peer's packet is the only way it
+	// can join the roster when Bonjour only delivered in one direction.
 
 	// The lobby advert (NET_CMD_WAITING). Two jobs:
 	//  - the host is allowed to sit silent while it waits for the rest of the
@@ -1669,8 +1691,9 @@ void Net_ProcessSetupPacket(void)
 		NET_HandleSetupPacket((net_packet_t*)net.buffer, setupSeat, &incomingAdd);
 
 		// The GO (or a teardown) ends the handshake: anything still queued
-		// belongs to the running match, and NET_Receive owns that.
-		if (net.state == NET_RUNNING || net.state == NET_UNDETERMINED)
+		// belongs to the running match, and NET_Receive owns that. An unseated
+		// device (also NET_UNDETERMINED) keeps draining -- see the note above.
+		if (net.state == NET_RUNNING || gSetupTornDown)
 			return;
 	}
 }

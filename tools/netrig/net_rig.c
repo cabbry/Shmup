@@ -522,6 +522,101 @@ static void scenario_online_drop(void)
 	}
 }
 
+/* 10. THE DEVICE CASE. On a real LAN mDNS is not symmetric: one device very
+      often resolves the other several seconds before (or instead of) the
+      reverse. v1 survived this because the SERVER learned the client's address
+      from the client's first packet; v2 P4 deleted that line ("addresses live
+      in the roster"), so the only remaining repair is the gossip. This is the
+      pair, one direction at a time -- the exact shape of the build-213 bug
+      report: "the second device never sees a game waiting". */
+static void scenario_lan_two_oneway_client(void)
+{
+	int i;
+	printf("[10] LAN pair: only the CLIENT hears the host (host must learn by gossip)\n");
+	reset_rig(2, 0);
+
+	for (i = 0; i < 2; i++) { P[i].init_lan(); P[i].set_party(2); P[i].set_loadout(0, 0); }
+	run_frames(10);
+
+	/* peer 1 (higher ip -> seat 1, the client) resolves the host. The host
+	   resolves NOBODY: mDNS never delivered peer 1's advert to it. */
+	P[1].resolve_peer(gIps[0]);
+	run_frames(600);
+
+	for (i = 0; i < 2; i++)
+	{
+		check(P[i].numseats() == 2, "one-way(client): peer %d sees %d seats, expected 2", i, P[i].numseats());
+		check(P[i].state() == STATE_RUNNING, "one-way(client): peer %d state %d, expected RUNNING", i, P[i].state());
+		check(P[i].numplayers() == 2, "one-way(client): peer %d numPlayers %d", i, P[i].numplayers());
+	}
+	check(P[0].seat() == 0 && P[1].seat() == 1, "one-way(client): seats (%d,%d), expected (0,1)",
+	      P[0].seat(), P[1].seat());
+}
+
+/* 11. The other direction, which is worse: the HOST hears the client, the
+      client hears nobody. The client does not know it is a client, so it never
+      sends a JOIN -- the only thing that can wake it is the host's lobby
+      advert (NET_CMD_WAITING), whose whole reason to exist is this. */
+static void scenario_lan_two_oneway_host(void)
+{
+	int i;
+	printf("[11] LAN pair: only the HOST hears the client (client must wake on the advert)\n");
+	reset_rig(2, 0);
+
+	for (i = 0; i < 2; i++) { P[i].init_lan(); P[i].set_party(2); P[i].set_loadout(0, 0); }
+	run_frames(10);
+
+	P[0].resolve_peer(gIps[1]);
+	run_frames(600);
+
+	for (i = 0; i < 2; i++)
+	{
+		check(P[i].numseats() == 2, "one-way(host): peer %d sees %d seats, expected 2", i, P[i].numseats());
+		check(P[i].state() == STATE_RUNNING, "one-way(host): peer %d state %d, expected RUNNING", i, P[i].state());
+		check(P[i].numplayers() == 2, "one-way(host): peer %d numPlayers %d", i, P[i].numplayers());
+	}
+	check(P[0].seat() == 0 && P[1].seat() == 1, "one-way(host): seats (%d,%d), expected (0,1)",
+	      P[0].seat(), P[1].seat());
+}
+
+/* 12. THE OTHER HALF OF THE BUILD-213 REPORT: online failed the same way, and
+      GameKit does NOT hand both devices their match at the same instant --
+      expectedPlayerCount reaches 0 whenever each device's own connection
+      settles. So one peer starts the handshake and talks into the void for a
+      while. Everything it sends in that window lands in a peer that has not
+      been seated yet: the receive ring must survive it, and the pair must
+      still converge once the second device starts. */
+static void scenario_online_staggered_start(void)
+{
+	int i;
+	printf("[12] Online pair: GameKit starts the two devices 300 frames apart\n");
+	reset_rig(2, 1);
+
+	for (i = 0; i < 2; i++)
+	{
+		gSeatOf[i] = i;
+		P[i].init_lan();
+		P[i].set_loadout(0, 0);
+	}
+
+	/* Seat 0 is matched first and starts pushing joins/adverts immediately. */
+	P[0].start_online(0, 2);
+	run_frames(300);
+	check(P[1].state() != STATE_RUNNING, "staggered: peer 1 started without GameKit saying so");
+
+	/* Seat 1's own connection finally settles. */
+	P[1].start_online(1, 2);
+	run_frames(600);
+
+	for (i = 0; i < 2; i++)
+	{
+		check(P[i].state() == STATE_RUNNING, "staggered: peer %d state %d, expected RUNNING", i, P[i].state());
+		check(P[i].numplayers() == 2, "staggered: peer %d numPlayers %d, expected 2", i, P[i].numplayers());
+		check(P[i].lives() == 6, "staggered: peer %d pool %d, expected 6", i, P[i].lives());
+	}
+	check(P[0].seat() == 0 && P[1].seat() == 1, "staggered: seats (%d,%d)", P[0].seat(), P[1].seat());
+}
+
 int main(int argc, char** argv)
 {
 	if (argc > 1 && !strcmp(argv[1], "-v")) gVerbose = 1;
@@ -537,6 +632,9 @@ int main(int argc, char** argv)
 	scenario_lan_partial_discovery();
 	scenario_lan_three();
 	scenario_online_drop();
+	scenario_lan_two_oneway_client();
+	scenario_lan_two_oneway_host();
+	scenario_online_staggered_start();
 
 	printf("=== %d checks, %d failures ===\n", gChecks, gFailures);
 	return gFailures ? 1 : 0;

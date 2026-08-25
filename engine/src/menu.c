@@ -1094,19 +1094,21 @@ void MENU_Init(void)
 	MENU_CreateText(currentMenu, 0, (SS_H - 240), 2.2f, TEXT_CENTERED, "Ship 1  -  Red");
 
 	{
-		static const char* shipLabels[NUM_SHIP_CHOICES]   = { "Ship 1", "Ship 2", "Ship 3" };
+		static const char* shipLabels[NUM_SHIP_CHOICES]   = { "Ship 1", "Ship 2", "Ship 3", "Ghost" };
 		// Confirmed on device: column 0 = red (default), 1 = blue, 2 = invisible (kept as a
 		// stealth option), 3 = yellow.
 		static const char* colorLabels[NUM_BULLET_COLORS] = { "Red", "Blue", "Invisible", "Yellow" };
 		int k;
 
-		// Ships (left column)
+		// Ships (left column). v2: 4 rows now -- tighter 115-unit pitch so the
+		// Ghost row (k=3, y=-185) stays clear of Back (y=-290); centers remain
+		// beyond the 64-unit hit-test radius (io_interface nearest-wins).
 		for (k = 0; k < NUM_SHIP_CHOICES; k++)
 		{
 			int* t = calloc(1, sizeof(int));
 			*t = k;
 			buttonPos[X] = -160 ;
-			buttonPos[Y] = (SS_H - 320) - k*150;
+			buttonPos[Y] = (SS_H - 320) - k*115;
 			buttonDim[WIDTH] = (159 * 2);
 			buttonDim[HEIGHT] = 64 * 2;
 			MENU_CreateButtonWithTag(currentMenu, shipLabels[k], 3, Action_SelectShip, t, NULL, buttonPos, buttonDim);

@@ -279,7 +279,7 @@ extern unsigned char numPlayerRespawn[];
 // v2: Ship 3 / hpp RESURRECTED -- it was not broken art, just authored ~2.8x
 // smaller than p1/p2 (1.9 vs 5.5 units of wingspan); the mesh was rescaled
 // offline, the same cure as the Devil in 1.6.4.
-#define NUM_SHIP_CHOICES 3
+#define NUM_SHIP_CHOICES 4
 extern int gShipChoice;
 #define NUM_BULLET_COLORS 4
 extern int gBulletColor;

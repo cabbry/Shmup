@@ -1152,10 +1152,29 @@ void RenderEntitiesF(void)
 	
 	
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-	for (i=0 ; i < numPlayers; i++) 
+	for (i=0 ; i < numPlayers; i++)
 	{
 		//Log_Printf("player[%d].shouldDraw=%d\n",i,players[i].shouldDraw);
-		if (players[i].shouldDraw)
+		if (!players[i].shouldDraw)
+			continue;
+
+		// v2: the GHOST ship -- a player hull with entity alpha below 1 draws
+		// tinted and blended, the exact per-draw mechanism the enemy pass uses
+		// for the ghost Devil. Opaque ships (alpha 1, or the zeroed default)
+		// keep the original REPLACE path bit-exact.
+		if (players[i].entity.color[3] > 0.001f && players[i].entity.color[3] < 0.999f)
+		{
+			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glColor4f(players[i].entity.color[0], players[i].entity.color[1],
+			          players[i].entity.color[2], players[i].entity.color[3]);
+			RenderEntityF(&players[i].entity);
+			glDisable(GL_BLEND);
+			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+		}
+		else
 			RenderEntityF(&players[i].entity);
 	}
 	

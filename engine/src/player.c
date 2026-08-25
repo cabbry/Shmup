@@ -55,7 +55,30 @@ const char* gShipPaths[NUM_SHIP_CHOICES] = {
 	"data/models/players/hpp.obj.md5mesh",	// choice 2 = Ship 3 -- Fabien's third hull,
 											// resurrected in v2 (mesh rescaled x2.8; it was
 											// authored tiny, never broken)
+	"data/models/players/p1.obj.md5mesh",	// choice 3 = GHOST: the classic hull under a
+											// spectral translucent veil (see gShipTints)
 };
+
+// v2: per-ship hull tint, applied wherever a ship model is (re)loaded. Ships
+// 1-3 fly opaque; the GHOST is the player-side twin of the ghost Devil -- the
+// same spectral blue-white, alpha'd. 0.55: clearly translucent, still
+// trackable in a bullet storm. The renderer blends any player whose entity
+// alpha sits below 1 (same per-draw mechanism as the enemy pass).
+static const float gShipTints[NUM_SHIP_CHOICES][4] = {
+	{ 1.0f, 1.0f, 1.0f, 1.0f },
+	{ 1.0f, 1.0f, 1.0f, 1.0f },
+	{ 1.0f, 1.0f, 1.0f, 1.0f },
+	{ 0.85f, 0.95f, 1.0f, 0.55f },
+};
+
+static void P_ApplyShipTint(int playerId, int shipChoice)
+{
+	const float* t = gShipTints[(shipChoice > 0 && shipChoice < NUM_SHIP_CHOICES) ? shipChoice : 0];
+	players[playerId].entity.color[0] = t[0];
+	players[playerId].entity.color[1] = t[1];
+	players[playerId].entity.color[2] = t[2];
+	players[playerId].entity.color[3] = t[3];
+}
 
 // Diagnostic: basename of the ship model actually loaded for the solo player, shown
 // in-game so we can confirm the Custom ship choice is applied (vs. the art just looking alike).
@@ -275,6 +298,8 @@ void P_LoadPlayer(int playerIdToLoad)
 		if (engine.mode == DE_MODE_SINGLEPLAYER && gShipChoice > 0 && gShipChoice < NUM_SHIP_CHOICES)
 			modelToLoad = gShipPaths[gShipChoice];
 		ENT_LoadEntity(currentEntity, modelToLoad, ENT_FULL_DRAW);
+		P_ApplyShipTint(playerIdToLoad,
+			(engine.mode == DE_MODE_SINGLEPLAYER) ? gShipChoice : 0);
 
 		// Diagnostic: record the basename of what player 0 (the solo ship) actually loaded.
 		if (playerIdToLoad == 0)
@@ -309,20 +334,28 @@ void P_ReloadShip(void)
 	for (i = 0; i <= last; i++)
 	{
 		const char* modelToLoad = players[i].modelPath;
+		int tintChoice = 0;
 
 		if (engine.mode == DE_MODE_MULTIPLAYER)
 		{
 			// Any valid choice applies (0 = the P1 ship, a real pick).
 			if (gMPShipChoice[i] >= 0 && gMPShipChoice[i] < NUM_SHIP_CHOICES)
+			{
 				modelToLoad = gShipPaths[gMPShipChoice[i]];
+				tintChoice  = gMPShipChoice[i];
+			}
 		}
 		else if (gShipChoice > 0 && gShipChoice < NUM_SHIP_CHOICES)
+		{
 			modelToLoad = gShipPaths[gShipChoice];
+			tintChoice  = gShipChoice;
+		}
 
 		if (!modelToLoad || !modelToLoad[0])
 			continue;
 
 		ENT_LoadEntity(&players[i].entity, modelToLoad, ENT_FULL_DRAW);
+		P_ApplyShipTint(i, tintChoice);
 	}
 }
 

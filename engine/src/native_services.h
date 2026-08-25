@@ -38,7 +38,7 @@ void Native_LoginGameCenter(void);
 // Engine -> platform: the engine asks the GameKit layer to find a match and to
 // send a packet to the peer. Implemented on iOS in dEngineAppDelegate.m.
 // The reverse direction (match found / data received) calls back into the engine
-// via NET_StartOnlineMatch / NET_OnNetworkData (declared in netchannel.h).
+// via NET_StartOnlineMatch / NET_OnNetworkDataFrom (declared in netchannel.h).
 void Native_StartOnlineMatchmaking(void);
 void Native_CancelOnlineMatchmaking(void);
 void Native_GKSendData(const void* data, int len, int reliable);

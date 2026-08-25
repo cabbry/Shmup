@@ -208,27 +208,50 @@ static BOOL     gMatchStarted = NO;
 	[self tryStartMatch];
 }
 
-// A packet arrived from the peer: hand the raw bytes straight to the engine.
-- (void)match:(GKMatch *)match didReceiveData:(NSData *)data fromRemotePlayer:(GKPlayer *)player {
-	if (match != gMatch) return;
-	NET_OnNetworkData(data.bytes, (int)data.length);
+// v2 P1: the seat table. Every participant's gamePlayerID, sorted ascending;
+// the index in that order IS the seat (seat 0 hosts). Every device computes
+// the identical table without negotiation -- the N-player generalization of
+// the old "lowest id wins SERVER" pairwise compare, bit-identical to it at 2.
+static NSArray<NSString*>*      gSeatIds = nil;			// seat -> gamePlayerID
+static NSDictionary<NSString*, NSNumber*>* gSeatByPlayer = nil;	// gamePlayerID -> seat
+
+static void GKSeats_Clear(void) {
+	[gSeatIds release];      gSeatIds = nil;
+	[gSeatByPlayer release]; gSeatByPlayer = nil;
 }
 
-// Elect a deterministic role and start exactly once, after every expected player
-// is connected. Both ends run the same comparison (lowest gamePlayerID wins the
-// SERVER seat), so they agree on who is Player One without any negotiation.
+// A packet arrived from a peer: attribute it to its seat, then hand the raw
+// bytes to the engine. An unknown sender maps to -1 and the engine drops it.
+- (void)match:(GKMatch *)match didReceiveData:(NSData *)data fromRemotePlayer:(GKPlayer *)player {
+	if (match != gMatch) return;
+	int seat = -1;
+	NSNumber* n = [gSeatByPlayer objectForKey:player.gamePlayerID];
+	if (n != nil) seat = [n intValue];
+	NET_OnNetworkDataFrom(seat, data.bytes, (int)data.length);
+}
+
+// Build the seat table and start exactly once, after every expected player is
+// connected (expectedPlayerCount == 0 is already N-safe).
 - (void)tryStartMatch {
 	if (gMatchStarted || gMatch == nil) return;
-	if (gMatch.expectedPlayerCount != 0) return;	// still waiting for the peer
+	if (gMatch.expectedPlayerCount != 0) return;	// still waiting for peers
 
 	NSString* myId = [GKLocalPlayer local].gamePlayerID;
-	NSString* peerId = nil;
-	for (GKPlayer* p in gMatch.players) { peerId = p.gamePlayerID; break; }	// 2-player: a single peer
+	NSMutableArray<NSString*>* ids = [NSMutableArray arrayWithObject:myId];
+	for (GKPlayer* p in gMatch.players)
+		[ids addObject:p.gamePlayerID];
+	[ids sortUsingSelector:@selector(compare:)];
 
-	BOOL isServer = (peerId == nil) || ([myId compare:peerId] == NSOrderedAscending);
+	NSMutableDictionary<NSString*, NSNumber*>* bySeat = [NSMutableDictionary dictionaryWithCapacity:ids.count];
+	for (NSUInteger s = 0; s < ids.count; s++)
+		[bySeat setObject:[NSNumber numberWithInt:(int)s] forKey:[ids objectAtIndex:s]];
+
+	GKSeats_Clear();
+	gSeatIds = [ids copy];					// MRC: owned
+	gSeatByPlayer = [bySeat copy];			// MRC: owned
 
 	gMatchStarted = YES;
-	NET_StartOnlineMatch(isServer ? 1 : 0);
+	NET_StartOnlineMatch((int)[ids indexOfObject:myId], (int)ids.count);
 }
 
 @end
@@ -341,6 +364,7 @@ void Native_CancelOnlineMatchmaking(void) {
 	GKMatch* m = gMatch;
 	gMatch = nil;				// nil first so re-entrant delegate callbacks bail out
 	gMatchStarted = NO;
+	GKSeats_Clear();			// v2 P1: the seat table dies with the match
 	m.delegate = nil;
 	[m disconnect];
 	[m release];

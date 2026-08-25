@@ -38,10 +38,10 @@
 	void NET_OnNextLevelLoad(void){}
 	char NET_IsRunning(void){return 0;}
 	uint NET_GetDropedPackets(void){return 0;}
-	void NET_StartOnlineMatch(int isServer){}
+	void NET_StartOnlineMatch(int mySeat, int numSeats){}
 	void NET_AbortOnlineMatch(void){}
 	void NET_OnPeerLost(void){}
-	void NET_OnNetworkData(const void* data, int len){}
+	void NET_OnNetworkDataFrom(int senderSeat, const void* data, int len){}
 	char NET_IsOnline(void){return 0;}
 
 	net_channel_t net;
@@ -162,31 +162,37 @@ static int			sentCount = 0;
 // The whole lockstep protocol below is transport-agnostic: every message is a
 // fixed-size net_packet_t. On the LAN it travels over a UDP socket
 // (sendto/recvfrom); online it travels through GKMatch (Native_GKSendData out,
-// NET_OnNetworkData in) with Apple handling matchmaking + NAT traversal. GKMatch
+// NET_OnNetworkDataFrom in) with Apple handling matchmaking + NAT traversal. GKMatch
 // is push-based, so inbound packets are queued here and drained by the very same
 // read loops the UDP code already uses. LAN behaviour is unchanged.
 
 #define NET_RXQUEUE_SIZE 64
-typedef struct net_rx_entry_t { uchar data[BUFFER_SIZE]; int len; } net_rx_entry_t;
+typedef struct net_rx_entry_t { uchar data[BUFFER_SIZE]; int len; int senderSeat; } net_rx_entry_t;
 static net_rx_entry_t	netRxQueue[NET_RXQUEUE_SIZE];
 static volatile int		netRxHead = 0;	// next slot to write (producer: GKMatch delegate)
 static volatile int		netRxTail = 0;	// next slot to read  (consumer: game loop)
 
 char NET_IsOnline(void) { return net.transport == NET_TRANSPORT_GAMECENTER; }
 
-// Called by the GameKit layer when a packet arrives from the peer. GKMatch
-// delivers on the main thread, same thread as the game loop that drains the
-// queue, so no locking is needed (the volatile indices are belt-and-suspenders).
-void NET_OnNetworkData(const void* data, int len)
+// Called by the GameKit layer when a packet arrives from a peer, tagged with
+// that peer's SEAT (v2 P1: the delegate maps GKPlayer -> seat; an unknown
+// sender arrives as -1 and is dropped -- packets from outside the seat table
+// have no business in the sim). GKMatch delivers on the main thread, same
+// thread as the game loop that drains the queue, so no locking is needed
+// (the volatile indices are belt-and-suspenders).
+void NET_OnNetworkDataFrom(int senderSeat, const void* data, int len)
 {
 	int next;
 	if (len <= 0 || len > BUFFER_SIZE)
 		return;
+	if (senderSeat < 0 || senderSeat >= MAX_NUM_PLAYERS)
+		return;	// not a seated participant of this match
 	next = (netRxHead + 1) % NET_RXQUEUE_SIZE;
 	if (next == netRxTail)
 		return;	// queue full: drop. Lockstep tolerates loss; the periodic ABS update re-syncs.
 	memcpy(netRxQueue[netRxHead].data, data, len);
 	netRxQueue[netRxHead].len = len;
+	netRxQueue[netRxHead].senderSeat = senderSeat;
 	netRxHead = next;
 }
 
@@ -240,29 +246,25 @@ static int NET_TransportRecv(void* out, int maxlen, struct sockaddr_in* fromAddr
 // elected (deterministically, in the GameKit layer). This bypasses the entire
 // Bonjour election: the peer is the GKMatch, so the same handshake state machine
 // (LOAD_NEXT_LEVEL -> NOTIFY_LOADED -> START_LEVEL) runs straight away.
-void NET_StartOnlineMatch(int isServer)
+void NET_StartOnlineMatch(int mySeat, int numSeats)
 {
 	netRxHead = netRxTail = 0;					// fresh receive queue for this match
 	net.transport = NET_TRANSPORT_GAMECENTER;
-	net.type      = isServer ? NET_SERVER : NET_CLIENT;
+	net.ownSeat   = mySeat;
+	net.numSeats  = numSeats;
+	// v2 P1: type derives from the seat -- the 2-player handshake below still
+	// speaks SERVER/CLIENT until P2 rewrites it as a counting barrier. At 2
+	// players this is bit-identical to the old boolean role.
+	net.type      = (mySeat == 0) ? NET_SERVER : NET_CLIENT;
 	net.state     = NET_STARTED;
 	net.serverAddResolved = 1;					// no resolve online; the peer is the match
 	net.setupRequested    = 1;
 	net.lastReceivedSequenceNumber = 0;
 	net.lastSentSequenceNumber     = 1;
 
-	if (isServer)
-	{
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Online - you are Player ONE");
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Starting match...");
-	}
-	else
-	{
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Online - you are Player TWO");
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Starting match...");
-	}
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Online - you are Player %d of %d", mySeat + 1, numSeats);
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Starting match...");
 }
 
 void NET_AbortOnlineMatch(void)
@@ -300,6 +302,8 @@ void NET_Free(void)
 	net.setupRequested = 0;
 	net.state = NET_UNDETERMINED;
 	net.transport = NET_TRANSPORT_LAN;	// default transport; the online entry sets GameKit
+	net.ownSeat  = 0;					// v2 P1: seats die with the session
+	net.numSeats = 0;
 	netRxHead = netRxTail = 0;			// flush any queued online packets
 	ownAddrValid = 0;					// recompute our own IP next session (for role election)
 	sentCount = 0;						// clear the outgoing command-redundancy ring
@@ -600,6 +604,10 @@ void DNSServiceQueryRecordReplyCallback (
 		net.type = NET_SERVER;
 	else
 		net.type = NET_CLIENT;
+	// v2 P1: the LAN pair maps onto the same seat model as online (the
+	// election above IS a 2-entry sorted-IP seat table).
+	net.ownSeat  = (net.type == NET_SERVER) ? 0 : 1;
+	net.numSeats = 2;
 	net.state = NET_STARTED;
 
 	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "PEER %s -> %s",

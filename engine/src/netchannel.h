@@ -99,6 +99,10 @@ int				state;
 #define NET_TRANSPORT_GAMECENTER	1	// GameKit GKMatch (online, NAT-traversed)
 int				transport;
 
+	// v2 P1: seat identity (0..numSeats-1, seat 0 hosts). At 2 players seat 0
+	// is exactly the old NET_SERVER and seat 1 the old NET_CLIENT.
+	int				ownSeat;
+	int				numSeats;
 
 	unsigned int lastReceivedSequenceNumber;
 	unsigned int lastSentSequenceNumber;
@@ -131,6 +135,10 @@ int				state;
 #define NET_TRANSPORT_GAMECENTER	1	// GameKit GKMatch (online, NAT-traversed)
 int				transport;
 
+	// v2 P1: seat identity (0..numSeats-1, seat 0 hosts). At 2 players seat 0
+	// is exactly the old NET_SERVER and seat 1 the old NET_CLIENT.
+	int				ownSeat;
+	int				numSeats;
 
 	unsigned int lastReceivedSequenceNumber;
 	unsigned int lastSentSequenceNumber;
@@ -164,9 +172,18 @@ char NET_IsRunning(void);
 uint NET_GetDropedPackets(void);
 
 // Online (GameKit) multiplayer entry points, called FROM the iOS GameKit layer.
-void NET_StartOnlineMatch(int isServer);			// role decided by GKMatch; begin the handshake
+// v2 P1: the boolean role became a SEAT. Every device sorts all gamePlayerIDs
+// (its own included) ascending; the index in that order is the seat, seat 0
+// hosts. Deterministic on every device without negotiation -- the N-player
+// generalization of the old "lowest id wins SERVER" pairwise compare, and
+// bit-identical to it at 2 players.
+void NET_StartOnlineMatch(int mySeat, int numSeats);
 void NET_AbortOnlineMatch(void);					// matchmaking cancelled, peer dropped, or failed
 void NET_OnPeerLost(void);							// peer vanished mid-match: clean reset + notice
-void NET_OnNetworkData(const void* data, int len);	// a packet arrived over GKMatch (push)
+// v2 P1: inbound packets carry their SENDER SEAT (the GameKit layer maps the
+// GKPlayer back through the seat table). With one peer the seat is redundant;
+// with three it is the only honest identity -- the in-packet playerId is
+// sender-declared and will be validated against this, never trusted alone.
+void NET_OnNetworkDataFrom(int senderSeat, const void* data, int len);
 char NET_IsOnline(void);							// true when the active transport is GameKit
 #endif

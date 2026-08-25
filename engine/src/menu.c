@@ -1094,7 +1094,7 @@ void MENU_Init(void)
 	MENU_CreateText(currentMenu, 0, (SS_H - 240), 2.2f, TEXT_CENTERED, "Ship 1  -  Red");
 
 	{
-		static const char* shipLabels[NUM_SHIP_CHOICES]   = { "Ship 1", "Ship 2" };
+		static const char* shipLabels[NUM_SHIP_CHOICES]   = { "Ship 1", "Ship 2", "Ship 3" };
 		// Confirmed on device: column 0 = red (default), 1 = blue, 2 = invisible (kept as a
 		// stealth option), 3 = yellow.
 		static const char* colorLabels[NUM_BULLET_COLORS] = { "Red", "Blue", "Invisible", "Yellow" };

@@ -1176,8 +1176,11 @@ void MENU_Init(void)
 	}
 
 	// Back gets its own row under the grid, centred: both columns are full now.
+	// Under the LONGER column -- the two counts are independent constants, so
+	// taking either one on faith is how a future fifth colour would land on top
+	// of this button.
 	buttonPos[X] = 0 ;
-	buttonPos[Y] = LOADOUT_ROW_Y(NUM_BULLET_COLORS);
+	buttonPos[Y] = LOADOUT_ROW_Y((NUM_SHIP_CHOICES > NUM_BULLET_COLORS) ? NUM_SHIP_CHOICES : NUM_BULLET_COLORS);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowOthersMenu, NULL, buttonPos, buttonDim);

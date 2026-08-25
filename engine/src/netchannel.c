@@ -39,6 +39,7 @@
 	void NET_OnNextLevelLoad(void){}
 	char NET_IsRunning(void){return 0;}
 	char NET_IsInMatch(void){return 0;}
+	void NET_SetPartyTarget(int n){}
 	uint NET_GetDropedPackets(void){return 0;}
 	void NET_StartOnlineMatch(int mySeat, int numSeats){}
 	void NET_AbortOnlineMatch(void){}
@@ -268,7 +269,19 @@ static unsigned int	gLanIps[MAX_NUM_PLAYERS];		// host byte order, sorted ascend
 static int			gLanCount = 0;
 static int			gLanChangedAt = 0;				// simulationTime of the last roster change
 static int			gLanLocked = 0;					// match started: roster frozen for good
+static int			gPartyTarget = 2;				// how many players this party is for
 static struct sockaddr_in gSeatAddr[MAX_NUM_PLAYERS];	// LAN: seat -> udp address
+
+// The party size the player asked for (the menu's 2/3/4 pick). The roster stops
+// waiting the moment it reaches this, so a LAN duo starts as instantly as it did
+// before the roster existed; the settle window below is only the fallback for a
+// party that never fills.
+void NET_SetPartyTarget(int n)
+{
+	if (n < 2) n = 2;
+	if (n > MAX_NUM_PLAYERS) n = MAX_NUM_PLAYERS;
+	gPartyTarget = n;
+}
 
 static void LAN_ResetRoster(void)
 {
@@ -287,6 +300,10 @@ static int LAN_RosterSettled(void)
 {
 	if (gLanLocked)
 		return 1;
+	if (gLanCount >= gPartyTarget)
+		return 1;					// the party the player asked for is here
+	// Fewer than asked for: give the network a few seconds to prove nobody
+	// else is coming, then play with who showed up.
 	return gLanCount >= 2 && (simulationTime - gLanChangedAt) > NET_LAN_SETTLE_MS;
 }
 

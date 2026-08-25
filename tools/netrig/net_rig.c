@@ -39,7 +39,8 @@
 	int  rig_color_##id(int s); \
 	int  rig_ship_##id(int s); \
 	void rig_set_loadout_##id(int ship, int color); \
-	void rig_set_lives_##id(int n);
+	void rig_set_lives_##id(int n); \
+	void rig_set_party_##id(int n);
 DECL(0) DECL(1) DECL(2) DECL(3)
 
 typedef struct peer_api_t {
@@ -61,13 +62,14 @@ typedef struct peer_api_t {
 	int  (*ship)(int);
 	void (*set_loadout)(int,int);
 	void (*set_lives)(int);
+	void (*set_party)(int);
 } peer_api_t;
 
 #define API(id) { rig_tick_##id, rig_start_online_##id, rig_init_lan_##id, rig_deliver_gk_##id, \
                   rig_resolve_peer_##id, rig_next_level_##id, rig_state_##id, rig_seat_##id, \
                   rig_numseats_##id, rig_numplayers_##id, rig_controlled_##id, rig_lives_##id, \
                   rig_scene_##id, rig_drawn_##id, rig_color_##id, rig_ship_##id, \
-                  rig_set_loadout_##id, rig_set_lives_##id }
+                  rig_set_loadout_##id, rig_set_lives_##id, rig_set_party_##id }
 static peer_api_t P[NPEERS] = { API(0), API(1), API(2), API(3) };
 
 /* --- rig state --- */
@@ -185,6 +187,7 @@ static void scenario_lan_four(void)
 	for (i = 0; i < 4; i++)
 	{
 		P[i].init_lan();
+		P[i].set_party(4);		/* the party size the menu picked */
 		P[i].set_loadout(i % 4, 0);	/* everyone picks RED: the dedupe must split them */
 	}
 
@@ -200,11 +203,9 @@ static void scenario_lan_four(void)
 	P[3].resolve_peer(gIps[0]);  P[3].resolve_peer(gIps[1]);  P[3].resolve_peer(gIps[2]);
 	P[0].resolve_peer(gIps[3]);  P[1].resolve_peer(gIps[3]);  P[2].resolve_peer(gIps[3]);
 
-	/* The settle window (4s) then has to close before anything starts. */
-	run_frames(120);
-	for (i = 0; i < 4; i++)
-		check(P[i].state() != STATE_RUNNING, "peer %d started before the settle window closed", i);
-
+	/* The party asked for is complete, so there is nothing left to wait for:
+	   the handshake fires as soon as the fourth device is seated (the settle
+	   window is the fallback for a party that never fills -- scenario 8). */
 	run_frames(400);
 
 	for (i = 0; i < 4; i++)
@@ -248,19 +249,19 @@ static void scenario_lan_drop_in_handshake(void)
 	printf("[2] LAN: a seat dies mid-handshake -- the party must still start\n");
 	reset_rig(4, 0);
 
-	for (i = 0; i < 4; i++) { P[i].init_lan(); P[i].set_loadout(i, i); }
+	for (i = 0; i < 4; i++) { P[i].init_lan(); P[i].set_party(4); P[i].set_loadout(i, i); }
 	run_frames(10);
 	for (i = 0; i < 4; i++)
 		for (int k = 0; k < 4; k++)
 			if (k != i) P[i].resolve_peer(gIps[k]);
 
-	/* Peer 1 (seat 3) dies BEFORE the settle window closes: it is on everyone's
-	   roster but will never send a JOIN. Only the frame-counted handshake
-	   watchdog can break this -- the sim clock is paused and the in-match
-	   liveness check does not run until the state reaches RUNNING. */
-	run_frames(60);
-	check(P[2].state() != STATE_RUNNING, "the host started before the settle window closed");
+	/* Peer 1 (seat 3) dies the instant the roster is complete: it is on
+	   everyone's table -- it advertised itself -- but it will never send a
+	   JOIN. Only the frame-counted handshake watchdog can break this: the sim
+	   clock is paused here, and the in-match liveness check does not run until
+	   the state reaches RUNNING. */
 	gAlive[1] = 0;
+	check(P[2].state() != STATE_RUNNING, "the host started before anyone could join");
 
 	run_frames(1500);		/* settle (4s) + NET_SETUP_TIMEOUT_FRAMES (900) + slack */
 
@@ -282,7 +283,7 @@ static void scenario_lan_next_level(void)
 	printf("[3] LAN: the barrier re-arms and the party clears level 2\n");
 	reset_rig(4, 0);
 
-	for (i = 0; i < 4; i++) { P[i].init_lan(); P[i].set_loadout(i, i); }
+	for (i = 0; i < 4; i++) { P[i].init_lan(); P[i].set_party(4); P[i].set_loadout(i, i); }
 	run_frames(10);
 	for (i = 0; i < 4; i++)
 		for (int k = 0; k < 4; k++)
@@ -315,7 +316,7 @@ static void scenario_lan_drop_in_match(void)
 	printf("[4] LAN: a player quits mid-match -- the others play on\n");
 	reset_rig(4, 0);
 
-	for (i = 0; i < 4; i++) { P[i].init_lan(); P[i].set_loadout(i, i); }
+	for (i = 0; i < 4; i++) { P[i].init_lan(); P[i].set_party(4); P[i].set_loadout(i, i); }
 	run_frames(10);
 	for (i = 0; i < 4; i++)
 		for (int k = 0; k < 4; k++)
@@ -388,7 +389,7 @@ static void scenario_lan_two(void)
 	printf("[6] LAN: the classic pair (regression)\n");
 	reset_rig(2, 0);
 
-	for (i = 0; i < 2; i++) { P[i].init_lan(); P[i].set_loadout(0, 0); }
+	for (i = 0; i < 2; i++) { P[i].init_lan(); P[i].set_party(2); P[i].set_loadout(0, 0); }
 	run_frames(10);
 	P[0].resolve_peer(gIps[1]);
 	P[1].resolve_peer(gIps[0]);
@@ -422,7 +423,7 @@ static void scenario_lan_partial_discovery(void)
 	printf("[7] LAN: one device never discovers another -- gossip must repair it\n");
 	reset_rig(4, 0);
 
-	for (i = 0; i < 4; i++) { P[i].init_lan(); P[i].set_loadout(i, 0); }
+	for (i = 0; i < 4; i++) { P[i].init_lan(); P[i].set_party(4); P[i].set_loadout(i, 0); }
 	run_frames(10);
 
 	/* Peer 2 (the lowest ip = the host) sees everyone. */
@@ -461,11 +462,20 @@ static void scenario_lan_three(void)
 	printf("[8] LAN: a party of three\n");
 	reset_rig(3, 0);
 
-	for (i = 0; i < 3; i++) { P[i].init_lan(); P[i].set_loadout(i, i); }
+	/* Asked for FOUR, only three showed up: this is the settle window's real
+	   job -- hold the start while the network might still produce a fourth,
+	   then play with who is here. */
+	for (i = 0; i < 3; i++) { P[i].init_lan(); P[i].set_party(4); P[i].set_loadout(i, i); }
 	run_frames(10);
 	for (i = 0; i < 3; i++)
 		for (k = 0; k < 3; k++)
 			if (k != i) P[i].resolve_peer(gIps[k]);
+
+	run_frames(120);		/* ~2s: inside the 4s window, nothing may start */
+	for (i = 0; i < 3; i++)
+		check(P[i].state() != STATE_RUNNING,
+		      "peer %d started while the party could still fill up", i);
+
 	run_frames(500);
 
 	/* ips .20/.30/.10 -> peer 2 is seat 0 (host), peer 0 seat 1, peer 1 seat 2 */
@@ -492,6 +502,7 @@ static void scenario_online_drop(void)
 	{
 		gSeatOf[i] = gExpectedSeat[i];
 		P[i].init_lan();
+		P[i].set_party(4);		/* the party size the menu picked */
 		P[i].set_loadout(i, i);
 	}
 	for (i = 0; i < NPEERS; i++)

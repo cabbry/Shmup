@@ -52,6 +52,7 @@
 #define NET_IsRunning                       PS(NET_IsRunning)
 #define NET_GetDropedPackets                PS(NET_GetDropedPackets)
 #define NET_IsInMatch                       PS(NET_IsInMatch)
+#define NET_SetPartyTarget                  PS(NET_SetPartyTarget)
 
 /* --- engine state this peer owns --- */
 #define players            PS(players)
@@ -198,3 +199,4 @@ int  PS(rig_color)(int s)    { return gMPBulletColor[s]; }
 int  PS(rig_ship)(int s)     { return gMPShipChoice[s]; }
 void PS(rig_set_loadout)(int ship, int color) { gShipChoice = ship; gBulletColor = color; }
 void PS(rig_set_lives)(int n) { int i; for (i=0;i<MAX_NUM_PLAYERS;i++) players[i].respawnCounter = n; }
+void PS(rig_set_party)(int n) { NET_SetPartyTarget(n); }

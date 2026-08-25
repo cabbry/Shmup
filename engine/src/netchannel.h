@@ -174,6 +174,10 @@ void Net_SendDie(command_t* command);
 void NET_OnNextLevelLoad(void);
 char NET_IsRunning(void);
 char NET_IsInMatch(void);	// v2: RUNNING *or* between levels (see the .c)
+// v2 P4: the party size the player picked in the menu (2..MAX_NUM_PLAYERS). On
+// the LAN the roster stops waiting as soon as it reaches this, so a duo starts
+// instantly; below it, a few seconds of network silence start the game anyway.
+void NET_SetPartyTarget(int n);
 
 uint NET_GetDropedPackets(void);
 

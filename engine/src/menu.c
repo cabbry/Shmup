@@ -510,13 +510,21 @@ void Action_PreGoToGameCenter(void* tag)
 
 }
 
+// v2 P4: which transport the party-size picker is choosing for.
+static int gPartyPickIsOnline = 0;
+
 void Action_ConfigureMultiplayer(void* tag)
 {
 	int i;
+	int partySize = tag ? *(int*)tag : 2;
+
+	if (partySize < 2) partySize = 2;
+	if (partySize > MAX_NUM_PLAYERS) partySize = MAX_NUM_PLAYERS;
 
 	MENU_Set(MENU_MULTIPLAYER);
 	engine.mode = DE_MODE_MULTIPLAYER;
 	NET_Init();
+	NET_SetPartyTarget(partySize);	// the roster stops waiting once this many are found
 	PL_ResetPlayersScore();
 
 	// Shared life pool in multiplayer, mirrored on each death in P_Die. This is
@@ -528,10 +536,17 @@ void Action_ConfigureMultiplayer(void* tag)
 	engine.difficultyLevel = DIFFICULTY_NORMAL;
 }
 
+// v2 P4: both multiplayer buttons open the party-size picker first.
+void Action_ShowLanSizeMenu(void* tag)
+{
+	gPartyPickIsOnline = 0;
+	MENU_Set(MENU_ONLINE_SIZE);
+}
+
 #ifdef __APPLE__
-// v2 P4: the Online button opens the party-size picker first.
 void Action_ShowOnlineSizeMenu(void* tag)
 {
+	gPartyPickIsOnline = 1;
 	MENU_Set(MENU_ONLINE_SIZE);
 }
 
@@ -564,6 +579,19 @@ void Action_ConfigureOnlineMultiplayer(void* tag)
 	Native_StartOnlineMatchmaking(partySize);	// presents the Game Center matchmaker UI
 }
 #endif
+
+// The picker's buttons land here: same screen, two destinations.
+void Action_PickPartySize(void* tag)
+{
+#ifdef __APPLE__
+	if (gPartyPickIsOnline)
+	{
+		Action_ConfigureOnlineMultiplayer(tag);
+		return;
+	}
+#endif
+	Action_ConfigureMultiplayer(tag);
+}
 
 #ifdef SHMUP_TARGET_ANDROID  
 #include "native_URL.h"
@@ -962,7 +990,7 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Local Network", 2.0f, Action_ConfigureMultiplayer,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, "Local Network", 2.0f, Action_ShowLanSizeMenu,NULL, buttonPos, buttonDim);	// v2 P4: size picker first
 #endif
 
 #ifdef __APPLE__
@@ -1150,11 +1178,12 @@ void MENU_Init(void)
 	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowOthersMenu, NULL, buttonPos, buttonDim);
 
 
-#ifdef __APPLE__
-	// --- v2 P4: online party-size picker (Others -> Online) ---
+	// --- v2 P4: the party-size picker, shared by BOTH multiplayer buttons
+	// (Others -> Local Network / Online). On the LAN the pick is what stops the
+	// roster from waiting, so a duo starts as instantly as it always did. ---
 	currentMenu = &menuScreens[MENU_ONLINE_SIZE];
 
-	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, "ONLINE");
+	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, "MULTIPLAYER");
 	MENU_CreateText(currentMenu, 0, (SS_H - 240), 2.2f, TEXT_CENTERED, "How many players ?");
 
 	{
@@ -1168,7 +1197,7 @@ void MENU_Init(void)
 			buttonPos[Y] = (SS_H - 340) - k*150;
 			buttonDim[WIDTH] = (220 * 2);
 			buttonDim[HEIGHT] = 64 * 2;
-			MENU_CreateButtonWithTag(currentMenu, sizeLabels[k], 3, Action_ConfigureOnlineMultiplayer, t, NULL, buttonPos, buttonDim);
+			MENU_CreateButtonWithTag(currentMenu, sizeLabels[k], 3, Action_PickPartySize, t, NULL, buttonPos, buttonDim);
 		}
 	}
 
@@ -1177,7 +1206,6 @@ void MENU_Init(void)
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowOthersMenu, NULL, buttonPos, buttonDim);
-#endif
 
 
 	menuCreated = 1;

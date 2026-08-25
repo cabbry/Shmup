@@ -39,7 +39,8 @@ Exit code 0 = every check passed. `-UWIN32` matters: without it
 ## Scenarios
 
 1. **LAN, party of four, scrambled discovery** — seats follow sorted IPs, the
-   settle window holds the start, pool = 12, everyone agrees on the colours.
+   party starts as soon as the size the player picked is seated, pool = 12,
+   everyone agrees on the colours.
 2. **A seat dies mid-handshake** — the frame-counted watchdog drops it and the
    remaining three start (the sim clock is paused here, so ms can't measure it).
 3. **Level transition** — the barrier re-arms, the pool carries over.
@@ -51,7 +52,9 @@ Exit code 0 = every check passed. `-UWIN32` matters: without it
 7. **Partial discovery** — one device never hears about another through
    Bonjour; the roster gossip in the lobby adverts has to repair it, or the
    party splits into two incompatible simulations.
-8. **A party of three** — an odd size, with no fourth seat to lean on.
+8. **A party of three** — asked for four, three showed up: the settle window
+   holds the start while a fourth could still appear, then plays with who is
+   there (pool 9, not 12).
 9. **Online mid-match drop** — the host decides, and its `activeMask` is what
    tells the others (four independent stopwatches would part the sims).
 
@@ -66,7 +69,7 @@ that must fail. Point `-I mutant` at a `sed`-patched copy of `netchannel.c`:
 | clients ignore the host's activeMask | 2 |
 | no lobby advert (silent host reads as dead) | 15 |
 | no roster gossip | 8 |
-| settle window removed | 26 |
+| party target ignored (starts at 2) | 26 |
 | in-match per-seat liveness disabled | 4 |
 
 ## What it does not cover

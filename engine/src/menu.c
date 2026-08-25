@@ -1142,37 +1142,42 @@ void MENU_Init(void)
 		static const char* colorLabels[NUM_BULLET_COLORS] = { "Red", "Blue", "Invisible", "Yellow" };
 		int k;
 
-		// Ships (left column). v2: 4 rows now -- tighter 115-unit pitch so the
-		// Ghost row (k=3, y=-185) stays clear of Back (y=-290); centers remain
-		// beyond the 64-unit hit-test radius (io_interface nearest-wins).
+		// One grid, ONE pitch: ship k and colour k sit on the same row (they used
+		// to run at 115 and 150, so the two columns drifted apart down the
+		// screen). 130 clears the 128-unit button height, and five rows of it --
+		// four choices plus Back -- still fit above the bottom edge: the last
+		// row's centre is at -360, its edge at -424, inside SS_H 480.
+		#define LOADOUT_ROW_PITCH 130
+		#define LOADOUT_ROW_Y(k)  ((SS_H - 320) - (k)*LOADOUT_ROW_PITCH)
+
+		// Ships (left column)
 		for (k = 0; k < NUM_SHIP_CHOICES; k++)
 		{
 			int* t = calloc(1, sizeof(int));
 			*t = k;
 			buttonPos[X] = -160 ;
-			buttonPos[Y] = (SS_H - 320) - k*115;
+			buttonPos[Y] = LOADOUT_ROW_Y(k);
 			buttonDim[WIDTH] = (159 * 2);
 			buttonDim[HEIGHT] = 64 * 2;
 			MENU_CreateButtonWithTag(currentMenu, shipLabels[k], 3, Action_SelectShip, t, NULL, buttonPos, buttonDim);
 		}
 
-		// Bullet colours (right column)
+		// Bullet colours (right column), row for row with the ships
 		for (k = 0; k < NUM_BULLET_COLORS; k++)
 		{
 			int* t = calloc(1, sizeof(int));
 			*t = k;
 			buttonPos[X] = 160 ;
-			buttonPos[Y] = (SS_H - 320) - k*150;
+			buttonPos[Y] = LOADOUT_ROW_Y(k);
 			buttonDim[WIDTH] = (159 * 2);
 			buttonDim[HEIGHT] = 64 * 2;
 			MENU_CreateButtonWithTag(currentMenu, colorLabels[k], 3, Action_SelectBulletColor, t, NULL, buttonPos, buttonDim);
 		}
 	}
 
-	// Back sits in the empty bottom-LEFT cell, on the same row as the 4th colour
-	// (Yellow, right), so it no longer overlaps it.
-	buttonPos[X] = -160 ;
-	buttonPos[Y] = (SS_H - 320) - 3*150;
+	// Back gets its own row under the grid, centred: both columns are full now.
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = LOADOUT_ROW_Y(NUM_BULLET_COLORS);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowOthersMenu, NULL, buttonPos, buttonDim);

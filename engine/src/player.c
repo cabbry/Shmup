@@ -52,9 +52,12 @@ int gShipChoice = 0;
 const char* gShipPaths[NUM_SHIP_CHOICES] = {
 	"data/models/players/p1.obj.md5mesh",	// choice 0 falls back to the level's model anyway
 	"data/models/players/p2.obj.md5mesh",	// choice 1 = Ship 2
-	"data/models/players/hpp.obj.md5mesh",	// choice 2 = Ship 3 -- Fabien's third hull,
-											// resurrected in v2 (mesh rescaled x2.8; it was
-											// authored tiny, never broken)
+	// Choice 2 = Ship 3, Fabien's third hull, resurrected in v2. It ships as its
+	// OWN mesh file: hpp.obj.md5mesh is the model the title screen orbits, and
+	// rescaling it in place (x2.8, to match p1/p2's wingspan) blew the intro up
+	// until the camera flew through the hull. Same art, same "hpp" material,
+	// two scales, two files.
+	"data/models/players/hpp_ship.obj.md5mesh",
 	"data/models/players/p1.obj.md5mesh",	// choice 3 = GHOST: the classic hull under a
 											// spectral translucent veil (see gShipTints)
 };

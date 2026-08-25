@@ -187,8 +187,10 @@ to the true screen edges, and the touch-coordinate mapping.
   can see the project evolve. With all four acts now playable end to end, this
   is mostly a recording session away.
 - **App Store release?** The game is feature-complete: four acts, a boss, an
-  ending, online multiplayer, leaderboards. iMessage invites and SharePlay
-  already work in code but are gated by Apple until an App Store release.
+  ending, online multiplayer, leaderboards. Invitations are now handled in code
+  too (v2 added the accept-an-invite listener — the matchmaker could always
+  *send* one, but nothing was listening, so tapping Play did nothing), though
+  iMessage invites and SharePlay only light up once the app is on the App Store.
 - **🚀 v2 — 3-4 player multiplayer** (the next major version) — **code complete,
   awaiting device testing** (round 32): the transport speaks SEATS (0..N-1,
   seat 0 hosts) on both GameKit and the LAN, the handshake is a counting

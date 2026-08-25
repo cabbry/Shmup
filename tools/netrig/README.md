@@ -51,6 +51,9 @@ Exit code 0 = every check passed. `-UWIN32` matters: without it
 7. **Partial discovery** — one device never hears about another through
    Bonjour; the roster gossip in the lobby adverts has to repair it, or the
    party splits into two incompatible simulations.
+8. **A party of three** — an odd size, with no fourth seat to lean on.
+9. **Online mid-match drop** — the host decides, and its `activeMask` is what
+   tells the others (four independent stopwatches would part the sims).
 
 ## Calibration
 

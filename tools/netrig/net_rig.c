@@ -453,6 +453,64 @@ static void scenario_lan_partial_discovery(void)
 		      "seat %d was silently given INVISIBLE bullets by the dedupe", i);
 }
 
+/* 8. Three players: an odd party size, which the formation, the pool and the
+      barrier all have to handle without a fourth to lean on. */
+static void scenario_lan_three(void)
+{
+	int i, k;
+	printf("[8] LAN: a party of three\n");
+	reset_rig(3, 0);
+
+	for (i = 0; i < 3; i++) { P[i].init_lan(); P[i].set_loadout(i, i); }
+	run_frames(10);
+	for (i = 0; i < 3; i++)
+		for (k = 0; k < 3; k++)
+			if (k != i) P[i].resolve_peer(gIps[k]);
+	run_frames(500);
+
+	/* ips .20/.30/.10 -> peer 2 is seat 0 (host), peer 0 seat 1, peer 1 seat 2 */
+	check(P[2].seat() == 0, "three-party host seat %d, expected 0", P[2].seat());
+	for (i = 0; i < 3; i++)
+	{
+		check(P[i].numseats() == 3, "peer %d sees %d seats, expected 3", i, P[i].numseats());
+		check(P[i].state() == STATE_RUNNING, "peer %d state %d, expected RUNNING", i, P[i].state());
+		check(P[i].numplayers() == 3, "peer %d numPlayers %d, expected 3", i, P[i].numplayers());
+		check(P[i].lives() == 9, "peer %d pool %d, expected 9 (3 x 3)", i, P[i].lives());
+	}
+}
+
+/* 9. Online, mid-match drop: only the HOST's clock decides, and its activeMask
+      is what tells the others. Without that adoption the clients keep a ghost
+      ship (and mirror its life counter) for a player who is gone. */
+static void scenario_online_drop(void)
+{
+	int i;
+	printf("[9] Online: a mid-match drop travels by the host's activeMask\n");
+	reset_rig(4, 1);
+
+	for (i = 0; i < NPEERS; i++)
+	{
+		gSeatOf[i] = gExpectedSeat[i];
+		P[i].init_lan();
+		P[i].set_loadout(i, i);
+	}
+	for (i = 0; i < NPEERS; i++)
+		P[i].start_online(gExpectedSeat[i], 4);
+	run_frames(600);
+	for (i = 0; i < NPEERS; i++)
+		check(P[i].state() == STATE_RUNNING, "online peer %d never started", i);
+
+	gAlive[1] = 0;			/* seat 3 loses its connection */
+	run_frames(700);
+
+	for (i = 0; i < NPEERS; i++)
+	{
+		if (!gAlive[i]) continue;
+		check(P[i].drawn(3) == 0, "online peer %d still draws the departed seat 3", i);
+		check(P[i].state() == STATE_RUNNING, "online peer %d ended the match over one drop", i);
+	}
+}
+
 int main(int argc, char** argv)
 {
 	if (argc > 1 && !strcmp(argv[1], "-v")) gVerbose = 1;
@@ -466,6 +524,8 @@ int main(int argc, char** argv)
 	scenario_lan_drop_in_match();
 	scenario_online_four();
 	scenario_lan_partial_discovery();
+	scenario_lan_three();
+	scenario_online_drop();
 
 	printf("=== %d checks, %d failures ===\n", gChecks, gFailures);
 	return gFailures ? 1 : 0;

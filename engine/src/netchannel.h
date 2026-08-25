@@ -179,7 +179,11 @@ uint NET_GetDropedPackets(void);
 // bit-identical to it at 2 players.
 void NET_StartOnlineMatch(int mySeat, int numSeats);
 void NET_AbortOnlineMatch(void);					// matchmaking cancelled, peer dropped, or failed
-void NET_OnPeerLost(void);							// peer vanished mid-match: clean reset + notice
+void NET_OnPeerLost(void);							// LAST peer vanished mid-match: clean reset + notice
+// v2 P2: ONE seat vanished mid-match -- park its ship and keep playing; falls
+// back to NET_OnPeerLost() when no remote seat is left. Called by the per-seat
+// liveness timeout (all transports) and by the GameKit disconnect callback.
+void NET_OnSeatLost(int seat);
 // v2 P1: inbound packets carry their SENDER SEAT (the GameKit layer maps the
 // GKPlayer back through the seat table). With one peer the seat is redundant;
 // with three it is the only honest identity -- the in-packet playerId is

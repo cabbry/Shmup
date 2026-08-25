@@ -194,20 +194,6 @@ static BOOL     gMatchStarted = NO;
 	NET_AbortOnlineMatch();
 }
 
-// A peer connected or dropped.
-- (void)match:(GKMatch *)match player:(GKPlayer *)player didChangeConnectionState:(GKPlayerConnectionState)state {
-	if (match != gMatch) return;
-	if (state == GKPlayerStateDisconnected) {
-		gMatchStarted = NO;
-		if (NET_IsRunning())
-			NET_OnPeerLost();		// mid-match: clean scene reset + "other player left" notice
-		else
-			NET_AbortOnlineMatch();	// still matchmaking: just back out to the menu
-		return;
-	}
-	[self tryStartMatch];
-}
-
 // v2 P1: the seat table. Every participant's gamePlayerID, sorted ascending;
 // the index in that order IS the seat (seat 0 hosts). Every device computes
 // the identical table without negotiation -- the N-player generalization of
@@ -218,6 +204,28 @@ static NSDictionary<NSString*, NSNumber*>* gSeatByPlayer = nil;	// gamePlayerID 
 static void GKSeats_Clear(void) {
 	[gSeatIds release];      gSeatIds = nil;
 	[gSeatByPlayer release]; gSeatByPlayer = nil;
+}
+
+// A peer connected or dropped.
+- (void)match:(GKMatch *)match player:(GKPlayer *)player didChangeConnectionState:(GKPlayerConnectionState)state {
+	if (match != gMatch) return;
+	if (state == GKPlayerStateDisconnected) {
+		if (NET_IsRunning()) {
+			// v2 P2: mid-match a single drop parks that seat and the match
+			// continues; the engine falls back to the full "connection lost"
+			// teardown by itself when the LAST remote seat goes.
+			NSNumber* n = [gSeatByPlayer objectForKey:player.gamePlayerID];
+			if (n != nil)
+				NET_OnSeatLost([n intValue]);
+			else
+				NET_OnPeerLost();	// unknown sender: not our table, bail out clean
+		} else {
+			gMatchStarted = NO;
+			NET_AbortOnlineMatch();	// still matchmaking: just back out to the menu
+		}
+		return;
+	}
+	[self tryStartMatch];
 }
 
 // A packet arrived from a peer: attribute it to its seat, then hand the raw

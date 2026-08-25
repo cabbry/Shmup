@@ -41,6 +41,7 @@
 	void NET_StartOnlineMatch(int mySeat, int numSeats){}
 	void NET_AbortOnlineMatch(void){}
 	void NET_OnPeerLost(void){}
+	void NET_OnSeatLost(int seat){}
 	void NET_OnNetworkDataFrom(int senderSeat, const void* data, int len){}
 	char NET_IsOnline(void){return 0;}
 
@@ -117,12 +118,20 @@ typedef struct net_packet_t
 // reliable, and != SETUP_PACKET so the receive loop processes its command.
 #define DEATH_PACKET 4
 	char type;
-	
+
 	int sequenceNumber;
 	int ackSequenceNumber;
-	
-	int time;
-	int ackTime;
+
+	// v2 P2: the two fields here were dead weight since 2010 ("time"/"ackTime",
+	// never written, never read). Recycled -- same offsets, same packet size:
+	// - senderSeat: who this packet claims to come from; validated against the
+	//   transport-level sender, never trusted alone.
+	// - protoVersion: v1 builds left this uninitialized; v2 stamps NET_PROTO.
+	//   A mismatch (e.g. a v1.8 tester joining a v2 lobby) is dropped at the
+	//   door instead of desyncing mid-match.
+#define NET_PROTO 2
+	int senderSeat;
+	int protoVersion;
 
 	
 //#define NET_CMD_NOOP 0
@@ -141,19 +150,93 @@ typedef struct net_packet_t
 	int			redundantSeq[NET_REDUNDANT_CMDS];
 	command_t	redundant[NET_REDUNDANT_CMDS];
 
-	// Custom loadout (setup packets only): the sender's chosen ship + bullet colour,
-	// so each player keeps his Custom look in multiplayer (see NET_StorePeerLoadout).
-	int			shipChoice;
-	int			bulletColor;
+	// Custom loadout (setup packets only). v2 P2: a per-seat TABLE (proto v2) --
+	// a joining seat fills only its own slot; the host's START_LEVEL broadcasts
+	// the complete, colour-deduped table so every client renders every ship
+	// identically (clients never hear each other directly during the handshake).
+	int			shipChoice[MAX_NUM_PLAYERS];
+	int			bulletColor[MAX_NUM_PLAYERS];
 
 } net_packet_t;
 
 // Outgoing command-redundancy ring: the last few runtime commands we sent (oldest
 // first), echoed in each packet's redundant[] so the peer can recover an input lost
-// to a dropped packet.
+// to a dropped packet. One ring is enough for N receivers: it carries OUR stream.
 static command_t	sentCmds[NET_REDUNDANT_CMDS];
 static int			sentSeqs[NET_REDUNDANT_CMDS];
 static int			sentCount = 0;
+
+// ------------------------------------------------------------------------------
+//  v2 P2: per-peer runtime state, seat-indexed (our own seat's entry unused).
+//  Everything that used to be a single "the peer" scalar lives here: sequence
+//  tracking, liveness, and the handshake barrier flags the host counts.
+// ------------------------------------------------------------------------------
+typedef struct net_peer_t
+{
+	int				active;			// seated in this match and still alive
+	unsigned int	lastRxSeq;		// last sequence applied from this seat
+	int				lastPacketTime;	// liveness clock (simulationTime of last packet)
+	char			joined;			// host barrier: join request seen
+	char			loaded;			// host barrier: NOTIFY_LOADED seen
+} net_peer_t;
+static net_peer_t	gPeers[MAX_NUM_PLAYERS];
+
+static void NET_PeersReset(void)
+{
+	memset(gPeers, 0, sizeof(gPeers));
+}
+
+// Count of remote seats still alive in the match.
+static int NET_ActiveRemotes(void)
+{
+	int i, n = 0;
+	for (i = 0; i < net.numSeats && i < MAX_NUM_PLAYERS; i++)
+		if (i != net.ownSeat && gPeers[i].active)
+			n++;
+	return n;
+}
+
+// Host barrier counters: how many remote seats have joined / finished loading.
+// Only ACTIVE seats count -- a parked seat (mid-match drop) never sends again
+// and must not deadlock the next level's barrier. The target for both is
+// NET_ActiveRemotes().
+static int NET_JoinedRemotes(void)
+{
+	int i, n = 0;
+	for (i = 0; i < net.numSeats && i < MAX_NUM_PLAYERS; i++)
+		if (i != net.ownSeat && gPeers[i].active && gPeers[i].joined)
+			n++;
+	return n;
+}
+
+static int NET_LoadedRemotes(void)
+{
+	int i, n = 0;
+	for (i = 0; i < net.numSeats && i < MAX_NUM_PLAYERS; i++)
+		if (i != net.ownSeat && gPeers[i].active && gPeers[i].loaded)
+			n++;
+	return n;
+}
+
+// Deterministic N-way colour dedupe, ascending seats: a seat whose colour
+// collides with ANY lower seat steps forward until free. Run by the host just
+// before the GO (the broadcast table is final); at 2 players and distinct
+// picks this reduces to the classic "player two shifts".
+static void NET_DedupeLoadouts(void)
+{
+	int s, t, clash;
+	for (s = 1; s < net.numSeats && s < MAX_NUM_PLAYERS; s++)
+	{
+		do {
+			clash = 0;
+			for (t = 0; t < s; t++)
+				if (gMPBulletColor[t] == gMPBulletColor[s])
+					clash = 1;
+			if (clash)
+				gMPBulletColor[s] = (gMPBulletColor[s] + 1) % NUM_BULLET_COLORS;
+		} while (clash && net.numSeats <= NUM_BULLET_COLORS);
+	}
+}
 
 
 // ------------------------------------------------------------------------------
@@ -198,14 +281,16 @@ void NET_OnNetworkDataFrom(int senderSeat, const void* data, int len)
 
 // Drain one queued packet. Mirrors recvfrom's contract so the existing read
 // loops are untouched: returns the byte count, or -1 with errno=EAGAIN when the
-// queue is empty.
-static int NET_RxDequeue(void* out, int maxlen)
+// queue is empty. v2 P2: also yields the transport-attributed sender seat.
+static int NET_RxDequeue(void* out, int maxlen, int* senderSeat)
 {
 	int len;
 	if (netRxTail == netRxHead) { errno = EAGAIN; return -1; }
 	len = netRxQueue[netRxTail].len;
 	if (len > maxlen) len = maxlen;
 	memcpy(out, netRxQueue[netRxTail].data, len);
+	if (senderSeat)
+		*senderSeat = netRxQueue[netRxTail].senderSeat;
 	netRxTail = (netRxTail + 1) % NET_RXQUEUE_SIZE;
 	return len;
 }
@@ -228,11 +313,17 @@ static void NET_TransportSend(const void* data, int len)
 
 // Unified non-blocking receive. Returns bytes read, or -1/EAGAIN when nothing is
 // available. fromAddr (LAN only) captures the sender so the server can learn the
-// client's address; it is left untouched online (GKMatch has the single peer).
-static int NET_TransportRecv(void* out, int maxlen, struct sockaddr_in* fromAddr)
+// client's address. v2 P2: senderSeat carries the TRANSPORT-attributed origin --
+// online it comes from the GKPlayer->seat map; on the LAN, which stays a 2-seat
+// pair until the P4 roster election, any packet is by definition from the other
+// seat. This is the identity the sim trusts; in-packet fields only corroborate.
+static int NET_TransportRecv(void* out, int maxlen, struct sockaddr_in* fromAddr, int* senderSeat)
 {
 	if (net.transport == NET_TRANSPORT_GAMECENTER)
-		return NET_RxDequeue(out, maxlen);
+		return NET_RxDequeue(out, maxlen, senderSeat);
+
+	if (senderSeat)
+		*senderSeat = (net.ownSeat == 0) ? 1 : 0;	// LAN: the one peer
 
 	if (fromAddr)
 	{
@@ -248,10 +339,18 @@ static int NET_TransportRecv(void* out, int maxlen, struct sockaddr_in* fromAddr
 // (LOAD_NEXT_LEVEL -> NOTIFY_LOADED -> START_LEVEL) runs straight away.
 void NET_StartOnlineMatch(int mySeat, int numSeats)
 {
+	int s;
+
 	netRxHead = netRxTail = 0;					// fresh receive queue for this match
 	net.transport = NET_TRANSPORT_GAMECENTER;
 	net.ownSeat   = mySeat;
 	net.numSeats  = numSeats;
+
+	// v2 P2: every remote seat starts the match alive.
+	NET_PeersReset();
+	for (s = 0; s < numSeats && s < MAX_NUM_PLAYERS; s++)
+		if (s != mySeat)
+			gPeers[s].active = 1;
 	// v2 P1: type derives from the seat -- the 2-player handshake below still
 	// speaks SERVER/CLIENT until P2 rewrites it as a counting barrier. At 2
 	// players this is bit-identical to the old boolean role.
@@ -304,6 +403,7 @@ void NET_Free(void)
 	net.transport = NET_TRANSPORT_LAN;	// default transport; the online entry sets GameKit
 	net.ownSeat  = 0;					// v2 P1: seats die with the session
 	net.numSeats = 0;
+	NET_PeersReset();					// v2 P2: per-seat state dies with the session
 	netRxHead = netRxTail = 0;			// flush any queued online packets
 	ownAddrValid = 0;					// recompute our own IP next session (for role election)
 	sentCount = 0;						// clear the outgoing command-redundancy ring
@@ -608,6 +708,9 @@ void DNSServiceQueryRecordReplyCallback (
 	// election above IS a 2-entry sorted-IP seat table).
 	net.ownSeat  = (net.type == NET_SERVER) ? 0 : 1;
 	net.numSeats = 2;
+	// v2 P2: the one remote seat starts the match alive.
+	NET_PeersReset();
+	gPeers[1 - net.ownSeat].active = 1;
 	net.state = NET_STARTED;
 
 	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "PEER %s -> %s",
@@ -860,12 +963,29 @@ static void NET_SendSetupCmd(char cmdType)
 	p.type = SETUP_PACKET;
 	p.command.type = cmdType;
 	p.numRedundant = 0;
-	p.shipChoice   = gShipChoice;	// carry our Custom loadout in every setup packet
-	p.bulletColor  = gBulletColor;
+	p.senderSeat   = net.ownSeat;	// v2 P2: identity + protocol on every packet
+	p.protoVersion = NET_PROTO;
+
+	// Our own Custom loadout rides in our slot of the table; the host's GO
+	// (START_LEVEL) broadcasts the COMPLETE deduped table instead.
+	if (cmdType == NET_CMD_START_LEVEL)
+	{
+		for (i = 0; i < MAX_NUM_PLAYERS; i++)
+		{
+			p.shipChoice[i]  = gMPShipChoice[i];
+			p.bulletColor[i] = gMPBulletColor[i];
+		}
+	}
+	else
+	{
+		p.shipChoice[net.ownSeat]  = gShipChoice;
+		p.bulletColor[net.ownSeat] = gBulletColor;
+	}
+
 	for (i = 0; i < copies; i++)
 	{
 		p.sequenceNumber = net.lastSentSequenceNumber++;
-		p.ackSequenceNumber = net.lastReceivedSequenceNumber;
+		p.ackSequenceNumber = 0;
 		NET_TransportSend(&p, sizeof(p));
 	}
 }
@@ -874,40 +994,57 @@ static void NET_SendSetupCmd(char cmdType)
 // bullet colour) in its setup packets; once a setup packet from the peer arrives,
 // both ends hold both choices and apply the same deterministic rule -- so the two
 // devices render the match identically without negotiation.
-static void NET_StorePeerLoadout(const net_packet_t* packet, int peerId)
+// v2 P2: store ONE seat's loadout from its slot in the packet table (plus our
+// own from the local Custom picks). Colour deduping happens once, host-side,
+// at the GO (NET_DedupeLoadouts) -- the broadcast table is final.
+static void NET_StorePeerLoadout(const net_packet_t* packet, int seat)
 {
-	int ship  = packet->shipChoice;
-	int color = packet->bulletColor;
+	int ship, color;
+
+	if (seat < 0 || seat >= MAX_NUM_PLAYERS)
+		return;
+
+	ship  = packet->shipChoice[seat];
+	color = packet->bulletColor[seat];
 
 	// Clamp (protects against a mismatched build on the other end).
-	if (ship  < 0 || ship  >= NUM_SHIP_CHOICES)  ship  = peerId;	// classic P1/P2 ship
-	if (color < 0 || color >= NUM_BULLET_COLORS) color = peerId;	// classic red/blue
+	if (ship  < 0 || ship  >= NUM_SHIP_CHOICES)  ship  = seat % NUM_SHIP_CHOICES;
+	if (color < 0 || color >= NUM_BULLET_COLORS) color = seat % NUM_BULLET_COLORS;
 
-	gMPShipChoice[peerId]  = ship;
-	gMPBulletColor[peerId] = color;
+	gMPShipChoice[seat]  = ship;
+	gMPBulletColor[seat] = color;
 
-	// Our own slot.
-	gMPShipChoice[!peerId]  = (gShipChoice  >= 0 && gShipChoice  < NUM_SHIP_CHOICES)  ? gShipChoice  : !peerId;
-	gMPBulletColor[!peerId] = (gBulletColor >= 0 && gBulletColor < NUM_BULLET_COLORS) ? gBulletColor : !peerId;
+	// Our own slot, from the local Custom picks.
+	gMPShipChoice[net.ownSeat]  = (gShipChoice  >= 0 && gShipChoice  < NUM_SHIP_CHOICES)  ? gShipChoice  : net.ownSeat % NUM_SHIP_CHOICES;
+	gMPBulletColor[net.ownSeat] = (gBulletColor >= 0 && gBulletColor < NUM_BULLET_COLORS) ? gBulletColor : net.ownSeat % NUM_BULLET_COLORS;
 
-	// Same bullet colour on both sides would make the two players' shots
-	// indistinguishable: shift PLAYER TWO's colour. Both ends run this same rule on
-	// the same data, so they agree.
-	if (gMPBulletColor[0] == gMPBulletColor[1])
-		gMPBulletColor[1] = (gMPBulletColor[1] + 1) % NUM_BULLET_COLORS;
-
-	Log_Printf("Loadout sync: P1 ship=%d color=%d | P2 ship=%d color=%d\n",
-	           gMPShipChoice[0], gMPBulletColor[0], gMPShipChoice[1], gMPBulletColor[1]);
+	Log_Printf("Loadout sync: seat %d ship=%d color=%d\n", seat, ship, color);
 }
 
-// Peer liveness: in a running match the peer sends every frame, so a long silence
-// means it quit, was backgrounded, or lost the network.
-#define NET_PEER_TIMEOUT_MS 5000
-static int lastPeerPacketTime = 0;
+// Client side of the GO: the host's START_LEVEL carries the final table --
+// copy it verbatim (it is already deduped) and re-point the ship models.
+static void NET_ApplyLoadoutTable(const net_packet_t* packet)
+{
+	int s;
+	for (s = 0; s < net.numSeats && s < MAX_NUM_PLAYERS; s++)
+	{
+		int ship  = packet->shipChoice[s];
+		int color = packet->bulletColor[s];
+		if (ship  < 0 || ship  >= NUM_SHIP_CHOICES)  ship  = s % NUM_SHIP_CHOICES;
+		if (color < 0 || color >= NUM_BULLET_COLORS) color = s % NUM_BULLET_COLORS;
+		gMPShipChoice[s]  = ship;
+		gMPBulletColor[s] = color;
+	}
+	P_ReloadShip();	// models were applied at preload; re-point with the final table
+}
 
-// The peer is gone mid-match: end the match cleanly on THIS side too. Free the
-// session, reload the menu scene NOW (otherwise the abandoned game keeps simulating
-// behind the menu), then show a notice telling the player what happened.
+// Peer liveness: in a running match every peer sends every frame, so a long
+// silence from a seat means it quit, was backgrounded, or lost the network.
+#define NET_PEER_TIMEOUT_MS 5000
+
+// The LAST peer is gone mid-match: end the match cleanly on THIS side too. Free
+// the session, reload the menu scene NOW (otherwise the abandoned game keeps
+// simulating behind the menu), then show a notice telling the player what happened.
 void NET_OnPeerLost(void)
 {
 	Log_Printf("NET_OnPeerLost\n");
@@ -927,185 +1064,212 @@ void NET_OnPeerLost(void)
 	sprintf(MENU_GetMultiplayerTextLine(3), "left the game.");
 }
 
+// v2 P2: ONE seat is gone mid-match -- the match continues for everyone else.
+// Park the departed ship offscreen (the exact RIP-branch idiom from P_Die:
+// autopilot pinned below the screen, no draw) so the sim stays deterministic
+// on every surviving peer -- each one detects the silence on the same shared
+// clock and parks the same seat. When the LAST remote seat drops, fall back
+// to the classic end-of-session path.
+void NET_OnSeatLost(int seat)
+{
+	if (seat < 0 || seat >= MAX_NUM_PLAYERS || seat == net.ownSeat)
+		return;
+	if (!gPeers[seat].active)
+		return;						// already parked (timeout + transport can both fire)
+
+	gPeers[seat].active = 0;
+	Log_Printf("NET_OnSeatLost: seat %d (%d remotes left)\n", seat, NET_ActiveRemotes());
+
+	if (NET_ActiveRemotes() == 0)
+	{
+		NET_OnPeerLost();			// nobody left to play with
+		return;
+	}
+
+	if (seat < numPlayers)
+	{
+		player_t* p = &players[seat];
+
+		p->ss_position[1] = -1.4f;	// below the screen
+
+		p->autopilot.enabled = 1;
+		p->autopilot.end_ss_position[0] = p->ss_position[0];
+		p->autopilot.end_ss_position[1] = -1.4f;
+		p->autopilot.diff_ss_position[0] = 0;
+		p->autopilot.diff_ss_position[1] = 0;
+		p->autopilot.timeCounter  = 2000000;	// effectively forever
+		p->autopilot.originalTime = 2000000;
+		p->shouldDraw = 0;
+	}
+
+	sprintf(MENU_GetMultiplayerTextLine(4), "Player %d left the game.", seat + 1);
+}
+
+// v2 P2: the handshake as a COUNTING BARRIER. The old machine was four
+// hardcoded branches for a symmetric pair; this one is the same protocol
+// generalized -- the host (seat 0) counts joins, then counts loads, then
+// broadcasts one GO carrying the final loadout table. At 2 players every
+// state transition happens on exactly the same packets as before.
+//
+//   client seats:  JOIN(loadout) --> ...              preload on echo,
+//                  NOTIFY_LOADED --> ...              run on START_LEVEL
+//   host seat 0:   all joined?  -> preload + echo JOIN to everyone
+//                  all loaded?  -> dedupe colours, GO (table), run
+static void NET_ArmLiveness(void)
+{
+	int s;
+	for (s = 0; s < net.numSeats && s < MAX_NUM_PLAYERS; s++)
+		gPeers[s].lastPacketTime = simulationTime;	// fresh window (clock just reset)
+}
+
 void Net_ProcessSetupPacket(void)
 {
-	// Read all incoming UDP datagrams
-	socklen_t len ;
-	//struct sockaddr incomingAdd;
 	struct sockaddr_in incomingAdd;
 	int byteReceived;
 	net_packet_t* packet;
 	uchar packetConsumed = 0;
+	int setupSeat = -1;
 
-//	Log_Printf("Net_ProcessSetupPacket\n");
-	
 	bzero(&incomingAdd, sizeof(incomingAdd));
-	len = sizeof(incomingAdd);
-	//Log_Printf("Net_ProcessSetupPacket()\n");
-	
-	byteReceived = NET_TransportRecv(net.buffer, sizeof(net.buffer), &incomingAdd);
+
+	byteReceived = NET_TransportRecv(net.buffer, sizeof(net.buffer), &incomingAdd, &setupSeat);
 	if (byteReceived == -1)
 	{
 		if (errno != EAGAIN )
 			sprintf(MENU_GetMultiplayerTextLine(4),"Error recvfrom:%d %s.\n",errno,strerror( errno ));
-	
-		//Log_Printf("No packets.\n");
 		return;
 	}
-
-	Log_Printf("Net_ProcessSetupPacket() read %d bytes\n",byteReceived);
 
 	packet = (net_packet_t*)net.buffer;
-		
-	Log_Printf("packet->type=%d\n",packet->type);
-	
-	if (packet->type != SETUP_PACKET)
-	{
-		Log_Printf("Not a setup packet.\n");
-		return;
-	}
-		
-	if (packet->sequenceNumber <= net.lastReceivedSequenceNumber)
-	{
-		Log_Printf("Old packet.\n");
-		return;
-	}
-		
-		
 
-//	net.numDropedPackets += 1 - packet->sequenceNumber - net.lastReceivedSequenceNumber;
-		
-	net.lastReceivedSequenceNumber = packet->sequenceNumber;
-		
-	sprintf(MENU_GetMultiplayerTextLine(4),"Received setup packet %i.\n",packet->type);
-		
-	//outPacket.cmd = NET_CMD_NOOP;
-	
-	if (net.type == NET_SERVER && net.state == NET_STARTED &&  packet->command.type == NET_CMD_LOAD_NEXT_LEVEL)
+	if (packet->type != SETUP_PACKET)
+		return;
+
+	// Identity and protocol at the door (v2 P2).
+	if (packet->protoVersion != NET_PROTO)
 	{
-		packetConsumed=1;
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTRECEIVED), "LAST RECV=NET_CMD_LOAD_NEXT_LEVEL");
-		
-		//Save peer informations to send replies as this is the first time the server will hear of the client
-		//(LAN only: online, the peer is the GKMatch and there is no sockaddr to learn).
+		Log_Printf("Setup packet with foreign protocol %d dropped (v1 build?).\n", packet->protoVersion);
+		return;
+	}
+	if (setupSeat < 0 || setupSeat >= MAX_NUM_PLAYERS || setupSeat == net.ownSeat)
+		return;
+	if (packet->senderSeat != setupSeat)
+		return;
+	if (!gPeers[setupSeat].active)
+		return;						// a dropped seat cannot rejoin mid-session
+
+	// Per-seat sequence space.
+	if (packet->sequenceNumber <= (int)gPeers[setupSeat].lastRxSeq)
+		return;
+	gPeers[setupSeat].lastRxSeq = packet->sequenceNumber;
+	gPeers[setupSeat].lastPacketTime = simulationTime;
+
+	sprintf(MENU_GetMultiplayerTextLine(4),"Setup cmd %d from seat %d.\n",packet->command.type, setupSeat);
+
+	// ---------------- HOST (seat 0): the barrier ----------------
+	if (net.ownSeat == 0 && packet->command.type == NET_CMD_LOAD_NEXT_LEVEL &&
+	    (net.state == NET_STARTED || net.state == NET_PRELOADED))
+	{
+		packetConsumed = 1;
+
+		// LAN (a 2-seat pair until the P4 roster): learn the client's address
+		// from its first packet.
 		if (!NET_IsOnline())
 		{
 			memcpy(&net.peerAddr,&incomingAdd,sizeof(incomingAdd));
 			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP),"PEER IP %s",inet_ntoa(net.peerAddr.sin_addr));
 		}
-		
-		//Perform preload, pause music, pause timer
-		dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);	// (parenthesized: "+ 1 % n" is just "+ 1")
 
-		numPlayers=2;
-		controlledPlayer=0;
+		NET_StorePeerLoadout(packet, setupSeat);
+		if (!gPeers[setupSeat].joined)
+		{
+			gPeers[setupSeat].joined = 1;
+			Log_Printf("Seat %d joined (%d/%d remotes).\n", setupSeat, NET_JoinedRemotes(), NET_ActiveRemotes());
+		}
 
-		// The client's packet carries its Custom loadout; store both loadouts (and
-		// dedupe colours) BEFORE the scene load below applies the ship models.
-		NET_StorePeerLoadout(packet, 1);
-
-		dEngine_CheckState();
-		
-//		Log_Printf("POST Player1=%p\n",players[0].entity.material);
-//		Log_Printf("POST Player2=%p\n",players[1].entity.material);		
-		
-		SND_PauseSoundTrack();
-		Timer_Pause();
-		net.state = NET_PRELOADED;
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_PRELOADED.\n");
-		
-		Log_Printf("Client loaded level, but Timer still paused sending NET_CMD_LOAD_NEXT_LEVEL.\n");
-		
-		// Trigger preload on the other end as well by sending a NET_CMD_LOAD_NEXT_LEVEL to peer
-		NET_SendSetupCmd(NET_CMD_LOAD_NEXT_LEVEL);
-
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_LOAD_NEXT_LEVEL");
+		if (net.state == NET_STARTED && NET_JoinedRemotes() >= NET_ActiveRemotes())
+		{
+			// Everyone asked in: preload here, and tell everyone to preload.
+			dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);
+			numPlayers = net.numSeats;
+			controlledPlayer = net.ownSeat;
+			dEngine_CheckState();
+			SND_PauseSoundTrack();
+			Timer_Pause();
+			net.state = NET_PRELOADED;
+			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_PRELOADED.\n");
+			NET_SendSetupCmd(NET_CMD_LOAD_NEXT_LEVEL);
+			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_LOAD_NEXT_LEVEL");
+		}
+		else if (net.state == NET_PRELOADED)
+		{
+			// A late joiner's retry: idempotent re-echo of the preload order.
+			NET_SendSetupCmd(NET_CMD_LOAD_NEXT_LEVEL);
+		}
 	}
-	
-	if (net.type == NET_CLIENT && net.state == NET_STARTED &&  packet->command.type == NET_CMD_LOAD_NEXT_LEVEL)
+
+	if (net.ownSeat == 0 && net.state == NET_PRELOADED && packet->command.type == NET_CMD_NOTIFY_LOADED)
 	{
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTRECEIVED), "LAST RECV=NET_CMD_LOAD_NEXT_LEVEL");
-		packetConsumed=1;
-		
-		//Perform preload, pause music, pause timer
-		dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);	// (parenthesized: "+ 1 % n" is just "+ 1")
+		packetConsumed = 1;
+		gPeers[setupSeat].loaded = 1;
+		Log_Printf("Seat %d loaded (%d/%d remotes).\n", setupSeat, NET_LoadedRemotes(), NET_ActiveRemotes());
 
-		numPlayers=2;
-		controlledPlayer=1;
+		if (NET_LoadedRemotes() >= NET_ActiveRemotes())
+		{
+			// Everyone is staged behind the curtain: finalize the loadout
+			// table once, then one GO for all.
+			NET_DedupeLoadouts();
+			P_ReloadShip();
 
-		// The server's packet carries its Custom loadout; store both loadouts (and
-		// dedupe colours) BEFORE the scene load below applies the ship models.
-		NET_StorePeerLoadout(packet, 0);
+			net.state = NET_RUNNING;
+			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_RUNNING.\n");
+			SND_ResumeSoundTrack();
+			Timer_resetTime();
+			Timer_Resume();
+			NET_ArmLiveness();
+			MENU_Set(MENU_NONE);
 
+			NET_SendSetupCmd(NET_CMD_START_LEVEL);	// carries the final table
+			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_START_LEVEL");
+		}
+	}
+
+	// ---------------- CLIENT seats ----------------
+	if (net.ownSeat != 0 && setupSeat == 0 && net.state == NET_STARTED &&
+	    packet->command.type == NET_CMD_LOAD_NEXT_LEVEL)
+	{
+		packetConsumed = 1;
+
+		dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);
+		numPlayers = net.numSeats;
+		controlledPlayer = net.ownSeat;
+		NET_StorePeerLoadout(packet, 0);	// the host's own loadout rides its echo
 		dEngine_CheckState();
-		
 		SND_PauseSoundTrack();
 		Timer_Pause();
 		net.state = NET_PRELOADED;
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_PRELOADED.\n");
 
-		Log_Printf("Client loaded level, but Timer still paused sending NET_CMD_NOTIFY_LOADED.\n");
-		
-		// Tell server we are ready to start by sending NET_CMD_NOTIFY_LOADED
 		NET_SendSetupCmd(NET_CMD_NOTIFY_LOADED);
-
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_NOTIFY_LOADED");
-		
 	}
-	
-	if (net.type == NET_SERVER && net.state == NET_PRELOADED &&  packet->command.type == NET_CMD_NOTIFY_LOADED)
+
+	if (net.ownSeat != 0 && setupSeat == 0 && net.state == NET_PRELOADED &&
+	    packet->command.type == NET_CMD_START_LEVEL)
 	{
-		packetConsumed=1;
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTRECEIVED), "LAST RECV=NET_CMD_NOTIFY_LOADED");
-		
+		packetConsumed = 1;
+
+		NET_ApplyLoadoutTable(packet);		// final, host-deduped table
+
 		net.state = NET_RUNNING;
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_RUNNING.\n");
-		//Log_Printf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_RUNNING.\n");
-		//Send NET_CMD_START_LEVEL
-		
-		//Start level (unpause time, unpause music)
 		SND_ResumeSoundTrack();
 		Timer_resetTime();
 		Timer_Resume();
-		lastPeerPacketTime = simulationTime;	// fresh peer-liveness window (just reset to 0)
-		
-		Log_Printf("Server Received NET_CMD_NOTIFY_LOADED, starting and asking client to start as well: NET_CMD_START_LEVEL.\n");
-		
+		NET_ArmLiveness();
 		MENU_Set(MENU_NONE);
-		
-		//Trigger client start
-		NET_SendSetupCmd(NET_CMD_START_LEVEL);
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_START_LEVEL");
-	}
-	
-	if (net.type == NET_CLIENT && net.state == NET_PRELOADED &&  packet->command.type == NET_CMD_START_LEVEL)
-	{
-		packetConsumed=1;
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTRECEIVED), "LAST RECV=NET_CMD_START_LEVEL");
-		
-		net.state = NET_RUNNING;
-		//Start level (unpause time, unpause music)
-		SND_ResumeSoundTrack();
-		Timer_resetTime();
-		Timer_Resume();
-		lastPeerPacketTime = simulationTime;	// fresh peer-liveness window (just reset to 0)
-		
-		Log_Printf("Client Received NET_CMD_START_LEVEL, starting.\n");
-		
-		MENU_Set(MENU_NONE);
-		
-		
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_RUNNING.\n");
-		//Log_Printf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_RUNNING.\n");
-		
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_LOAD_NEXT_LEVEL");
 	}
-	
-	//if(outPacket.cmd != NET_CMD_NOOP)
-	//{
-		
-	//}
-	
+
 	if (!packetConsumed)
 		Log_Printf("Packet type=%d was not consumed.",packet->command.type );
 }
@@ -1190,13 +1354,15 @@ void NET_Setup(void)
 		//We need to register
 		if (net.type == NET_CLIENT)
 		{
+			memset(&registerPacket, 0, sizeof(registerPacket));	// no uninitialized bytes on the wire
 			registerPacket.sequenceNumber = net.lastSentSequenceNumber++;
-			registerPacket.ackSequenceNumber = net.lastReceivedSequenceNumber;
 			registerPacket.type = SETUP_PACKET;
 			registerPacket.command.type = NET_CMD_LOAD_NEXT_LEVEL;
 			registerPacket.numRedundant = 0;
-			registerPacket.shipChoice   = gShipChoice;	// carry our Custom loadout
-			registerPacket.bulletColor  = gBulletColor;
+			registerPacket.senderSeat   = net.ownSeat;			// v2 P2
+			registerPacket.protoVersion = NET_PROTO;
+			registerPacket.shipChoice[net.ownSeat]  = gShipChoice;	// our Custom loadout, in OUR slot
+			registerPacket.bulletColor[net.ownSeat] = gBulletColor;
 			NET_TransportSend(&registerPacket, sizeof(registerPacket));
 			//sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_LOAD_NEXT_LEVEL");
 			
@@ -1238,20 +1404,24 @@ void NET_Receive(void)
 {
 	int byteReceived = 0;
 	net_packet_t rcv_packet;
-	int i;
+	int i, s;
+	int senderSeat;
 
 	//Log_Printf("NET_Receive\n");
 
 	if (!isInitialized)
 		return;
 
-	commandsBuffers[!controlledPlayer].numCommands = 0;
+	// v2 P2: fresh frame for every REMOTE seat's buffer (ours is the input side)
+	for (s = 0; s < MAX_NUM_PLAYERS; s++)
+		if (s != net.ownSeat)
+			commandsBuffers[s].numCommands = 0;
 
-	
 	while (1)
 	{
-		byteReceived = NET_TransportRecv(&rcv_packet, sizeof(net_packet_t), NULL);
-		
+		senderSeat = -1;
+		byteReceived = NET_TransportRecv(&rcv_packet, sizeof(net_packet_t), NULL, &senderSeat);
+
 		if (byteReceived == -1)
 		{
 			if (errno != EAGAIN )
@@ -1259,16 +1429,27 @@ void NET_Receive(void)
 			break;
 		}
 
-		lastPeerPacketTime = simulationTime;	// any packet proves the peer is alive
+		// v2 P2: the transport-attributed seat is the identity the sim trusts.
+		if (senderSeat < 0 || senderSeat >= MAX_NUM_PLAYERS || senderSeat == net.ownSeat)
+			continue;
+		if (rcv_packet.protoVersion != NET_PROTO)
+			continue;					// a v1 build, or noise: not our protocol
+		if (rcv_packet.senderSeat != senderSeat)
+			continue;					// claims to be a seat it is not
+		if (!gPeers[senderSeat].active)
+			continue;					// parked seat: its ship is gone, its inputs with it
+
+		gPeers[senderSeat].lastPacketTime = simulationTime;	// proof of life, per seat
 
 		// Ignore handshake leftovers here (they're handled by Net_ProcessSetupPacket).
-		// Their command fields are uninitialized, so applying them as input would glitch.
+		// Their command fields are zeroed, not input.
 		if (rcv_packet.type == SETUP_PACKET)
 			continue;
 
 		// A runtime packet carries its current command plus a few redundant (previous)
 		// commands. Walk them oldest-first and apply every command whose sequence we
-		// haven't seen yet -- this recovers inputs lost to dropped packets.
+		// haven't seen yet -- this recovers inputs lost to dropped packets. All
+		// bookkeeping is PER SEAT: each peer owns an independent sequence space.
 		int nred = rcv_packet.numRedundant;
 		if (nred < 0)                  nred = 0;
 		if (nred > NET_REDUNDANT_CMDS) nred = NET_REDUNDANT_CMDS;
@@ -1282,30 +1463,36 @@ void NET_Receive(void)
 			if (i < nred) { c = &rcv_packet.redundant[i]; seq = rcv_packet.redundantSeq[i]; }
 			else          { c = &rcv_packet.command;      seq = rcv_packet.sequenceNumber;  }
 
-			if (seq <= net.lastReceivedSequenceNumber)
+			if (seq <= (int)gPeers[senderSeat].lastRxSeq)
 				continue;			// already applied this command
 
-			net.numDropedPackets += (seq - (1 + net.lastReceivedSequenceNumber));
-			net.lastReceivedSequenceNumber = seq;
+			net.numDropedPackets += (seq - (1 + gPeers[senderSeat].lastRxSeq));
+			gPeers[senderSeat].lastRxSeq = seq;
 
-			//Safe guard against data corruption
-			if (c->playerId < 2 && commandsBuffers[!controlledPlayer].numCommands < COMMAND_BUFFER_SIZE-1)
+			// The in-packet playerId must agree with the transport identity:
+			// a command may only ever drive its sender's own ship.
+			if (c->playerId == senderSeat && commandsBuffers[senderSeat].numCommands < COMMAND_BUFFER_SIZE-1)
 			{
-				slot = commandsBuffers[!controlledPlayer].numCommands;
-				memcpy(&commandsBuffers[!controlledPlayer].cmds[slot], c, sizeof(command_t));
+				slot = commandsBuffers[senderSeat].numCommands;
+				memcpy(&commandsBuffers[senderSeat].cmds[slot], c, sizeof(command_t));
 
-				commandsBuffers[!controlledPlayer].cmds[slot].time = simulationTime;
-				commandsBuffers[!controlledPlayer].numCommands++;
+				commandsBuffers[senderSeat].cmds[slot].time = simulationTime;
+				commandsBuffers[senderSeat].numCommands++;
 			}
 		}
 	}
-	
-	
-	// Peer liveness: the peer sends every frame while the match runs, so a long
-	// silence means it quit / was backgrounded / lost the network. End the match
-	// cleanly instead of leaving this player in an abandoned game.
-	if (simulationTime - lastPeerPacketTime > NET_PEER_TIMEOUT_MS)
-		NET_OnPeerLost();
+
+	// v2 P2: per-seat liveness. A silent seat is parked and the match goes on
+	// (the user's rule: one player dropping must not kill the party); only the
+	// LAST remote's loss ends the session -- which at 2 players is exactly the
+	// old behavior.
+	for (s = 0; s < net.numSeats && s < MAX_NUM_PLAYERS; s++)
+	{
+		if (s == net.ownSeat || !gPeers[s].active)
+			continue;
+		if (simulationTime - gPeers[s].lastPacketTime > NET_PEER_TIMEOUT_MS)
+			NET_OnSeatLost(s);
+	}
 }
 
 int lastFullUpdateTime = 0;
@@ -1323,7 +1510,8 @@ void NET_Send()
 	send_packet.type = RUNTIME_PACKET;
 	send_packet.command.type = NET_RTM_COMMAND;
 	send_packet.sequenceNumber = seq;
-	send_packet.ackSequenceNumber = net.lastReceivedSequenceNumber;
+	send_packet.senderSeat   = net.ownSeat;		// v2 P2
+	send_packet.protoVersion = NET_PROTO;
 	memcpy(&send_packet.command, &toSend, sizeof(command_t));
 
 	// Attach the previous commands as redundancy (oldest first) so a lost packet's
@@ -1376,7 +1564,8 @@ void Net_SendDie(command_t* command)
 	memset(&send_packet, 0, sizeof(send_packet));	// no uninitialized bytes on the wire
 	send_packet.type = DEATH_PACKET;	// own value (was NET_RUNNING -- see the define)
 	send_packet.sequenceNumber = net.lastSentSequenceNumber++;
-	send_packet.ackSequenceNumber = net.lastReceivedSequenceNumber;
+	send_packet.senderSeat   = net.ownSeat;		// v2 P2
+	send_packet.protoVersion = NET_PROTO;
 	send_packet.numRedundant = 0;		// no redundant commands on the death packet
 	memcpy(&send_packet.command,command,sizeof(command_t));
 
@@ -1394,9 +1583,19 @@ int NET_Init(void)
 
 void NET_OnNextLevelLoad(void)
 {
+	int s;
+
 	Log_Printf("NET_OnNextLevelLoad\n");
 	net.setupRequested = 1;
-	net.state = NET_STARTED;	
+	net.state = NET_STARTED;
+
+	// v2 P2: re-arm the barrier for the next level's handshake (active flags
+	// survive -- a parked seat stays parked).
+	for (s = 0; s < MAX_NUM_PLAYERS; s++)
+	{
+		gPeers[s].joined = 0;
+		gPeers[s].loaded = 0;
+	}
 }
 
 char NET_IsRunning(void)

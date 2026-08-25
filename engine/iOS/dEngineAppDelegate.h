@@ -30,7 +30,7 @@
 
 @class EAGLView;
 
-@interface dEngineAppDelegate : NSObject <UIApplicationDelegate, GKGameCenterControllerDelegate, GKMatchmakerViewControllerDelegate, GKMatchDelegate> {
+@interface dEngineAppDelegate : NSObject <UIApplicationDelegate, GKGameCenterControllerDelegate, GKMatchmakerViewControllerDelegate, GKMatchDelegate, GKLocalPlayerListener> {
     UIWindow *window;
     EAGLView *glView;
 }

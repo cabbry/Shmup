@@ -83,6 +83,13 @@ static BOOL     gMatchStarted = NO;
             [vc presentViewController:gcVC animated:YES completion:nil];
         } else if ([GKLocalPlayer local].isAuthenticated) {
             NSLog(@"[GameCenter] authenticated as %@", [GKLocalPlayer local].displayName);
+            // v2 P4: listen for invitations. Without this an invited player
+            // taps "Play" in Game Center / iMessage and NOTHING happens --
+            // and inviting three friends is the natural way to fill a party
+            // of four. The listener has to be registered after auth, and only
+            // once (registering twice delivers every callback twice).
+            [[GKLocalPlayer local] unregisterAllListeners];
+            [[GKLocalPlayer local] registerListener:this];
         } else {
             NSLog(@"[GameCenter] not authenticated: %@", error);
         }
@@ -192,6 +199,36 @@ static BOOL     gMatchStarted = NO;
 	NSLog(@"[GKMatch] matchmaking failed: %@", error);
 	[viewController dismissViewControllerAnimated:YES completion:nil];
 	NET_AbortOnlineMatch();
+}
+
+#pragma mark - GKLocalPlayerListener (invitations)
+
+// A friend invited us and the player accepted (from Game Center, iMessage, or a
+// notification). v2 P4: this is what makes an invitation actually do something.
+// The engine has to be put into multiplayer mode here exactly as the Online
+// menu button does, because we are arriving from outside the menu flow -- then
+// Apple's matchmaker takes over with the invite's own party size.
+- (void)player:(GKPlayer *)player didAcceptInvite:(GKInvite *)invite {
+	if (!this || !vc) return;
+
+	Native_CancelOnlineMatchmaking();		// drop any stale match first
+
+	engine.mode = DE_MODE_MULTIPLAYER;
+	NET_Init();
+	net.transport = NET_TRANSPORT_GAMECENTER;
+	PL_ResetPlayersScore();
+	engine.difficultyLevel = DIFFICULTY_NORMAL;
+	MENU_Set(MENU_MULTIPLAYER);
+	sprintf(MENU_GetMultiplayerTextLine(0), "Joining a friend's game...");
+
+	GKMatchmakerViewController* mmvc = [[GKMatchmakerViewController alloc] initWithInvite:invite];
+	if (mmvc == nil) {
+		NET_AbortOnlineMatch();
+		return;
+	}
+	mmvc.matchmakerDelegate = this;
+	[vc presentViewController:mmvc animated:YES completion:nil];
+	[mmvc release];
 }
 
 // v2 P1: the seat table. Every participant's gamePlayerID, sorted ascending;

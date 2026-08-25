@@ -37,6 +37,7 @@
 	void Net_SendDie(command_t* command){}
 	void NET_OnNextLevelLoad(void){}
 	char NET_IsRunning(void){return 0;}
+	char NET_IsInMatch(void){return 0;}
 	uint NET_GetDropedPackets(void){return 0;}
 	void NET_StartOnlineMatch(int mySeat, int numSeats){}
 	void NET_AbortOnlineMatch(void){}
@@ -138,6 +139,12 @@ typedef struct net_packet_t
 #define NET_CMD_LOAD_NEXT_LEVEL 0
 #define NET_CMD_NOTIFY_LOADED 1
 #define NET_CMD_START_LEVEL 2
+// v2 P2: the lobby heartbeat. While the host waits for the rest of the party
+// it has nothing to say -- and a silent host looks exactly like a dead host to
+// a client's handshake watchdog (the rig caught precisely this: with four
+// players, the two early joiners tore their sessions down while the host was
+// still waiting on the fourth). This packet says "still here, still waiting".
+#define NET_CMD_WAITING 3
 
 	command_t command;
 
@@ -156,6 +163,21 @@ typedef struct net_packet_t
 	// identically (clients never hear each other directly during the handshake).
 	int			shipChoice[MAX_NUM_PLAYERS];
 	int			bulletColor[MAX_NUM_PLAYERS];
+
+	// v2 P2: bitmask of the seats still in the party (setup packets). Clients
+	// never hear each other, so only the host knows that a seat timed out
+	// during the handshake -- without this they would keep a ghost ship on
+	// screen (and mirror its life counter) for a player who never arrived.
+	int			activeMask;
+
+	// v2 P4: the sender's LAN roster (host byte order, seat order, zero-padded).
+	// Bonjour discovery is per-device and lossy: without this, device B can be
+	// unaware of device C entirely, seat everyone differently from A, and the
+	// party splits into two incompatible simulations (or deadlocks, when the
+	// seat numbers disagree and every packet fails its identity check). Every
+	// lobby packet gossips what its sender knows; the rosters converge before
+	// the settle window can close, so the seat table is common ground.
+	unsigned int rosterIps[MAX_NUM_PLAYERS];
 
 } net_packet_t;
 
@@ -176,9 +198,21 @@ typedef struct net_peer_t
 	int				active;			// seated in this match and still alive
 	unsigned int	lastRxSeq;		// last sequence applied from this seat
 	int				lastPacketTime;	// liveness clock (simulationTime of last packet)
+	int				lastSetupFrame;	// handshake liveness, in FRAMES (see below)
 	char			joined;			// host barrier: join request seen
 	char			loaded;			// host barrier: NOTIFY_LOADED seen
 } net_peer_t;
+
+// v2 P2: handshake liveness is counted in FRAMES, not milliseconds. During the
+// handshake the sim clock is PAUSED (Timer_Pause) and about to be rewound
+// (Timer_resetTime), so simulationTime cannot measure a silence here -- and
+// NET_Receive, which owns the in-match per-seat timeout, early-returns until
+// the state reaches NET_RUNNING. Without this counter a seat that vanished
+// mid-handshake (app killed, WiFi dropped, player backed out) would leave the
+// barrier waiting for it forever, with no way back to the menu.
+#define NET_SETUP_TIMEOUT_FRAMES 900		// ~15s at 60fps
+static int gSetupFrames = 0;
+static void NET_ArmSetupFrames(void);
 static net_peer_t	gPeers[MAX_NUM_PLAYERS];
 
 static void NET_PeersReset(void)
@@ -316,7 +350,10 @@ static void LAN_AddRosterIp(unsigned int ip)
 			gPeers[s].active = 1;
 
 	if (gLanCount >= 2)
+	{
 		net.state = NET_STARTED;
+		NET_ArmSetupFrames();	// v2 P2: fresh handshake watchdog window
+	}
 
 	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Players found: %d -> you are P%d",
 	        gLanCount, net.ownSeat + 1);
@@ -326,19 +363,42 @@ static void LAN_AddRosterIp(unsigned int ip)
 // collides with ANY lower seat steps forward until free. Run by the host just
 // before the GO (the broadcast table is final); at 2 players and distinct
 // picks this reduces to the classic "player two shifts".
+// Column 2 of the bullet atlas is the INVISIBLE option -- a stealth handicap a
+// player CHOOSES, never something the dedupe should hand him: at four players
+// all defaulting to red, a plain walk would silently blind a seat. Stepping
+// over it leaves three visible colours for four seats, so a fourth colliding
+// seat keeps its own pick instead: two ships firing red is a readability
+// annoyance, invisible bullets nobody asked for is a handicap.
+#define NET_COLOR_INVISIBLE 2
+
+static int NET_ColorTaken(int color, int upTo)
+{
+	int t;
+	for (t = 0; t < upTo; t++)
+		if (gMPBulletColor[t] == color)
+			return 1;
+	return 0;
+}
+
 static void NET_DedupeLoadouts(void)
 {
-	int s, t, clash;
+	int s;
 	for (s = 1; s < net.numSeats && s < MAX_NUM_PLAYERS; s++)
 	{
-		do {
-			clash = 0;
-			for (t = 0; t < s; t++)
-				if (gMPBulletColor[t] == gMPBulletColor[s])
-					clash = 1;
-			if (clash)
-				gMPBulletColor[s] = (gMPBulletColor[s] + 1) % NUM_BULLET_COLORS;
-		} while (clash && net.numSeats <= NUM_BULLET_COLORS);
+		int tries;
+		if (!NET_ColorTaken(gMPBulletColor[s], s))
+			continue;					// his own pick is free: keep it
+
+		for (tries = 0; tries < NUM_BULLET_COLORS; tries++)
+		{
+			int c = (gMPBulletColor[s] + 1 + tries) % NUM_BULLET_COLORS;
+			if (c == NET_COLOR_INVISIBLE || NET_ColorTaken(c, s))
+				continue;
+			gMPBulletColor[s] = c;
+			break;
+		}
+		// No visible colour left (four seats, three visible columns): the seat
+		// keeps what its player picked.
 	}
 }
 
@@ -469,6 +529,7 @@ void NET_StartOnlineMatch(int mySeat, int numSeats)
 	// players this is bit-identical to the old boolean role.
 	net.type      = (mySeat == 0) ? NET_SERVER : NET_CLIENT;
 	net.state     = NET_STARTED;
+	NET_ArmSetupFrames();						// v2 P2: fresh handshake watchdog window
 	net.serverAddResolved = 1;					// no resolve online; the peer is the match
 	net.setupRequested    = 1;
 	net.lastReceivedSequenceNumber = 0;
@@ -1065,6 +1126,17 @@ static void NET_SendSetupCmd(char cmdType)
 	p.senderSeat   = net.ownSeat;	// v2 P2: identity + protocol on every packet
 	p.protoVersion = NET_PROTO;
 
+	// Who is still in the party, as WE see it (the host's view is the truth).
+	p.activeMask = (1 << net.ownSeat);
+	for (i = 0; i < net.numSeats && i < MAX_NUM_PLAYERS; i++)
+		if (gPeers[i].active)
+			p.activeMask |= (1 << i);
+
+	// ...and who we know is on the network (LAN gossip; zeros online).
+	if (!NET_IsOnline())
+		for (i = 0; i < gLanCount && i < MAX_NUM_PLAYERS; i++)
+			p.rosterIps[i] = gLanIps[i];
+
 	// Our own Custom loadout rides in our slot of the table; the host's GO
 	// (START_LEVEL) broadcasts the COMPLETE deduped table instead.
 	if (cmdType == NET_CMD_START_LEVEL)
@@ -1221,25 +1293,160 @@ static void NET_ArmLiveness(void)
 		gPeers[s].lastPacketTime = simulationTime;	// fresh window (clock just reset)
 }
 
-void Net_ProcessSetupPacket(void)
+// Re-arm the frame-counted handshake watchdog: called on every state change of
+// the barrier, so each phase gets a full window of its own.
+static void NET_ArmSetupFrames(void)
 {
-	struct sockaddr_in incomingAdd;
-	int byteReceived;
-	net_packet_t* packet;
-	uchar packetConsumed = 0;
-	int setupSeat = -1;
+	int s;
+	for (s = 0; s < MAX_NUM_PLAYERS; s++)
+		gPeers[s].lastSetupFrame = gSetupFrames;
+}
 
-	bzero(&incomingAdd, sizeof(incomingAdd));
-
-	byteReceived = NET_TransportRecv(net.buffer, sizeof(net.buffer), &incomingAdd, &setupSeat);
-	if (byteReceived == -1)
+// Fill the shared life pool at MATCH start only (we are still on the menu
+// scene, about to load level 1): N players' worth. Between levels the pool
+// carries over. Deterministic -- every peer runs this on its own preload.
+static void NET_FillLifePoolIfMatchStart(void)
+{
+	if (engine.sceneId == 0)
 	{
-		if (errno != EAGAIN )
-			sprintf(MENU_GetMultiplayerTextLine(4),"Error recvfrom:%d %s.\n",errno,strerror( errno ));
+		// Sized by the seats actually PRESENT, not by the seats booked: a
+		// player who never made it through the handshake shouldn't leave his
+		// three lives in the pot. Every peer agrees here -- clients adopt the
+		// host's party view (activeMask) before this runs.
+		int lp, present = NET_ActiveRemotes() + 1;
+		for (lp = 0; lp < MAX_NUM_PLAYERS; lp++)
+			players[lp].respawnCounter = present * numPlayerRespawn[DIFFICULTY_NORMAL];
+	}
+}
+
+// HOST barrier, gate 1: everyone who is still in the party has asked in ->
+// preload here and order the same preload everywhere. Called both when a JOIN
+// arrives and when the watchdog drops the seat that was holding this up.
+static void NET_HostTryPreload(void)
+{
+	if (net.state != NET_STARTED)
+		return;
+	if (NET_JoinedRemotes() < NET_ActiveRemotes())
+		return;
+	if (NET_ActiveRemotes() < 1)
+		return;					// nobody to play with (NET_OnSeatLost handles the exit)
+
+	dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);
+	numPlayers = net.numSeats;
+	controlledPlayer = net.ownSeat;
+	NET_FillLifePoolIfMatchStart();
+	dEngine_CheckState();
+	SND_PauseSoundTrack();
+	Timer_Pause();
+	net.state = NET_PRELOADED;
+	gLanLocked = 1;			// v2 P4: the LAN roster is final for this match (no-op online)
+	NET_ArmSetupFrames();	// fresh window for the "loaded" phase
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_PRELOADED.\n");
+	NET_SendSetupCmd(NET_CMD_LOAD_NEXT_LEVEL);
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_LOAD_NEXT_LEVEL");
+}
+
+// HOST barrier, gate 2: everyone is staged behind the curtain -> finalize the
+// loadout table once and send one GO for all.
+static void NET_HostTryStart(void)
+{
+	if (net.state != NET_PRELOADED)
+		return;
+	if (NET_LoadedRemotes() < NET_ActiveRemotes())
+		return;
+	if (NET_ActiveRemotes() < 1)
+		return;
+
+	NET_DedupeLoadouts();
+	P_ReloadShip();
+
+	net.state = NET_RUNNING;
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_RUNNING.\n");
+	SND_ResumeSoundTrack();
+	Timer_resetTime();
+	Timer_Resume();
+	NET_ArmLiveness();
+	MENU_Set(MENU_NONE);
+
+	NET_SendSetupCmd(NET_CMD_START_LEVEL);	// carries the final table + party mask
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_START_LEVEL");
+}
+
+// CLIENT side: adopt the host's view of who is still in the party. Clients never
+// hear each other, so this is the only way they learn that a seat timed out
+// during the handshake -- otherwise a ghost ship would sit on their screen (and
+// mirror the shared life counter) for a player who never arrived.
+static void NET_ApplyActiveMask(int mask)
+{
+	int s;
+	if (mask == 0)
+		return;					// a v2 build always stamps at least its own bit
+	for (s = 0; s < net.numSeats && s < MAX_NUM_PLAYERS; s++)
+	{
+		if (s == net.ownSeat)
+			continue;
+		if (gPeers[s].active && !(mask & (1 << s)))
+			NET_OnSeatLost(s);
+	}
+}
+
+// The watchdog itself, run once per frame while the handshake is up. Drops any
+// seat we are still WAITING on after the timeout: the host stops waiting for a
+// silent joiner (the barrier then completes with the seats that answered), a
+// client that loses the host ends the session. Never fires while the LAN roster
+// is still settling -- nobody is expected to speak yet.
+static void NET_CheckSetupTimeouts(void)
+{
+	int s;
+
+	if (!NET_IsOnline() && !LAN_RosterSettled())
+	{
+		NET_ArmSetupFrames();		// the party is still forming: no silence to punish
 		return;
 	}
 
-	packet = (net_packet_t*)net.buffer;
+	if (net.ownSeat != 0)
+	{
+		// A client only ever waits on the host. Past the preload it waits for
+		// ONE packet the host has already queued (the GO), so the window there
+		// is short: a straggler that misses it would otherwise wake up seconds
+		// behind the level's clock, which no amount of position resync repairs.
+		int limit = (net.state == NET_PRELOADED) ? 300 : NET_SETUP_TIMEOUT_FRAMES;
+		if (gPeers[0].active && gSetupFrames - gPeers[0].lastSetupFrame > limit)
+		{
+			Log_Printf("Handshake timeout: the host went silent.\n");
+			NET_OnPeerLost();
+		}
+		return;
+	}
+
+	// Host: drop whichever remote is holding the barrier up.
+	for (s = 1; s < net.numSeats && s < MAX_NUM_PLAYERS; s++)
+	{
+		if (!gPeers[s].active)
+			continue;
+		if (net.state == NET_STARTED   && gPeers[s].joined) continue;
+		if (net.state == NET_PRELOADED && gPeers[s].loaded) continue;
+		if (gSetupFrames - gPeers[s].lastSetupFrame > NET_SETUP_TIMEOUT_FRAMES)
+		{
+			Log_Printf("Handshake timeout: seat %d never answered -- dropping it.\n", s);
+			NET_OnSeatLost(s);		// falls back to NET_OnPeerLost when nobody is left
+			// The barrier was waiting on that seat: re-evaluate it now, or the
+			// party would sit at the curtain with no further packet to trigger it.
+			NET_HostTryPreload();
+			NET_HostTryStart();
+		}
+	}
+}
+
+// One inbound setup packet. Split out of Net_ProcessSetupPacket so the public
+// entry point can DRAIN the socket: with three clients each sending a join
+// every frame, reading a single datagram per frame lets the receive buffer back
+// up permanently and the barrier starves behind stale packets (the rig caught
+// the party stalling at the curtain for exactly this reason).
+static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const struct sockaddr_in* from)
+{
+	uchar packetConsumed = 0;
 
 	if (packet->type != SETUP_PACKET)
 		return;
@@ -1250,6 +1457,25 @@ void Net_ProcessSetupPacket(void)
 		Log_Printf("Setup packet with foreign protocol %d dropped (v1 build?).\n", packet->protoVersion);
 		return;
 	}
+
+	// v2 P4: LAN gossip, BEFORE the identity checks -- a device missing from our
+	// roster has no seat yet, so its packets would be dropped as unattributable
+	// and we would never learn it exists. Merging here is safe: the sender's ip
+	// comes from the datagram, not from the payload, and the roster is frozen
+	// (gLanLocked) the moment the handshake commits.
+	if (!NET_IsOnline() && !gLanLocked)
+	{
+		int r;
+		if (from && from->sin_family == AF_INET)
+			LAN_AddRosterIp(ntohl(from->sin_addr.s_addr));
+		for (r = 0; r < MAX_NUM_PLAYERS; r++)
+			if (packet->rosterIps[r])
+				LAN_AddRosterIp(packet->rosterIps[r]);
+		// Our seat may have just moved: re-attribute this datagram.
+		if (from && from->sin_family == AF_INET)
+			setupSeat = LAN_SeatForAddr(from);
+	}
+
 	if (setupSeat < 0 || setupSeat >= MAX_NUM_PLAYERS || setupSeat == net.ownSeat)
 		return;
 	if (packet->senderSeat != setupSeat)
@@ -1262,6 +1488,7 @@ void Net_ProcessSetupPacket(void)
 		return;
 	gPeers[setupSeat].lastRxSeq = packet->sequenceNumber;
 	gPeers[setupSeat].lastPacketTime = simulationTime;
+	gPeers[setupSeat].lastSetupFrame = gSetupFrames;	// proof of life, handshake clock
 
 	sprintf(MENU_GetMultiplayerTextLine(4),"Setup cmd %d from seat %d.\n",packet->command.type, setupSeat);
 
@@ -1286,31 +1513,8 @@ void Net_ProcessSetupPacket(void)
 			Log_Printf("Seat %d joined (%d/%d remotes).\n", setupSeat, NET_JoinedRemotes(), NET_ActiveRemotes());
 		}
 
-		if (net.state == NET_STARTED && NET_JoinedRemotes() >= NET_ActiveRemotes())
-		{
-			// Everyone asked in: preload here, and tell everyone to preload.
-			dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);
-			numPlayers = net.numSeats;
-			controlledPlayer = net.ownSeat;
-			// v2 P3: fill the shared life pool at MATCH start only (we are
-			// still on scene 0, about to load level 1): N players' worth.
-			// Between levels the pool carries over. Deterministic: every
-			// peer runs this same line on its own preload.
-			if (engine.sceneId == 0)
-			{
-				int lp;
-				for (lp = 0; lp < MAX_NUM_PLAYERS; lp++)
-					players[lp].respawnCounter = numPlayers * numPlayerRespawn[DIFFICULTY_NORMAL];
-			}
-			dEngine_CheckState();
-			SND_PauseSoundTrack();
-			Timer_Pause();
-			net.state = NET_PRELOADED;
-			gLanLocked = 1;	// v2 P4: the LAN roster is final for this match (no-op online)
-			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_PRELOADED.\n");
-			NET_SendSetupCmd(NET_CMD_LOAD_NEXT_LEVEL);
-			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_LOAD_NEXT_LEVEL");
-		}
+		if (net.state == NET_STARTED)
+			NET_HostTryPreload();
 		else if (net.state == NET_PRELOADED)
 		{
 			// A late joiner's retry: idempotent re-echo of the preload order.
@@ -1324,48 +1528,35 @@ void Net_ProcessSetupPacket(void)
 		gPeers[setupSeat].loaded = 1;
 		Log_Printf("Seat %d loaded (%d/%d remotes).\n", setupSeat, NET_LoadedRemotes(), NET_ActiveRemotes());
 
-		if (NET_LoadedRemotes() >= NET_ActiveRemotes())
-		{
-			// Everyone is staged behind the curtain: finalize the loadout
-			// table once, then one GO for all.
-			NET_DedupeLoadouts();
-			P_ReloadShip();
-
-			net.state = NET_RUNNING;
-			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_RUNNING.\n");
-			SND_ResumeSoundTrack();
-			Timer_resetTime();
-			Timer_Resume();
-			NET_ArmLiveness();
-			MENU_Set(MENU_NONE);
-
-			NET_SendSetupCmd(NET_CMD_START_LEVEL);	// carries the final table
-			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_START_LEVEL");
-		}
+		NET_HostTryStart();
 	}
 
 	// ---------------- CLIENT seats ----------------
+	// The host's heartbeat: proof of life only (the liveness stamp above did
+	// the work), and it tells the player what the wait is for.
+	if (net.ownSeat != 0 && setupSeat == 0 && packet->command.type == NET_CMD_WAITING)
+	{
+		packetConsumed = 1;
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Waiting for the other players...");
+	}
+
 	if (net.ownSeat != 0 && setupSeat == 0 && net.state == NET_STARTED &&
 	    packet->command.type == NET_CMD_LOAD_NEXT_LEVEL)
 	{
 		packetConsumed = 1;
 
+		NET_ApplyActiveMask(packet->activeMask);	// the host's party view is the truth
 		dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);
 		numPlayers = net.numSeats;
 		controlledPlayer = net.ownSeat;
-		// v2 P3: shared life pool at MATCH start (see the host branch).
-		if (engine.sceneId == 0)
-		{
-			int lp;
-			for (lp = 0; lp < MAX_NUM_PLAYERS; lp++)
-				players[lp].respawnCounter = numPlayers * numPlayerRespawn[DIFFICULTY_NORMAL];
-		}
+		NET_FillLifePoolIfMatchStart();		// same rule, same data, as the host
 		NET_StorePeerLoadout(packet, 0);	// the host's own loadout rides its echo
 		dEngine_CheckState();
 		SND_PauseSoundTrack();
 		Timer_Pause();
 		net.state = NET_PRELOADED;
 		gLanLocked = 1;	// v2 P4: the LAN roster is final for this match (no-op online)
+		NET_ArmSetupFrames();	// fresh window while we wait for the GO
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_PRELOADED.\n");
 
 		NET_SendSetupCmd(NET_CMD_NOTIFY_LOADED);
@@ -1377,6 +1568,7 @@ void Net_ProcessSetupPacket(void)
 	{
 		packetConsumed = 1;
 
+		NET_ApplyActiveMask(packet->activeMask);	// park any seat that never made it
 		NET_ApplyLoadoutTable(packet);		// final, host-deduped table
 
 		net.state = NET_RUNNING;
@@ -1390,6 +1582,66 @@ void Net_ProcessSetupPacket(void)
 
 	if (!packetConsumed)
 		Log_Printf("Packet type=%d was not consumed.",packet->command.type );
+}
+
+#define NET_SETUP_DRAIN_MAX 32		// datagrams per frame; plenty for 3 peers
+
+void Net_ProcessSetupPacket(void)
+{
+	struct sockaddr_in incomingAdd;
+	int byteReceived;
+	int setupSeat;
+	int drained;
+
+	// One tick of the handshake's own clock (the sim clock is paused here).
+	gSetupFrames++;
+	NET_CheckSetupTimeouts();
+	if (net.state == NET_UNDETERMINED)
+		return;					// the watchdog just tore the session down
+
+	// The lobby advert (NET_CMD_WAITING). Two jobs:
+	//  - the host is allowed to sit silent while it waits for the rest of the
+	//    party, and a silent host looks exactly like a dead one to a client's
+	//    watchdog, so it says "still here" out loud;
+	//  - on the LAN every seat sends it, because it carries the sender's roster
+	//    and that gossip is what makes the four devices agree on the seat table
+	//    (a device nobody told us about has no seat, and no voice).
+	if (net.state == NET_STARTED && (gSetupFrames % 15) == 0 &&
+	    (net.ownSeat == 0 || !NET_IsOnline()) && net.numSeats >= 2)
+		NET_SendSetupCmd(NET_CMD_WAITING);
+
+	// A client stops sending joins the moment it preloads, so its single
+	// NOTIFY_LOADED burst was the only one the host would ever get: lose it and
+	// the party waits at the curtain for a message nobody will send again.
+	// Repeat it while we wait for the GO.
+	if (net.ownSeat != 0 && net.state == NET_PRELOADED && (gSetupFrames % 30) == 0)
+		NET_SendSetupCmd(NET_CMD_NOTIFY_LOADED);
+
+	for (drained = 0; drained < NET_SETUP_DRAIN_MAX; drained++)
+	{
+		bzero(&incomingAdd, sizeof(incomingAdd));
+		setupSeat = -1;
+
+		byteReceived = NET_TransportRecv(net.buffer, sizeof(net.buffer), &incomingAdd, &setupSeat);
+		if (byteReceived == -1)
+		{
+			if (errno != EAGAIN )
+				sprintf(MENU_GetMultiplayerTextLine(4),"Error recvfrom:%d %s.\n",errno,strerror( errno ));
+			return;					// nothing left in the queue
+		}
+
+		// Full packets only: net.buffer keeps the PREVIOUS packet's bytes, so a
+		// short datagram would be read as a mix of the two.
+		if (byteReceived != (int)sizeof(net_packet_t))
+			continue;
+
+		NET_HandleSetupPacket((net_packet_t*)net.buffer, setupSeat, &incomingAdd);
+
+		// The GO (or a teardown) ends the handshake: anything still queued
+		// belongs to the running match, and NET_Receive owns that.
+		if (net.state == NET_RUNNING || net.state == NET_UNDETERMINED)
+			return;
+	}
 }
 
 #define isInitialized (net.state == NET_RUNNING && (net.type == NET_SERVER || (net.type == NET_CLIENT && net.serverAddResolved)))
@@ -1479,7 +1731,11 @@ void NET_Setup(void)
 		// firing on first contact would start a 2-seat match under the feet
 		// of a 3rd/4th device still resolving. Online, GameKit already
 		// delivered the full, final party.
-		if (net.type == NET_CLIENT && (NET_IsOnline() || LAN_RosterSettled()))
+		// Every 10th frame, not every frame (v2 P2): with three clients the
+		// host cannot read the party's joins as fast as they arrive, and the
+		// receive queue backs up behind them.
+		if (net.type == NET_CLIENT && (NET_IsOnline() || LAN_RosterSettled()) &&
+		    (gSetupFrames % 10) == 0)
 		{
 			memset(&registerPacket, 0, sizeof(registerPacket));	// no uninitialized bytes on the wire
 			registerPacket.sequenceNumber = net.lastSentSequenceNumber++;
@@ -1556,6 +1812,13 @@ void NET_Receive(void)
 			break;
 		}
 
+		// A short datagram would leave the rest of the struct as stack garbage
+		// (protoVersion, senderSeat, the redundancy ring, the loadout table) --
+		// and this struct is not zeroed between reads. Our packets are always
+		// exactly one net_packet_t; anything else is noise or a foreign build.
+		if (byteReceived != (int)sizeof(net_packet_t))
+			continue;
+
 		// v2 P2: the transport-attributed seat is the identity the sim trusts.
 		if (senderSeat < 0 || senderSeat >= MAX_NUM_PLAYERS || senderSeat == net.ownSeat)
 			continue;
@@ -1572,6 +1835,15 @@ void NET_Receive(void)
 		// Their command fields are zeroed, not input.
 		if (rcv_packet.type == SETUP_PACKET)
 			continue;
+
+		// The host's party view rules: a client parks a seat when the HOST says
+		// it is gone, not when its own stopwatch runs out. Four independent
+		// timeouts fire hundreds of milliseconds apart (seconds apart, on
+		// GKMatch), and for that whole window the parked ship sits at different
+		// positions on different devices -- enough for the aiming enemies to
+		// shoot along different vectors and the sims to part ways for good.
+		if (net.ownSeat != 0 && senderSeat == 0)
+			NET_ApplyActiveMask(rcv_packet.activeMask);
 
 		// A runtime packet carries its current command plus a few redundant (previous)
 		// commands. Walk them oldest-first and apply every command whose sequence we
@@ -1617,6 +1889,12 @@ void NET_Receive(void)
 	{
 		if (s == net.ownSeat || !gPeers[s].active)
 			continue;
+		// Only the host declares a seat lost (its activeMask then tells the
+		// others). A client still watches the HOST itself -- if that goes
+		// silent nobody else can tell it, and the current level plays on
+		// leaderless until the next act's barrier ends the session.
+		if (net.ownSeat != 0 && s != 0)
+			continue;
 		if (simulationTime - gPeers[s].lastPacketTime > NET_PEER_TIMEOUT_MS)
 			NET_OnSeatLost(s);
 	}
@@ -1639,6 +1917,16 @@ void NET_Send()
 	send_packet.sequenceNumber = seq;
 	send_packet.senderSeat   = net.ownSeat;		// v2 P2
 	send_packet.protoVersion = NET_PROTO;
+	// The party, as the sender sees it. Only the HOST's copy is acted on
+	// (NET_Receive), which is what keeps "who is parked" a single decision
+	// instead of four independent stopwatches.
+	{
+		int s;
+		send_packet.activeMask = (1 << net.ownSeat);
+		for (s = 0; s < net.numSeats && s < MAX_NUM_PLAYERS; s++)
+			if (gPeers[s].active)
+				send_packet.activeMask |= (1 << s);
+	}
 	memcpy(&send_packet.command, &toSend, sizeof(command_t));
 
 	// Attach the previous commands as redundancy (oldest first) so a lost packet's
@@ -1668,7 +1956,11 @@ void NET_Send()
 
 	// Periodic absolute-position resync to correct residual drift. More frequent than
 	// before (was 1000ms) since online packet loss lets drift build up faster.
-	if (simulationTime - lastFullUpdateTime > 300)
+	// The `<` arm matters: Timer_resetTime rewinds simulationTime to 0 at every
+	// level start while this stamp keeps the PREVIOUS level's value, so without
+	// it the resync stayed silent for a whole act (the drift correction the
+	// streaming design leans on, gone from act 2 onwards).
+	if (simulationTime - lastFullUpdateTime > 300 || simulationTime < lastFullUpdateTime)
 	{
 		// We are reusing the delta field to contain absolute position :/ No clean I know.
 		send_packet.command.type = NET_RTM_ABS_UPDATE;
@@ -1715,6 +2007,7 @@ void NET_OnNextLevelLoad(void)
 	Log_Printf("NET_OnNextLevelLoad\n");
 	net.setupRequested = 1;
 	net.state = NET_STARTED;
+	NET_ArmSetupFrames();	// v2 P2: fresh handshake watchdog window for this level
 
 	// v2 P2: re-arm the barrier for the next level's handshake (active flags
 	// survive -- a parked seat stays parked).
@@ -1729,6 +2022,17 @@ char NET_IsRunning(void)
 {
 	Log_Printf("NET_IsRunning\n");
 	return (net.state == NET_RUNNING);
+}
+
+// v2 P2: true from the moment a match is being set up until it is over -- the
+// level boundaries included (between acts the state drops back to NET_STARTED).
+// NET_IsRunning() alone was the wrong question to ask on a disconnect: at a
+// level boundary it answers "no", and the GameKit callback then took the
+// matchmaking-abort path, which frees the session WITHOUT reloading the menu
+// scene -- leaving the abandoned act simulating behind the menu.
+char NET_IsInMatch(void)
+{
+	return (net.numSeats > 0 && net.state >= NET_STARTED);
 }
 
 uint NET_GetDropedPackets(void)

@@ -78,11 +78,16 @@ int NET_Init(void);
 
 typedef struct net_channel_t
 {
+	// v2: the buffer FIRST. Every read path casts it to net_packet_t*, and at
+	// its old offset (22, after the sockaddr + two chars) that cast was
+	// misaligned by 2 -- undefined behaviour the 2010 code got away with
+	// because ARM tolerates unaligned loads. Offset 0 is aligned by
+	// construction; nothing here travels on the wire, so this is free.
+	uchar					buffer[BUFFER_SIZE];
 	int						udpSocket;
 	struct sockaddr_in		peerAddr; 
 	char					serverAddResolved ;
 	char					setupRequested;
-	uchar					buffer[BUFFER_SIZE];
 
 #define NET_UNKNOWN 0
 #define NET_SERVER  1
@@ -114,11 +119,11 @@ int				transport;
 	
 typedef struct net_channel_t
 {
+	uchar					buffer[BUFFER_SIZE];	// v2: first, so the net_packet_t* cast is aligned
 	int						udpSocket;
-	//struct sockaddr_in		peerAddr; 
+	//struct sockaddr_in		peerAddr;
 	char					serverAddResolved ;
 	char					setupRequested;
-	uchar					buffer[BUFFER_SIZE];
 
 #define NET_UNKNOWN 0
 #define NET_SERVER  1
@@ -168,6 +173,7 @@ void Net_SendDie(command_t* command);
 
 void NET_OnNextLevelLoad(void);
 char NET_IsRunning(void);
+char NET_IsInMatch(void);	// v2: RUNNING *or* between levels (see the .c)
 
 uint NET_GetDropedPackets(void);
 

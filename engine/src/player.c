@@ -118,8 +118,8 @@ player_bullet_config_t bulletConfig;
 //Variable storing players bullet AND firing flash (in front of the player ship)
 // Vertices needed is number_of_players * number_of_bullets * 4 +  number_of_players * 4 = number_of_players * (number_of_bullets*4 +4)
 // Indices needed is number_of_players * number_of_bullets * 6 + number_of_players * 6 =   number_of_players * (number_of_bullets * 6 + 6)
-unsigned short bulletIndices[(MAX_PLAYER_BULLETS * 6 + 6)*MAX_NUM_PLAYERS];
-xf_colorless_sprite_t pBulletVertices[(MAX_PLAYER_BULLETS*4+4)*MAX_NUM_PLAYERS];
+unsigned short bulletIndices[(MAX_PLAYER_BULLETS * 6 + 12)*MAX_NUM_PLAYERS];
+xf_colorless_sprite_t pBulletVertices[(MAX_PLAYER_BULLETS*4+8)*MAX_NUM_PLAYERS];
 int numPBulletsIndices=0;
 
 
@@ -519,7 +519,11 @@ void P_InitPlayers(void)
 	//Also prepare bullets indices
 	numBulletSpriteVertices = 0 ;
 	
-	for (j=0; j < (MAX_PLAYER_BULLETS*MAX_NUM_PLAYERS * 6 + MAX_NUM_PLAYERS*6); j+=6,numBulletSpriteVertices+=4) 
+	// ...for every quad the pool can hold: MAX_PLAYER_BULLETS bullets + TWO
+	// muzzle-flash quads (one per gun) per player. (v2 P3: the 2010 loop only
+	// indexed one flash quad per player, so the last flash of the last player
+	// drew with stale indices.)
+	for (j=0; j < (MAX_PLAYER_BULLETS*MAX_NUM_PLAYERS * 6 + MAX_NUM_PLAYERS*12); j+=6,numBulletSpriteVertices+=4)
 	{
 		bulletIndices[j+0] = numBulletSpriteVertices+0;
 		bulletIndices[j+1] = numBulletSpriteVertices+1;
@@ -1192,6 +1196,15 @@ void PL_RenderPlayerPointers(void)
 	int livesIcons = players[controlledPlayer].respawnCounter;
 	if (engine.mode == DE_MODE_MULTIPLAYER && numPlayers >= 2)
 		livesIcons = (livesIcons > 0) ? 1 : 0;
+	// Hard clamp on the buffer, not on the mode: the game-complete and
+	// connection-lost paths flip engine.mode back to SINGLEPLAYER while the
+	// shared pool is still holding up to 12 lives, and this row shares its
+	// 36-vertex buffer with the on-screen buttons (renderer.h). A pool of 12
+	// would then write 48 vertices over the buttons' quads and past the end.
+	if (livesIcons > PLAYER_NUM_LIVES)
+		livesIcons = PLAYER_NUM_LIVES;
+	if (livesIcons < 0)
+		livesIcons = 0;
 
 	for (i=0; i < livesIcons; i++)
 	{

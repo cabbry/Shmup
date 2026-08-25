@@ -210,7 +210,12 @@ static void GKSeats_Clear(void) {
 - (void)match:(GKMatch *)match player:(GKPlayer *)player didChangeConnectionState:(GKPlayerConnectionState)state {
 	if (match != gMatch) return;
 	if (state == GKPlayerStateDisconnected) {
-		if (NET_IsRunning()) {
+		gMatchStarted = NO;			// this match will never re-arm by itself
+		// NET_IsInMatch, not NET_IsRunning: between two acts the state drops
+		// back to NET_STARTED, and the abort path below frees the session
+		// without reloading the menu scene -- the abandoned act would keep
+		// simulating behind the menu.
+		if (NET_IsInMatch()) {
 			// v2 P2: mid-match a single drop parks that seat and the match
 			// continues; the engine falls back to the full "connection lost"
 			// teardown by itself when the LAST remote seat goes.
@@ -220,7 +225,6 @@ static void GKSeats_Clear(void) {
 			else
 				NET_OnPeerLost();	// unknown sender: not our table, bail out clean
 		} else {
-			gMatchStarted = NO;
 			NET_AbortOnlineMatch();	// still matchmaking: just back out to the menu
 		}
 		return;

@@ -99,11 +99,14 @@ typedef struct playerBulletSprite_t
 */
 
 //Variable storing players bullet AND firing flash (in front of the player ship)
-// Vertices needed is number_of_players * number_of_bullets * 4 +  number_of_players * 4 = number_of_players * (number_of_bullets*4 +4)
-// Indices needed is number_of_players * number_of_bullets * 6 + number_of_players * 6 =   number_of_players * (number_of_bullets * 6 + 6)
+// Per player: one quad per live bullet, PLUS the muzzle flash -- which is TWO
+// quads, one per gun (P_PrepareBulletSprites draws gun 0 and gun 1). The 2010
+// arithmetic budgeted a single flash quad (+4 vertices / +6 indices), so the
+// pool was always one quad per player short; at 4 players the overrun doubled.
+// v2 P3: budget both guns (+8 / +12).
 extern int numPBulletsIndices;
-extern unsigned short bulletIndices[(MAX_PLAYER_BULLETS * 6 + 6)*MAX_NUM_PLAYERS];
-extern xf_colorless_sprite_t pBulletVertices[(MAX_PLAYER_BULLETS*4+4)*MAX_NUM_PLAYERS];
+extern unsigned short bulletIndices[(MAX_PLAYER_BULLETS * 6 + 12)*MAX_NUM_PLAYERS];
+extern xf_colorless_sprite_t pBulletVertices[(MAX_PLAYER_BULLETS*4+8)*MAX_NUM_PLAYERS];
 
 
 typedef struct bullet_t

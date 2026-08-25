@@ -338,8 +338,11 @@ void Native_SaveProgress(int highestAct) {
 
 #pragma mark - Online multiplayer bridge (engine -> GameKit)
 
-// Present Apple's matchmaker UI (invite a friend, or auto-match an opponent).
-void Native_StartOnlineMatchmaking(void) {
+// Present Apple's matchmaker UI (invite friends, or auto-match).
+// v2 P4: partySize is the EXACT size picked in the menu (2/3/4): min == max,
+// so the match only starts once precisely that many players are connected --
+// and NET_StartOnlineMatch derives the seat table from the full roster.
+void Native_StartOnlineMatchmaking(int partySize) {
 	if (!this || !vc) return;
 	if (![GKLocalPlayer local].isAuthenticated) {
 		// Not signed into Game Center: cannot matchmake -- bounce back to the menu.
@@ -349,11 +352,12 @@ void Native_StartOnlineMatchmaking(void) {
 
 	Native_CancelOnlineMatchmaking();	// drop any stale match first
 
+	if (partySize < 2) partySize = 2;
+	if (partySize > MAX_NUM_PLAYERS) partySize = MAX_NUM_PLAYERS;
+
 	GKMatchRequest* req = [[GKMatchRequest alloc] init];
-	// v2 P3: up to 4 seats. The matchmaker UI lets the party pick its size;
-	// P4 will add an explicit 2/3/4 pre-lobby choice.
-	req.minPlayers = 2;
-	req.maxPlayers = MAX_NUM_PLAYERS;
+	req.minPlayers = partySize;
+	req.maxPlayers = partySize;
 
 	GKMatchmakerViewController* mmvc = [[GKMatchmakerViewController alloc] initWithMatchRequest:req];
 	if (mmvc == nil) {

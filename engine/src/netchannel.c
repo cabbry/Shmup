@@ -218,6 +218,110 @@ static int NET_LoadedRemotes(void)
 	return n;
 }
 
+// ------------------------------------------------------------------------------
+//  v2 P4: the LAN roster. Every device registers its Bonjour service and
+//  browses for everyone else's; each resolved peer IP lands here. The sorted
+//  list of ALL ips (our own included) IS the seat table -- the N-player
+//  generalization of the old "lower IP is the server" pairwise election, and
+//  bit-identical to it at 2 devices. The roster is ROLLING while players are
+//  still appearing; the handshake only fires once it has been stable for
+//  NET_LAN_SETTLE_MS (so a party of four all get seated before anyone starts),
+//  and freezes for the session the moment the handshake leaves NET_STARTED.
+// ------------------------------------------------------------------------------
+#define NET_LAN_SETTLE_MS 4000
+static unsigned int	gLanIps[MAX_NUM_PLAYERS];		// host byte order, sorted ascending
+static int			gLanCount = 0;
+static int			gLanChangedAt = 0;				// simulationTime of the last roster change
+static int			gLanLocked = 0;					// match started: roster frozen for good
+static struct sockaddr_in gSeatAddr[MAX_NUM_PLAYERS];	// LAN: seat -> udp address
+
+static void LAN_ResetRoster(void)
+{
+	gLanCount = 0;
+	gLanChangedAt = 0;
+	gLanLocked = 0;
+	memset(gSeatAddr, 0, sizeof(gSeatAddr));
+}
+
+// Settled = safe to start the handshake. Once the match has locked the roster,
+// permanently settled -- do NOT re-check the time window: Timer_resetTime at
+// match start rewinds simulationTime below gLanChangedAt, and the level-2+
+// handshakes (state drops back to NET_STARTED between levels) would otherwise
+// wait forever on a window that can never close again.
+static int LAN_RosterSettled(void)
+{
+	if (gLanLocked)
+		return 1;
+	return gLanCount >= 2 && (simulationTime - gLanChangedAt) > NET_LAN_SETTLE_MS;
+}
+
+// Map a datagram's source address back to its seat. -1 = not in the roster.
+static int LAN_SeatForAddr(const struct sockaddr_in* addr)
+{
+	unsigned int ip = ntohl(addr->sin_addr.s_addr);
+	int s;
+	for (s = 0; s < gLanCount; s++)
+		if (gLanIps[s] == ip)
+			return s;
+	return -1;
+}
+
+// Add one ip (host byte order) to the roster; re-derive seats. Rolling: only
+// while the handshake hasn't started consuming (NET_STARTED or earlier).
+static void LAN_AddRosterIp(unsigned int ip)
+{
+	int s, t;
+
+	if (net.state > NET_STARTED || gLanLocked)
+		return;								// roster frozen for this session
+	for (s = 0; s < gLanCount; s++)
+		if (gLanIps[s] == ip)
+			return;							// already seated
+	if (gLanCount >= MAX_NUM_PLAYERS)
+		return;								// party is full
+
+	gLanIps[gLanCount++] = ip;
+
+	// insertion sort ascending -- the order IS the seat table
+	for (s = 1; s < gLanCount; s++)
+		for (t = s; t > 0 && gLanIps[t] < gLanIps[t-1]; t--)
+		{
+			unsigned int tmp = gLanIps[t];
+			gLanIps[t] = gLanIps[t-1];
+			gLanIps[t-1] = tmp;
+		}
+
+	gLanChangedAt = simulationTime;
+
+	// Re-derive the seat view: our seat, the count, the per-seat addresses.
+	net.numSeats = gLanCount;
+	for (s = 0; s < gLanCount; s++)
+	{
+		memset(&gSeatAddr[s], 0, sizeof(gSeatAddr[s]));
+		gSeatAddr[s].sin_len    = sizeof(gSeatAddr[s]);
+		gSeatAddr[s].sin_family = AF_INET;
+		gSeatAddr[s].sin_port   = htons(PORT_NUMBER);
+		gSeatAddr[s].sin_addr.s_addr = htonl(gLanIps[s]);
+		if (ownAddrValid && gLanIps[s] == ntohl(ownAddr.sin_addr.s_addr))
+			net.ownSeat = s;
+	}
+	// Below 2 seats there is no role yet -- the "Looking for the other
+	// player..." status (and the discovery pump gates) key off NET_UNKNOWN.
+	net.type = (gLanCount >= 2) ? ((net.ownSeat == 0) ? NET_SERVER : NET_CLIENT) : NET_UNKNOWN;
+
+	// Every remote seat currently on the roster starts alive.
+	NET_PeersReset();
+	for (s = 0; s < gLanCount; s++)
+		if (s != net.ownSeat)
+			gPeers[s].active = 1;
+
+	if (gLanCount >= 2)
+		net.state = NET_STARTED;
+
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Players found: %d -> you are P%d",
+	        gLanCount, net.ownSeat + 1);
+}
+
 // Deterministic N-way colour dedupe, ascending seats: a seat whose colour
 // collides with ANY lower seat steps forward until free. Run by the host just
 // before the GO (the broadcast table is final); at 2 players and distinct
@@ -296,7 +400,9 @@ static int NET_RxDequeue(void* out, int maxlen, int* senderSeat)
 }
 
 // Unified send. Online: setup/death packets go reliable, per-frame runtime
-// deltas go unreliable (lower latency; the periodic ABS update repairs drift).
+// deltas go unreliable (lower latency; the periodic ABS update repairs drift);
+// GKMatch broadcasts to every peer by itself. LAN (v2 P4): explicit broadcast,
+// one datagram per seated remote (the roster owns the addresses).
 static void NET_TransportSend(const void* data, int len)
 {
 	if (net.transport == NET_TRANSPORT_GAMECENTER)
@@ -307,30 +413,37 @@ static void NET_TransportSend(const void* data, int len)
 	}
 	else
 	{
-		sendto(net.udpSocket, data, len, 0, (struct sockaddr*)&net.peerAddr, sizeof(net.peerAddr));
+		int s;
+		for (s = 0; s < net.numSeats && s < MAX_NUM_PLAYERS; s++)
+		{
+			if (s == net.ownSeat || gSeatAddr[s].sin_family != AF_INET)
+				continue;
+			sendto(net.udpSocket, data, len, 0, (struct sockaddr*)&gSeatAddr[s], sizeof(gSeatAddr[s]));
+		}
 	}
 }
 
 // Unified non-blocking receive. Returns bytes read, or -1/EAGAIN when nothing is
-// available. fromAddr (LAN only) captures the sender so the server can learn the
-// client's address. v2 P2: senderSeat carries the TRANSPORT-attributed origin --
-// online it comes from the GKPlayer->seat map; on the LAN, which stays a 2-seat
-// pair until the P4 roster election, any packet is by definition from the other
-// seat. This is the identity the sim trusts; in-packet fields only corroborate.
+// available. v2 P2/P4: senderSeat carries the TRANSPORT-attributed origin --
+// online from the GKPlayer->seat map, on the LAN from the datagram's source
+// address looked up in the roster (-1 if it isn't seated: the callers drop it).
+// This is the identity the sim trusts; in-packet fields only corroborate.
 static int NET_TransportRecv(void* out, int maxlen, struct sockaddr_in* fromAddr, int* senderSeat)
 {
+	struct sockaddr_in local;
+	struct sockaddr_in* src;
+	socklen_t alen;
+	int n;
+
 	if (net.transport == NET_TRANSPORT_GAMECENTER)
 		return NET_RxDequeue(out, maxlen, senderSeat);
 
+	src = fromAddr ? fromAddr : &local;
+	alen = sizeof(*src);
+	n = recvfrom(net.udpSocket, out, maxlen, 0, (struct sockaddr*)src, &alen);
 	if (senderSeat)
-		*senderSeat = (net.ownSeat == 0) ? 1 : 0;	// LAN: the one peer
-
-	if (fromAddr)
-	{
-		socklen_t len = sizeof(*fromAddr);
-		return recvfrom(net.udpSocket, out, maxlen, 0, (struct sockaddr*)fromAddr, &len);
-	}
-	return recvfrom(net.udpSocket, out, maxlen, 0, NULL, NULL);
+		*senderSeat = (n > 0) ? LAN_SeatForAddr(src) : -1;
+	return n;
 }
 
 // Begin an online match once GKMatch has connected both peers and a role has been
@@ -404,6 +517,7 @@ void NET_Free(void)
 	net.ownSeat  = 0;					// v2 P1: seats die with the session
 	net.numSeats = 0;
 	NET_PeersReset();					// v2 P2: per-seat state dies with the session
+	LAN_ResetRoster();					// v2 P4: so does the LAN roster
 	netRxHead = netRxTail = 0;			// flush any queued online packets
 	ownAddrValid = 0;					// recompute our own IP next session (for role election)
 	sentCount = 0;						// clear the outgoing command-redundancy ring
@@ -550,7 +664,11 @@ int NET_CheckServerAvailability(void)
 
 	int	ifIdx;
 
-	net.type = NET_UNKNOWN;
+	// v2 P4: only a roster below 2 seats has no role yet -- once seats exist
+	// the role is roster-derived and this pump must not clobber it (it now
+	// keeps running after discovery, to catch the 3rd and 4th player).
+	if (gLanCount < 2)
+		net.type = NET_UNKNOWN;
 
 	// Own LAN IP (en0), computed once, for the deterministic IP-based role election.
 	if ( !ownAddrValid )
@@ -558,6 +676,9 @@ int NET_CheckServerAvailability(void)
 		ownAddr = NET_GetAddressForInterfaceName( INTERFACE_NAME );
 		ownAddrValid = ( ownAddr.sin_addr.s_addr != 0 );
 	}
+	// v2 P4: WE hold the first seat on our own roster; every resolved peer joins it.
+	if ( ownAddrValid )
+		LAN_AddRosterIp( ntohl(ownAddr.sin_addr.s_addr) );
 
 	ifIdx = NET_InterfaceIndexForInterfaceName( INTERFACE_NAME );
 
@@ -582,12 +703,12 @@ int NET_CheckServerAvailability(void)
 		if ( rerr != kDNSServiceErr_NoError ) { Log_Printf("DNSServiceRegister error\n"); registerRef = 0; }
 	}
 
-	// Browse for peers. Re-issue the browse every few seconds while nobody is found:
-	// a long-lived mDNS browse backs its queries off exponentially, so if the other
-	// device shows up "late" a single browse can sit silent for a long while -- a
-	// fresh browse restarts the query schedule (this was the "have to back out and
-	// retry" symptom). Once the peer is elected we leave the browse alone.
-	if ( browseRef != 0 && net.type == NET_UNKNOWN && simulationTime - lastBrowseTime > 8000 )
+	// Browse for peers. Re-issue the browse every few seconds while the roster
+	// can still grow: a long-lived mDNS browse backs its queries off
+	// exponentially, so a device that shows up "late" (the 2nd -- or, v2 P4,
+	// the 3rd and 4th) can sit undiscovered for a long while -- a fresh browse
+	// restarts the query schedule. Once the roster settles we leave it alone.
+	if ( browseRef != 0 && !LAN_RosterSettled() && simulationTime - lastBrowseTime > 8000 )
 	{
 		DNSServiceRefDeallocate( browseRef );
 		browseRef = 0;
@@ -614,16 +735,15 @@ int NET_CheckServerAvailability(void)
 	if ( select( socket+1, &set, NULL, NULL, &tv ) > 0 )
 		DNSServiceProcessResult( browseRef );		// -> browse cb -> resolve -> query -> election
 
-	if (net.type == NET_SERVER)
+	if (net.type == NET_SERVER || net.type == NET_CLIENT)
 	{
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Waiting for client to connect...");
+		// v2 P4: the roster view. The party can still grow until the settle
+		// window closes; then the JOIN/barrier handshake fires by itself.
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Party of %d - you are Player %d",
+		        gLanCount, net.ownSeat + 1);
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "You are Player ONE.");
-		MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE)[0] = '\0';	// clear the "second device" hint
-	}
-	else if (net.type == NET_CLIENT)
-	{
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Contacting server... You are Player TWO.");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2),
+		        LAN_RosterSettled() ? "Starting..." : "Waiting for more players...");
 		MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE)[0] = '\0';	// clear the "second device" hint
 	}
 	else
@@ -689,32 +809,11 @@ void DNSServiceQueryRecordReplyCallback (
 	if ( ownAddrValid && peerIp.s_addr == ownAddr.sin_addr.s_addr )
 		return;
 
-	// This is the peer. Record its address for the handshake.
-	memset( &net.peerAddr, 0, sizeof( net.peerAddr ) );
-	net.peerAddr.sin_len = sizeof( net.peerAddr );
-	net.peerAddr.sin_family = AF_INET;
-	net.peerAddr.sin_port = htons( PORT_NUMBER );
-	net.peerAddr.sin_addr = peerIp;
-	net.serverAddResolved = 1;
-
-	// Deterministic election: the LOWER IP is the SERVER (Player One). Both devices
-	// run the same comparison, so exactly one becomes server -- no need to stagger
-	// the start. (compare in host byte order)
-	if ( ownAddrValid && ntohl(ownAddr.sin_addr.s_addr) < ntohl(peerIp.s_addr) )
-		net.type = NET_SERVER;
-	else
-		net.type = NET_CLIENT;
-	// v2 P1: the LAN pair maps onto the same seat model as online (the
-	// election above IS a 2-entry sorted-IP seat table).
-	net.ownSeat  = (net.type == NET_SERVER) ? 0 : 1;
-	net.numSeats = 2;
-	// v2 P2: the one remote seat starts the match alive.
-	NET_PeersReset();
-	gPeers[1 - net.ownSeat].active = 1;
-	net.state = NET_STARTED;
-
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "PEER %s -> %s",
-	        inet_ntoa(peerIp), net.type == NET_SERVER ? "I am P1" : "I am P2");
+	// v2 P4: a peer resolved -- seat it. The sorted-IP roster IS the election
+	// (bit-identical to the old pairwise "lower IP is the server" at 2), and
+	// it keeps growing until the settle window closes or the handshake starts.
+	LAN_AddRosterIp( ntohl(peerIp.s_addr) );
+	net.serverAddResolved = 1;	// addresses live in the roster now (isInitialized gate)
 }
 
 void DNSServiceResolveReplyCallback ( 
@@ -1166,19 +1265,19 @@ void Net_ProcessSetupPacket(void)
 
 	sprintf(MENU_GetMultiplayerTextLine(4),"Setup cmd %d from seat %d.\n",packet->command.type, setupSeat);
 
+	// v2 P4: LAN -- the host doesn't act on JOINs until the roster settles
+	// (a 3rd/4th device may still be resolving; the JOIN is resent anyway).
+	if (!NET_IsOnline() && net.state == NET_STARTED && !LAN_RosterSettled())
+		return;
+
 	// ---------------- HOST (seat 0): the barrier ----------------
 	if (net.ownSeat == 0 && packet->command.type == NET_CMD_LOAD_NEXT_LEVEL &&
 	    (net.state == NET_STARTED || net.state == NET_PRELOADED))
 	{
 		packetConsumed = 1;
 
-		// LAN (a 2-seat pair until the P4 roster): learn the client's address
-		// from its first packet.
-		if (!NET_IsOnline())
-		{
-			memcpy(&net.peerAddr,&incomingAdd,sizeof(incomingAdd));
-			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP),"PEER IP %s",inet_ntoa(net.peerAddr.sin_addr));
-		}
+		// (v2 P4: no more "learn the client's address from its first packet" --
+		// the LAN roster owns every seat's address since the election.)
 
 		NET_StorePeerLoadout(packet, setupSeat);
 		if (!gPeers[setupSeat].joined)
@@ -1207,6 +1306,7 @@ void Net_ProcessSetupPacket(void)
 			SND_PauseSoundTrack();
 			Timer_Pause();
 			net.state = NET_PRELOADED;
+			gLanLocked = 1;	// v2 P4: the LAN roster is final for this match (no-op online)
 			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_PRELOADED.\n");
 			NET_SendSetupCmd(NET_CMD_LOAD_NEXT_LEVEL);
 			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_LOAD_NEXT_LEVEL");
@@ -1265,6 +1365,7 @@ void Net_ProcessSetupPacket(void)
 		SND_PauseSoundTrack();
 		Timer_Pause();
 		net.state = NET_PRELOADED;
+		gLanLocked = 1;	// v2 P4: the LAN roster is final for this match (no-op online)
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_PRELOADED.\n");
 
 		NET_SendSetupCmd(NET_CMD_NOTIFY_LOADED);
@@ -1328,10 +1429,15 @@ void NET_Setup(void)
 	}
 	
 	
-	if (!NET_IsOnline() && net.type == NET_UNKNOWN && !NET_CheckServerAvailability())
+	// v2 P4: keep the discovery pump running until the handshake takes over
+	// (was: only while UNKNOWN) -- late 3rd/4th devices resolve through here.
+	if (!NET_IsOnline() && net.state <= NET_STARTED && !gLanLocked)
 	{
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETMYIP), "Error while NET_CheckServerAvailability.\n");
-		return ;
+		if (!NET_CheckServerAvailability() && net.type == NET_UNKNOWN)
+		{
+			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETMYIP), "Error while NET_CheckServerAvailability.\n");
+			return ;
+		}
 	}
 	
 	
@@ -1369,7 +1475,11 @@ void NET_Setup(void)
 	if (net.state == NET_STARTED)
 	{
 		//We need to register
-		if (net.type == NET_CLIENT)
+		// v2 P4: on the LAN, hold the JOIN until the roster has settled --
+		// firing on first contact would start a 2-seat match under the feet
+		// of a 3rd/4th device still resolving. Online, GameKit already
+		// delivered the full, final party.
+		if (net.type == NET_CLIENT && (NET_IsOnline() || LAN_RosterSettled()))
 		{
 			memset(&registerPacket, 0, sizeof(registerPacket));	// no uninitialized bytes on the wire
 			registerPacket.sequenceNumber = net.lastSentSequenceNumber++;

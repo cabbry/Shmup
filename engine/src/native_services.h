@@ -39,7 +39,7 @@ void Native_LoginGameCenter(void);
 // send a packet to the peer. Implemented on iOS in dEngineAppDelegate.m.
 // The reverse direction (match found / data received) calls back into the engine
 // via NET_StartOnlineMatch / NET_OnNetworkDataFrom (declared in netchannel.h).
-void Native_StartOnlineMatchmaking(void);
+void Native_StartOnlineMatchmaking(int partySize);	// v2 P4: exact party size (2..MAX_NUM_PLAYERS)
 void Native_CancelOnlineMatchmaking(void);
 void Native_GKSendData(const void* data, int len, int reliable);
 

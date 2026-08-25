@@ -99,6 +99,7 @@ typedef struct menu_screen_t
 #define MENU_SELECT_DIFFICULTY 7
 #define MENU_SELECT_SHIP 8
 #define MENU_SELECT_ACT 9
+#define MENU_ONLINE_SIZE 10	// v2 P4: pick the online party size (2/3/4)
 
 void MENU_Init(void);
 void MENU_Set(signed char menuId);

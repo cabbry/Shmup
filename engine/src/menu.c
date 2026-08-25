@@ -36,7 +36,7 @@
 
 #define HOME_ATLAS "/data/menu/homeAtlas.png"
 
-menu_screen_t menuScreens[10];
+menu_screen_t menuScreens[11];	// v2 P4: + MENU_ONLINE_SIZE
 int currentMenuId;
 
 texture_t textureAtlas;
@@ -529,11 +529,23 @@ void Action_ConfigureMultiplayer(void* tag)
 }
 
 #ifdef __APPLE__
+// v2 P4: the Online button opens the party-size picker first.
+void Action_ShowOnlineSizeMenu(void* tag)
+{
+	MENU_Set(MENU_ONLINE_SIZE);
+}
+
 // Online multiplayer over Game Center (GKMatch): same as the LAN setup, but the
 // transport is GameKit instead of Bonjour/UDP and matchmaking is driven by Apple.
+// v2 P4: tag carries the EXACT party size picked (2/3/4) -- min == max, so
+// GameKit only starts the match once precisely that many players are matched.
 void Action_ConfigureOnlineMultiplayer(void* tag)
 {
 	int i;
+	int partySize = tag ? *(int*)tag : 2;
+
+	if (partySize < 2) partySize = 2;
+	if (partySize > MAX_NUM_PLAYERS) partySize = MAX_NUM_PLAYERS;
 
 	MENU_Set(MENU_MULTIPLAYER);
 	engine.mode = DE_MODE_MULTIPLAYER;
@@ -548,8 +560,8 @@ void Action_ConfigureOnlineMultiplayer(void* tag)
 
 	engine.difficultyLevel = DIFFICULTY_NORMAL;
 
-	sprintf(MENU_GetMultiplayerTextLine(0), "Finding an opponent...");
-	Native_StartOnlineMatchmaking();		// presents the Game Center matchmaker UI
+	sprintf(MENU_GetMultiplayerTextLine(0), "Finding %d players...", partySize);
+	Native_StartOnlineMatchmaking(partySize);	// presents the Game Center matchmaker UI
 }
 #endif
 
@@ -961,7 +973,7 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Online", 3, Action_ConfigureOnlineMultiplayer,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, "Online", 3, Action_ShowOnlineSizeMenu,NULL, buttonPos, buttonDim);	// v2 P4: size picker first
 #endif
 
 	// Game Center "High Scores" leaderboard viewer.
@@ -1136,6 +1148,36 @@ void MENU_Init(void)
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowOthersMenu, NULL, buttonPos, buttonDim);
+
+
+#ifdef __APPLE__
+	// --- v2 P4: online party-size picker (Others -> Online) ---
+	currentMenu = &menuScreens[MENU_ONLINE_SIZE];
+
+	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, "ONLINE");
+	MENU_CreateText(currentMenu, 0, (SS_H - 240), 2.2f, TEXT_CENTERED, "How many players ?");
+
+	{
+		static const char* sizeLabels[3] = { "2 Players", "3 Players", "4 Players" };
+		int k;
+		for (k = 0; k < 3; k++)
+		{
+			int* t = calloc(1, sizeof(int));
+			*t = k + 2;
+			buttonPos[X] = 0;
+			buttonPos[Y] = (SS_H - 340) - k*150;
+			buttonDim[WIDTH] = (220 * 2);
+			buttonDim[HEIGHT] = 64 * 2;
+			MENU_CreateButtonWithTag(currentMenu, sizeLabels[k], 3, Action_ConfigureOnlineMultiplayer, t, NULL, buttonPos, buttonDim);
+		}
+	}
+
+	buttonPos[X] = 0;
+	buttonPos[Y] = (SS_H - 340) - 3*150;
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowOthersMenu, NULL, buttonPos, buttonDim);
+#endif
 
 
 	menuCreated = 1;

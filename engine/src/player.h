@@ -39,7 +39,7 @@ extern texture_t pointersTexture;
 #define MAX_PLAYER_BULLETS 16
 
 #define BULLET_DEFAULT_ENERGY 1
-#define MAX_NUM_PLAYERS 2
+#define MAX_NUM_PLAYERS 4	// v2 P3: was 2 -- every per-player array sizes off this
 
 
 
@@ -291,5 +291,11 @@ extern int gScoreLocked;
 // Re-apply the chosen ship(s) to the player entities (called on scene load, after
 // modelPath is set; solo = player 0, multiplayer = both players).
 void P_ReloadShip(void);
+
+// v2 P3: 4-player support.
+uint  P_GetDisplayScore(void);	// the TEAM score in MP (sum), own score solo
+float P_FormationX(int playerId);	// staggered 2-row formation (quinconce)
+float P_FormationY(int playerId);
+int   P_NearestAlivePlayer(float ssX, float ssY);	// enemy aim target
 
 #endif

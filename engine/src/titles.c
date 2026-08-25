@@ -264,11 +264,23 @@ static const char* TITLE_DifficultyName(void)
 static void TITLE_RenderEndOfGame(void)
 {
 	char line[64];
-	int fired	= engine.playerStats.bulletsFired[controlledPlayer];
-	int hits	= engine.playerStats.bulletsHit[controlledPlayer];
+	// v2 P3: TEAM stats in multiplayer (like the team score two lines down) --
+	// a single seat's "Enemy cleared" would read ~1/N of the real work.
+	int fired = 0, hits = 0;
+	float destroyed = 0;
+	{
+		int p, np = (engine.mode == DE_MODE_MULTIPLAYER) ? numPlayers : 1;
+		for (p = 0; p < np && p < MAX_NUM_PLAYERS; p++)
+		{
+			int seat = (engine.mode == DE_MODE_MULTIPLAYER) ? p : controlledPlayer;
+			fired     += engine.playerStats.bulletsFired[seat];
+			hits      += engine.playerStats.bulletsHit[seat];
+			destroyed += engine.playerStats.enemyDestroyed[seat];
+		}
+	}
 	float accuracy	= (fired > 0) ? (hits / (float)fired * 100.0f) : 0.0f;
 	float cleared	= (engine.playerStats.numEnemies > 0)
-					? (engine.playerStats.enemyDestroyed[controlledPlayer] / engine.playerStats.numEnemies * 100.0f)
+					? (destroyed / engine.playerStats.numEnemies * 100.0f)
 					: 0.0f;
 	// Whole card sits below the iOS safe area (status bar / notch / Dynamic
 	// Island), same anchor as the score line and the act-title card.
@@ -297,7 +309,7 @@ static void TITLE_RenderEndOfGame(void)
 	sprintf(line,"Enemy cleared: %3.0f%%",cleared);
 	SCR_ConvertTextToVertices(line,2.6f,-200,-50-off,TEXT_NOT_CENTERED);
 
-	sprintf(line,"Total Score:  %6d",players[controlledPlayer].score);
+	sprintf(line,"Total Score:  %6d",P_GetDisplayScore());	// v2 P3: team score in MP
 	SCR_ConvertTextToVertices(line,2.6f,-200,-100-off,TEXT_NOT_CENTERED);
 
 	sprintf(line,"RANK  %s",TITLE_Rank(accuracy,cleared));
@@ -381,26 +393,36 @@ void TITLE_Render(void)
 		
 		//SCR_ConvertTextToVertices("- Act completed ! - ",3,0,0,TEXT_CENTERED);
 		
-		sprintf(statsString,"Bullets fired:  %4d",engine.playerStats.bulletsFired[controlledPlayer]);
+		// v2 P3: TEAM stats in multiplayer, matching the team score below.
+		{
+		int fired = 0, hits = 0;
+		float destroyed = 0;
+		int p, np = (engine.mode == DE_MODE_MULTIPLAYER) ? numPlayers : 1;
+		for (p = 0; p < np && p < MAX_NUM_PLAYERS; p++)
+		{
+			int seat = (engine.mode == DE_MODE_MULTIPLAYER) ? p : controlledPlayer;
+			fired     += engine.playerStats.bulletsFired[seat];
+			hits      += engine.playerStats.bulletsHit[seat];
+			destroyed += engine.playerStats.enemyDestroyed[seat];
+		}
+
+		sprintf(statsString,"Bullets fired:  %4d",fired);
 		SCR_ConvertTextToVertices(statsString,2.6f,-200,-100,TEXT_NOT_CENTERED);
-		
-		sprintf(statsString,"Bullet # hits:  %4d",engine.playerStats.bulletsHit[controlledPlayer]);
+
+		sprintf(statsString,"Bullet # hits:  %4d",hits);
 		SCR_ConvertTextToVertices(statsString,2.6f,-200,-150,TEXT_NOT_CENTERED);
-		
-		
-		//sprintf(statsString,"Bullet %% hits:  %.f%%",engine.playerStats.bulletsHit[controlledPlayer]/(float)engine.playerStats.bulletsFired[controlledPlayer]*100);
-		//SCR_ConvertTextToVertices(statsString,2,-100*renderer.resolution,-200*renderer.resolution,TEXT_NOT_CENTERED);
-		
-		sprintf(statsString,"Total Score:  %6d",players[controlledPlayer].score);
+
+		sprintf(statsString,"Total Score:  %6d",P_GetDisplayScore());	// v2 P3: team score in MP
 		SCR_ConvertTextToVertices(statsString,2.6f,-200,-200,TEXT_NOT_CENTERED);
-		
-		
+
+
 		// An act with no scripted spawns (a flythrough beat) would divide by zero
 		// here and print inf/nan; the end-of-game card has always guarded this.
 		sprintf(statsString,"Enemy cleared:   %2.0f%%",
 				(engine.playerStats.numEnemies > 0)
-				? (engine.playerStats.enemyDestroyed[controlledPlayer] / engine.playerStats.numEnemies * 100)
+				? (destroyed / engine.playerStats.numEnemies * 100)
 				: 100.0f );
+		}
 		SCR_ConvertTextToVertices(statsString,2.6f,-200,-250,TEXT_NOT_CENTERED);
 		SCR_RenderText();
 	}

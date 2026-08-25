@@ -94,8 +94,8 @@ int gBulletColor = 0;
 // column. Defaults = the classic multiplayer look (P1 ship + red, P2 ship + blue).
 // If both players picked the same colour, player two's is shifted deterministically
 // on both ends so the two players' shots stay distinguishable.
-int gMPShipChoice[MAX_NUM_PLAYERS]  = { 0, 1 };	// default: seat index
-int gMPBulletColor[MAX_NUM_PLAYERS] = { 0, 1 };
+int gMPShipChoice[MAX_NUM_PLAYERS]  = { 0, 1, 2, 3 };	// default: seat index
+int gMPBulletColor[MAX_NUM_PLAYERS] = { 0, 1, 2, 3 };
 
 // Set when the act-3 boss dies: the run is scored at the killing blow, so all
 // score gains stop during the victory lap. Cleared on the next scene load.
@@ -270,11 +270,63 @@ void P_ResetPlayer(int i)
 void PL_ResetPlayersScore(void)
 {
 	int i;
-	
-	for (i=0; i < MAX_NUM_PLAYERS; i++) 
+
+	for (i=0; i < MAX_NUM_PLAYERS; i++)
 	{
 		players[i].score = 0;
 	}
+}
+
+// v2 P3: ONE TEAM SCORE in multiplayer (user decision). Internally every player
+// still accumulates his own counter (lockstep-deterministic, no new state on
+// the wire); the HUD, the game-over card and the Game Center upload show the
+// SUM. Solo shows the player's own score, unchanged.
+uint P_GetDisplayScore(void)
+{
+	if (engine.mode == DE_MODE_MULTIPLAYER && numPlayers >= 2)
+	{
+		uint total = 0;
+		int i;
+		for (i = 0; i < numPlayers && i < MAX_NUM_PLAYERS; i++)
+			total += players[i].score;
+		return total;
+	}
+	return players[controlledPlayer].score;
+}
+
+// v2 P3: the formation, generalized. Seats 0-1 fly the classic front pair
+// (x = -/+0.5, the exact 2010 formula); seats 2-3 tuck in BEHIND and BETWEEN
+// them (x = -/+0.25, lower on screen) -- two staggered rows, en quinconce.
+float P_FormationX(int playerId)
+{
+	float col = (playerId & 1) ? 0.5f : -0.5f;	// 0.5f*(playerId-0.5f)*2.f, bit-exact at 0/1
+	return (playerId < 2) ? col : col * 0.5f;
+}
+
+float P_FormationY(int playerId)
+{
+	return (playerId < 2) ? -0.0f : -0.35f;
+}
+
+// v2 P3: aiming helper for enemies -- the nearest ship still in play (parked
+// or RIP'd ships have shouldDraw 0). Deterministic in lockstep: every peer
+// evaluates the same positions at the same tick. Falls back to player 0, the
+// 2010 behavior, so solo is bit-identical.
+int P_NearestAlivePlayer(float ssX, float ssY)
+{
+	int i, best = 0;
+	float bestD = 1e30f;
+	for (i = 0; i < numPlayers && i < MAX_NUM_PLAYERS; i++)
+	{
+		float dx, dy, d;
+		if (!players[i].shouldDraw)
+			continue;
+		dx = players[i].ss_position[X] - ssX;
+		dy = players[i].ss_position[Y] - ssY;
+		d = dx*dx + dy*dy;
+		if (d < bestD) { bestD = d; best = i; }
+	}
+	return best;
 }
 
 void P_LoadPlayer(int playerIdToLoad)
@@ -380,11 +432,15 @@ void P_ResetPlayers(void)
 	// events (double death within 5s of the epilog, or the resume path).
 	// Deterministic: both lockstep peers run this same reset at scene load.
 	// Solo is never touched.
-	if (engine.mode == DE_MODE_MULTIPLAYER && numPlayers == 2 &&
-	    players[0].respawnCounter == 0 && players[1].respawnCounter == 0)
+	if (engine.mode == DE_MODE_MULTIPLAYER && numPlayers >= 2)
 	{
-		players[0].respawnCounter = 1;
-		players[1].respawnCounter = 1;
+		int i2, poolDry = 1;
+		for (i2 = 0; i2 < numPlayers && i2 < MAX_NUM_PLAYERS; i2++)
+			if (players[i2].respawnCounter != 0)
+				poolDry = 0;
+		if (poolDry)
+			for (i2 = 0; i2 < numPlayers && i2 < MAX_NUM_PLAYERS; i2++)
+				players[i2].respawnCounter = 1;	// v2 P3: same rule, N-way mirror
 	}
 
 	entitiesAttachedToCamera = 0;
@@ -972,10 +1028,31 @@ void P_CreatePointerCoordinates(void)
 	pointerSprVertices[8].text[X] = pointerSprVertices[NUM_VERTICE_POINTER_PER_PLAYER+8].text[X] =  60/(float)256*SHRT_MAX ; 
 	pointerSprVertices[8].text[Y] = pointerSprVertices[NUM_VERTICE_POINTER_PER_PLAYER+8].text[Y] =  37 /(float)128*SHRT_MAX ;
 
-	pointerSprVertices[9].text[X] = pointerSprVertices[NUM_VERTICE_POINTER_PER_PLAYER+9].text[X] =  60/(float)256*SHRT_MAX ; 
+	pointerSprVertices[9].text[X] = pointerSprVertices[NUM_VERTICE_POINTER_PER_PLAYER+9].text[X] =  60/(float)256*SHRT_MAX ;
 	pointerSprVertices[9].text[Y] = pointerSprVertices[NUM_VERTICE_POINTER_PER_PLAYER+9].text[Y] =  36 /(float)128*SHRT_MAX ;
 
-	
+	// v2 P3: seats 2/3 reuse the hand-built seat 0/1 art verbatim (seat 3 gets
+	// the mirrored player-two layout, like seat 1). The static index initializer
+	// only covers two seats' worth of absolute vertex ids -- the extra seats'
+	// blocks are generated here from the same base pattern, +10 per seat.
+	{
+		static const ushort basePattern[NUM_INDICE_POINTER_PER_PLAYER] =
+			{ 1,0,2, 0,2,3, 4,5,6, 5,6,7, 6,7,8, 8,7,9 };
+		int s, k;
+		for (s = 2; s < MAX_NUM_PLAYERS; s++)
+		{
+			int parent = s - 2;
+			for (k = 0; k < NUM_VERTICE_POINTER_PER_PLAYER; k++)
+			{
+				pointerdeltaSprVertices[s*NUM_VERTICE_POINTER_PER_PLAYER + k][X] = pointerdeltaSprVertices[parent*NUM_VERTICE_POINTER_PER_PLAYER + k][X];
+				pointerdeltaSprVertices[s*NUM_VERTICE_POINTER_PER_PLAYER + k][Y] = pointerdeltaSprVertices[parent*NUM_VERTICE_POINTER_PER_PLAYER + k][Y];
+				pointerSprVertices[s*NUM_VERTICE_POINTER_PER_PLAYER + k].text[X] = pointerSprVertices[parent*NUM_VERTICE_POINTER_PER_PLAYER + k].text[X];
+				pointerSprVertices[s*NUM_VERTICE_POINTER_PER_PLAYER + k].text[Y] = pointerSprVertices[parent*NUM_VERTICE_POINTER_PER_PLAYER + k].text[Y];
+			}
+			for (k = 0; k < NUM_INDICE_POINTER_PER_PLAYER; k++)
+				pointerSprIndices[s*NUM_INDICE_POINTER_PER_PLAYER + k] = basePattern[k] + s*NUM_VERTICE_POINTER_PER_PLAYER;
+		}
+	}
 }
 
 // Update position of the pointer to be above the player's ship
@@ -1001,13 +1078,15 @@ void P_PreparePointerSprites(void)
 	}
 }
 
-// v2 P0: sized by the macro (an OOB read waited here at 4 players). The label
-// offsets are hand-tuned per side; seats 2/3 get placeholders until the 4P
-// HUD design lands (P3) -- the initializer count must track MAX_NUM_PLAYERS.
-char* playersNames[MAX_NUM_PLAYERS] = {"Player 1","Player 2"};
+// v2 P3: all four seats named; the label offsets are hand-tuned per SIDE, and
+// seats 2/3 reuse their parent side's pointer art (P_CreatePointerCoordinates),
+// so they reuse its offsets too.
+char* playersNames[MAX_NUM_PLAYERS] = {"Player 1","Player 2","Player 3","Player 4"};
 float playerDelta[MAX_NUM_PLAYERS][2] = {
 	/*p1*/{110,-14},   // raised the label so it sits just above the white underline
-	/*p2*/{-200,98}
+	/*p2*/{-200,98},
+	/*p3*/{110,-14},
+	/*p4*/{-200,98}
 };
 
 // Boss health bar (act 3): a REAL graphical bar -- light frame, dark back,
@@ -1105,9 +1184,16 @@ void PL_RenderPlayerPointers(void)
 	float livesHalfH   = PLAYER_LIVE_COUNT_HEIGHT * SS_W / ((renderer.vScale > 0.0f ? renderer.vScale : 1.0f) * 2.0f);
 	float livesTop = livesAnchorY + livesHalfH;
 	float livesBot = livesAnchorY - livesHalfH;
-	
 
-	for (i=0; i < players[controlledPlayer].respawnCounter; i++) 
+	// v2 P3: multiplayer's shared pool can hold 12 lives -- as an icon row that
+	// would march across the whole screen (and overflow the sprite buffer), so
+	// MP shows ONE icon + an "x12" counter (drawn in the text pass below).
+	// Solo keeps the classic 2010 row.
+	int livesIcons = players[controlledPlayer].respawnCounter;
+	if (engine.mode == DE_MODE_MULTIPLAYER && numPlayers >= 2)
+		livesIcons = (livesIcons > 0) ? 1 : 0;
+
+	for (i=0; i < livesIcons; i++)
 	{
 		spriteVertice->pos[X] = (PLAYER_LIVE_COUNT_START_X + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i) * SS_W;
 		spriteVertice->pos[Y] = livesTop;
@@ -1172,8 +1258,8 @@ void PL_RenderPlayerPointers(void)
 	
 
 	
-	//Also render highscore
-	sprintf(stringScore,SCORE_FORMAT,players[controlledPlayer].score);
+	//Also render highscore (v2 P3: the TEAM score in multiplayer)
+	sprintf(stringScore,SCORE_FORMAT,P_GetDisplayScore());
 	SCR_StartConvertText();
 	// Anchor the score just below the iOS safe area (status bar / notch / Dynamic
 	// Island). On a 2:3 device (vScale=1, safeInsetTopPx=0) this lands at ~the
@@ -1184,6 +1270,16 @@ void PL_RenderPlayerPointers(void)
 		int bossHp = 0, bossMaxHp = 0, bossFight;
 		short bossBarY = 0;
 		SCR_ConvertTextToVertices(stringScore,SCORE_FONT_SIZE,SCORE_POS_X,scoreY,TEXT_NOT_CENTERED);
+		// v2 P3: the shared-pool counter, right-side, just left of the single
+		// life icon (multiplayer only -- solo keeps the icon row).
+		if (engine.mode == DE_MODE_MULTIPLAYER && numPlayers >= 2)
+		{
+			char livesStr[8];
+			int pool = players[controlledPlayer].respawnCounter;
+			if (pool < 0) pool = 0;
+			sprintf(livesStr, "x%d", pool);
+			SCR_ConvertTextToVertices(livesStr, 2.2f, 150, scoreY, TEXT_NOT_CENTERED);
+		}
 		// Tutorial (scenes 14 = swipe, 15 = virtual pad) and Demo (scene 13): a
 		// BACK button at the top-centre to leave. Hit-tested in EAGLView.
 		if (engine.sceneId == 13 || engine.sceneId == 14 || engine.sceneId == 15)
@@ -1232,7 +1328,7 @@ void P_PrepareBulletSprites(void)
 		// player-index colours so the two players' shots stay distinguishable.
 			// Solo: the chosen Custom colour. Multiplayer: each player's SYNCED Custom
 		// colour (defaults to the classic red/blue = the player index).
-		colorCol = (engine.mode == DE_MODE_SINGLEPLAYER) ? gBulletColor : gMPBulletColor[i & 1];
+		colorCol = (engine.mode == DE_MODE_SINGLEPLAYER) ? gBulletColor : gMPBulletColor[i];	// v2 P3: was i&1, discarded seats 2/3
 
 		//Check if the player is currently firing and spawn a flash if so.
 		//Suppressed while the world is frozen (timediff 0) so the muzzle flash
@@ -1272,14 +1368,20 @@ void P_PrepareBulletSprites(void)
 				a[2] = gx + fw;	b[2] = bulletConfig.flashScreenSpaceYDelta + fh;
 				a[3] = gx + fw;	b[3] = bulletConfig.flashScreenSpaceYDelta;
 
-				texU[0] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX);
+				// v2 P3: the atlas only holds TWO flash columns (80->104->128px);
+				// seats 2/3 reuse their parent side's column (i&1) -- a raw i
+				// would walk past the atlas edge and wrap the short UV negative.
+				{
+				int flashCol = i & 1;
+				texU[0] = (80.0f/128*SHRT_MAX) + flashCol*(24.0f/128*SHRT_MAX);
 				texV[0] = (64.0f/128*SHRT_MAX) + (32.0f/128*SHRT_MAX) + player->lastBulletType*(32.0f/128*SHRT_MAX);
-				texU[1] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX);
+				texU[1] = (80.0f/128*SHRT_MAX) + flashCol*(24.0f/128*SHRT_MAX);
 				texV[1] = (64.0f/128*SHRT_MAX) + player->lastBulletType*(32.0f/128*SHRT_MAX);
-				texU[2] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX) + (24.0f/128*SHRT_MAX);
+				texU[2] = (80.0f/128*SHRT_MAX) + flashCol*(24.0f/128*SHRT_MAX) + (24.0f/128*SHRT_MAX);
 				texV[2] = (64.0f/128*SHRT_MAX) + player->lastBulletType*(32.0f/128*SHRT_MAX);
-				texU[3] = (80.0f/128*SHRT_MAX) + i*(24.0f/128*SHRT_MAX) + (24.0f/128*SHRT_MAX);
+				texU[3] = (80.0f/128*SHRT_MAX) + flashCol*(24.0f/128*SHRT_MAX) + (24.0f/128*SHRT_MAX);
 				texV[3] = (64.0f/128*SHRT_MAX) + (32.0f/128*SHRT_MAX) + player->lastBulletType*(32.0f/128*SHRT_MAX);
+				}
 
 				for (c = 0; c < 4; c++)
 				{
@@ -1643,12 +1745,14 @@ void P_PrepareGhostSprites(void)
 			{
 			
 				//Need to update texture coordinate
-				vertex->text[X] = i * SHRT_MAX/2; 
+				// v2 P3: two ghost-trail columns in the texture; seats 2/3
+				// reuse their parent side's ((i&1) -- raw i sampled outside).
+				vertex->text[X] = (i & 1) * SHRT_MAX/2;
 				vertex->text[Y] = textureY;
 				vertex++;
-			
+
 				//Need to update texture coordinate
-				vertex->text[X] = i * SHRT_MAX/2 + SHRT_MAX/2; 
+				vertex->text[X] = (i & 1) * SHRT_MAX/2 + SHRT_MAX/2;
 				vertex->text[Y] = textureY;
 				vertex++;
 
@@ -1704,8 +1808,9 @@ void P_Die(uchar playerId)
 	// across peers: lockstep replays the same deaths in the same order.
 	if (engine.mode == DE_MODE_MULTIPLAYER)
 	{
-		players[0].respawnCounter = players[playerId].respawnCounter;
-		players[1].respawnCounter = players[playerId].respawnCounter;
+		int p;
+		for (p = 0; p < numPlayers && p < MAX_NUM_PLAYERS; p++)	// v2 P3: N-way mirror
+			players[p].respawnCounter = players[playerId].respawnCounter;
 	}
 
 
@@ -1731,17 +1836,17 @@ void P_Die(uchar playerId)
 	{
 		//printf("RESPAWN branch lives=%d\n",players[playerId].lives);
 		players[playerId].invulFlickering = 0;
-		
-		
+
+
 		// Set player's position out of screen
-		players[playerId].ss_position[X] = 0.5f*(playerId-0.5f)*2.f;
+		players[playerId].ss_position[X] = P_FormationX(playerId);	// v2 P3: 4-seat formation
 		players[playerId].ss_position[Y] = -1.4;
-		
-		
+
+
 		players[playerId].autopilot.enabled = 1;
-		
-		players[playerId].autopilot.end_ss_position[X] = 0.5f*(playerId-0.5f)*2.f;
-		players[playerId].autopilot.end_ss_position[Y] = -0.0f;
+
+		players[playerId].autopilot.end_ss_position[X] = P_FormationX(playerId);
+		players[playerId].autopilot.end_ss_position[Y] = P_FormationY(playerId);
 		
 		players[playerId].autopilot.diff_ss_position[X] = players[playerId].ss_position[X] - players[playerId].autopilot.end_ss_position[X];
 		players[playerId].autopilot.diff_ss_position[Y] = players[playerId].ss_position[Y] - players[playerId].autopilot.end_ss_position[Y];
@@ -1756,13 +1861,13 @@ void P_Die(uchar playerId)
 	{
       	//printf("RIP branch lives=%d\n",players[playerId].lives);
 		// Set player's position out of screen
-		players[playerId].ss_position[X] = 0.5f*(playerId-0.5f)*2.f;
+		players[playerId].ss_position[X] = P_FormationX(playerId);	// v2 P3: 4-seat formation
 		players[playerId].ss_position[Y] = -1.4;
-		
-		
+
+
 		players[playerId].autopilot.enabled = 1;
-		
-		players[playerId].autopilot.end_ss_position[X] = 0.5f*(playerId-0.5f)*2.f;
+
+		players[playerId].autopilot.end_ss_position[X] = P_FormationX(playerId);
 		players[playerId].autopilot.end_ss_position[Y] = -1.4f;
 		
 		players[playerId].autopilot.diff_ss_position[X] = 0;
@@ -1772,16 +1877,26 @@ void P_Die(uchar playerId)
 		players[playerId].shouldDraw = 0;
 		
 		
+		// v2 P3: the pool is mirrored, so in MP "everyone is out" is simply "the
+		// pool is below zero" -- checked on all seats for belt-and-braces (a
+		// parked seat's counter is mirrored like any other).
+		{
+		int everyoneOut = 1;
+		int p;
+		for (p = 0; p < numPlayers && p < MAX_NUM_PLAYERS; p++)
+			if (players[p].respawnCounter >= 0)
+				everyoneOut = 0;
+
 		if (((numPlayers == 1) && (playerId == controlledPlayer))     ||
-			((numPlayers == 2) && (players[0].respawnCounter < 0 && players[1].respawnCounter < 0))
+			((numPlayers >= 2) && everyoneOut)
            )
 		{
-			
-            MENU_SetGameOverScore(players[controlledPlayer].score);
+
+            MENU_SetGameOverScore(P_GetDisplayScore());
             MENU_Set(MENU_GAMEOVER);
-            
-            
-			Native_UploadScore(players[controlledPlayer].score);
+
+
+			Native_UploadScore(P_GetDisplayScore());
 			
 			players[playerId].invulnerableFor = 500000;
 			
@@ -1802,14 +1917,15 @@ void P_Die(uchar playerId)
 			eventReqScene->sceneId = 0;
 			event->payload = eventReqScene;
 			EV_AddEvent(event);
-             
-			
-			
+
+
+
 		}
-        
+		}
+
 	}
-	
-	
+
+
 	P_UpdateSSBoundaries(playerId);
     
 }

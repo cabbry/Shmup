@@ -683,6 +683,25 @@ void World_OpenScene(char* filename)
 	}
 
 	LE_popLexer();
+
+	// v2 P3: every shipped scene authors exactly TWO player spawn matrices
+	// (id 0 / id 1). Seats 2/3 would attach with a zero matrix and project to
+	// garbage -- synthesize their spawns on the segment between the authored
+	// pair: seat 2 at 1/4 of the way, seat 3 at 3/4 (the same inner-pair order
+	// as the P_FormationX quinconce). Orientation rows copy the parent seat.
+	{
+		int s2, k;
+		for (s2 = 2; s2 < MAX_NUM_PLAYERS; s2++)
+		{
+			float t = (s2 == 2) ? 0.25f : 0.75f;
+			int parent = s2 - 2;
+			for (k = 0; k < 16; k++)
+				players[s2].entity.matrix[k] = players[parent].entity.matrix[k];
+			for (k = 12; k < 15; k++)	// translation: lerp between seat 0 and 1
+				players[s2].entity.matrix[k] =
+					players[0].entity.matrix[k] + t * (players[1].entity.matrix[k] - players[0].entity.matrix[k]);
+		}
+	}
 }
 
 

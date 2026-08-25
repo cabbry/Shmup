@@ -519,8 +519,9 @@ void Action_ConfigureMultiplayer(void* tag)
 	NET_Init();
 	PL_ResetPlayersScore();
 
-	// Shared life pool in multiplayer: 2 players' worth (3+3=6), since both players
-	// draw from the same pool (mirrored on each death in P_Die).
+	// Shared life pool in multiplayer, mirrored on each death in P_Die. This is
+	// just a PLACEHOLDER: the real pool (numPlayers x 3) is set at match start
+	// by the handshake preload, once the seat count is known (v2 P3).
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = 2 * numPlayerRespawn[DIFFICULTY_NORMAL];
 
@@ -540,7 +541,8 @@ void Action_ConfigureOnlineMultiplayer(void* tag)
 	net.transport = NET_TRANSPORT_GAMECENTER;	// ...then switch this session to online
 	PL_ResetPlayersScore();
 
-	// Shared life pool in multiplayer: 2 players' worth (3+3=6), mirrored on death.
+	// Shared life pool placeholder -- the real pool (numPlayers x 3) is set at
+	// match start by the handshake preload (v2 P3).
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = 2 * numPlayerRespawn[DIFFICULTY_NORMAL];
 

@@ -181,12 +181,19 @@ bool dEngine_ReadConfig(void)
 				{
 					LE_readToken();
 					strcpy(players[1].modelPath, LE_getCurrentToken());
+					// v2 P3: no scene authors model2/model3 -- seat 3 falls
+					// back to seat 1's hull (Custom loadouts re-point it via
+					// P_ReloadShip anyway; this only guards the boot load).
+					if (MAX_NUM_PLAYERS > 3)
+						strcpy(players[3].modelPath, LE_getCurrentToken());
 				}
-				else 
+				else
 				if (!strcmp("model0", LE_getCurrentToken()))
 				{
 					LE_readToken();
 					strcpy(players[0].modelPath, LE_getCurrentToken());
+					if (MAX_NUM_PLAYERS > 2)	// v2 P3: seat 2 <- seat 0's hull
+						strcpy(players[2].modelPath, LE_getCurrentToken());
 				}
 				else 
 					if (!strcmp("bulletTextureName", LE_getCurrentToken()))

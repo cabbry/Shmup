@@ -57,7 +57,7 @@ static BOOL     gMatchStarted = NO;
 
 - (void) stopEngineActivity
 {
-	Native_UploadScore(players[controlledPlayer].score);
+	Native_UploadScore(P_GetDisplayScore());	// v2 P3: team score in MP
 	dEngine_Pause();
 	[glView stopAnimation];
 }
@@ -350,8 +350,10 @@ void Native_StartOnlineMatchmaking(void) {
 	Native_CancelOnlineMatchmaking();	// drop any stale match first
 
 	GKMatchRequest* req = [[GKMatchRequest alloc] init];
+	// v2 P3: up to 4 seats. The matchmaker UI lets the party pick its size;
+	// P4 will add an explicit 2/3/4 pre-lobby choice.
 	req.minPlayers = 2;
-	req.maxPlayers = 2;
+	req.maxPlayers = MAX_NUM_PLAYERS;
 
 	GKMatchmakerViewController* mmvc = [[GKMatchmakerViewController alloc] initWithMatchRequest:req];
 	if (mmvc == nil) {

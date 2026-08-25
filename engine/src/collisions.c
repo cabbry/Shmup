@@ -537,7 +537,7 @@ void COLL_CheckEnemies(void)
 					bullets[j].expirationTime = simulationTime;
 					// Same visible bullet burst as a body hit -- arm hits used to
 					// eat the bullet with almost no feedback ("il ne se passe rien").
-					Spawn_BulletParticules(&bullets[j], i);
+					Spawn_BulletParticules(&bullets[j], i & 1);	// v2 P3: 2 impact sprite types only
 					{
 						static int lastArmImpact = -1000;
 						if (simulationTime - lastArmImpact > 40 || simulationTime < lastArmImpact)
@@ -631,7 +631,7 @@ void COLL_CheckEnemies(void)
 				{
 
 					bullets[j].expirationTime = simulationTime ;
-					Spawn_BulletParticules(&bullets[j],i);
+					Spawn_BulletParticules(&bullets[j], i & 1);	// v2 P3: 2 impact sprite types only
 				}
 				
 				if (enemy->energy <= 0)

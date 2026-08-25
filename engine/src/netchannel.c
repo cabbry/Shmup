@@ -1193,6 +1193,16 @@ void Net_ProcessSetupPacket(void)
 			dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);
 			numPlayers = net.numSeats;
 			controlledPlayer = net.ownSeat;
+			// v2 P3: fill the shared life pool at MATCH start only (we are
+			// still on scene 0, about to load level 1): N players' worth.
+			// Between levels the pool carries over. Deterministic: every
+			// peer runs this same line on its own preload.
+			if (engine.sceneId == 0)
+			{
+				int lp;
+				for (lp = 0; lp < MAX_NUM_PLAYERS; lp++)
+					players[lp].respawnCounter = numPlayers * numPlayerRespawn[DIFFICULTY_NORMAL];
+			}
 			dEngine_CheckState();
 			SND_PauseSoundTrack();
 			Timer_Pause();
@@ -1243,6 +1253,13 @@ void Net_ProcessSetupPacket(void)
 		dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);
 		numPlayers = net.numSeats;
 		controlledPlayer = net.ownSeat;
+		// v2 P3: shared life pool at MATCH start (see the host branch).
+		if (engine.sceneId == 0)
+		{
+			int lp;
+			for (lp = 0; lp < MAX_NUM_PLAYERS; lp++)
+				players[lp].respawnCounter = numPlayers * numPlayerRespawn[DIFFICULTY_NORMAL];
+		}
 		NET_StorePeerLoadout(packet, 0);	// the host's own loadout rides its echo
 		dEngine_CheckState();
 		SND_PauseSoundTrack();

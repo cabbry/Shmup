@@ -140,8 +140,11 @@ void emitBullet(enemy_t* enemy)
 	
 	if (enemy->parameters[PARAMETER_LEE_FIRING_TYPE] == LEE_FIRING_TYPE_TARGET_PLAYER)
 	{
-		playerDirection[X] = enemy->ss_position[X] - players[0].ss_position[X];
-		playerDirection[Y] = enemy->ss_position[Y] - players[0].ss_position[Y];
+		// v2 P3: aim at the NEAREST ship in play (was always player 0 -- which
+		// made P1 the only one ever shot at in multiplayer).
+		int target = P_NearestAlivePlayer(enemy->ss_position[X], enemy->ss_position[Y]);
+		playerDirection[X] = enemy->ss_position[X] - players[target].ss_position[X];
+		playerDirection[Y] = enemy->ss_position[Y] - players[target].ss_position[Y];
 		
 		normalize2(playerDirection);
 		

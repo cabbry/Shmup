@@ -224,12 +224,13 @@ void EV_SpawnEnemy(event_t* event)
 		}
 	}
 
-	// In multiplayer there are two ships firing (~twice the DPS), so enemies felt too
-	// easy with solo HP. Double their energy to keep the challenge comparable. Applied
-	// identically on both devices (same events, same mode) so it stays deterministic.
-	// One-shot WEAK enemies (energy 1) are left alone.
-	if (engine.mode == DE_MODE_MULTIPLAYER && enemy->energy > 1)
-		enemy->energy *= 2;
+	// In multiplayer N ships fire (~N times the DPS), so enemies felt too easy
+	// with solo HP. Scale their energy by the ship count to keep the challenge
+	// comparable (v2 P3: was a flat x2 for the 2-player mode -- identical at 2).
+	// Applied identically on every device (same events, same mode/numPlayers)
+	// so it stays deterministic. One-shot WEAK enemies (energy 1) are left alone.
+	if (engine.mode == DE_MODE_MULTIPLAYER && enemy->energy > 1 && numPlayers >= 2)
+		enemy->energy *= numPlayers;
 	
 
 	
@@ -310,9 +311,12 @@ void EV_AutoPilotPls(event_t* event)
 		players[i].autopilot.enabled = 1;
 		players[i].autopilot.timeCounter  = PLAYER_ENDLEVEL_REPLACMENT;
 		players[i].autopilot.originalTime = PLAYER_ENDLEVEL_REPLACMENT;
-		players[i].autopilot.end_ss_position[X] = (i-0.5)*2*0.3;
-		
-		players[i].autopilot.end_ss_position[Y] = -0.3;
+		// v2 P3: the end-of-level rest formation. 0.6*P_FormationX(i) is
+		// bit-exact with the 2010 (i-0.5)*2*0.3 for seats 0/1, and pulls
+		// seats 2/3 into the inner staggered pair instead of off-screen.
+		players[i].autopilot.end_ss_position[X] = 0.6f * P_FormationX(i);
+
+		players[i].autopilot.end_ss_position[Y] = -0.3f + ((i < 2) ? 0.0f : -0.2f);
 		//Log_Printf("player %d end_ss_position[%.2f,%.2f]\n",players[i].autopilot.end_ss_position[X],players[i].autopilot.end_ss_position[Y]);
 		players[i].autopilot.diff_ss_position[X] = players[i].ss_position[X] - players[i].autopilot.end_ss_position[X];
 		players[i].autopilot.diff_ss_position[Y] = players[i].ss_position[Y] - players[i].autopilot.end_ss_position[Y];
@@ -323,7 +327,7 @@ void EV_AutoPilotPls(event_t* event)
 
 void EV_SaveScore(event_t* event)
 {
-	Native_UploadScore(players[controlledPlayer].score);
+	Native_UploadScore(P_GetDisplayScore());	// v2 P3: team score in MP
 }
 
 

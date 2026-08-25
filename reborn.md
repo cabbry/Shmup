@@ -248,6 +248,50 @@ and smoke-tested on CI before the next:
   datagram per seated remote. Online, **Others → Online** now asks "How many
   players?" (2/3/4) and GameKit matches exactly that many.
 
+**And then the part that actually matters: proving it.** A party of four cannot
+be tested here — it needs four iPhones on one WiFi, or four Game Center
+accounts. So `tools/netrig` runs **four instances of the real
+`engine/src/netchannel.c` in a single process**: each peer is the engine file
+compiled *verbatim* with its symbols macro-renamed, on top of a fake in-memory
+UDP network and a GKMatch mock (plus POSIX/`dns_sd` shims, so the Apple branch
+compiles off-iOS). 152 assertions over 7 scenarios — a party forming out of
+order, a seat dying *during* the handshake, level transitions, a player
+quitting mid-match, one device that never discovers another — and six
+deliberate mutants that must fail, because a harness which passes on broken
+code proves nothing.
+
+It found ten defects, four of them deadlocks that would have shipped:
+
+- **The handshake had no timeout at all.** The per-seat liveness check lives in
+  `NET_Receive`, which returns early until the match is running — and the sim
+  clock is *paused* during the handshake, so milliseconds cannot measure a
+  silence there anyway. One player quitting between two acts hung the whole
+  party, forever. Now a frame-counted watchdog drops the seat holding the
+  barrier and re-evaluates it (no packet was coming to trigger that).
+- **A silent host reads exactly like a dead host.** With four players the two
+  early joiners tore their sessions down while the host was still waiting on
+  the fourth — hence a lobby heartbeat.
+- **The LAN seat table was private to each device.** Seats came from each
+  device's own Bonjour browse, and a settled roster stopped re-browsing: device
+  B could stay unaware that device C exists, seat everyone differently, and the
+  party would split into two incompatible simulations — or deadlock outright
+  when the seat *numbers* disagreed and every packet failed its identity check.
+  Lobby packets now gossip their sender's roster; the tables converge.
+- **Parking a lost ship was four independent stopwatches.** Hundreds of
+  milliseconds apart (seconds, over GKMatch), and for that whole window the
+  parked ship sat at different positions on different devices — enough for the
+  aiming enemies to fire along different vectors and the simulations to part
+  ways for good. The host decides now.
+
+And a few older ghosts, from 2010: `net.buffer` sat two bytes off alignment
+while every read path casts it to a packet struct (undefined behaviour ARM
+happened to tolerate — the rig's sanitizer caught it on the first run); the
+muzzle-flash budget counted one quad per ship where the engine draws two, so
+the bullet vertex pool had always been a quad short per player; and the
+absolute-position resync — the drift correction this streaming netcode leans
+on — had been silent from act 2 onwards ever since, because the level start
+rewinds the clock below its own timestamp.
+
 ### 2026-08-24 — round 31 (the second chance, the audit — and v1.8.0 closes the chapter)
 - **🆕 The second-chance life** (the tester's design, formalizing a bug he loves):
   LAN co-op runs a shared life pool; when it dries up, the dead ship parks and

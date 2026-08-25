@@ -25,6 +25,7 @@
 
 #include "netchannel.h"
 #include "native_services.h"	// Native_GKSendData / Native_StartOnlineMatchmaking (online MP)
+#include "text.h"				// DYN_TEXT_AddText: the on-screen "PLAYER n LEFT" notice
 
 // The network version was designed on iOS with Unix socket. This part still needs to be ported using winsock32.
 #if defined(WIN32) || defined(ANDROID) || defined(LINUX)
@@ -1271,6 +1272,19 @@ void NET_OnSeatLost(int seat)
 		p->autopilot.timeCounter  = 2000000;	// effectively forever
 		p->autopilot.originalTime = 2000000;
 		p->shouldDraw = 0;
+	}
+
+	// Say it ON SCREEN: the multiplayer text lines only show in the lobby, so
+	// mid-match a seat simply used to vanish with no explanation. Three seconds,
+	// drifting up out of the way of the fight.
+	{
+		vec2short_t from, to;
+		char line[32];
+		sprintf(line, "PLAYER %d LEFT", seat + 1);
+		from[0] = to[0] = 0;
+		from[1] = -120;
+		to[1]   = -60;
+		DYN_TEXT_AddText(from, to, 3000, 2.2f, line);
 	}
 
 	sprintf(MENU_GetMultiplayerTextLine(4), "Player %d left the game.", seat + 1);

@@ -99,6 +99,12 @@ int  rig_is_paused(int peer) { return gPaused[peer]; }
 void rig_note_menu(int peer, int menuId) { gMenu[peer] = menuId; }
 void rig_note_load(int peer, int sceneId) { gLoads[peer]++; (void)sceneId; }
 void rig_note_reload(int peer) { gReloads[peer]++; }
+static char gNotice[NPEERS][64];
+void rig_note_notice(int peer, const char* text)
+{
+	strncpy(gNotice[peer], text, sizeof(gNotice[0]) - 1);
+	gNotice[peer][sizeof(gNotice[0]) - 1] = 0;
+}
 
 void rig_vlog(int peer, const char* fmt, va_list ap)
 {
@@ -157,6 +163,7 @@ static void reset_rig(int nPeers, int online)
 		gReloads[i] = 0;
 		gLoads[i] = 0;
 		gSeatOf[i] = -1;
+		gNotice[i][0] = 0;
 	}
 }
 
@@ -323,6 +330,10 @@ static void scenario_lan_drop_in_match(void)
 		check(P[i].state() == STATE_RUNNING, "peer %d ended the match over one quitter (state %d)",
 		      i, P[i].state());
 		check(P[i].drawn(2) == 0, "peer %d still draws the quitter's ship (seat 2)", i);
+		/* And the survivors were TOLD, on screen -- a ship that just vanishes
+		   with no word reads as a bug to the players left behind. */
+		check(!strcmp(gNotice[i], "PLAYER 3 LEFT"),
+		      "peer %d showed no on-screen notice (got \"%s\")", i, gNotice[i]);
 	}
 
 	/* Now the rest leave one by one: the last man standing must fall back to

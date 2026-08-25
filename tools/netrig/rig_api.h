@@ -16,6 +16,7 @@ void rig_set_paused(int peer, int paused);
 int  rig_is_paused(int peer);
 unsigned int rig_ip_of(int peer);
 void rig_gk_send(int peer, const void* data, int len, int reliable);
+void rig_note_notice(int peer, const char* text);
 
 void rig_bus_reset(void);
 

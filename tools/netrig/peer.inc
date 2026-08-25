@@ -81,6 +81,7 @@
 #define P_ReloadShip                   PS(P_ReloadShip)
 #define Native_GKSendData              PS(Native_GKSendData)
 #define Native_CancelOnlineMatchmaking PS(Native_CancelOnlineMatchmaking)
+#define DYN_TEXT_AddText               PS(DYN_TEXT_AddText)
 
 #include "shim/posix_shim.h"
 #include "rig_api.h"
@@ -125,6 +126,8 @@ void dEngine_CheckState(void)              { engine.sceneId = engine.requiredSce
 void P_ReloadShip(void)                    { rig_note_reload(PEER_ID); }
 void Native_GKSendData(const void* d, int len, int reliable) { rig_gk_send(PEER_ID, d, len, reliable); }
 void Native_CancelOnlineMatchmaking(void)  {}
+void DYN_TEXT_AddText(vec2short_t a, vec2short_t b, int dur, float size, char* text)
+{ (void)a;(void)b;(void)dur;(void)size; rig_note_notice(PEER_ID, text); }
 
 /* The driver's window into this peer (one set per peer, named by id). */
 void PS(rig_tick)(int ms)

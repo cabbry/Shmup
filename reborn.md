@@ -189,12 +189,15 @@ to the true screen edges, and the touch-coordinate mapping.
 - **App Store release?** The game is feature-complete: four acts, a boss, an
   ending, online multiplayer, leaderboards. iMessage invites and SharePlay
   already work in code but are gated by Apple until an App Store release.
-- **🚀 v2 — 3-4 player multiplayer** (the next major version): the current
-  netcode is strictly 2-player (peer-to-peer, `controlledPlayer` /
-  `!controlledPlayer`, `numPlayers = 2`), so N players is a real rewrite —
-  N-way command sync / topology (full mesh or host-relay over GKMatch, which
-  already matches up to 4), playerId-based identity everywhere, more ship
-  slots, lives/balance/HUD for a crowd on a phone screen.
+- **🚀 v2 — 3-4 player multiplayer** (the next major version) — **code complete,
+  awaiting device testing** (round 32): the transport speaks SEATS (0..N-1,
+  seat 0 hosts) on both GameKit and the LAN, the handshake is a counting
+  barrier, per-seat sequence/liveness state replaces every "the peer" scalar,
+  a mid-match drop parks that ship and the match continues, `MAX_NUM_PLAYERS`
+  is 4 with a staggered 2-row formation, a shared pool of N×3 lives, ONE team
+  score, 4 ships (incl. the resurrected `hpp` hull and a translucent Ghost),
+  a LAN roster that seats a party of four, and an online party-size picker.
+  Needs: a 2-player regression pass (LAN + online), then a 4-device session.
 - **🚀 v3 — the graphics overhaul**: the deep modernization, staged — clear the
   ~600 deprecation warnings and re-enable the strict clang flags (they catch
   real bugs; several of this project's landmines were exactly what those
@@ -205,6 +208,45 @@ to the true screen edges, and the touch-coordinate mapping.
 ---
 
 ## Changelog
+
+### 2026-08-25 — round 32 (v2 in five phases: the netcode learns to count past two)
+
+The 4-player rewrite, executed as staged surgery on the v2 branch — each phase
+compile-proven locally (zig cc against the real macOS headers, mock `dns_sd.h`)
+and smoke-tested on CI before the next:
+
+- **P0 — the minefield.** ~120 lines of dead 2010 prediction code removed (its
+  only consumer sat after an unconditional `return`), the death packet got its
+  own type (it shipped as `NET_RUNNING` — a value from an unrelated enum that
+  collided with `NET_RTM_COMMAND`), and every hardcoded `2` in the player
+  arrays now sizes off `MAX_NUM_PLAYERS`.
+- **P1 — seats, not roles.** Every device sorts all `gamePlayerID`s (its own
+  included); the index in that order is the SEAT, seat 0 hosts — the N-player
+  generalization of "lowest id wins", bit-identical at 2. Inbound packets carry
+  their sender's seat, mapped by the GameKit layer.
+- **P2 — per-seat state.** `net_peer_t gPeers[]`: per-seat sequence space,
+  liveness clock, barrier flags. The handshake is a COUNTING BARRIER (host
+  counts joins → one preload echo; counts loads → dedupes the colour table,
+  one GO carrying the full loadout table). Packets stamp `senderSeat` +
+  `protoVersion` (recycled dead fields — same offsets, same size; a v1 build
+  joining a v2 lobby is dropped at the door instead of desyncing). And the
+  rule the tester asked for: **one player dropping must not kill the party** —
+  `NET_OnSeatLost` parks the ship (the exact RIP idiom from `P_Die`) and play
+  continues; only the LAST peer's loss ends the session.
+- **P3 — four ships in the sky.** `MAX_NUM_PLAYERS = 4`; seats 2/3 tuck in
+  behind-and-between the classic pair (quinconce; scene assets only author two
+  spawn matrices, so `world.c` synthesizes the inner pair); shared pool of
+  **N×3 lives** (12 at four — "le jeu est chaud, il faut au moins 10 vies")
+  shown as one icon + `x12` (twelve icons would overflow the sprite buffer);
+  **one team score** everywhere a score is shown or uploaded; enemy HP scales
+  ×N; LEE aims at the *nearest* living ship (it had aimed at player 0 since
+  2009); ships 3 & 4 exist (the `hpp` high-poly hull resurrected from the
+  intro, and the Ghost — the classic hull at 55% alpha).
+- **P4 — the lobby.** The LAN election becomes a sorted-IP ROSTER with a 4s
+  settle window (so a party of four all get seated before anyone starts), the
+  discovery pump keeps browsing after first contact, and sends broadcast one
+  datagram per seated remote. Online, **Others → Online** now asks "How many
+  players?" (2/3/4) and GameKit matches exactly that many.
 
 ### 2026-08-24 — round 31 (the second chance, the audit — and v1.8.0 closes the chapter)
 - **🆕 The second-chance life** (the tester's design, formalizing a bug he loves):

@@ -448,6 +448,14 @@ void COLL_CheckPlayers(void)
 
 		P_Die(controlledPlayer);
 		partLib.particules[j].ttl = 0;
+		// One death per frame, full stop. P_Die raises invulnerableFor, but
+		// that flag is only tested at the TOP of this function -- so without
+		// this return a burst whose bullets straddle the hull in the same
+		// frame charged the player two or three lives at once. With a shared
+		// pool and a counter on screen that reads as "x2 became x0, there was
+		// no x1"; in 2010, with three lives each and hearts to count, it just
+		// read as bad luck.
+		return;
 	}
 
 	// Boss homing missiles: unlike escort ships, their body is lethal on contact.
@@ -465,6 +473,7 @@ void COLL_CheckPlayers(void)
 			{
 				P_Die(controlledPlayer);
 				e->energy = 0;
+				return;			// one death per frame -- see the note above
 			}
 			e = e->next;
 		}

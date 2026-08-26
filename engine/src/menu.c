@@ -1162,16 +1162,23 @@ void MENU_Init(void)
 			MENU_CreateButtonWithTag(currentMenu, shipLabels[k], 3, Action_SelectShip, t, NULL, buttonPos, buttonDim);
 		}
 
+		// Row order on screen, which is NOT the colour's atlas column: the
+		// player asked for Yellow above Invisible, and Invisible is column 2
+		// while Yellow is column 3. So the row carries the COLUMN as its tag
+		// and the label comes from the same table -- swapping the display
+		// order can never silently hand someone the wrong bullets.
+		static const int colorRows[NUM_BULLET_COLORS] = { 0, 1, 3, 2 };
+
 		// Bullet colours (right column), row for row with the ships
 		for (k = 0; k < NUM_BULLET_COLORS; k++)
 		{
 			int* t = calloc(1, sizeof(int));
-			*t = k;
+			*t = colorRows[k];
 			buttonPos[X] = 160 ;
 			buttonPos[Y] = LOADOUT_ROW_Y(k);
 			buttonDim[WIDTH] = (159 * 2);
 			buttonDim[HEIGHT] = 64 * 2;
-			MENU_CreateButtonWithTag(currentMenu, colorLabels[k], 3, Action_SelectBulletColor, t, NULL, buttonPos, buttonDim);
+			MENU_CreateButtonWithTag(currentMenu, colorLabels[colorRows[k]], 3, Action_SelectBulletColor, t, NULL, buttonPos, buttonDim);
 		}
 	}
 

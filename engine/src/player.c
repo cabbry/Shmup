@@ -459,6 +459,13 @@ void P_ResetPlayers(void)
 #define PLAYER_LIVE_COUNT_WIDTH -0.12
 #define PLAYER_LIVE_COUNT_SPACING -0.05
 #define PLAYER_LIVE_COUNT_START_X  0.96f
+
+// v2: where the single multiplayer life icon's RIGHT edge sits, in SS_W units.
+// Left of the classic row's 0.96 so the "x12" counter fits beside it: the icon
+// is 0.12 wide, the number is three glyphs of (size * SS_W / 40) each, and the
+// pair still has to end inside the screen.
+#define MP_LIVES_ICON_RIGHT_X      0.62f
+#define MP_LIVES_FONT_SIZE         2.2f
 #define PLAYER_LIVE_COUNT_START_Y  1.48f
 
 
@@ -1194,10 +1201,14 @@ void PL_RenderPlayerPointers(void)
 
 	// v2 P3: multiplayer's shared pool can hold 12 lives -- as an icon row that
 	// would march across the whole screen (and overflow the sprite buffer), so
-	// MP shows ONE icon + an "x12" counter (drawn in the text pass below).
-	// Solo keeps the classic 2010 row.
+	// MP shows ONE icon followed by an "x12" counter to its RIGHT (drawn in the
+	// text pass below). Solo keeps the classic 2010 row.
 	int livesIcons = players[controlledPlayer].respawnCounter;
-	if (engine.mode == DE_MODE_MULTIPLAYER && numPlayers >= 2)
+	int livesIsCounter = (engine.mode == DE_MODE_MULTIPLAYER && numPlayers >= 2);
+	// The single MP icon moves left of the classic row's position to leave room
+	// for the number beside it; the solo row still ends at the screen edge.
+	float livesStartX = livesIsCounter ? MP_LIVES_ICON_RIGHT_X : PLAYER_LIVE_COUNT_START_X;
+	if (livesIsCounter)
 		livesIcons = (livesIcons > 0) ? 1 : 0;
 	// Hard clamp on the buffer, not on the mode: the game-complete and
 	// connection-lost paths flip engine.mode back to SINGLEPLAYER while the
@@ -1211,14 +1222,14 @@ void PL_RenderPlayerPointers(void)
 
 	for (i=0; i < livesIcons; i++)
 	{
-		spriteVertice->pos[X] = (PLAYER_LIVE_COUNT_START_X + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i) * SS_W;
+		spriteVertice->pos[X] = (livesStartX + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i) * SS_W;
 		spriteVertice->pos[Y] = livesTop;
 		spriteVertice->text[U] = PLAYER_LIVE_COUNT_TEXT_START_U;
 		spriteVertice->text[V] = PLAYER_LIVE_COUNT_TEXT_START_V;
 		//spriteVertice->color[R] =  spriteVertice->color[G] =  spriteVertice->color[B] =  spriteVertice->color[A] = 255; 
 		spriteVertice++;
 		
-		spriteVertice->pos[X] = (PLAYER_LIVE_COUNT_START_X + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i ) * SS_W;
+		spriteVertice->pos[X] = (livesStartX + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i ) * SS_W;
 		spriteVertice->pos[Y] = livesBot;
 		spriteVertice->text[U] = PLAYER_LIVE_COUNT_TEXT_START_U;
 		spriteVertice->text[V] = PLAYER_LIVE_COUNT_TEXT_START_V + PLAYER_LIVE_COUNT_TEXT_HEIGHT;
@@ -1226,7 +1237,7 @@ void PL_RenderPlayerPointers(void)
 		spriteVertice++;
 		
 		
-		spriteVertice->pos[X] = (PLAYER_LIVE_COUNT_START_X + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i + PLAYER_LIVE_COUNT_WIDTH) * SS_W;
+		spriteVertice->pos[X] = (livesStartX + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i + PLAYER_LIVE_COUNT_WIDTH) * SS_W;
 		spriteVertice->pos[Y] = livesBot;
 		spriteVertice->text[U] = PLAYER_LIVE_COUNT_TEXT_START_U + PLAYER_LIVE_COUNT_TEXT_WIDTH;
 		spriteVertice->text[V] = PLAYER_LIVE_COUNT_TEXT_START_V + PLAYER_LIVE_COUNT_TEXT_HEIGHT;
@@ -1234,7 +1245,7 @@ void PL_RenderPlayerPointers(void)
 		spriteVertice++;
 		
 		
-		spriteVertice->pos[X] = (PLAYER_LIVE_COUNT_START_X + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i + PLAYER_LIVE_COUNT_WIDTH) * SS_W;
+		spriteVertice->pos[X] = (livesStartX + (PLAYER_LIVE_COUNT_SPACING+ PLAYER_LIVE_COUNT_WIDTH) * i + PLAYER_LIVE_COUNT_WIDTH) * SS_W;
 		spriteVertice->pos[Y] = livesTop;
 		spriteVertice->text[U] = PLAYER_LIVE_COUNT_TEXT_START_U + PLAYER_LIVE_COUNT_TEXT_WIDTH;
 		spriteVertice->text[V] = PLAYER_LIVE_COUNT_TEXT_START_V;
@@ -1286,15 +1297,20 @@ void PL_RenderPlayerPointers(void)
 		int bossHp = 0, bossMaxHp = 0, bossFight;
 		short bossBarY = 0;
 		SCR_ConvertTextToVertices(stringScore,SCORE_FONT_SIZE,SCORE_POS_X,scoreY,TEXT_NOT_CENTERED);
-		// v2 P3: the shared-pool counter, right-side, just left of the single
-		// life icon (multiplayer only -- solo keeps the icon row).
+		// v2 P3: the shared-pool counter, immediately to the RIGHT of the
+		// single life icon (multiplayer only -- solo keeps the icon row). The
+		// first glyph's quad reaches half a glyph LEFT of the x we pass, so
+		// clear the icon by that much plus a small gap; same maths as
+		// SCR_ConvertTextToVertices, so it holds if the size changes.
 		if (engine.mode == DE_MODE_MULTIPLAYER && numPlayers >= 2)
 		{
 			char livesStr[8];
 			int pool = players[controlledPlayer].respawnCounter;
+			short glyphHalf = (short)(MP_LIVES_FONT_SIZE * SS_W / 40);
+			short livesTextX = (short)(MP_LIVES_ICON_RIGHT_X * SS_W) + glyphHalf + 6;
 			if (pool < 0) pool = 0;
 			sprintf(livesStr, "x%d", pool);
-			SCR_ConvertTextToVertices(livesStr, 2.2f, 150, scoreY, TEXT_NOT_CENTERED);
+			SCR_ConvertTextToVertices(livesStr, MP_LIVES_FONT_SIZE, livesTextX, scoreY, TEXT_NOT_CENTERED);
 		}
 		// Tutorial (scenes 14 = swipe, 15 = virtual pad) and Demo (scene 13): a
 		// BACK button at the top-centre to leave. Hit-tested in EAGLView.

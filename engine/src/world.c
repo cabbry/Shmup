@@ -68,9 +68,18 @@ void World_SetIntroShipPreview(int shipChoice)
 	}
 
 	e = &map[num_map_entities - 1];		// intro.map has ONE entity, after 0 background
-	free(e->indices);				// PARTIAL_DRAW allocs a fresh copy per load
-	e->indices = 0;
-	if (!ENT_LoadEntity(e, (char*)path, ENT_PARTIAL_DRAW))
+
+	// FULL_DRAW, and the entity's ORIGINAL indices buffer stays untouched.
+	// Both halves matter, and the first build of this preview crashed on
+	// opening for getting them wrong: the baked vis system (vis.c) memcpys
+	// its per-camera-keyframe index set INTO map[].indices every update --
+	// swapping that buffer for one sized to the previewed model let a full
+	// hpp vis set (3906 tris) smash a p1-sized allocation (222 tris). Left
+	// alone, the buffer is always big enough (the sets are cut from the hpp
+	// mesh), the vis writes stay harmless, and FULL_DRAW makes the renderer
+	// draw the previewed MODEL's own complete index list instead. (Reloading
+	// PARTIAL would also have reallocated the buffer -- same bomb.)
+	if (!ENT_LoadEntity(e, (char*)path, ENT_FULL_DRAW))
 		return;
 
 	for (i = 0; i < 16; i++)

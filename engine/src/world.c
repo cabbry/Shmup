@@ -43,6 +43,48 @@ entity_t map[MAX_NUM_ENTITIES];
 uchar num_map_entities;
 int numBackgroundEntities=0;
 
+
+// v2: the Custom screen previews the CHOSEN ship on the menu's orbit stage.
+// The menu's "rotating ship" is a STATIC map entity circled by the camera
+// path, so the preview is just a model swap on that entity -- plus a
+// compensating uniform scale: the player hulls are ~2.8x the intro mesh
+// (hpp_ship.obj is hpp.obj rescaled to match p1/p2), and the intro camera
+// was framed for the small one. Menu-scene only, display-only: the sim
+// never reads this entity, so lockstep is untouched.
+void World_SetIntroShipPreview(int shipChoice)
+{
+	entity_t* e;
+	const char* path = "data/models/players/hpp.obj.md5mesh";	// the classic intro model
+	float s = 1.0f;
+	int i;
+
+	if (engine.sceneId != 0 || num_map_entities < 1)
+		return;
+
+	if (shipChoice >= 0 && shipChoice < NUM_SHIP_CHOICES)
+	{
+		path = gShipPaths[shipChoice];
+		s = 0.35f;			// 1.9 (intro hull) / ~5.4 (player hulls)
+	}
+
+	e = &map[num_map_entities - 1];		// intro.map has ONE entity, after 0 background
+	free(e->indices);				// PARTIAL_DRAW allocs a fresh copy per load
+	e->indices = 0;
+	if (!ENT_LoadEntity(e, (char*)path, ENT_PARTIAL_DRAW))
+		return;
+
+	for (i = 0; i < 16; i++)
+		e->matrix[i] = 0;
+	e->matrix[0] = e->matrix[5] = e->matrix[10] = s;
+	e->matrix[15] = 1.0f;
+	ENT_GenerateWorldSpaceBBox(e);
+}
+
+void World_ClearIntroShipPreview(void)
+{
+	World_SetIntroShipPreview(-1);		// -1 = the classic intro model at 1:1
+}
+
 void World_ReadMatrix(matrix_t target)
 {
 	int i,j ;

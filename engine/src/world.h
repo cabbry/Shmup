@@ -60,3 +60,6 @@ extern uchar num_map_entities;
 extern int numBackgroundEntities;
 
 #endif
+// v2: Custom-screen ship preview on the menu's orbit stage (menu scene only).
+void World_SetIntroShipPreview(int shipChoice);
+void World_ClearIntroShipPreview(void);

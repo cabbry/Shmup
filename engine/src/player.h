@@ -287,6 +287,7 @@ extern int gShipChoice;
 #define NUM_BULLET_COLORS 4
 extern int gBulletColor;
 // Multiplayer per-player Custom loadout, synced during the handshake (netchannel.c).
+extern const char* gShipPaths[NUM_SHIP_CHOICES];
 extern int gMPShipChoice[MAX_NUM_PLAYERS];
 extern int gMPBulletColor[MAX_NUM_PLAYERS];
 // Score frozen after the boss's killing blow (victory lap gains don't count).

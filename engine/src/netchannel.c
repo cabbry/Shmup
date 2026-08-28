@@ -203,6 +203,18 @@ typedef struct net_peer_t
 	int				lastSetupFrame;	// handshake liveness, in FRAMES (see below)
 	char			joined;			// host barrier: join request seen
 	char			loaded;			// host barrier: NOTIFY_LOADED seen
+
+	// v2: de-jitter queue for this seat's MOVEMENT commands. WiFi delivers in
+	// bursts: two commands one frame, none the next -- applied raw that is a
+	// double-speed jump then a freeze, the "saccade" of the first LAN
+	// playtests. The sender emits exactly one command per frame, so the
+	// smooth playback is one per frame here too; the queue only absorbs the
+	// bunching. Depth capping keeps the added latency bounded (see the
+	// drain in NET_Receive).
+#define NET_JITTER_Q 16
+	command_t		jq[NET_JITTER_Q];
+	int				jqHead;			// next write
+	int				jqTail;			// next read
 } net_peer_t;
 
 // v2 P2: handshake liveness is counted in FRAMES, not milliseconds. During the
@@ -1924,14 +1936,49 @@ void NET_Receive(void)
 
 			// The in-packet playerId must agree with the transport identity:
 			// a command may only ever drive its sender's own ship.
-			if (c->playerId == senderSeat && commandsBuffers[senderSeat].numCommands < COMMAND_BUFFER_SIZE-1)
+			if (c->playerId != senderSeat)
+				continue;
+
+			if (c->type == NET_RTM_COMMAND)
 			{
+				// Movement: through the de-jitter queue (drained below, one
+				// per frame). Full queue: drop the OLDEST -- the total applied
+				// delta then undershoots briefly, and the 300ms ABS resync
+				// mops that up; freezing the newest would lag forever.
+				int next = (gPeers[senderSeat].jqHead + 1) % NET_JITTER_Q;
+				if (next == gPeers[senderSeat].jqTail)
+					gPeers[senderSeat].jqTail = (gPeers[senderSeat].jqTail + 1) % NET_JITTER_Q;
+				memcpy(&gPeers[senderSeat].jq[gPeers[senderSeat].jqHead], c, sizeof(command_t));
+				gPeers[senderSeat].jqHead = next;
+			}
+			else if (commandsBuffers[senderSeat].numCommands < COMMAND_BUFFER_SIZE-1)
+			{
+				// Corrections and events (ABS resync, deaths): immediate.
 				slot = commandsBuffers[senderSeat].numCommands;
 				memcpy(&commandsBuffers[senderSeat].cmds[slot], c, sizeof(command_t));
-
 				commandsBuffers[senderSeat].cmds[slot].time = simulationTime;
 				commandsBuffers[senderSeat].numCommands++;
 			}
+		}
+	}
+
+	// Smooth playback: pop ONE queued movement per seat per frame (the sender's
+	// own emission rate), two while the backlog exceeds three frames so a burst
+	// is worked off gently instead of teleporting the ship.
+	for (s = 0; s < net.numSeats && s < MAX_NUM_PLAYERS; s++)
+	{
+		int pops, depth;
+		if (s == net.ownSeat || !gPeers[s].active)
+			continue;
+		depth = (gPeers[s].jqHead - gPeers[s].jqTail + NET_JITTER_Q) % NET_JITTER_Q;
+		pops  = (depth > 3) ? 2 : (depth > 0) ? 1 : 0;
+		while (pops-- > 0 && commandsBuffers[s].numCommands < COMMAND_BUFFER_SIZE-1)
+		{
+			int slot = commandsBuffers[s].numCommands;
+			memcpy(&commandsBuffers[s].cmds[slot], &gPeers[s].jq[gPeers[s].jqTail], sizeof(command_t));
+			commandsBuffers[s].cmds[slot].time = simulationTime;
+			commandsBuffers[s].numCommands++;
+			gPeers[s].jqTail = (gPeers[s].jqTail + 1) % NET_JITTER_Q;
 		}
 	}
 

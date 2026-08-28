@@ -191,15 +191,17 @@ to the true screen edges, and the touch-coordinate mapping.
   too (v2 added the accept-an-invite listener — the matchmaker could always
   *send* one, but nothing was listening, so tapping Play did nothing), though
   iMessage invites and SharePlay only light up once the app is on the App Store.
-- **🚀 v2 — 3-4 player multiplayer** (the next major version) — **code complete,
-  awaiting device testing** (round 32): the transport speaks SEATS (0..N-1,
-  seat 0 hosts) on both GameKit and the LAN, the handshake is a counting
-  barrier, per-seat sequence/liveness state replaces every "the peer" scalar,
-  a mid-match drop parks that ship and the match continues, `MAX_NUM_PLAYERS`
-  is 4 with a staggered 2-row formation, a shared pool of N×3 lives, ONE team
-  score, 4 ships (incl. the resurrected `hpp` hull and a translucent Ghost),
-  a LAN roster that seats a party of four, and an online party-size picker.
-  Needs: a 2-player regression pass (LAN + online), then a 4-device session.
+- **🚀 v2 — 3-4 player multiplayer** (the next major version) — **on TestFlight
+  (v2.0.x), 2-player LAN confirmed on devices** (rounds 32-33): the transport
+  speaks SEATS (0..N-1, seat 0 hosts) on both GameKit and the LAN, the
+  handshake is a counting barrier, per-seat sequence/liveness state replaces
+  every "the peer" scalar, a mid-match drop parks that ship and the match
+  continues, `MAX_NUM_PLAYERS` is 4 with a staggered 2-row formation, a shared
+  pool of N×3 lives, ONE team score, 4 named ships (Falcon, Viper, the
+  resurrected Phoenix, the translucent Ghost), a LAN roster that seats a party
+  of four, a party-size picker, remote-ship de-jitter, and a Custom screen
+  that previews the picked ship on the menu stage. Needs: the online 2-player
+  pass (watch for "Online - you are Player N of M"), then a 4-device session.
 - **🚀 v3 — the graphics overhaul**: the deep modernization, staged — clear the
   ~600 deprecation warnings and re-enable the strict clang flags (they catch
   real bugs; several of this project's landmines were exactly what those
@@ -210,6 +212,70 @@ to the true screen edges, and the touch-coordinate mapping.
 ---
 
 ## Changelog
+
+### 2026-08-25→28 — round 33 (v2 meets the devices: six builds of feedback)
+
+v2.0.0 (build 212) went to TestFlight on the tester's go — and the first
+device sessions did what no rig can: they played the game. Six builds in
+three days, each one driven by a bug report in plain French.
+
+- **"La caméra passe carrément dans le vaisseau du menu"** (212) — my own
+  regression: `hpp.obj.md5mesh` is the model the title screen orbits, and
+  Ship 3 pointed at that same file, so the ×2.8 rescale that gave the hull
+  p1/p2's wingspan also blew up the intro. Same art, two scales, two files:
+  the intro mesh went back byte-for-byte (blob hashes compared against the
+  pre-212 commit), and Ship 3 got its own `hpp_ship.obj.md5mesh`. Lesson
+  learned the hard way: before rescaling a "player" asset, grep `data/` for
+  who else loads it.
+- **"On n'arrive pas à faire une partie à 2"** (213) — the big one, LAN and
+  online failing the same way. Reading the code found nothing; teaching the
+  rig the case it had never played found everything: **mDNS that only flows
+  one way**, which on a real network is the *normal* case. Two real faults:
+  an unseated device was **deaf** (the handshake pump mistook "nobody has
+  seated me yet" for "the watchdog tore this session down" — both read
+  `NET_UNDETERMINED` — and returned before draining its socket, so the
+  roster gossip built to repair exactly this could never run on the only
+  device that needed it), and a gossip-seated device was **mute**
+  (`serverAddResolved`, a v1 flag only the mDNS callback ever set, kept
+  `isInitialized` false, so `NET_Send` returned early and the host dropped
+  the silent peer after five seconds). Three new rig scenarios pin both
+  directions plus a GameKit pair matched 300 frames apart: 199 checks.
+- **"Le x passe de 2 à 0, il n'y a pas le 1"** (214, once the LAN pair
+  worked) — a **2010 bug**: `P_Die` raises the invulnerability window, but
+  `COLL_CheckPlayers` only reads it at the top of the function and then
+  walks the bullet and missile loops with no exit after a kill — a burst
+  whose bullets straddle the hull in one frame charged two or three lives.
+  Fifteen years of three-lives-and-count-the-hearts read it as bad luck; a
+  shared pool with a number on it made it arithmetic. One death per frame
+  now, full stop.
+- **Menus, en français** (215-217): the Custom grid aligned on one row
+  pitch, Yellow above Invisible (the row carries its atlas column as its
+  tag, so display order can never silently hand out unpicked bullets), the
+  ships named — **Falcon, Viper, Phoenix, Ghost** — the home screen
+  reworked (Game Solo / Game Multi → Local | Online), Tutorial moved into a
+  reordered Others, the soundtrack no longer restarts between levels of the
+  same act, French labels throughout, and the lives display is one icon +
+  `xN` in every mode, snug against the screen edge, the icon staying put at
+  `x0` instead of orphaning its counter.
+- **"Ça saccade un peu"** (LAN, 2 players) — WiFi delivers in bursts: two
+  movement commands one frame, none the next; applied raw that is a
+  double-speed jump then a freeze. Remote movement now flows through a
+  per-seat **de-jitter queue** drained at the sender's own emission rate
+  (one per frame, two while a backlog exceeds three), corrections and
+  deaths staying immediate — bounded latency, and the 300ms ABS resync
+  mops up any residue.
+- **The Custom screen shows the ship** — the menu's "rotating ship" was
+  always a static entity circled by the camera path, so previewing your
+  pick is a model swap on that entity plus the inverse of the famous ×2.8
+  (player hulls at 0.35 fill the intro camera's framing exactly). Enter
+  Custom: your ship is on the stage; tap another: the stage follows;
+  leave: the classic intro hull returns.
+
+Still open from these sessions: the **online** half of the 213 report was
+never reproduced — the rig plays a staggered GameKit start clean, the
+GameKit path reads clean, and the discriminant for the next device test is
+the "Online - you are Player N of M" line: if it never appears, Apple never
+matched the two devices and the fault is not in this code.
 
 ### 2026-08-25 — round 32 (v2 in five phases: the netcode learns to count past two)
 

@@ -33,6 +33,7 @@
 #include "event.h"
 #include "native_services.h"
 #include "target.h"
+#include "world.h"	// v2: ship preview on the Custom screen
 
 #define HOME_ATLAS "/data/menu/homeAtlas.png"
 
@@ -618,6 +619,7 @@ void Action_ShowHomeMenu(void* tag)
 
 void Action_ShowOthersMenu(void* tag)
 {
+	World_ClearIntroShipPreview();	// leaving Custom: the classic intro hull returns
 	MENU_Set(MENU_OTHERS);
 }
 
@@ -643,6 +645,7 @@ void Action_ShowMultiModeMenu(void* tag)
 void Action_ShowShipMenu(void* tag)
 {
 	MENU_UpdateCustomSelection();	// reflect the current choice when entering
+	World_SetIntroShipPreview(gShipChoice);	// v2: YOUR ship on the orbit stage
 	MENU_Set(MENU_SELECT_SHIP);
 }
 
@@ -654,6 +657,7 @@ void Action_SelectShip(void* tag)
 	if (choice >= 0 && choice < NUM_SHIP_CHOICES)
 		gShipChoice = choice;
 	MENU_UpdateCustomSelection();
+	World_SetIntroShipPreview(gShipChoice);	// v2: the orbit stage follows the pick
 	MENU_ClearButtonStates();	// don't leave the just-pressed button highlighted
 #ifdef __APPLE__
 	Native_SaveLoadout(gShipChoice, gBulletColor);	// persist across restarts

@@ -464,7 +464,7 @@ void P_ResetPlayers(void)
 // Left of the classic row's 0.96 so the "x12" counter fits beside it: the icon
 // is 0.12 wide, the number is three glyphs of (size * SS_W / 40) each, and the
 // pair still has to end inside the screen.
-#define MP_LIVES_ICON_RIGHT_X      0.62f
+#define MP_LIVES_ICON_RIGHT_X      0.72f	// nearer the edge (user feedback); "x12" still ends 13px inside
 #define MP_LIVES_FONT_SIZE         2.2f
 #define PLAYER_LIVE_COUNT_START_Y  1.48f
 
@@ -1201,20 +1201,13 @@ void PL_RenderPlayerPointers(void)
 
 	// v2 P3: the lives read as ONE icon + an "xN" counter (drawn in the text
 	// pass below). Born for multiplayer, whose shared pool of 12 would march
-	// an icon row across the whole screen (and overflow the sprite buffer);
-	// solo adopted it on the next build's feedback -- one display, one habit.
-	int livesIcons = players[controlledPlayer].respawnCounter;
+	// an icon row across the whole screen (and overflow the 36-vertex buffer
+	// this row shares with the on-screen buttons); solo adopted it on the
+	// next build's feedback -- one display, one habit. The icon shows even at
+	// zero: it used to vanish on the last death while the "x0" stayed behind,
+	// orphaned (user feedback) -- the pair lives and dies together.
+	int livesIcons = 1;
 	float livesStartX = MP_LIVES_ICON_RIGHT_X;
-	livesIcons = (livesIcons > 0) ? 1 : 0;
-	// Hard clamp on the buffer, not on the mode: the game-complete and
-	// connection-lost paths flip engine.mode back to SINGLEPLAYER while the
-	// shared pool is still holding up to 12 lives, and this row shares its
-	// 36-vertex buffer with the on-screen buttons (renderer.h). A pool of 12
-	// would then write 48 vertices over the buttons' quads and past the end.
-	if (livesIcons > PLAYER_NUM_LIVES)
-		livesIcons = PLAYER_NUM_LIVES;
-	if (livesIcons < 0)
-		livesIcons = 0;
 
 	for (i=0; i < livesIcons; i++)
 	{

@@ -1039,42 +1039,39 @@ void MENU_Init(void)
 	MENU_CreateImageWithVerticalText(currentMenu,pos,dimensions,textPos,textDim);
 	
 	
+	// v2 layout (user's order): row 1 Custom | Scores, row 2 Tutorial | Demo,
+	// row 3 Credits (centred), Back centred at the bottom.
 	buttonPos[X] = -160;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Custom"), 3, Action_ShowShipMenu,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = 160 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Scores"), 3, Action_ShowGameCenter,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = -160 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Tutorial"), 3, Action_GoToTutorial,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = 160;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	actId = calloc(1, sizeof(char));
 	*actId = 13 ;
 	MENU_CreateButtonWithTag(currentMenu, MENU_Tr("Demo"), 3, Action_PlayDemo,actId,NULL, buttonPos, buttonDim);
-	
-	buttonPos[X] = -160 ; 
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, MENU_Tr("Credits"), 3, Action_ShowCreditsMenu,NULL, buttonPos, buttonDim);
-	
-	
-	// v2: the multiplayer entries moved to the home screen's Game Multi menu;
-	// Tutorial takes their slot (it used to live on the home screen).
-	buttonPos[X] = -160 ;
+
+	buttonPos[X] = 0 ;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, MENU_Tr("Tutorial"), 3, Action_GoToTutorial,NULL, buttonPos, buttonDim);
-
-	// Game Center "High Scores" leaderboard viewer.
-	buttonPos[X] = 160 ;
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, MENU_Tr("Scores"), 3, Action_ShowGameCenter,NULL, buttonPos, buttonDim);
-
-	// Solo ship + bullet-colour selection (top-right).
-	buttonPos[X] = 160 ;
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, MENU_Tr("Custom"), 3, Action_ShowShipMenu,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Credits"), 3, Action_ShowCreditsMenu,NULL, buttonPos, buttonDim);
 //
 //	if (engine.gameCenterPossible)
 //    {
@@ -1089,7 +1086,7 @@ void MENU_Init(void)
 
 	
 	
-	buttonPos[X] = 160 ; 
+	buttonPos[X] = 0 ; 
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;

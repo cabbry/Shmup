@@ -576,7 +576,7 @@ void NET_StartOnlineMatch(int mySeat, int numSeats)
 void NET_AbortOnlineMatch(void)
 {
 	NET_Free();				// resets transport back to LAN, clears state
-	MENU_Set(MENU_OTHERS);
+	MENU_Set(MENU_MULTI_MODE);	// v2: multiplayer lives under Game Multi now
 }
 
 

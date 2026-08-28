@@ -383,8 +383,12 @@ void SCR_ConvertTextToVertices(const char* string, float size, short ss_cooX, sh
 	for (i=0; i < stringLength; i++) 
 	{
 		//	Log_Printf("character %c=%d\n",*currentChar,*currentChar);
-		textCoo[X] = *currentChar & 15;
-		textCoo[Y] = *currentChar >> 4;
+		// v2: UNSIGNED indexing -- the atlas has real Latin-1 accent glyphs
+		// (rows 12-15), but char is SIGNED on Apple ARM64: an accented byte
+		// (0xE9, 'e acute') went negative and the arithmetic shift produced
+		// a negative row. French needs the top half of the table.
+		textCoo[X] = (uchar)*currentChar & 15;
+		textCoo[Y] = (uchar)*currentChar >> 4;
 		
 		scr_p_TextVertices[0].pos[X] = ss_cooX-charWidth;
 		scr_p_TextVertices[0].pos[Y] = ss_cooY+charHeight;

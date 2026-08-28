@@ -32,6 +32,10 @@ int  Native_RetrieveListOf(char replayList[10][256]);
 void Native_UploadFileTo(char path[256]);
 void Action_ShowGameCenter(void* tag);
 void Native_UploadScore(uint score);
+
+// v2: menu localization -- 1 when the device language is French (iOS reads
+// NSLocale; other platforms answer 0 and stay English).
+int Native_IsFrenchLanguage(void);
 void Native_LoginGameCenter(void);
 
 // Online (GameKit GKMatch) real-time multiplayer bridge.

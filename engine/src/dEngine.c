@@ -414,6 +414,10 @@ void dEngine_InitDisplaySystem(uchar rendererType)
 // on iOS (NSUserDefaults) and restored at launch.
 int gHighestActReached = 1;
 
+// v2: the soundtrack file currently loaded in the native player, so a scene
+// change to the SAME track lets the music play on (see dEngine_LoadScene).
+static char gPlayingTrack[256] = "";
+
 void dEngine_LoadScene(int sceneId)
 {
 	event_t* ev;
@@ -483,10 +487,26 @@ void dEngine_LoadScene(int sceneId)
 	
 	ENE_Precache();
 	
+	// v2: the four acts share ONE soundtrack file (UNREALPM.mp3, each act's
+	// scene merely cueing a different startMusicAt) -- so let it PLAY ON
+	// across level transitions instead of rewinding to each act's cue (user
+	// request). Only a real track change touches the player: title <-> game
+	// (UNREALTH vs UNREALPM), or a music-less scene.
 	if (engine.musicFilename[0] != '\0')
 	{
-		SND_InitSoundTrack(engine.musicFilename,engine.musicStartAt);
-		SND_StartSoundTrack();
+		if (strcmp(gPlayingTrack, engine.musicFilename) != 0)
+		{
+			SND_StopSoundTrack();
+			SND_InitSoundTrack(engine.musicFilename,engine.musicStartAt);
+			SND_StartSoundTrack();
+			strncpy(gPlayingTrack, engine.musicFilename, sizeof(gPlayingTrack)-1);
+			gPlayingTrack[sizeof(gPlayingTrack)-1] = '\0';
+		}
+	}
+	else
+	{
+		SND_StopSoundTrack();
+		gPlayingTrack[0] = '\0';
 	}
 	
 	
@@ -630,7 +650,8 @@ void dEngine_CheckState(void)
 	if (Log_ProbesEnabled())
 		Log_Printf("[scene] %d -> %d (t=%d)\n", engine.sceneId, engine.requiredSceneId, simulationTime);
 
-	SND_StopSoundTrack();
+	// v2: do NOT stop the soundtrack here -- dEngine_LoadScene decides, and a
+	// same-track transition (act to act) now lets the music play on.
 	
 	dEngine_FreeSceneRessources();
 	
@@ -791,6 +812,7 @@ void dEngine_Pause(void)
 	engine.menuVisible = 0;
 	MENU_Set(MENU_HOME);
 	SND_StopSoundTrack();
+	gPlayingTrack[0] = '\0';	// v2: the app went to background -- next scene re-inits the track
 	SND_FinalizeRecord();
 	//dEngine_RequireSceneId(0);
 	engine.sceneId = -1;

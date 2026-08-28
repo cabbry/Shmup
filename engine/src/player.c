@@ -1199,17 +1199,13 @@ void PL_RenderPlayerPointers(void)
 	float livesTop = livesAnchorY + livesHalfH;
 	float livesBot = livesAnchorY - livesHalfH;
 
-	// v2 P3: multiplayer's shared pool can hold 12 lives -- as an icon row that
-	// would march across the whole screen (and overflow the sprite buffer), so
-	// MP shows ONE icon followed by an "x12" counter to its RIGHT (drawn in the
-	// text pass below). Solo keeps the classic 2010 row.
+	// v2 P3: the lives read as ONE icon + an "xN" counter (drawn in the text
+	// pass below). Born for multiplayer, whose shared pool of 12 would march
+	// an icon row across the whole screen (and overflow the sprite buffer);
+	// solo adopted it on the next build's feedback -- one display, one habit.
 	int livesIcons = players[controlledPlayer].respawnCounter;
-	int livesIsCounter = (engine.mode == DE_MODE_MULTIPLAYER && numPlayers >= 2);
-	// The single MP icon moves left of the classic row's position to leave room
-	// for the number beside it; the solo row still ends at the screen edge.
-	float livesStartX = livesIsCounter ? MP_LIVES_ICON_RIGHT_X : PLAYER_LIVE_COUNT_START_X;
-	if (livesIsCounter)
-		livesIcons = (livesIcons > 0) ? 1 : 0;
+	float livesStartX = MP_LIVES_ICON_RIGHT_X;
+	livesIcons = (livesIcons > 0) ? 1 : 0;
 	// Hard clamp on the buffer, not on the mode: the game-complete and
 	// connection-lost paths flip engine.mode back to SINGLEPLAYER while the
 	// shared pool is still holding up to 12 lives, and this row shares its
@@ -1298,11 +1294,10 @@ void PL_RenderPlayerPointers(void)
 		short bossBarY = 0;
 		SCR_ConvertTextToVertices(stringScore,SCORE_FONT_SIZE,SCORE_POS_X,scoreY,TEXT_NOT_CENTERED);
 		// v2 P3: the shared-pool counter, immediately to the RIGHT of the
-		// single life icon (multiplayer only -- solo keeps the icon row). The
+		// single life icon (all modes -- solo shows "x3" the same way). The
 		// first glyph's quad reaches half a glyph LEFT of the x we pass, so
 		// clear the icon by that much plus a small gap; same maths as
 		// SCR_ConvertTextToVertices, so it holds if the size changes.
-		if (engine.mode == DE_MODE_MULTIPLAYER && numPlayers >= 2)
 		{
 			char livesStr[8];
 			int pool = players[controlledPlayer].respawnCounter;

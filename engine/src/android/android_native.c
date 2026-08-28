@@ -169,3 +169,5 @@ void loadNativePNG(texture_t* tmpTex)
 
   FS_CloseFile(file);
 }
+
+int Native_IsFrenchLanguage(void) { return 0; }	// v2: menu localization (EN on Android for now)

@@ -326,6 +326,14 @@ static void GKSeats_Clear(void) {
  real in EAGLView.m -- it uses NSFileManager and needs no modernization.
 */
 
+// v2: menu localization -- French menus when the user's preferred language is
+// French. One read; the menu is built once.
+int Native_IsFrenchLanguage(void) {
+	NSArray<NSString*>* langs = [NSLocale preferredLanguages];
+	if (langs.count == 0) return 0;
+	return [langs[0] hasPrefix:@"fr"] ? 1 : 0;
+}
+
 void Native_UploadScore(uint score) {
 	if (![GKLocalPlayer local].isAuthenticated)
 		return;

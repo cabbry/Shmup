@@ -731,15 +731,15 @@ static int gMenuFrench = 0;
 
 typedef struct menu_tr_t { const char* en; const char* fr; } menu_tr_t;
 static const menu_tr_t gMenuTr[] = {
-	{ "Game Solo",           "Jouer Solo" },
-	{ "Game Multi",          "Jouer Multi" },
+	{ "Game Solo",           "Jeu Solo" },
+	{ "Game Multi",          "Jeu Multi" },
 	{ "Others",              "Autres" },
 	{ "Back",                "Retour" },
 	{ "New Game",            "Lancer" },
 	{ "Credits",             "Cr\xE9" "dits" },
 	{ "Tutorial",            "Tutoriel" },
 	{ "Scores",              "Scores" },
-	{ "Custom",              "Perso" },
+	{ "Custom",              "Custom" },
 	{ "Demo",                "D\xE9" "mo" },
 	{ "Local",               "Local" },
 	{ "Online",              "En ligne" },
@@ -757,7 +757,7 @@ static const menu_tr_t gMenuTr[] = {
 	{ "MULTIPLAYER",         "MULTIJOUEUR" },
 	{ "How many players ?",  "Combien de joueurs ?" },
 	{ "SELECT ACT",          "CHOISIR L'ACTE" },
-	{ "CUSTOM",              "PERSO" },
+	{ "CUSTOM",              "CUSTOM" },
 	{ "Locked - finish Act %s first", "Bloqu\xE9 - finis d'abord l'Acte %s" },
 	{ "Unlocked up to Act %s",        "D\xE9" "bloqu\xE9 jusqu'\xE0 l'Acte %s" },
 	{ "Red",                 "Rouge" },

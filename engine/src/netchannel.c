@@ -234,6 +234,16 @@ static int gSetupFrames = 0;
 // drained its socket, so it could never learn about the peer that was talking
 // to it, and a LAN pair whose mDNS only flowed one way never started at all.
 static int gSetupTornDown = 0;
+
+// v2.0.8: when this client last sent NOTIFY_LOADED, in handshake frames. The
+// GO arrives one round trip after the notify that completed the host's
+// barrier, so (gSetupFrames - this) is an RTT sample measured with the only
+// clock that runs during the handshake. Used to start the client's sim clock
+// half an RTT AHEAD: the host resets its clock when it SENDS the GO, a client
+// when it RECEIVES it -- online that is 30-100ms of permanent phase offset
+// between the two deterministic sims (enemies, waves), invisible on a LAN,
+// the visible part of the online 'legere desynchro'.
+static int gLastNotifySentFrame = 0;
 static void NET_ArmSetupFrames(void);
 static net_peer_t	gPeers[MAX_NUM_PLAYERS];
 
@@ -1619,6 +1629,7 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 		NET_ArmSetupFrames();	// fresh window while we wait for the GO
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_PRELOADED.\n");
 
+		gLastNotifySentFrame = gSetupFrames;
 		NET_SendSetupCmd(NET_CMD_NOTIFY_LOADED);
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_NOTIFY_LOADED");
 	}
@@ -1635,6 +1646,25 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 		SND_ResumeSoundTrack();
 		Timer_resetTime();
 		Timer_Resume();
+		// v2.0.8: start this sim HALF AN RTT ahead (online only). The host's
+		// clock started when it SENT this GO; ours would start on receipt,
+		// a permanent phase lag between two sims that both derive every
+		// enemy from simulationTime. The GO answers our latest NOTIFY one
+		// round trip later, so that gap IS an RTT sample -- in handshake
+		// frames (~16ms each), the only clock running here. Capped: with 3+
+		// players the GO may answer someone ELSE's notify (overestimate),
+		// and a bad estimate must stay a small error. LAN keeps its
+		// confirmed bit-exact start (RTT there is a frame, ~nothing).
+		if (NET_IsOnline())
+		{
+			int halfMs = (gSetupFrames - gLastNotifySentFrame) * 16 / 2;
+			if (halfMs > 150) halfMs = 150;
+			if (halfMs > 0)
+			{
+				simulationTime += halfMs;
+				Log_Printf("Online clock offset: +%dms (half the handshake RTT).\n", halfMs);
+			}
+		}
 		NET_ArmLiveness();
 		MENU_Set(MENU_NONE);
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_RUNNING.\n");
@@ -1680,7 +1710,10 @@ void Net_ProcessSetupPacket(void)
 	// the party waits at the curtain for a message nobody will send again.
 	// Repeat it while we wait for the GO.
 	if (net.ownSeat != 0 && net.state == NET_PRELOADED && (gSetupFrames % 30) == 0)
+	{
+		gLastNotifySentFrame = gSetupFrames;
 		NET_SendSetupCmd(NET_CMD_NOTIFY_LOADED);
+	}
 
 	for (drained = 0; drained < NET_SETUP_DRAIN_MAX; drained++)
 	{
@@ -1939,8 +1972,14 @@ void NET_Receive(void)
 			if (c->playerId != senderSeat)
 				continue;
 
-			if (c->type == NET_RTM_COMMAND)
+			if (c->type == NET_RTM_COMMAND || c->type == NET_RTM_ABS_UPDATE)
 			{
+				// v2.0.8: the ABS resync rides the SAME queue as the deltas.
+				// Applied out of order (it used to jump the queue), the stale
+				// deltas still queued BEHIND it re-applied movement the snapshot
+				// already contained -- the correction overshot, the next one
+				// pulled back, and the remote ship never quite settled: the
+				// tester's 'legere desynchro' online. Wire order, paced.
 				// Movement: through the de-jitter queue (drained below, one
 				// per frame). Full queue: drop the OLDEST -- the total applied
 				// delta then undershoots briefly, and the 300ms ABS resync
@@ -1953,7 +1992,8 @@ void NET_Receive(void)
 			}
 			else if (commandsBuffers[senderSeat].numCommands < COMMAND_BUFFER_SIZE-1)
 			{
-				// Corrections and events (ABS resync, deaths): immediate.
+				// Deaths: immediate -- rare, order-insensitive for the pool,
+				// and a queue overflow must never be able to drop one.
 				slot = commandsBuffers[senderSeat].numCommands;
 				memcpy(&commandsBuffers[senderSeat].cmds[slot], c, sizeof(command_t));
 				commandsBuffers[senderSeat].cmds[slot].time = simulationTime;

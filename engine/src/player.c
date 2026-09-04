@@ -1192,6 +1192,22 @@ void PL_RenderPlayerPointers(void)
 	if (TITLE_IsEndOfGameScreen())
 		return;
 
+	// CI probe (v2): who is actually flying. Gated like every probe; the
+	// 4-ship smoke asserts on "[players] n=4 drawn=4".
+	if (Log_ProbesEnabled())
+	{
+		static int playersProbeTick = 0;
+		if (++playersProbeTick >= 60)
+		{
+			int p, drawn = 0;
+			playersProbeTick = 0;
+			for (p = 0; p < numPlayers && p < MAX_NUM_PLAYERS; p++)
+				drawn += players[p].shouldDraw ? 1 : 0;
+			Log_Printf("[players] n=%d drawn=%d pool=%d t=%d\n", numPlayers, drawn,
+			           players[controlledPlayer].respawnCounter, simulationTime);
+		}
+	}
+
 	spriteVertice = &diverSpriteLib.vertices[diverSpriteLib.numVertices];
 
 	// Lives row: align with the score (same iOS safe-area anchor) and squash the

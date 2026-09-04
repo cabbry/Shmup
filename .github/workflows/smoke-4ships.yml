@@ -1,0 +1,158 @@
+name: Smoke test four ships (act 1, solo, CI-only hook)
+
+# v2 de-risking for the 4-player device session nobody can hold yet. The rig
+# proves the NETCODE at four with no renderer; the TTB smoke plays SOLO. So
+# the 4-player RENDERING paths -- four attached hulls, the seat 2/3 spawns
+# world.c synthesizes, four pointers, four muzzle flashes, the x12 pool on the
+# HUD, LEE picking the nearest of four -- had never run anywhere. This flies
+# act 1 with SHMUP_FAKE_PLAYERS=4 (a singleplayer-only hook: passengers with
+# no input, autofire on) and asserts on the engine's own [players] probe:
+#   - "[players] n=4 drawn=4" keeps coming  -> four hulls stay attached and drawn
+#   - "[scene] 1 -> 2" appears              -> the act completes with four aboard
+#   - no crash report                       -> the paths that never ran, ran
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: macos-15
+    timeout-minutes: 50
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build (iphonesimulator, arm64, no signing)
+        working-directory: engine/iOS
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project dEngine.xcodeproj \
+            -target Shmup \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -arch arm64 \
+            SYMROOT="$PWD/build" \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            GCC_TREAT_WARNINGS_AS_ERRORS=NO \
+            OTHER_CFLAGS='$(inherited) -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-function-pointer-types -Wno-error=incompatible-pointer-types' \
+            build | tail -5
+
+      - name: Boot a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone (1[5-9]|SE)" | head -1 | grep -oE "[0-9A-F-]{36}")
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
+          fi
+          echo "Using simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Launch act 1 with four ships
+        id: run
+        run: |
+          APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+          UDID="${{ steps.sim.outputs.udid }}"
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch \
+            --terminate-running-process "$UDID" "$BUNDLE_ID" || true
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=1 \
+            SIMCTL_CHILD_SHMUP_FAKE_PLAYERS=4 \
+            SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
+            SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
+            SIMCTL_CHILD_SHMUP_INVULN=1 \
+            SIMCTL_CHILD_SHMUP_AUTOFIRE=1 \
+            xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
+            > "$RUNNER_TEMP/ships.log" 2>&1 &
+          echo "bundle=$BUNDLE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the act to complete with four aboard
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="${{ steps.run.outputs.bundle }}"
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
+          START=$(date +%s)
+
+          sleep 60
+          echo "=== console head ==="
+          head -60 "$RUNNER_TEMP/ships.log" || true
+          for L in "$CONTAINER"/Documents/*.log; do
+            [ -f "$L" ] && { echo "== $L head:"; head -40 "$L"; }
+          done
+
+          for i in $(seq 1 140); do
+            LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+            [ -z "$LOG" ] && LOG="$RUNNER_TEMP/ships.log"
+            DONE=$(grep -c "scene] 1 -> 2" "$LOG" 2>/dev/null || true)
+            N=$(grep -c "\[players\] n=4 drawn=4" "$LOG" 2>/dev/null || true)
+            MIN=$((($(date +%s)-START)/60))
+            echo "[$MIN min] four-ships probe lines so far: ${N:-0}"
+            if [ "${DONE:-0}" -ge 1 ]; then
+              echo "act 1 completed with four aboard"
+              break
+            fi
+            if [ "$MIN" -ge 40 ]; then
+              echo "::error::Timed out before act 1 finished. Log tail:"
+              tail -40 "$LOG" || true
+              exit 1
+            fi
+            sleep 20
+          done
+
+          LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+          [ -z "$LOG" ] && LOG="$RUNNER_TEMP/ships.log"
+          cp "$LOG" ships-trace.log
+
+          # The hook took: the engine said so, in its own words.
+          grep -q "\[fake\] 4 ships" ships-trace.log || { echo "::error::The fake-players hook never engaged."; exit 1; }
+
+          # Four hulls, attached and drawn, the whole act long.
+          GOOD=$(grep -c "\[players\] n=4 drawn=4" ships-trace.log || true)
+          ANYN=$(grep -c "\[players\] n=" ships-trace.log || true)
+          WRONGN=$(grep "\[players\] n=" ships-trace.log | grep -vc "n=4 " || true)
+          echo "players probe: $GOOD lines with 4 drawn, out of $ANYN; $WRONGN with n != 4"
+          [ "${GOOD:-0}" -ge 30 ] || { echo "::error::Too few frames with four hulls drawn ($GOOD)."; exit 1; }
+          [ "${WRONGN:-0}" -eq 0 ] || { echo "::error::numPlayers drifted away from 4 mid-act."; exit 1; }
+
+          # The pool the HUD shows is the MP one: 4 x 3.
+          grep -q "\[players\] n=4 drawn=4 pool=12" ships-trace.log || { echo "::error::The x12 pool never showed."; exit 1; }
+
+          # Nothing died on the way: a crash stops the log, and leaves a report.
+          if ls ~/Library/Logs/DiagnosticReports/Shmup* >/dev/null 2>&1; then
+            echo "::error::A crash report exists:"; ls ~/Library/Logs/DiagnosticReports/Shmup*
+            for c in ~/Library/Logs/DiagnosticReports/Shmup*; do head -40 "$c"; done
+            exit 1
+          fi
+          echo "FOUR SHIPS FLEW ACT 1 END TO END."
+
+      - name: Collect logs even on failure
+        if: always()
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="${{ steps.run.outputs.bundle }}"
+          cp "$RUNNER_TEMP/ships.log" console.log 2>/dev/null || true
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data 2>/dev/null)
+          [ -n "$CONTAINER" ] && cp "$CONTAINER"/Documents/*.log documents.log 2>/dev/null || true
+
+      - name: Upload the trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ships-trace
+          path: |
+            ships-trace.log
+            console.log
+            documents.log
+          if-no-files-found: ignore

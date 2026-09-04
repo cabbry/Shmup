@@ -327,6 +327,32 @@ void dEngine_WriteScreenshot(char* directory)
 	
 }
 
+// CI hook (v2): SHMUP_FAKE_PLAYERS=<n> flies n ships in a SOLO game -- the
+// 4-player RENDERING paths (four attached hulls, the seat 2/3 spawns world.c
+// synthesizes, pointers, muzzle flashes x4, the x12 pool on the HUD, LEE
+// picking the nearest of four) had never run anywhere: the rig proves the
+// netcode with no renderer, the smoke plays solo. Passengers 1..n-1 get no
+// input and just fly attached (autofire covers them too). Singleplayer only,
+// like every CI hook: never a lockstep peer's state. Applied AFTER
+// P_InitPlayers (dEngine_InitDisplaySystem), which resets numPlayers to 1 --
+// the first run of the four-ship smoke set it in dEngine_Init and watched
+// P_InitPlayers quietly take it back.
+static void dEngine_ApplyFakePlayers(void)
+{
+	char* fake = getenv("SHMUP_FAKE_PLAYERS");
+	if (fake && engine.mode == DE_MODE_SINGLEPLAYER)
+	{
+		int n = atoi(fake), i;
+		if (n < 1) n = 1;
+		if (n > MAX_NUM_PLAYERS) n = MAX_NUM_PLAYERS;
+		numPlayers = (uchar)n;
+		controlledPlayer = 0;
+		for (i = 0; i < MAX_NUM_PLAYERS; i++)
+			players[i].respawnCounter = (char)(n * numPlayerRespawn[DIFFICULTY_NORMAL]);	// the MP pool, N x 3
+		Log_Printf("[fake] %d ships in a solo game (CI).\n", n);
+	}
+}
+
 bool dEngine_Init(void)
 {
 	FS_InitFilesystem();
@@ -390,27 +416,6 @@ bool dEngine_Init(void)
 			dEngine_RequireSceneId(atoi(bakeScene));
 	}
 
-	// CI hook (v2): SHMUP_FAKE_PLAYERS=<n> flies n ships in a SOLO game -- the
-	// 4-player RENDERING paths (four attached hulls, the seat 2/3 spawns
-	// world.c synthesizes, pointers, muzzle flashes x4, the x12 pool on the
-	// HUD, LEE picking the nearest of four) had never run anywhere: the rig
-	// proves the netcode with no renderer, the smoke plays solo. Passengers
-	// 1..n-1 get no input and just fly attached (autofire covers them too).
-	// Singleplayer only, like every CI hook: never a lockstep peer's state.
-	{
-		char* fake = getenv("SHMUP_FAKE_PLAYERS");
-		if (fake && engine.mode == DE_MODE_SINGLEPLAYER)
-		{
-			int n = atoi(fake), i;
-			if (n < 1) n = 1;
-			if (n > MAX_NUM_PLAYERS) n = MAX_NUM_PLAYERS;
-			numPlayers = (uchar)n;
-			controlledPlayer = 0;
-			for (i = 0; i < MAX_NUM_PLAYERS; i++)
-				players[i].respawnCounter = (char)(n * numPlayerRespawn[DIFFICULTY_NORMAL]);	// the MP pool, N x 3
-			Log_Printf("[fake] %d ships in a solo game (CI).\n", n);
-		}
-	}
 
 	return true;
 }
@@ -429,6 +434,8 @@ void dEngine_InitDisplaySystem(uchar rendererType)
 	
 	engine.menuVisible = 0;
 	MENU_Set(MENU_HOME);
+
+	dEngine_ApplyFakePlayers();	// CI: after P_InitPlayers, which would reset numPlayers
 }
 
 // Progression: the furthest act (scene 1..3) ever reached. Gates the act-select

@@ -203,7 +203,9 @@ to the true screen edges, and the touch-coordinate mapping.
   of four, a party-size picker, and a Custom screen
   that previews the picked ship on the menu stage, remote-ship de-jitter with
   the ABS resync in wire order, and a half-RTT clock alignment at the online
-  GO. Needs: a 4-device session -- everything above is rig-proven at four,
+  GO, host migration (the lowest active seat leads, on every peer at once),
+  and host-ruled deaths (one order, one pool, one survivor on every screen).
+  Needs: a 4-device session -- everything above is rig-proven at four,
   device-proven at two.
 - **🚀 v3 — the graphics overhaul**: the deep modernization, staged — clear the
   ~600 deprecation warnings and re-enable the strict clang flags (they catch
@@ -215,6 +217,40 @@ to the true screen edges, and the touch-coordinate mapping.
 ---
 
 ## Changelog
+
+### 2026-08-29→30 — round 34 (online confirmed — and the two limits I had left open)
+
+- **v2.0.8 (build 220): online plays, and the two screens agree.** The first
+  working online match had reported "assez fluide mais légère désynchro"; two
+  mechanisms, both fixed. The 300ms absolute-position correction had been
+  jumping the de-jitter queue — applied before stale deltas it already
+  contained, which then re-applied on top: overshoot, pull-back, never quite
+  settling. It rides the queue now, in wire order. And a 2010 design flaw the
+  LAN could never show: the host resets its sim clock when it *sends* the GO,
+  a client when it *receives* it — a permanent half-RTT phase offset between
+  two sims that derive every enemy from that clock. The GO answers the
+  client's latest NOTIFY_LOADED one round trip later, so that gap is an RTT
+  sample; the client now starts half of it ahead. Tester's verdict: *"ligne
+  sur la 220 -> ok. fin d'acte en multijoueur -> ok"* — **two-player v2 is
+  device-confirmed end to end**, LAN, online and act transitions.
+- **Host migration.** The host was literally seat 0; lose it and the party
+  played the level on leaderless, then hung at the next act's barrier. The
+  host is now the *lowest active seat*, derived on every peer from the same
+  activeMask — the survivors agree on the successor with nothing new on the
+  wire, and the role (JOIN sender, barrier, death authority) follows it.
+- **The host rules on deaths** — the review's Failure C, finally. Each device
+  used to apply its own hull's death first and hear about the others later;
+  two deaths within one latency at a pool of 2 left a *different* ship alive
+  on each screen. A hit is now a request, the host applies the death and
+  broadcasts one order carrying the pool it ruled on, and every device
+  applies deaths in that order only. Collisions pause while a ruling is
+  pending; an unanswered request is resent, then dropped, so a lost answer
+  can never make a hull immortal.
+- **Rig: 229 checks.** Two new scenarios stage exactly these — the host
+  quitting mid-match (one successor, the next level's barrier clears under
+  it), and both hulls hit in the same frame at a pool of 2 (same pool, same
+  single survivor on both screens). A mutant that rules deaths locally, the
+  v1 way, fails six assertions.
 
 ### 2026-08-25→28 — round 33 (v2 meets the devices: six builds of feedback)
 

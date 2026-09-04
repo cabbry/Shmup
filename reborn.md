@@ -192,16 +192,18 @@ to the true screen edges, and the touch-coordinate mapping.
   *send* one, but nothing was listening, so tapping Play did nothing), though
   iMessage invites and SharePlay only light up once the app is on the App Store.
 - **🚀 v2 — 3-4 player multiplayer** (the next major version) — **on TestFlight
-  (v2.0.x), 2-player LAN confirmed on devices** (rounds 32-33): the transport
-  speaks SEATS (0..N-1, seat 0 hosts) on both GameKit and the LAN, the
+  (v2.0.8), 2-player LAN AND online device-confirmed, act transitions
+  included** (rounds 32-34): the transport speaks SEATS (0..N-1, seat 0 hosts)
   handshake is a counting barrier, per-seat sequence/liveness state replaces
   every "the peer" scalar, a mid-match drop parks that ship and the match
   continues, `MAX_NUM_PLAYERS` is 4 with a staggered 2-row formation, a shared
   pool of N×3 lives, ONE team score, 4 named ships (Falcon, Viper, the
   resurrected Phoenix, the translucent Ghost), a LAN roster that seats a party
   of four, a party-size picker, remote-ship de-jitter, and a Custom screen
-  that previews the picked ship on the menu stage. Needs: the online 2-player
-  pass (watch for "Online - you are Player N of M"), then a 4-device session.
+  that previews the picked ship on the menu stage, remote-ship de-jitter with
+  the ABS resync in wire order, and a half-RTT clock alignment at the online
+  GO. Needs: a 4-device session -- everything above is rig-proven at four,
+  device-proven at two.
 - **🚀 v3 — the graphics overhaul**: the deep modernization, staged — clear the
   ~600 deprecation warnings and re-enable the strict clang flags (they catch
   real bugs; several of this project's landmines were exactly what those

@@ -216,6 +216,12 @@ typedef struct player_t
 	ushort invulFlickering;
 	char respawnCounter;
 	uchar shouldDraw;
+
+	// v2.0.9 host authority on deaths: this hull was hit and its death is
+	// awaiting the host's ruling. Collisions are suspended meanwhile (the
+	// request is resent until the order arrives, or times out).
+	char deathPending;
+	int  deathPendingSince;
 	
 	autopilot_t autopilot;
 	int showPointer;
@@ -259,7 +265,8 @@ void P_UpdateGhosts(player_t* player);
 void P_PrepareGhostSprites(void);
 void P_FireGhosts(player_t* player);
 
-void P_Die(uchar playerId);
+void P_Die(uchar playerId);			// a hull was hit: routes to the host authority in MP
+void P_ApplyDeath(uchar playerId);	// the death itself (FX, pool, respawn/RIP, game over) -- no network
 void P_UpdateSSBoundaries(uchar pId);
 
 void P_CreatePointerCoordinates(void);

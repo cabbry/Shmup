@@ -242,6 +242,8 @@ void P_ResetPlayer(int i)
 	
 	player->showPointer = 0;
 	player->autopilot.enabled = 0;
+	player->deathPending = 0;		// v2.0.9: no ruling outstanding on a fresh hull
+	player->deathPendingSince = 0;
 	
 	for (j=0; j < MAX_PLAYER_BULLETS; j++)
 	{
@@ -1787,10 +1789,28 @@ void P_PrepareGhostSprites(void)
 
 
 
+// A hull was hit. Solo: the death happens here and now. Multiplayer: nobody
+// rules on a death alone anymore -- see NET_PlayerHit (netchannel.c): the host
+// applies it and broadcasts the order, everyone else applies the order. Before
+// v2.0.9 each device applied its own death first and heard about the others
+// later, so two deaths within one latency at a pool of 2 left a DIFFERENT
+// ship alive on each screen -- the review's Failure C, now impossible by
+// construction: one authority, one order.
 void P_Die(uchar playerId)
 {
+	if (engine.mode == DE_MODE_MULTIPLAYER && NET_DeathAuthority())
+	{
+		NET_PlayerHit(playerId);
+		return;
+	}
+	P_ApplyDeath(playerId);
+}
 
-	command_t t;
+// The death itself: FX, the shared pool, respawn or RIP, game over. No network
+// in here -- in MP it runs on every device in the HOST's order.
+void P_ApplyDeath(uchar playerId)
+{
+
 	event_t* event;
 	event_req_menu_t* eventReqMenu;
 	event_req_scene_t* eventReqScene;
@@ -1834,15 +1854,7 @@ void P_Die(uchar playerId)
 	}
 
 
-
-	//NET_Update peer that we died
-	if (engine.mode == DE_MODE_MULTIPLAYER && playerId == controlledPlayer)
-	{
-		t.time = simulationTime;
-		t.type = NET_RTM_DIED;
-		t.playerId = playerId;
-		Net_SendDie(&t);
-	}
+	players[playerId].deathPending = 0;	// v2.0.9: whatever was pending, this IS the ruling
 	
 	players[playerId].invulnerableFor = PLAYER_INVUL_TIME_MS;
 	

@@ -40,7 +40,10 @@
 	int  rig_ship_##id(int s); \
 	void rig_set_loadout_##id(int ship, int color); \
 	void rig_set_lives_##id(int n); \
-	void rig_set_party_##id(int n);
+	void rig_set_party_##id(int n); \
+	int  rig_is_host_##id(void); \
+	void rig_hit_##id(void); \
+	int  rig_invul_##id(int s);
 DECL(0) DECL(1) DECL(2) DECL(3)
 
 typedef struct peer_api_t {
@@ -63,13 +66,16 @@ typedef struct peer_api_t {
 	void (*set_loadout)(int,int);
 	void (*set_lives)(int);
 	void (*set_party)(int);
+	int  (*is_host)(void);
+	void (*hit)(void);
+	int  (*invul)(int);
 } peer_api_t;
 
 #define API(id) { rig_tick_##id, rig_start_online_##id, rig_init_lan_##id, rig_deliver_gk_##id, \
                   rig_resolve_peer_##id, rig_next_level_##id, rig_state_##id, rig_seat_##id, \
                   rig_numseats_##id, rig_numplayers_##id, rig_controlled_##id, rig_lives_##id, \
                   rig_scene_##id, rig_drawn_##id, rig_color_##id, rig_ship_##id, \
-                  rig_set_loadout_##id, rig_set_lives_##id, rig_set_party_##id }
+                  rig_set_loadout_##id, rig_set_lives_##id, rig_set_party_##id, rig_is_host_##id, rig_hit_##id, rig_invul_##id }
 static peer_api_t P[NPEERS] = { API(0), API(1), API(2), API(3) };
 
 /* --- rig state --- */
@@ -102,6 +108,10 @@ void rig_note_menu(int peer, int menuId) { gMenu[peer] = menuId; }
 void rig_note_load(int peer, int sceneId) { gLoads[peer]++; (void)sceneId; }
 void rig_note_reload(int peer) { gReloads[peer]++; }
 static char gNotice[NPEERS][64];
+static int gDeaths[NPEERS];			/* v2.0.9: deaths applied on each peer */
+static int gLastDeathSeat[NPEERS];
+void rig_note_death(int peer, int seat) { gDeaths[peer]++; gLastDeathSeat[peer] = seat; }
+
 void rig_note_notice(int peer, const char* text)
 {
 	strncpy(gNotice[peer], text, sizeof(gNotice[0]) - 1);
@@ -166,6 +176,8 @@ static void reset_rig(int nPeers, int online)
 		gLoads[i] = 0;
 		gSeatOf[i] = -1;
 		gNotice[i][0] = 0;
+		gDeaths[i] = 0;
+		gLastDeathSeat[i] = -1;
 	}
 }
 
@@ -617,6 +629,111 @@ static void scenario_online_staggered_start(void)
 	check(P[0].seat() == 0 && P[1].seat() == 1, "staggered: seats (%d,%d)", P[0].seat(), P[1].seat());
 }
 
+/* 13. HOST MIGRATION. The host (seat 0 = peer 2 in this rig's ip order) quits
+      mid-match. Before v2.0.9 the survivors played the level on leaderless
+      and then hung at the next act's barrier, waiting on a seat that would
+      never answer. Now the lowest ACTIVE seat is the host, on every device at
+      once, with nothing new on the wire: the survivors must agree on exactly
+      one new host, keep playing, and clear the next level's barrier under it. */
+static void scenario_lan_host_migration(void)
+{
+	int i, hosts;
+	printf("[13] LAN: the HOST quits mid-match -- the next seat up takes over\n");
+	reset_rig(4, 0);
+
+	for (i = 0; i < 4; i++) { P[i].init_lan(); P[i].set_party(4); P[i].set_loadout(i, i); }
+	run_frames(10);
+	for (i = 0; i < 4; i++)
+		for (int k = 0; k < 4; k++)
+			if (k != i) P[i].resolve_peer(gIps[k]);
+	run_frames(500);
+
+	check(P[2].is_host() && !P[0].is_host() && !P[1].is_host() && !P[3].is_host(),
+	      "before the drop, peer 2 (seat 0) should be the one host");
+
+	gAlive[2] = 0;			/* the host's device dies */
+	run_frames(700);		/* past NET_PEER_TIMEOUT_MS on the sim clock */
+
+	hosts = 0;
+	for (i = 0; i < 4; i++)
+	{
+		if (i == 2) continue;
+		check(P[i].state() == STATE_RUNNING, "survivor %d ended the match over the host's loss (state %d)",
+		      i, P[i].state());
+		check(P[i].drawn(0) == 0, "survivor %d still draws the departed host's ship (seat 0)", i);
+		check(!strcmp(gNotice[i], "PLAYER 1 LEFT"),
+		      "survivor %d showed no on-screen notice (got \"%s\")", i, gNotice[i]);
+		hosts += P[i].is_host() ? 1 : 0;
+	}
+	check(hosts == 1, "after the drop the survivors count %d hosts, expected exactly 1", hosts);
+	/* Seat 1 is peer 3 in this rig's ip order: the next seat up. */
+	check(P[3].is_host(), "the successor should be seat 1 (peer 3), the lowest active seat");
+
+	/* The real test: the level ends, and the barrier must complete under the
+	   NEW host -- this is exactly where a leaderless party used to hang. */
+	for (i = 0; i < 4; i++)
+		if (i != 2) P[i].next_level();
+	run_frames(900);
+
+	for (i = 0; i < 4; i++)
+	{
+		if (i == 2) continue;
+		check(P[i].state() == STATE_RUNNING, "survivor %d did not clear the barrier under the new host (state %d)",
+		      i, P[i].state());
+		check(P[i].numplayers() == 4, "survivor %d numPlayers %d after migration (seats stay 4, one parked)",
+		      i, P[i].numplayers());
+		check(P[i].drawn(0) == 0, "survivor %d revived the departed host's ship at the next level", i);
+	}
+}
+
+/* 14. HOST AUTHORITY ON DEATHS -- the review's Failure C, staged. Pool of 2,
+      and BOTH hulls are hit in the same frame. Before v2.0.9 each device applied
+      its own death first (pool 2 -> 1, "I respawn") and the other's second
+      (1 -> 0, "he parks"): two screens, two different survivors, one match
+      diverged for good. Now the host rules and everyone applies its order: the
+      two devices must agree on the pool AND on which single hull is parked. */
+static void scenario_death_authority(void)
+{
+	int i;
+	printf("[14] LAN pair: both hulls hit in the same frame at a pool of 2 -- one ruling\n");
+	reset_rig(2, 0);
+
+	for (i = 0; i < 2; i++) { P[i].init_lan(); P[i].set_party(2); P[i].set_loadout(0, 0); }
+	run_frames(10);
+	P[0].resolve_peer(gIps[1]);
+	P[1].resolve_peer(gIps[0]);
+	run_frames(500);
+	check(P[0].state() == STATE_RUNNING && P[1].state() == STATE_RUNNING, "authority: the pair did not start");
+
+	/* One ordinary death first: the client's hull is hit, the HOST must rule,
+	   and both pools must land on 5 -- the client's own hull included. */
+	P[1].hit();						/* peer 1 = seat 1 = the client */
+	run_frames(60);
+	check(P[0].lives() == 5 && P[1].lives() == 5, "authority: one client death -> pools (%d,%d), expected (5,5)",
+	      P[0].lives(), P[1].lives());
+	check(gDeaths[0] == 1 && gDeaths[1] == 1, "authority: one death applied (%d,%d) times, expected once each",
+	      gDeaths[0], gDeaths[1]);
+	check(gLastDeathSeat[0] == 1 && gLastDeathSeat[1] == 1, "authority: the death was ruled for seat (%d,%d), expected 1",
+	      gLastDeathSeat[0], gLastDeathSeat[1]);
+	run_frames(300);				/* let the invulnerability window close */
+
+	/* Failure C itself. */
+	for (i = 0; i < 2; i++) P[i].set_lives(2);
+	P[0].hit();
+	P[1].hit();						/* same frame */
+	run_frames(120);
+
+	check(P[0].lives() == P[1].lives(), "Failure C: pools disagree (%d vs %d)", P[0].lives(), P[1].lives());
+	check(P[0].lives() == 0, "Failure C: pool %d after two deaths from 2, expected 0", P[0].lives());
+	check(P[0].drawn(0) == P[1].drawn(0) && P[0].drawn(1) == P[1].drawn(1),
+	      "Failure C: the two screens keep different hulls alive (peer0 sees %d/%d, peer1 sees %d/%d)",
+	      P[0].drawn(0), P[0].drawn(1), P[1].drawn(0), P[1].drawn(1));
+	check(P[0].drawn(0) + P[0].drawn(1) == 1, "Failure C: %d hulls drawn after 2 deaths from 2, expected exactly 1",
+	      P[0].drawn(0) + P[0].drawn(1));
+	check(gDeaths[0] == 3 && gDeaths[1] == 3, "Failure C: deaths applied (%d,%d), expected 3 each",
+	      gDeaths[0], gDeaths[1]);
+}
+
 int main(int argc, char** argv)
 {
 	if (argc > 1 && !strcmp(argv[1], "-v")) gVerbose = 1;
@@ -635,6 +752,8 @@ int main(int argc, char** argv)
 	scenario_lan_two_oneway_client();
 	scenario_lan_two_oneway_host();
 	scenario_online_staggered_start();
+	scenario_lan_host_migration();
+	scenario_death_authority();
 
 	printf("=== %d checks, %d failures ===\n", gChecks, gFailures);
 	return gFailures ? 1 : 0;

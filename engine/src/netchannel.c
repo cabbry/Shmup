@@ -36,6 +36,8 @@
 	void NET_Free(void){}
 	char NET_IsInitialized(){return 1;}
 	void Net_SendDie(command_t* command){}
+	int  NET_DeathAuthority(void){return 0;}
+	void NET_PlayerHit(int seat){}
 	void NET_OnNextLevelLoad(void){}
 	char NET_IsRunning(void){return 0;}
 	char NET_IsInMatch(void){return 0;}
@@ -132,7 +134,7 @@ typedef struct net_packet_t
 	// - protoVersion: v1 builds left this uninitialized; v2 stamps NET_PROTO.
 	//   A mismatch (e.g. a v1.8 tester joining a v2 lobby) is dropped at the
 	//   door instead of desyncing mid-match.
-#define NET_PROTO 2
+#define NET_PROTO 3		// 3: v2.0.9 host authority on deaths (DIE_REQ/DIE_ORDER replace DIED)
 	int senderSeat;
 	int protoVersion;
 
@@ -260,6 +262,151 @@ static int NET_ActiveRemotes(void)
 		if (i != net.ownSeat && gPeers[i].active)
 			n++;
 	return n;
+}
+
+// v2.0.9 HOST MIGRATION: the host is the LOWEST ACTIVE seat, not literally
+// seat 0. Every peer derives it from the same activeMask (the host's own
+// verdicts, replayed on every device), so when the host itself drops, the
+// survivors agree on its successor without a single extra byte on the wire
+// -- the next seat up simply starts counting the barrier, stamping masks and
+// ruling on deaths, and everyone else already expects it to. Before this,
+// a lost host left the party leaderless: the level played on, and the next
+// act's barrier waited forever on a seat that would never answer.
+static int NET_HostSeat(void)
+{
+	int s;
+	for (s = 0; s < net.numSeats && s < MAX_NUM_PLAYERS; s++)
+		if (s == net.ownSeat || gPeers[s].active)
+			return s;
+	return 0;
+}
+
+static int NET_IsHost(void)
+{
+	return net.ownSeat == NET_HostSeat();
+}
+
+
+// ------------------------------------------------------------------------------
+//  v2.0.9 HOST AUTHORITY ON DEATHS.
+//  A hull being hit is no longer a death -- it is a REQUEST. The host (see
+//  NET_HostSeat) rules: it applies the death and broadcasts ONE order carrying
+//  the pool value it ruled on and a running death sequence; every device applies
+//  deaths in that order and that order only, so two hulls dying within one
+//  network latency can no longer be sequenced differently on two screens (the
+//  review's Failure C: a pool of 2, both die, each screen keeps a different ship).
+//  The host's own hull goes through the same ruling, just without the wire.
+// ------------------------------------------------------------------------------
+static int gDeathSeq = 0;			// host: orders issued this session
+static int gLastDeathOrderSeq = 0;	// client: last order applied (LAN sends 3 copies)
+static int gRunFrames = 0;			// NET_Receive ticks, for the request-resend cadence
+#define NET_DEATH_REQ_RESEND_FRAMES 12
+#define NET_DEATH_PENDING_TIMEOUT_MS 2000
+
+int NET_DeathAuthority(void)
+{
+	return net.state == NET_RUNNING && net.numSeats >= 2;
+}
+
+static void NET_SendDeathCmd(int type, int seat, int poolBefore, int seq)
+{
+	command_t c;
+	int copies = NET_IsOnline() ? 1 : 3;	// DEATH_PACKET is reliable on GameKit; the LAN is raw UDP
+	int i;
+	memset(&c, 0, sizeof(c));
+	c.type     = (uchar)type;
+	c.playerId = (uchar)seat;
+	c.time     = simulationTime;
+	c.delta[0] = (float)poolBefore;
+	c.delta[1] = (float)seq;
+	for (i = 0; i < copies; i++)
+		Net_SendDie(&c);
+}
+
+// Host side: rule on a hit for `seat`. Idempotent on purpose -- the request is
+// resent until the order lands, and P_ApplyDeath raises invulnerableFor, so a
+// repeat arriving after the ruling finds the hull invulnerable (or parked) and
+// is ignored.
+static void NET_HostRuleDeath(int seat)
+{
+	int poolBefore;
+	if (seat < 0 || seat >= MAX_NUM_PLAYERS || seat >= numPlayers)
+		return;
+	if (players[seat].invulnerableFor > 0)
+		return;						// just ruled (or respawning): a repeat, not a new death
+	if (players[seat].respawnCounter <= 0 && players[seat].shouldDraw == 0)
+		return;						// parked: the corpse cannot die again
+	poolBefore = players[seat].respawnCounter;
+	gDeathSeq++;
+	P_ApplyDeath((uchar)seat);
+	NET_SendDeathCmd(NET_RTM_DIE_ORDER, seat, poolBefore, gDeathSeq);
+}
+
+// Every device on receiving the host's order (the host never receives its own).
+static void NET_ApplyDeathOrder(int seat, int poolBefore, int seq)
+{
+	int p;
+	if (seq <= gLastDeathOrderSeq)
+		return;						// a LAN duplicate, or already applied
+	gLastDeathOrderSeq = seq;
+	if (seat < 0 || seat >= MAX_NUM_PLAYERS || seat >= numPlayers)
+		return;
+	// The host's pre-death pool is the truth: adopt it, then apply the death
+	// exactly as the host did (decrement, mirror, respawn or RIP, game over).
+	for (p = 0; p < numPlayers && p < MAX_NUM_PLAYERS; p++)
+		players[p].respawnCounter = (char)poolBefore;
+	players[seat].deathPending = 0;
+	P_ApplyDeath((uchar)seat);
+}
+
+// P_Die's multiplayer entry (player.c).
+void NET_PlayerHit(int seat)
+{
+	if (seat < 0 || seat >= MAX_NUM_PLAYERS)
+		return;
+	if (players[seat].respawnCounter <= 0 && players[seat].shouldDraw == 0)
+		return;						// parked hull: nothing to rule on
+	if (NET_IsHost())
+	{
+		NET_HostRuleDeath(seat);
+		return;
+	}
+	if (seat != net.ownSeat)
+		return;						// only our own hull's collisions are ours to report
+	if (players[seat].deathPending)
+		return;						// already asked; the resend loop owns it now
+	players[seat].deathPending = 1;
+	players[seat].deathPendingSince = simulationTime;
+	NET_SendDeathCmd(NET_RTM_DIE_REQ, seat, 0, 0);
+}
+
+// Once per NET_Receive: keep a pending request alive, and never let a lost
+// answer leave a hull immortal -- after the timeout the request is dropped and
+// the hull is simply hittable again.
+static void NET_TickDeathPending(void)
+{
+	player_t* me;
+	gRunFrames++;
+	if (net.ownSeat < 0 || net.ownSeat >= MAX_NUM_PLAYERS)
+		return;
+	me = &players[net.ownSeat];
+	if (!me->deathPending)
+		return;
+	if (simulationTime - me->deathPendingSince > NET_DEATH_PENDING_TIMEOUT_MS)
+	{
+		me->deathPending = 0;
+		Log_Printf("Death request unanswered for %dms: dropped.\n", NET_DEATH_PENDING_TIMEOUT_MS);
+		return;
+	}
+	if (NET_IsHost())
+	{
+		// We became the host while waiting (migration): rule on it ourselves.
+		me->deathPending = 0;
+		NET_HostRuleDeath(net.ownSeat);
+		return;
+	}
+	if ((gRunFrames % NET_DEATH_REQ_RESEND_FRAMES) == 0)
+		NET_SendDeathCmd(NET_RTM_DIE_REQ, net.ownSeat, 0, 0);
 }
 
 // Host barrier counters: how many remote seats have joined / finished loading.
@@ -633,6 +780,9 @@ void NET_Free(void)
 	net.ownSeat  = 0;					// v2 P1: seats die with the session
 	net.numSeats = 0;
 	NET_PeersReset();					// v2 P2: per-seat state dies with the session
+	gDeathSeq = 0;					// v2.0.9: the death ledger dies with it too
+	gLastDeathOrderSeq = 0;
+	{ int dp; for (dp = 0; dp < MAX_NUM_PLAYERS; dp++) players[dp].deathPending = 0; }
 	LAN_ResetRoster();					// v2 P4: so does the LAN roster
 	netRxHead = netRxTail = 0;			// flush any queued online packets
 	ownAddrValid = 0;					// recompute our own IP next session (for role election)
@@ -1308,6 +1458,18 @@ void NET_OnSeatLost(int seat)
 	gPeers[seat].active = 0;
 	Log_Printf("NET_OnSeatLost: seat %d (%d remotes left)\n", seat, NET_ActiveRemotes());
 
+	// v2.0.9: the role follows the roster. If the seat that just left WAS the
+	// host, NET_HostSeat() now names the next one up on every survivor at
+	// once -- and net.type has to follow, because the JOIN sender, the
+	// isInitialized gate and the barrier all key off it.
+	{
+		int wasHost = (seat == 0) || (seat < net.ownSeat && NET_IsHost());
+		net.type = NET_IsHost() ? NET_SERVER : NET_CLIENT;
+		if (wasHost)
+			Log_Printf("Host migration: seat %d is the host now%s.\n",
+			           NET_HostSeat(), NET_IsHost() ? " (that is us)" : "");
+	}
+
 	if (NET_ActiveRemotes() == 0)
 	{
 		NET_OnPeerLost();			// nobody left to play with
@@ -1475,14 +1637,15 @@ static void NET_CheckSetupTimeouts(void)
 		return;
 	}
 
-	if (net.ownSeat != 0)
+	if (!NET_IsHost())
 	{
 		// A client only ever waits on the host. Past the preload it waits for
 		// ONE packet the host has already queued (the GO), so the window there
 		// is short: a straggler that misses it would otherwise wake up seconds
 		// behind the level's clock, which no amount of position resync repairs.
 		int limit = (net.state == NET_PRELOADED) ? 300 : NET_SETUP_TIMEOUT_FRAMES;
-		if (gPeers[0].active && gSetupFrames - gPeers[0].lastSetupFrame > limit)
+		int h = NET_HostSeat();
+		if (gPeers[h].active && gSetupFrames - gPeers[h].lastSetupFrame > limit)
 		{
 			Log_Printf("Handshake timeout: the host went silent.\n");
 			NET_OnPeerLost();
@@ -1568,7 +1731,7 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 		return;
 
 	// ---------------- HOST (seat 0): the barrier ----------------
-	if (net.ownSeat == 0 && packet->command.type == NET_CMD_LOAD_NEXT_LEVEL &&
+	if (NET_IsHost() && packet->command.type == NET_CMD_LOAD_NEXT_LEVEL &&
 	    (net.state == NET_STARTED || net.state == NET_PRELOADED))
 	{
 		packetConsumed = 1;
@@ -1592,7 +1755,7 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 		}
 	}
 
-	if (net.ownSeat == 0 && net.state == NET_PRELOADED && packet->command.type == NET_CMD_NOTIFY_LOADED)
+	if (NET_IsHost() && net.state == NET_PRELOADED && packet->command.type == NET_CMD_NOTIFY_LOADED)
 	{
 		packetConsumed = 1;
 		gPeers[setupSeat].loaded = 1;
@@ -1604,13 +1767,13 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 	// ---------------- CLIENT seats ----------------
 	// The host's heartbeat: proof of life only (the liveness stamp above did
 	// the work), and it tells the player what the wait is for.
-	if (net.ownSeat != 0 && setupSeat == 0 && packet->command.type == NET_CMD_WAITING)
+	if (!NET_IsHost() && setupSeat == NET_HostSeat() && packet->command.type == NET_CMD_WAITING)
 	{
 		packetConsumed = 1;
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Waiting for the other players...");
 	}
 
-	if (net.ownSeat != 0 && setupSeat == 0 && net.state == NET_STARTED &&
+	if (!NET_IsHost() && setupSeat == NET_HostSeat() && net.state == NET_STARTED &&
 	    packet->command.type == NET_CMD_LOAD_NEXT_LEVEL)
 	{
 		packetConsumed = 1;
@@ -1634,7 +1797,7 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_NOTIFY_LOADED");
 	}
 
-	if (net.ownSeat != 0 && setupSeat == 0 && net.state == NET_PRELOADED &&
+	if (!NET_IsHost() && setupSeat == NET_HostSeat() && net.state == NET_PRELOADED &&
 	    packet->command.type == NET_CMD_START_LEVEL)
 	{
 		packetConsumed = 1;
@@ -1702,14 +1865,14 @@ void Net_ProcessSetupPacket(void)
 	//    and that gossip is what makes the four devices agree on the seat table
 	//    (a device nobody told us about has no seat, and no voice).
 	if (net.state == NET_STARTED && (gSetupFrames % 15) == 0 &&
-	    (net.ownSeat == 0 || !NET_IsOnline()) && net.numSeats >= 2)
+	    (NET_IsHost() || !NET_IsOnline()) && net.numSeats >= 2)
 		NET_SendSetupCmd(NET_CMD_WAITING);
 
 	// A client stops sending joins the moment it preloads, so its single
 	// NOTIFY_LOADED burst was the only one the host would ever get: lose it and
 	// the party waits at the curtain for a message nobody will send again.
 	// Repeat it while we wait for the GO.
-	if (net.ownSeat != 0 && net.state == NET_PRELOADED && (gSetupFrames % 30) == 0)
+	if (!NET_IsHost() && net.state == NET_PRELOADED && (gSetupFrames % 30) == 0)
 	{
 		gLastNotifySentFrame = gSetupFrames;
 		NET_SendSetupCmd(NET_CMD_NOTIFY_LOADED);
@@ -1941,7 +2104,7 @@ void NET_Receive(void)
 		// GKMatch), and for that whole window the parked ship sits at different
 		// positions on different devices -- enough for the aiming enemies to
 		// shoot along different vectors and the sims to part ways for good.
-		if (net.ownSeat != 0 && senderSeat == 0)
+		if (!NET_IsHost() && senderSeat == NET_HostSeat())
 			NET_ApplyActiveMask(rcv_packet.activeMask);
 
 		// A runtime packet carries its current command plus a few redundant (previous)
@@ -1966,6 +2129,22 @@ void NET_Receive(void)
 
 			net.numDropedPackets += (seq - (1 + gPeers[senderSeat].lastRxSeq));
 			gPeers[senderSeat].lastRxSeq = seq;
+
+			// v2.0.9 host authority on deaths: protocol events, handled here, never
+			// through the input buffers. A request must be about the SENDER's own
+			// hull and is only the host's business; an order is only ever the host's.
+			if (c->type == NET_RTM_DIE_REQ)
+			{
+				if (NET_IsHost() && c->playerId == senderSeat)
+					NET_HostRuleDeath(senderSeat);
+				continue;
+			}
+			if (c->type == NET_RTM_DIE_ORDER)
+			{
+				if (senderSeat == NET_HostSeat())
+					NET_ApplyDeathOrder(c->playerId, (int)c->delta[0], (int)c->delta[1]);
+				continue;
+			}
 
 			// The in-packet playerId must agree with the transport identity:
 			// a command may only ever drive its sender's own ship.
@@ -2022,6 +2201,8 @@ void NET_Receive(void)
 		}
 	}
 
+	NET_TickDeathPending();		// v2.0.9: resend an unanswered hit, or give up on it
+
 	// v2 P2: per-seat liveness. A silent seat is parked and the match goes on
 	// (the user's rule: one player dropping must not kill the party); only the
 	// LAST remote's loss ends the session -- which at 2 players is exactly the
@@ -2034,7 +2215,7 @@ void NET_Receive(void)
 		// others). A client still watches the HOST itself -- if that goes
 		// silent nobody else can tell it, and the current level plays on
 		// leaderless until the next act's barrier ends the session.
-		if (net.ownSeat != 0 && s != 0)
+		if (!NET_IsHost() && s != NET_HostSeat())
 			continue;
 		if (simulationTime - gPeers[s].lastPacketTime > NET_PEER_TIMEOUT_MS)
 			NET_OnSeatLost(s);

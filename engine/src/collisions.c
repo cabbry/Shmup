@@ -423,6 +423,11 @@ void COLL_CheckPlayers(void)
 	if (players[controlledPlayer].invulnerableFor > 0)
 		return;
 
+	// v2.0.9: a hit already reported to the host, awaiting its ruling -- the
+	// hull flies on for a round trip but cannot be hit twice for one death.
+	if (players[controlledPlayer].deathPending)
+		return;
+
 	// Out of lives (RIP, parked off-screen): the corpse can't collide anymore --
 	// stray bullets used to "kill" it again and end the multiplayer match while
 	// the other player was still alive.
@@ -758,6 +763,11 @@ void COLL_CheckEnemies(void)
 
 	// User in invulnerable
 	if (players[controlledPlayer].invulnerableFor > 0)
+		return;
+
+	// v2.0.9: a hit already reported to the host, awaiting its ruling -- the
+	// hull flies on for a round trip but cannot be hit twice for one death.
+	if (players[controlledPlayer].deathPending)
 		return;
 
 	// Out of lives (RIP): same guard as COLL_CheckPlayers -- no corpse collisions.

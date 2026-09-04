@@ -17,6 +17,7 @@ int  rig_is_paused(int peer);
 unsigned int rig_ip_of(int peer);
 void rig_gk_send(int peer, const void* data, int len, int reliable);
 void rig_note_notice(int peer, const char* text);
+void rig_note_death(int peer, int seat);		/* v2.0.9: P_ApplyDeath ran for `seat` on `peer` */
 
 void rig_bus_reset(void);
 

@@ -169,6 +169,14 @@ void NET_Free(void);
 char NET_IsInitialized();
 
 void Net_SendDie(command_t* command);
+// v2.0.9 HOST AUTHORITY ON DEATHS. Every device used to rule on its own hull's
+// death and tell the others after the fact -- two deaths inside one network
+// latency at a pool of 2 were then ordered differently on each device, and
+// each screen kept a DIFFERENT ship alive. Now a hit is a REQUEST to the host,
+// the host applies the death and broadcasts one ORDER carrying the pool it
+// ruled on; every device (host included) applies deaths in that order only.
+int  NET_DeathAuthority(void);					// true while a match is running (MP, >= 2 seats)
+void NET_PlayerHit(int seat);						// P_Die's MP entry: rule locally (host) or request
 
 
 void NET_OnNextLevelLoad(void);

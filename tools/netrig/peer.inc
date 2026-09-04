@@ -45,6 +45,9 @@
 #define NET_Setup                           PS(NET_Setup)
 #define NET_IsInitialized                   PS(NET_IsInitialized)
 #define NET_Receive                         PS(NET_Receive)
+#define NET_DeathAuthority                  PS(NET_DeathAuthority)
+#define NET_PlayerHit                       PS(NET_PlayerHit)
+#define P_ApplyDeath                        PS(P_ApplyDeath)
 #define NET_Send                            PS(NET_Send)
 #define Net_SendDie                         PS(Net_SendDie)
 #define NET_Init                            PS(NET_Init)
@@ -135,7 +138,13 @@ void PS(rig_tick)(int ms)
 {
 	gRigCurrentIp = rig_ip_of(PEER_ID);
 	if (!rig_is_paused(PEER_ID))
+	{
+		int p;
 		simulationTime += ms;
+		for (p = 0; p < MAX_NUM_PLAYERS; p++)		/* as P_Update does on the device */
+			if (players[p].invulnerableFor > 0)
+				players[p].invulnerableFor -= ms;
+	}
 	NET_Setup();
 	NET_Receive();
 	NET_Send();
@@ -200,3 +209,26 @@ int  PS(rig_ship)(int s)     { return gMPShipChoice[s]; }
 void PS(rig_set_loadout)(int ship, int color) { gShipChoice = ship; gBulletColor = color; }
 void PS(rig_set_lives)(int n) { int i; for (i=0;i<MAX_NUM_PLAYERS;i++) players[i].respawnCounter = n; }
 void PS(rig_set_party)(int n) { NET_SetPartyTarget(n); }
+int  PS(rig_is_host)(void)   { return NET_IsHost(); }		/* v2.0.9 host migration */
+
+/* v2.0.9 host authority: the death itself, as player.c applies it -- the pool
+   decrements and mirrors, the hull respawns (counter > 0) or parks (RIP), and
+   the invulnerability window opens (the host's idempotence relies on it). */
+void P_ApplyDeath(uchar id)
+{
+	int p;
+	if (players[id].respawnCounter <= 0 && players[id].shouldDraw == 0)
+		return;
+	players[id].respawnCounter--;
+	for (p = 0; p < numPlayers && p < MAX_NUM_PLAYERS; p++)
+		players[p].respawnCounter = players[id].respawnCounter;
+	players[id].deathPending = 0;
+	players[id].invulnerableFor = 3700;
+	if (players[id].respawnCounter <= 0)
+		players[id].shouldDraw = 0;			/* RIP: parked */
+	rig_note_death(PEER_ID, id);
+}
+
+/* A hull on THIS peer was hit (what collisions.c -> P_Die would do in MP). */
+void PS(rig_hit)(void)       { gRigCurrentIp = rig_ip_of(PEER_ID); NET_PlayerHit(net.ownSeat); }
+int  PS(rig_invul)(int s)    { return players[s].invulnerableFor; }

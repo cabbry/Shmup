@@ -57,6 +57,11 @@ Copyright (C) 2009 Apple Inc. All Rights Reserved.
 	#include <ConditionalMacros.h>
 	#include <CoreFoundation.h>
 #endif
+// v3: every call into this API is deprecated by Apple, and every one of them goes when
+// the audio backend leaves CoreAudio utilities (a later stage). Until then the noise is silenced HERE, explicitly, so that any NEW
+// deprecation elsewhere in the project still shows up in the audit.
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 #include "CADebugMacros.h"
 #include <ctype.h>
 #include <stdio.h>

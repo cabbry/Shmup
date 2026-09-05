@@ -24,6 +24,11 @@
 
 
 
+// v3: every call into this API is deprecated by Apple, and every one of them goes when
+// stage 3 replaces EAGL with a Metal layer. Until then the noise is silenced HERE, explicitly, so that any NEW
+// deprecation elsewhere in the project still shows up in the audit.
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 #import <QuartzCore/QuartzCore.h>
 #import <OpenGLES/EAGLDrawable.h>
 #import "dEngineAppDelegate.h"

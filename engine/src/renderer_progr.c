@@ -24,6 +24,11 @@
  */
 
 
+// v3: every call into this API is deprecated by Apple, and every one of them goes when
+// stage 3 replaces OpenGL ES 2.0 with the Metal backend. Until then the noise is silenced HERE, explicitly, so that any NEW
+// deprecation elsewhere in the project still shows up in the audit.
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 #include "renderer_progr.h"
 
 #include "target.h"

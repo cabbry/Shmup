@@ -364,15 +364,11 @@ void Action_ShowGameCenter(void* tag) {
 	if (!this || !vc) return;
 	if (![GKLocalPlayer local].isAuthenticated) return;
 
-	GKGameCenterViewController* gcvc;
-	if (@available(iOS 14.0, *)) {
-		gcvc = [[GKGameCenterViewController alloc] initWithLeaderboardID:@"shmup.highscores"
-		                                                    playerScope:GKLeaderboardPlayerScopeGlobal
-		                                                      timeScope:GKLeaderboardTimeScopeAllTime];
-	} else {
-		gcvc = [[GKGameCenterViewController alloc] init];
-		gcvc.viewState = GKGameCenterViewControllerStateLeaderboards;
-	}
+	// v3: the deployment target is iOS 15, so the pre-14 viewState branch was
+	// dead code -- and deprecated. The iOS 14 initializer stands alone.
+	GKGameCenterViewController* gcvc = [[GKGameCenterViewController alloc] initWithLeaderboardID:@"shmup.highscores"
+	                                                                                 playerScope:GKLeaderboardPlayerScopeGlobal
+	                                                                                   timeScope:GKLeaderboardTimeScopeAllTime];
 	gcvc.gameCenterDelegate = this;
 	[vc presentViewController:gcvc animated:YES completion:nil];
 	[gcvc release];

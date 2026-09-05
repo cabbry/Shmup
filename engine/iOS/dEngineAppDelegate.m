@@ -49,6 +49,18 @@ static BOOL     gMatchStarted = NO;
 
 
 
+// v3: the root view controller. It exists for ONE reason -- the status bar.
+// -[UIApplication setStatusBarHidden:] has been deprecated since iOS 9 in
+// favour of the view controller saying so itself; the plist's UIStatusBarHidden
+// alone is ignored while UIViewControllerBasedStatusBarAppearance (default YES)
+// is in force. This is the same full-screen game, minus the deprecated call.
+@interface ShmupRootViewController : UIViewController
+@end
+@implementation ShmupRootViewController
+- (BOOL)prefersStatusBarHidden { return YES; }
+- (UIStatusBarAnimation)preferredStatusBarUpdateAnimation { return UIStatusBarAnimationNone; }
+@end
+
 @implementation dEngineAppDelegate
 
 @synthesize window;
@@ -65,12 +77,11 @@ static BOOL     gMatchStarted = NO;
 - (void) applicationDidFinishLaunching:(UIApplication *)application
 {
 	NSLog(@"applicationDidFinishLaunching");
-	[[UIApplication sharedApplication] setStatusBarHidden:YES];
 	[UIApplication sharedApplication].idleTimerDisabled = YES;
 
     if (vc == nil)
     {
-        vc = [UIViewController new];
+        vc = [ShmupRootViewController new];	// v3: hides the status bar the non-deprecated way
 
     }
     [self.window setRootViewController:vc];

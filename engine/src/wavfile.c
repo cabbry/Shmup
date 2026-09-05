@@ -114,7 +114,7 @@ void DumpChunks( void )
 		memcpy( str, iff_pdata, 4 );
 		iff_pdata += 4;
 		iff_chunk_len = Wav_GetLittleLong();
-		Log_Printf( "0x%x : %s (%d)\n", (int)(iff_pdata - 4), str, iff_chunk_len );
+		Log_Printf( "0x%x : %s (%d)\n", (int)(iff_pdata - 4 - iff_data), str, iff_chunk_len );	// v3: an offset, not a truncated 64-bit address
 		iff_pdata += (iff_chunk_len + 1) & ~1;
 		
 	} while( iff_pdata < iff_end );

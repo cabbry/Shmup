@@ -23,6 +23,10 @@
 //
 
 
+// v3: EAGL is deprecated wholesale; stage 3 replaces this view with a Metal layer. Silenced HERE,
+// explicitly, so any NEW deprecation elsewhere still shows up in the audit.
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 #import <UIKit/UIKit.h>
 #import <OpenGLES/EAGL.h>
 #import <OpenGLES/ES1/gl.h>

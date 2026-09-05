@@ -89,9 +89,11 @@ AQ* audiocontroller;
 
 
 // v3: which backend drives this view. Decided ONCE, before the layer exists
-// (+layerClass runs inside the view's init): SHMUP_RENDERER=metal in the
-// environment (the CI smokes), or RendererType "2" in the user defaults.
-// Everything else is the OpenGL ES 1.1 path the game shipped with.
+// (+layerClass runs inside the view's init). METAL IS THE DEFAULT since it
+// passed the OpenGL smoke's own luma contract and the first screenshots of
+// the game ever taken (round 35). OpenGL ES stays one switch away as the
+// fallback for the device round: SHMUP_RENDERER=gl in the environment (the
+// CI smokes' input), or RendererType "0" in the user defaults.
 static int gUseMetal = -1;
 static int EAGLView_UseMetal(void)
 {
@@ -99,7 +101,8 @@ static int EAGLView_UseMetal(void)
 	{
 		const char* e = getenv("SHMUP_RENDERER");
 		NSString* pref = [[NSUserDefaults standardUserDefaults] stringForKey:@"RendererType"];
-		gUseMetal = ((e && !strcmp(e, "metal")) || [@"2" isEqualToString:pref]) ? 1 : 0;
+		int wantGL = (e && !strcmp(e, "gl")) || (!e && [@"0" isEqualToString:pref]);
+		gUseMetal = wantGL ? 0 : 1;
 	}
 	return gUseMetal;
 }

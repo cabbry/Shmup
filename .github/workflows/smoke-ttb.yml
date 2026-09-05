@@ -13,6 +13,11 @@ name: Smoke test the TTB act (act 3)
 
 on:
   workflow_dispatch:
+    inputs:
+      renderer:
+        description: "metal (the default backend) or gl (the OpenGL ES fallback)"
+        required: false
+        default: "metal"
 
 jobs:
   smoke:
@@ -66,7 +71,8 @@ jobs:
           xcrun simctl launch \
             --terminate-running-process "$UDID" "$BUNDLE_ID" || true
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
-          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 \
+          nohup env SIMCTL_CHILD_SHMUP_RENDERER="${{ inputs.renderer || 'metal' }}" \
+            SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 \
             SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
             SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
             SIMCTL_CHILD_SHMUP_INVULN=1 \

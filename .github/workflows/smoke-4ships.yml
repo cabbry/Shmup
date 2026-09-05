@@ -13,6 +13,11 @@ name: Smoke test four ships (act 1, solo, CI-only hook)
 
 on:
   workflow_dispatch:
+    inputs:
+      renderer:
+        description: "metal (the default backend) or gl (the OpenGL ES fallback)"
+        required: false
+        default: "metal"
 
 jobs:
   smoke:
@@ -66,7 +71,8 @@ jobs:
           xcrun simctl launch \
             --terminate-running-process "$UDID" "$BUNDLE_ID" || true
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
-          nohup env SIMCTL_CHILD_SHMUP_BAKE_SCENE=1 \
+          nohup env SIMCTL_CHILD_SHMUP_RENDERER="${{ inputs.renderer || 'metal' }}" \
+            SIMCTL_CHILD_SHMUP_BAKE_SCENE=1 \
             SIMCTL_CHILD_SHMUP_FAKE_PLAYERS=4 \
             SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
             SIMCTL_CHILD_SHMUP_LOG_FILE=1 \

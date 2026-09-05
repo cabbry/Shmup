@@ -27,6 +27,9 @@
 #include <math.h>
 #include "renderer_fixed.h"
 #include "renderer_progr.h"
+#if defined(__APPLE__) && defined(SHMUP_TARGET_IOS)
+#include "renderer_metal.h"	// v3
+#endif
 #include "stats.h"
 #include "timer.h"
 #include "fx.h"
@@ -213,6 +216,15 @@ void SCR_BindMethods(int rendererType)
 		Log_Printf("[Renderer] Running in mode OpenGL ES 2.0\n"); 
 		initProgrRenderer(&renderer);
 	}
+
+#if defined(__APPLE__) && defined(SHMUP_TARGET_IOS)
+	// v3: the Metal backend -- same table, no OpenGL underneath.
+	if (rendererType == METAL_RENDERER)
+	{
+		Log_Printf("[Renderer] Running in mode Metal\n");
+		initMetalRenderer(&renderer);
+	}
+#endif
 	
 	strcpy(scrFont.path,STATS_FONT_PATH);
 	TEX_MakeStaticAvailable(&scrFont);

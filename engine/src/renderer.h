@@ -35,6 +35,7 @@
 
 #define GL_11_RENDERER 0
 #define GL_20_RENDERER 1
+#define METAL_RENDERER 2	// v3: the Metal backend (engine/iOS/renderer_metal.m)
 
 // The following defines are used in order to test a bitvector for supported texture compression formats
 #define TEXTURE_FORMAT_PNG    0

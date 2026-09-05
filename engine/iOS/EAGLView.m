@@ -34,6 +34,8 @@
 #import "dEngineAppDelegate.h"
 
 #import "EAGLView.h"
+#import <QuartzCore/CAMetalLayer.h>	// v3
+#include "renderer_metal.h"		// v3
 #import "dEngine.h"
 #import "filesystem.h"
 #import "renderer.h"
@@ -86,9 +88,25 @@ AQ* audiocontroller;
 @dynamic animationFrameInterval;
 
 
+// v3: which backend drives this view. Decided ONCE, before the layer exists
+// (+layerClass runs inside the view's init): SHMUP_RENDERER=metal in the
+// environment (the CI smokes), or RendererType "2" in the user defaults.
+// Everything else is the OpenGL ES 1.1 path the game shipped with.
+static int gUseMetal = -1;
+static int EAGLView_UseMetal(void)
+{
+	if (gUseMetal < 0)
+	{
+		const char* e = getenv("SHMUP_RENDERER");
+		NSString* pref = [[NSUserDefaults standardUserDefaults] stringForKey:@"RendererType"];
+		gUseMetal = ((e && !strcmp(e, "metal")) || [@"2" isEqualToString:pref]) ? 1 : 0;
+	}
+	return gUseMetal;
+}
+
 // You must implement this method
 + (Class)layerClass {
-    return [CAEAGLLayer class];
+    return EAGLView_UseMetal() ? [CAMetalLayer class] : [CAEAGLLayer class];
 }
 
 - (void) checkEngineSettings
@@ -207,6 +225,8 @@ AQ* audiocontroller;
 		
 		
         // Get the layer
+        if (!EAGLView_UseMetal())	// v3: a CAMetalLayer has no drawableProperties
+        {
         CAEAGLLayer *eaglLayer = (CAEAGLLayer *)self.layer;
         
 		
@@ -223,6 +243,7 @@ AQ* audiocontroller;
 										#endif	
 										,
 										kEAGLDrawablePropertyColorFormat, nil];
+        }
 	
         
 		NSString *rendererType = [[NSUserDefaults standardUserDefaults] stringForKey:@"RendererType"];
@@ -342,6 +363,14 @@ AQ* audiocontroller;
 
 - (void)drawView:(id)sender 
 {
+	// v3: on Metal the frame is recorded and presented in one go.
+	if (EAGLView_UseMetal())
+	{
+		MTL_BeginFrame();
+		dEngine_HostFrame();
+		MTL_EndFrame();
+		return;
+	}
 	
 	glBindRenderbufferOES(GL_RENDERBUFFER_OES, viewRenderbuffer);
     [context presentRenderbuffer:GL_RENDERBUFFER_OES];
@@ -376,9 +405,21 @@ AQ* audiocontroller;
 //    
 //    self.window.frame = [[UIScreen mainScreen] bounds];
     
-    [EAGLContext setCurrentContext:context];
-    [self destroyFramebuffer];
-    [self createFramebuffer];
+    if (EAGLView_UseMetal())
+    {
+        // v3: Metal -- resize the drawable and the engine's surface together.
+        CGFloat scale = self.contentScaleFactor;
+        int pw = (int)(self.bounds.size.width  * scale);
+        int ph = (int)(self.bounds.size.height * scale);
+        MTL_Resize(pw, ph);
+        SRC_OnResizeScreen(pw, ph);
+    }
+    else
+    {
+        [EAGLContext setCurrentContext:context];
+        [self destroyFramebuffer];
+        [self createFramebuffer];
+    }
     if (@available(iOS 11.0, *)) {
         renderer.safeInsetTopPx = self.safeAreaInsets.top * self.contentScaleFactor;
     }

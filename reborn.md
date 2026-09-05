@@ -210,11 +210,11 @@ to the true screen edges, and the touch-coordinate mapping.
 - **🚀 v3 — the graphics overhaul** — **in progress on the `v3` branch (round
   35)**: stage 1 ✅ every warning fixed or explicitly retired per file, the
   project builds with `-Werror`; stage 2 ✅ ARC, a modern launch screen, the
-  64-bit truncations made explicit; stage 3 ⏳ the **Metal backend** — a third
-  implementation of the renderer's 24-function table, a 1:1 port of the
-  fixed-pipeline passes with the pipeline emulated in shaders, compiling
-  clean and held to the OpenGL smoke's own luma contract before it becomes
-  the default. Then the OpenGL ES 1.1 (and the dormant ES 2.0) renderers
+  64-bit truncations made explicit; stage 3 ✅ the **Metal backend** is the
+  default renderer — a third implementation of the renderer's 24-function
+  table, a 1:1 port of the fixed-pipeline passes with the pipeline emulated in
+  shaders, green on every smoke and on the first screenshots ever taken of
+  the game; OpenGL ES stays one switch away until the device round confirms. Then the OpenGL ES 1.1 (and the dormant ES 2.0) renderers
   retire, and with them the last 511 deprecation sites.
 
 ---
@@ -270,6 +270,21 @@ still owes `v2` a session; fixes cherry-pick).
   has passed for twenty builds — the parity contract — plus, for the first
   time, Simulator screenshots of the game, which the OpenGL layer never
   allowed.
+
+- **Stage 3 — Metal is the default.** First real run: the parity contract
+  held (26 side-view samples, no black sky, no missing city, the cameo's dip
+  at 57 s where OpenGL measured it), and the first screenshots ever taken of
+  this game — the prolog under the dusk dome, the boss silhouette among the
+  crossing stars, the top-down chase, the *水 -Water Act IV* card mid-wipe,
+  and the home screen with its orbiting hull — look like the game. The act
+  runs in two minutes of wall-clock on Metal where the OpenGL emulation took
+  ten. Default flipped ([7a7143f]); OpenGL ES stays one switch away
+  (`SHMUP_RENDERER=gl`, or *RendererType 0* in the settings) for the device
+  round; every smoke — act 3 twice with re-entry, four ships through act 1,
+  menu plus act 3 with screenshots — is green on Metal. What remains: the
+  tester's device verdict, then the retirement of both OpenGL renderers and
+  EAGL — and with them the last 511 deprecation sites.
+
 
 ### 2026-08-29→30 — round 34 (online confirmed — and the two limits I had left open)
 

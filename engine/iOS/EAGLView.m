@@ -67,7 +67,7 @@ AQ* audiocontroller;
 // A class extension to declare private methods
 @interface EAGLView ()
 
-@property (nonatomic, retain) EAGLContext *context;
+@property (nonatomic, strong) EAGLContext *context;
 
 
 - (BOOL) createFramebuffer;
@@ -260,7 +260,6 @@ AQ* audiocontroller;
 			context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES1];
 			 
 			if (!context || ![EAGLContext setCurrentContext:context]) {
-				[self release];
 				return nil;
 			}
 			
@@ -269,7 +268,6 @@ AQ* audiocontroller;
 		else
 		{
 			if (!context || ![EAGLContext setCurrentContext:context]) {
-				[self release];
 				return nil;
 			}
 			
@@ -555,10 +553,9 @@ AQ* audiocontroller;
 	
 	
 	NSString* name = [NSString stringWithFormat:@"%@/%@",
-					  [[[NSString alloc] initWithCString:FS_Gamedir() encoding:NSASCIIStringEncoding] autorelease],
+					  [[NSString alloc] initWithCString:FS_Gamedir() encoding:NSASCIIStringEncoding],
 					  tmpName
 					  ];
-	[tmpName release];
 	spriteImage = [UIImage imageWithContentsOfFile:name].CGImage; 
 	
 	
@@ -633,8 +630,6 @@ void loadNativePNG(texture_t* tmpTex)
         [EAGLContext setCurrentContext:nil];
     }
     
-    [context release];  
-    [super dealloc];
 }
 
 - (void) handleTouches:(UIEvent*)event 
@@ -730,7 +725,6 @@ void SND_InitSoundTrack(char* filename,unsigned int startAt)
     audiocontroller = [[AQ alloc] init];
     [audiocontroller initAudio];
 	[audiocontroller loadSoundTrack:name startAt:startAt];
-	[name release];
 }
 
 void SND_StartSoundTrack(void)

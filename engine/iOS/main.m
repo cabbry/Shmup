@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
 	const char* wd;
 	
 	
-	NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+	@autoreleasepool {	// v3: ARC
 	
 	strcpy( rd, argv[0] );
 	int len = (int)strlen( rd );
@@ -48,7 +48,6 @@ int main(int argc, char *argv[]) {
 	setenv( "WD", wd, 1 );
 	
 
-    int retVal = UIApplicationMain(argc, argv, nil, nil);
-    [pool release];
-    return retVal;
+	return UIApplicationMain(argc, argv, nil, nil);
+	}
 }

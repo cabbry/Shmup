@@ -173,11 +173,6 @@ static BOOL     gMatchStarted = NO;
 	printf("*****************************************************\n");
 }
 
-- (void)dealloc {
-	[window release];
-	[glView release];
-	[super dealloc];
-}
 
 // Dismiss the Game Center leaderboard sheet when the player taps Done.
 - (void)gameCenterViewControllerDidFinish:(GKGameCenterViewController *)gameCenterViewController {
@@ -193,8 +188,7 @@ static BOOL     gMatchStarted = NO;
 - (void)matchmakerViewController:(GKMatchmakerViewController *)viewController didFindMatch:(GKMatch *)match {
 	[viewController dismissViewControllerAnimated:YES completion:nil];
 	if (gMatch != match) {
-		[gMatch release];
-		gMatch = [match retain];
+		// (ARC: the assignment below releases the old match)		gMatch = match;
 	}
 	gMatch.delegate = this;
 	[self tryStartMatch];
@@ -239,7 +233,6 @@ static BOOL     gMatchStarted = NO;
 	}
 	mmvc.matchmakerDelegate = this;
 	[vc presentViewController:mmvc animated:YES completion:nil];
-	[mmvc release];
 }
 
 // v2 P1: the seat table. Every participant's gamePlayerID, sorted ascending;
@@ -250,8 +243,8 @@ static NSArray<NSString*>*      gSeatIds = nil;			// seat -> gamePlayerID
 static NSDictionary<NSString*, NSNumber*>* gSeatByPlayer = nil;	// gamePlayerID -> seat
 
 static void GKSeats_Clear(void) {
-	[gSeatIds release];      gSeatIds = nil;
-	[gSeatByPlayer release]; gSeatByPlayer = nil;
+	gSeatIds = nil;
+	gSeatByPlayer = nil;
 }
 
 // A peer connected or dropped.
@@ -371,7 +364,6 @@ void Action_ShowGameCenter(void* tag) {
 	                                                                                   timeScope:GKLeaderboardTimeScopeAllTime];
 	gcvc.gameCenterDelegate = this;
 	[vc presentViewController:gcvc animated:YES completion:nil];
-	[gcvc release];
 }
 void Native_UploadFileTo(char path[256]) {}
 
@@ -418,15 +410,12 @@ void Native_StartOnlineMatchmaking(int partySize) {
 	GKMatchmakerViewController* mmvc = [[GKMatchmakerViewController alloc] initWithMatchRequest:req];
 	if (mmvc == nil) {
 		// Matchmaking unavailable (e.g. Game Center restricted): back out cleanly.
-		[req release];
 		NET_AbortOnlineMatch();
 		return;
 	}
 	mmvc.matchmakerDelegate = this;
 	[vc presentViewController:mmvc animated:YES completion:nil];
 
-	[mmvc release];
-	[req release];
 }
 
 // Tear down the live match (also called from NET_Free when an online session ends).
@@ -437,7 +426,6 @@ void Native_CancelOnlineMatchmaking(void) {
 	GKSeats_Clear();			// v2 P1: the seat table dies with the match
 	m.delegate = nil;
 	[m disconnect];
-	[m release];
 }
 
 // Send a packet to the peer. Setup/death packets go reliable; per-frame runtime

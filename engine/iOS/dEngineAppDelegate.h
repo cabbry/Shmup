@@ -35,8 +35,8 @@
     EAGLView *glView;
 }
 
-@property (nonatomic, retain) IBOutlet UIWindow *window;
-@property (nonatomic, retain) IBOutlet EAGLView *glView;
+@property (nonatomic, strong) IBOutlet UIWindow *window;
+@property (nonatomic, strong) IBOutlet EAGLView *glView;
 
 // Online multiplayer: once GKMatch has every peer connected, elect a role and
 // hand off to the engine. Safe to call repeatedly; it only fires once.

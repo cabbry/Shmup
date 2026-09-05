@@ -39,7 +39,7 @@ void Timer_ForceTimeIncrement(int ms)
 int E_Sys_Milliseconds( void )
 {
 	struct timeval tp;
-	static int	secbase;
+	static time_t	secbase;	// v3: seconds since the epoch are a time_t, not an int
 	
 	
 	
@@ -51,7 +51,7 @@ int E_Sys_Milliseconds( void )
 		return tp.tv_usec / 1000;
 	}
 	
-	return (tp.tv_sec - secbase) * 1000 + tp.tv_usec / 1000;
+	return (int)((tp.tv_sec - secbase) * 1000 + tp.tv_usec / 1000);
 }
 #else
 #include "windows.h"

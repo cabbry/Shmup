@@ -117,9 +117,9 @@ filehandle_t* FS_OpenFile( const char *filename, char* mode  )
 		hFile->isWritable = 1;
 
 	//Get filesize.
-	pos = ftell (fd);
+	pos = (int)ftell (fd);
 	fseek (fd, 0, SEEK_END);
-	end = ftell (fd);
+	end = (int)ftell (fd);
 	fseek (fd, pos, SEEK_SET);
 	hFile->filesize = end;
 	

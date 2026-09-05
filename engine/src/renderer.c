@@ -360,7 +360,7 @@ void SCR_ConvertTextToVertices(const char* string, float size, short ss_cooX, sh
 	ushort charSpace = charWidth;
 	
 	
-	stringLength = strlen(string);
+	stringLength = (int)strlen(string);
 	
 	//Check that we won't overflow the vertices rendition buffer
 	if ( scr_TextNumVertices + stringLength * 4 > MAX_NUM_TEXT_VERTICES)

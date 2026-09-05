@@ -1001,7 +1001,6 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				IPHONE_OPTIMIZE_OPTIONS = "-skip-PNGs";
 				ONLY_ACTIVE_ARCH = NO;
-				OTHER_CFLAGS = "-fsingle-precision-constant";
 				PRODUCT_BUNDLE_IDENTIFIER = net.fabiensanglard.dEngineLite;
 				PRODUCT_NAME = ShmupLite;
 				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "";
@@ -1068,7 +1067,6 @@
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = (
 					"-fasm-blocks",
-					"-fsingle-precision-constant",
 				);
 				PREBINDING = NO;
 				PROVISIONING_PROFILE = "";
@@ -1097,7 +1095,6 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				IPHONE_OPTIMIZE_OPTIONS = "-skip-PNGs";
 				ONLY_ACTIVE_ARCH = NO;
-				OTHER_CFLAGS = "-fsingle-precision-constant";
 				PRODUCT_BUNDLE_IDENTIFIER = net.fabiensanglard.dEngineBeta;
 				PRODUCT_NAME = Shmup;
 				"PROVISIONING_PROFILE[sdk=iphoneos*]" = "";
@@ -1199,7 +1196,6 @@
 				INFOPLIST_PREPROCESSOR_DEFINITIONS = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_CFLAGS = "-fsingle-precision-constant";
 				PREBINDING = NO;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1236,7 +1232,6 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				ONLY_ACTIVE_ARCH = NO;
-				OTHER_CFLAGS = "-fsingle-precision-constant";
 				PREBINDING = NO;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";

@@ -702,7 +702,7 @@ static int NET_TransportRecv(void* out, int maxlen, struct sockaddr_in* fromAddr
 
 	src = fromAddr ? fromAddr : &local;
 	alen = sizeof(*src);
-	n = recvfrom(net.udpSocket, out, maxlen, 0, (struct sockaddr*)src, &alen);
+	n = (int)recvfrom(net.udpSocket, out, maxlen, 0, (struct sockaddr*)src, &alen);
 	if (senderSeat)
 		*senderSeat = (n > 0) ? LAN_SeatForAddr(src) : -1;
 	return n;

@@ -48,7 +48,7 @@ void SND_Load(char* filename,int soundID)
 	Log_Printf("[SND_Load] Loaded sound: %s sample_rate=%ld ",filename,sound->metaData.sample_rate);
 	
 	// Calculate buffer size
-	sound->size = sound->metaData.samples * sound->metaData.sample_size * sound->metaData.channels;
+	sound->size = (int)(sound->metaData.samples * sound->metaData.sample_size * sound->metaData.channels);
 	
 	if( sound->metaData.sample_size == 2 )
 	{

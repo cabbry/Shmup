@@ -65,7 +65,7 @@ void AQPlayer::AQBufferCallback(void *					inUserData,
 	UInt32 nPackets = THIS->GetNumPacketsToRead();
 	OSStatus result = AudioFileReadPackets(THIS->GetAudioFileID(), false, &numBytes, inCompleteAQBuffer->mPacketDescriptions, THIS->GetCurrentPacket(), &nPackets, inCompleteAQBuffer->mAudioData);
 	if (result)
-		printf("AudioFileReadPackets failed: %ld", result);
+		printf("AudioFileReadPackets failed: %d", (int)result);
 	if (nPackets > 0) {
 		inCompleteAQBuffer->mAudioDataByteSize = numBytes;		
 		inCompleteAQBuffer->mPacketDescriptionCount = nPackets;		

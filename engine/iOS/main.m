@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
 	NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 	
 	strcpy( rd, argv[0] );
-	int len = strlen( rd );
+	int len = (int)strlen( rd );
 	for( int i = len-1; i >= 0; i-- ) {
 		if ( rd[i] == '/' ) {
 			rd[i] = 0;

@@ -396,7 +396,7 @@ AQ* audiocontroller;
 	// frame interval setting of one will fire 60 times a second when the display refreshes
 	// at 60 times a second. A frame interval setting of less than one results in undefined
 	// behavior.
-	NSLog(@"frameInterval=%d",frameInterval);
+	NSLog(@"frameInterval=%ld",(long)frameInterval);
 	if (frameInterval >= 1)
 	{
 		animationFrameInterval = frameInterval;
@@ -501,7 +501,8 @@ AQ* audiocontroller;
 			free(machine);
 				
 				
-			[displayLink setFrameInterval:animationFrameInterval];	
+			// v3: preferredFramesPerSecond replaces the deprecated setFrameInterval: (and the typed receiver ends the "multiple methods named" ambiguity)
+			((CADisplayLink*)displayLink).preferredFramesPerSecond = (animationFrameInterval > 0) ? (NSInteger)(60 / animationFrameInterval) : 60;
 			[displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
 		}
 		else
@@ -572,9 +573,9 @@ AQ* audiocontroller;
 	if(spriteImage) 
 	{
 		
-		text->width = CGImageGetWidth(spriteImage);
-		text->height = CGImageGetHeight(spriteImage);
-		text->bpp = CGImageGetBitsPerPixel(spriteImage);//
+		text->width = (uint)CGImageGetWidth(spriteImage);
+		text->height = (uint)CGImageGetHeight(spriteImage);
+		text->bpp = (uint)CGImageGetBitsPerPixel(spriteImage);
 		text->numMipmaps = 1;
 		
 		text->data    = (ubyte **)calloc(1, sizeof(ubyte*));
@@ -585,13 +586,13 @@ AQ* audiocontroller;
 		{
 			text->format = TEXTURE_GL_RGB;
 			//NSLog(@"TEXTURE_GL_RGB, bpp=%d ",text->bpp);
-			spriteContext = CGBitmapContextCreate(text->data[0], text->width, text->height, 8, text->width * 4, CGImageGetColorSpace(spriteImage), kCGImageAlphaNoneSkipLast);
+			spriteContext = CGBitmapContextCreate(text->data[0], text->width, text->height, 8, text->width * 4, CGImageGetColorSpace(spriteImage), (CGBitmapInfo)kCGImageAlphaNoneSkipLast);
 		}
 		else 
 		{
 			text->format = TEXTURE_GL_RGBA;		
 			//NSLog(@"TEXTURE_GL_RGBA, bpp=%d  ",text->bpp);
-			spriteContext = CGBitmapContextCreate(text->data[0], text->width, text->height, 8, text->width * 4, CGImageGetColorSpace(spriteImage), kCGImageAlphaPremultipliedLast);
+			spriteContext = CGBitmapContextCreate(text->data[0], text->width, text->height, 8, text->width * 4, CGImageGetColorSpace(spriteImage), (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
 		}
 
 		

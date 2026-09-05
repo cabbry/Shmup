@@ -48,7 +48,7 @@ void SND_BACKEND_Upload(sound_t* sound, int soundID)
 {
     alGenBuffers(1, &(alMetadatas[soundID].alBuffer));
     
-	alBufferData(alMetadatas[soundID].alBuffer, formatEquivalent[sound->format], sound->data, sound->size, sound->metaData.sample_rate );
+	alBufferData(alMetadatas[soundID].alBuffer, formatEquivalent[sound->format], sound->data, (ALsizei)sound->size, (ALsizei)sound->metaData.sample_rate );
     if( alcGetError( device ) != ALC_NO_ERROR )
     {
         Log_Printf( "Failed to upload sound\n" );

@@ -51,6 +51,7 @@ bool FS_InitFilesystem( void )
 	Log_Printf("SHMUP :\n");
 	Log_Printf("===========\n");
 	Log_Printf("[Filesystem] Initialized.\n");
+	return true;	// v3: the function is bool and never said so
 }
 
 char*	FS_GameWritableDir(void)

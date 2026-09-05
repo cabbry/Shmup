@@ -135,8 +135,8 @@ int SRC_UseShader(shader_prog_t* shader)
 		
 	if (shader == 0)
 	{
-		return 0;
 		Log_Printf("Shader was null: WTF !\n");
+		return 0;
 	}
 	
 	//if (shader == currentShader)

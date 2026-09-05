@@ -272,6 +272,25 @@ static int EAGLView_UseMetal(void)
         dEngine_Init();
 
 		
+		if (EAGLView_UseMetal())
+		{
+			// v3: the Metal backend. The layer is already a CAMetalLayer
+			// (+layerClass); render at native scale, and hand the engine the
+			// surface in pixels -- the OpenGL path learns it from the
+			// renderbuffer, this one has to say it.
+			CGFloat scale = [UIScreen mainScreen].scale;
+			int pw, ph;
+			self.contentScaleFactor = scale;
+			pw = (int)(self.bounds.size.width  * scale);
+			ph = (int)(self.bounds.size.height * scale);
+			renderer.glBuffersDimensions[WIDTH]  = pw;
+			renderer.glBuffersDimensions[HEIGHT] = ph;
+			if (!MTL_Create((__bridge void*)self.layer, pw, ph))
+				NSLog(@"[Metal] backend init failed");
+			dEngine_InitDisplaySystem(METAL_RENDERER);
+		}
+		else
+		{
 		if (!fixedDesired)
 			context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
 		
@@ -296,6 +315,8 @@ static int EAGLView_UseMetal(void)
 		}
 		
 		
+		}	// end of the OpenGL branch (v3)
+
 		renderer.props |= PROP_FOG;		
 		
 		

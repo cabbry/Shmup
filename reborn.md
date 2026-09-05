@@ -207,16 +207,69 @@ to the true screen edges, and the touch-coordinate mapping.
   and host-ruled deaths (one order, one pool, one survivor on every screen).
   Needs: a 4-device session -- everything above is rig-proven at four,
   device-proven at two.
-- **🚀 v3 — the graphics overhaul**: the deep modernization, staged — clear the
-  ~600 deprecation warnings and re-enable the strict clang flags (they catch
-  real bugs; several of this project's landmines were exactly what those
-  silenced warnings scream about), ARC for the Obj-C layer, the 64-bit audit —
-  and the endgame: a **Metal port**, retiring the deprecated-since-iOS-12
-  OpenGL ES 1.1 fixed pipeline the whole renderer stands on.
+- **🚀 v3 — the graphics overhaul** — **in progress on the `v3` branch (round
+  35)**: stage 1 ✅ every warning fixed or explicitly retired per file, the
+  project builds with `-Werror`; stage 2 ✅ ARC, a modern launch screen, the
+  64-bit truncations made explicit; stage 3 ⏳ the **Metal backend** — a third
+  implementation of the renderer's 24-function table, a 1:1 port of the
+  fixed-pipeline passes with the pipeline emulated in shaders, compiling
+  clean and held to the OpenGL smoke's own luma contract before it becomes
+  the default. Then the OpenGL ES 1.1 (and the dormant ES 2.0) renderers
+  retire, and with them the last 511 deprecation sites.
 
 ---
 
 ## Changelog
+
+### 2026-09-05 — round 35 (v3 opens: the warnings, then ARC — with `-Werror` on)
+
+The tester's "fait toute la v3 en autonomie… Fire !" — the graphics overhaul,
+staged by risk on a `v3` branch cut from `v2`'s head (the four-device test
+still owes `v2` a session; fixes cherry-pick).
+
+- **Stage 1 — the warnings, then the strict flags.** A new audit workflow
+  keeps the full `xcodebuild` log and prints a histogram: **545 distinct
+  sites, 511 of them deprecations** — every OpenGL ES / EAGL / OpenAL /
+  CoreAudio call the platform has deprecated, i.e. the APIs the later stages
+  retire, not warnings to "fix". The other 34 were real. Two were bugs the
+  game has carried since 2009: the visibility bake's perspective divide wrote
+  a *third* component into two-component screen vertices — past each entry,
+  and past the whole array on the last vertex, at every bake; and `matrix.h`
+  promised `vec3_t` for a function whose definition and every caller use
+  `vec4_t` — the prototype lied about the fourth float the code reads and
+  writes. The rest was hygiene made explicit (64→32-bit casts where the value
+  is bounded, a `time_t` epoch base where it was not, format strings, a `bool`
+  function that never returned, a log line sitting after its own `return`, a
+  GCC-only `-fsingle-precision-constant` clang had never honoured). The
+  deprecations are silenced *per file*, each pragma naming the stage that
+  retires its API, so a new deprecation anywhere else still surfaces. Then
+  `GCC_TREAT_WARNINGS_AS_ERRORS = YES` in the project, and the `-Wno-error=…`
+  downgrades the Xcode 26 port had carried leave every build workflow.
+  **Zero warnings, `-Werror`, green.**
+- **Stage 2 — ARC.** Twenty-five manual retain/release sites, two deallocs
+  and one autorelease pool across three files; one bridged cast
+  (`NSString*` → `CFStringRef` in the audio queue) was all ARC asked to see.
+  The deprecated launch image became an ordinary image set shown by the
+  modern `UILaunchScreen` entry; `setStatusBarHidden:` gave way to a
+  one-method root view controller; the dead pre-iOS-14 Game Center branch
+  went; the touch-data script phases admit they run every build. Both smokes
+  (act 3 twice, four ships through act 1) green on the result.
+- **Stage 3 — Metal — begun.** Two facts decided the shape: all OpenGL lives
+  in two files (the ES 1.1 renderer that ships, and a 2010 ES 2.0 renderer
+  that has been dormant behind a setting for fifteen years) with *zero* GL
+  calls elsewhere, and the engine talks to the renderer through a table of
+  24 functions bound at start-up. So the Metal backend is a third
+  implementation of that table (`renderer_metal.m`): a 1:1 port of the fixed
+  renderer's passes — skybox domes, the boss cameo, the crossing stars, the
+  live cull and its `[cull]` probe, ghost and flicker enemies — with the fixed
+  pipeline emulated in one vertex/one fragment shader (GL's one-light
+  default-material lighting, per-vertex linear fog, REPLACE/MODULATE/ADD,
+  alpha and additive blending). It compiles clean under `-Werror`, sits
+  behind `SHMUP_RENDERER=metal` (default still OpenGL), and gets its own
+  smoke: act 3 on Metal held to the *same* luma assertions the OpenGL backend
+  has passed for twenty builds — the parity contract — plus, for the first
+  time, Simulator screenshots of the game, which the OpenGL layer never
+  allowed.
 
 ### 2026-08-29→30 — round 34 (online confirmed — and the two limits I had left open)
 

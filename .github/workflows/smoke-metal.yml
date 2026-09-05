@@ -51,6 +51,24 @@ jobs:
           xcrun simctl bootstatus "$UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
+      - name: Boot to the menu on Metal and photograph it
+        run: |
+          # Scene 0 -- the home screen, the orbiting hull, the 2D menu -- is the one
+          # scene the act smokes never show (they jump straight into an act).
+          APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+          UDID="${{ steps.sim.outputs.udid }}"
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p shots
+          nohup env SIMCTL_CHILD_SHMUP_RENDERER=metal \
+            xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$RUNNER_TEMP/menu.log" 2>&1 &
+          sleep 25
+          xcrun simctl io "$UDID" screenshot shots/menu_home.png || true
+          sleep 4
+          xcrun simctl io "$UDID" screenshot shots/menu_home_2.png || true
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+          sleep 2
+
       - name: Launch scene 3 on Metal
         id: run
         run: |

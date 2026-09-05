@@ -178,6 +178,9 @@ static NSMutableArray<id>*  gBuffers;		// index = bufferId  - 1
 static id<MTLBuffer> gRing[RING_COUNT];
 static int           gRingIndex = 0;
 static NSUInteger    gRingOffset = 0;
+// One frame in flight per ring slot: BeginFrame waits for the slot the GPU
+// finished three frames ago before the CPU writes into it again.
+static dispatch_semaphore_t gFrameSem;
 
 // Pipeline cache: vertex kind x blend mode.
 enum { VK_3D = 0, VK_STAR, VK_2D, VK_2DC, VK_2DT, VK_COUNT };
@@ -551,6 +554,7 @@ int MTL_Create(void* caMetalLayer, int pixelWidth, int pixelHeight)
 		dd.depthWriteEnabled = (i & 2) ? YES : NO;
 		gDepthStates[i] = [gDevice newDepthStencilStateWithDescriptor:dd];
 	}
+	gFrameSem = dispatch_semaphore_create(RING_COUNT);
 	for (i = 0; i < RING_COUNT; i++)
 		gRing[i] = [gDevice newBufferWithLength:RING_SIZE options:MTLResourceStorageModeShared];
 
@@ -581,9 +585,13 @@ void MTL_BeginFrame(void)
 {
 	if (gInFrame)
 		return;
+	dispatch_semaphore_wait(gFrameSem, DISPATCH_TIME_FOREVER);
 	gDrawable = [gLayer nextDrawable];
 	if (!gDrawable)
+	{
+		dispatch_semaphore_signal(gFrameSem);
 		return;
+	}
 	gRingIndex = (gRingIndex + 1) % RING_COUNT;
 	gRingOffset = 0;
 	gCmdBuf = [gQueue commandBuffer];
@@ -597,6 +605,7 @@ void MTL_EndFrame(void)
 		return;
 	EndEncoder();
 	[gCmdBuf presentDrawable:gDrawable];
+	[gCmdBuf addCompletedHandler:^(id<MTLCommandBuffer> cb) { (void)cb; dispatch_semaphore_signal(gFrameSem); }];
 	[gCmdBuf commit];
 	gDrawable = nil;
 	gCmdBuf = nil;

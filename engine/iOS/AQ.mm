@@ -23,7 +23,7 @@ char musicPaused=0;
 
 - (void)loadSoundTrack:(NSString*)file startAt:(int)startAt
 {
-	player->CreateQueueForFile((CFStringRef)file,startAt);
+	player->CreateQueueForFile((__bridge CFStringRef)file,startAt);
 	
 	//player->CreateQueueForFile((CFStringRef)@"/Users/fabiensanglard/Desktop/AudioQueueTest/build/Debug/b.mp3");
 }

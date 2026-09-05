@@ -705,12 +705,23 @@ void loadNativePNG(texture_t* tmpTex)
     static int previousTouchCount;
 
 
+    // v3.0.1: UIKit reports touches in points; the engine maps them against its
+    // surface (glBuffersDimensions / viewPortDimensions). The OpenGL surface was
+    // the layer at 1x, so points WERE surface units. The Metal surface is at the
+    // native scale, so a touch has to be scaled onto it -- else every tap lands
+    // at a third of where the finger is and no menu button is ever hit (3.0.0).
+    // The ratio is identity on the OpenGL path: this line is correct on both.
+    CGFloat toSurface = self.bounds.size.width > 0
+        ? renderer.glBuffersDimensions[WIDTH] / self.bounds.size.width : 1;
+
     NSSet *iPhonetouches = [event allTouches];
     for (UITouch *myTouch in iPhonetouches)
     {
         touchCount++;
         CGPoint touchLocation = [myTouch locationInView:nil];
         CGPoint prevTouchLocation = [myTouch previousLocationInView:nil];
+        touchLocation.x *= toSurface;  touchLocation.y *= toSurface;
+        prevTouchLocation.x *= toSurface;  prevTouchLocation.y *= toSurface;
 
         // Tutorial (scenes 14 = swipe, 15 = virtual pad) and Demo (scene 13): a
         // top-centre BACK button to leave and return to the main menu. Swallow

@@ -1,0 +1,72 @@
+name: Audit compiler warnings (v3 stage 1)
+
+# v3 stage 1: the ~600 deprecation/conversion warnings are a metric before
+# they are a chore. This builds the Simulator target with the FULL xcodebuild
+# log kept (the smokes only tail it), then prints a histogram by warning flag
+# and by file, and uploads the raw log. The stage is done when this prints 0
+# and the -Wno-error overrides in the build steps can go.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build with the full log
+        working-directory: engine/iOS
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project dEngine.xcodeproj \
+            -target Shmup \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -arch arm64 \
+            SYMROOT="$PWD/build" \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            GCC_TREAT_WARNINGS_AS_ERRORS=NO \
+            OTHER_CFLAGS='$(inherited) -Wno-error=implicit-function-declaration -Wno-error=implicit-int -Wno-error=int-conversion -Wno-error=incompatible-function-pointer-types -Wno-error=incompatible-pointer-types' \
+            build 2>&1 | tee "$RUNNER_TEMP/build.log" | tail -3
+
+      - name: Histogram
+        run: |
+          LOG="$RUNNER_TEMP/build.log"
+          # One line per distinct warning site (xcodebuild repeats some).
+          grep -E "^[^ ].*: warning: " "$LOG" | sort -u > warnings.txt || true
+          TOTAL=$(wc -l < warnings.txt | tr -d ' ')
+          echo "=== TOTAL distinct warning sites: $TOTAL ==="
+          echo
+          echo "=== by flag ==="
+          grep -oE "\[-W[a-zA-Z0-9=+-]+\]" warnings.txt | sort | uniq -c | sort -rn || true
+          echo
+          echo "=== unflagged (deprecations etc.), by message head ==="
+          grep -vE "\[-W" warnings.txt | sed -E 's/^.*: warning: //' | cut -c1-70 | sort | uniq -c | sort -rn | head -30 || true
+          echo
+          echo "=== by file ==="
+          sed -E 's/^([^:]+):.*/\1/' warnings.txt | xargs -n1 basename 2>/dev/null | sort | uniq -c | sort -rn | head -40 || true
+          echo
+          echo "=== errors (must be 0) ==="
+          grep -cE ": error: " "$LOG" || true
+          echo "total=$TOTAL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: warnings-audit
+          path: |
+            warnings.txt
+          if-no-files-found: ignore

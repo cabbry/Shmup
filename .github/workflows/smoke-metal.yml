@@ -1,0 +1,170 @@
+name: Smoke test the Metal backend (act 3, screenshots)
+
+# v3 stage 3. The same act-3 run as smoke-ttb.yml, on the Metal backend
+# (SHMUP_RENDERER=metal), held to the SAME [cull] luma assertions the OpenGL
+# backend has passed for twenty builds -- that trace is the parity contract.
+# Plus the thing OpenGL never allowed: the Simulator CAN screenshot a Metal
+# layer, so this run also captures frames and uploads them for eyes.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: macos-15
+    timeout-minutes: 50
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build (iphonesimulator, arm64, no signing)
+        working-directory: engine/iOS
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project dEngine.xcodeproj \
+            -target Shmup \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -arch arm64 \
+            SYMROOT="$PWD/build" \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build | tail -5
+
+      - name: Boot a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone (1[5-9]|SE)" | head -1 | grep -oE "[0-9A-F-]{36}")
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
+          fi
+          echo "Using simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Launch scene 3 on Metal
+        id: run
+        run: |
+          APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+          UDID="${{ steps.sim.outputs.udid }}"
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch \
+            --terminate-running-process "$UDID" "$BUNDLE_ID" || true
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+          nohup env SIMCTL_CHILD_SHMUP_RENDERER=metal \
+            SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 \
+            SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
+            SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
+            SIMCTL_CHILD_SHMUP_INVULN=1 \
+            SIMCTL_CHILD_SHMUP_AUTOFIRE=1 \
+            xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
+            > "$RUNNER_TEMP/metal.log" 2>&1 &
+          echo "bundle=$BUNDLE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait, screenshot, assert
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="${{ steps.run.outputs.bundle }}"
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
+          START=$(date +%s)
+          mkdir -p shots
+
+          sleep 45
+          echo "=== console head ==="
+          head -80 "$RUNNER_TEMP/metal.log" || true
+          grep -E "\[Metal\]|\[Renderer\]" "$RUNNER_TEMP/metal.log" "$CONTAINER"/Documents/*.log 2>/dev/null | head -10 || true
+          xcrun simctl io "$UDID" screenshot shots/t045.png || true
+
+          SHOT=1
+          for i in $(seq 1 140); do
+            LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+            [ -z "$LOG" ] && LOG="$RUNNER_TEMP/metal.log"
+            DONE=$(grep -c "scene] 3 -> 4" "$LOG" 2>/dev/null || true)
+            N=$(grep -c "cull] scene=3 live=1" "$LOG" 2>/dev/null || true)
+            LASTT=$(grep "cull] scene=3" "$LOG" 2>/dev/null | tail -1 | grep -oE " t=[0-9]+" | grep -oE "[0-9]+")
+            MIN=$((($(date +%s)-START)/60))
+            echo "[$MIN min] live-cull samples so far: ${N:-0}, sim t=${LASTT:-?}"
+            # a frame every ~10s of sim time through the side view, for the eyes
+            if [ -n "$LASTT" ] && [ "$LASTT" -ge $((SHOT * 10000)) ]; then
+              xcrun simctl io "$UDID" screenshot "shots/sim_$(printf %03d $((LASTT/1000)))s.png" || true
+              SHOT=$((LASTT / 10000 + 1))
+            fi
+            if [ "${DONE:-0}" -ge 1 ]; then
+              echo "act completed"
+              break
+            fi
+            if [ "$MIN" -ge 40 ]; then
+              echo "::error::Timed out before the act finished. Log tail:"
+              tail -40 "$LOG" || true
+              exit 1
+            fi
+            sleep 10
+          done
+
+          LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+          [ -z "$LOG" ] && LOG="$RUNNER_TEMP/metal.log"
+          cp "$LOG" metal-trace.log
+
+          grep -q "Running in mode Metal" metal-trace.log || { echo "::error::The Metal backend never bound."; exit 1; }
+
+          echo "=== all live=1 lines ==="
+          grep "cull] scene=3 live=1" metal-trace.log || true
+
+          # THE PARITY CONTRACT: the very assertions the OpenGL backend passes.
+          BAD_TOP=0; BAD_CITY=0; SAMPLES=0
+          while read -r line; do
+            T=$(echo "$line"    | grep -oE " t=[0-9]+"   | grep -oE "[0-9]+")
+            TOP=$(echo "$line"  | grep -oE "top=[0-9]+"  | grep -oE "[0-9]+")
+            LUMA=$(echo "$line" | grep -oE " luma=[0-9]+" | grep -oE "[0-9]+")
+            [ -z "$T" ] && continue
+            if [ "$T" -ge 45000 ] && [ "$T" -le 70000 ]; then
+              SAMPLES=$((SAMPLES+1))
+              [ "${TOP:-0}"  -lt 25 ] && BAD_TOP=$((BAD_TOP+1))
+              [ "${LUMA:-0}" -lt 15 ] && BAD_CITY=$((BAD_CITY+1))
+            fi
+          done < <(grep "cull] scene=3 live=1" metal-trace.log)
+          echo "samples in [45s,70s]: $SAMPLES  black-top: $BAD_TOP  black-city: $BAD_CITY"
+          [ "$SAMPLES" -ge 3 ] || { echo "::error::Too few live samples in the side-view window."; exit 1; }
+          [ "$BAD_TOP" -le $((SAMPLES / 4)) ] || { echo "::error::The sky band reads black on Metal."; exit 1; }
+          [ "$BAD_CITY" -le $((SAMPLES / 4)) ] || { echo "::error::The city does not render on Metal."; exit 1; }
+          DIP=$(grep "cull] scene=3" metal-trace.log | awk '{t=0;to=999;for(f=1;f<=NF;f++){if($f~/^t=/){sub("t=","",$f);t=$f+0};if($f~/^top=/){sub("top=","",$f);to=$f+0}};if(t>=50000&&t<=64000&&to<42)print "dip",t,to}' | head -3)
+          echo "cameo dips: ${DIP:-NONE}"
+          [ -n "$DIP" ] || { echo "::error::The cameo left no trace on Metal."; exit 1; }
+
+          if ls ~/Library/Logs/DiagnosticReports/Shmup* >/dev/null 2>&1; then
+            echo "::error::A crash report exists:"; for c in ~/Library/Logs/DiagnosticReports/Shmup*; do head -40 "$c"; done
+            exit 1
+          fi
+          echo "METAL PASSES THE OPENGL BACKEND'S OWN CONTRACT."
+
+      - name: Collect logs even on failure
+        if: always()
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="${{ steps.run.outputs.bundle }}"
+          cp "$RUNNER_TEMP/metal.log" console.log 2>/dev/null || true
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data 2>/dev/null)
+          [ -n "$CONTAINER" ] && cp "$CONTAINER"/Documents/*.log documents.log 2>/dev/null || true
+          xcrun simctl io "$UDID" screenshot shots/final.png 2>/dev/null || true
+
+      - name: Upload the trace and the frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metal-smoke
+          path: |
+            metal-trace.log
+            console.log
+            documents.log
+            shots/
+          if-no-files-found: ignore

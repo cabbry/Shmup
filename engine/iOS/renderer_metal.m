@@ -358,7 +358,8 @@ static void FillUniforms(MtlUniforms* u, int kind)
 	u->matSpecular   = (vector_float4){ 0, 0, 0, 0 };	// filled per entity
 	u->fogColor      = (vector_float4){ renderer.fogColor[0], renderer.fogColor[1], renderer.fogColor[2], 1 };
 	u->params        = (vector_float4){ (float)renderer.fogStartAt, (float)renderer.fogStopAt, light.constantAttenuation, light.linearAttenuation };
-	u->flags         = (vector_int4){ (kind == VK_3D) ? sLighting : 0, sTexEnv, (kind == VK_3D) ? sFog : 0, sTextured };
+	// "Textured" only if a texture is actually bound: sampling nothing is undefined.
+	u->flags         = (vector_int4){ (kind == VK_3D) ? sLighting : 0, sTexEnv, (kind == VK_3D) ? sFog : 0, (sTextured && TextureFor(sTexture) != nil) ? 1 : 0 };
 }
 
 // Bind everything a draw needs from the emulated state. Called per draw: the
@@ -377,11 +378,9 @@ static BOOL BindForDraw(int kind, const MtlUniforms* u)
 	[gEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
 	[gEncoder setVertexBytes:u length:sizeof(MtlUniforms) atIndex:1];
 	[gEncoder setFragmentBytes:u length:sizeof(MtlUniforms) atIndex:1];
-	if (sTextured)
+	if (u->flags.w)
 	{
-		id<MTLTexture> t = TextureFor(sTexture);
-		if (t)
-			[gEncoder setFragmentTexture:t atIndex:0];
+		[gEncoder setFragmentTexture:TextureFor(sTexture) atIndex:0];
 		[gEncoder setFragmentSamplerState:gSampler atIndex:0];
 	}
 	return YES;
@@ -806,7 +805,7 @@ static void RenderEntityM(entity_t* entity)
 		u.matSpecular = (vector_float4){ entity->material->specularColor[0], entity->material->specularColor[1],
 		                                 entity->material->specularColor[2], entity->material->shininess };
 		if (sTextured)
-			sTexture = entity->material->textures[TEXTURE_DIFFUSE].textureId;
+			SetTextureM(entity->material->textures[TEXTURE_DIFFUSE].textureId);	// through the cache: the 2D passes compare against it
 	}
 	if (!BindForDraw(VK_3D, &u))
 		return;

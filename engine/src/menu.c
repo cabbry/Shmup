@@ -140,7 +140,7 @@ void MENU_CreateText(menu_screen_t* screen, short posX, short posY, float size,u
 #define BUTTON_TEXT_Y_COO (104/(float)512*SHRT_MAX)
 #define BUTTON_TEXT_WIDTH (159/(float)512*SHRT_MAX)
 #define BUTTON_TEXT_HEIGHT (64/(float)512*SHRT_MAX)
-void MENU_CreateButtonWithTag(menu_screen_t* screen,char* text,float fontSize, buttonAction action,void* tag,buttonUpdate update,
+void MENU_CreateButtonWithTag(menu_screen_t* screen,const char* text,float fontSize, buttonAction action,void* tag,buttonUpdate update,
 					   vec2short_t pos, vec2short_t dimensions
 					   )
 {
@@ -197,7 +197,7 @@ void MENU_CreateButtonWithTag(menu_screen_t* screen,char* text,float fontSize, b
 	screen->numButtons++;
 }
 
-void MENU_CreateButton(menu_screen_t* screen,char* text,float fontSize, buttonAction action,buttonUpdate update,
+void MENU_CreateButton(menu_screen_t* screen,const char* text,float fontSize, buttonAction action,buttonUpdate update,
 					   vec2short_t pos, vec2short_t dimensions
 					   )
 {
@@ -784,7 +784,6 @@ char menuCreated = 0;
 
 void MENU_Init(void)
 {
-	char* recordUpdatableString;
 	menu_screen_t* currentMenu;
 	
 	vec2_t pos ;
@@ -1024,7 +1023,6 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 260);
 	buttonDim[WIDTH] = (220 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	recordUpdatableString = calloc(21, sizeof(char));
 	//MENU_CreateButton(currentMenu, recordUpdatableString, 2.5f, Action_ChangeReplayRecordingState,MENU_UpdateReplayList, buttonPos, buttonDim);
 	
 	

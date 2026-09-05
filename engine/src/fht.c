@@ -27,6 +27,7 @@
 #include "fx.h"
 #include "sounds.h"
 #include "camera.h"	// CAM_TTBRotateSS: the tumble axis follows the beat
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 //#define FHT_TTL  6000.0f
 #define FHT_NUM_ROTATION 3

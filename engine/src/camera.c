@@ -33,6 +33,7 @@
 #include "collisions.h"
 #include "preproc.h"
 #include "vis.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 
 
@@ -821,14 +822,12 @@ void CAM_ExpandCameraWayPoints(camera_frame_t* startFrame,camera_frame_t* endFra
 	int						timeDifference;
 	float					interpolationFactor;
 	
-	int time;
 	int extraAccuracyTime;
 	
 	timeDifference = endFrame->time - startFrame->time;
 	
 	currentFrame = startFrame;
 	
-	time = startFrame->time;
 	extraAccuracyTime=0;
 	
 	while (currentFrame->time  < endFrame->time) 

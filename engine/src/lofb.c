@@ -42,6 +42,7 @@
 #include "event.h"
 #include "native_services.h"
 #include "enemy_particules.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 // Reused engine services with no public prototype.
 extern void emitSHABBullet(enemy_t* enemy, float angle);	// shab.c: one enemy bullet at an angle

@@ -1343,9 +1343,6 @@ void PL_RenderPlayerPointers(void)
 void P_PrepareBulletSprites(void)
 {
 	int i,j;
-	short flashY;
-	short leftFlashX;
-	short rightFlashX;
 	float flashInterpolation;
 	
 	xf_colorless_sprite_t* bulSprite;
@@ -1616,7 +1613,7 @@ void P_UpdateGhosts(player_t* player)
 				while (1) 
 				{
 					//Only pick target visible on screen
-					if (fabs(target->ss_boudaries[UP]) < SS_H || fabs(target->ss_boudaries[DOWN])  > SS_H)
+					if (abs(target->ss_boudaries[UP]) < SS_H || abs(target->ss_boudaries[DOWN])  > SS_H)	// v3: shorts, not floats
 					{
 						ghost->target = target;
 						ghost->targetUniqueId = target->uniqueId;

@@ -38,6 +38,7 @@
 #include "shab.h"
 #include "fht.h"
 #include "tha.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 //Warning this matrix is declared as row major: <-- Shit !! This line was actually useful 4 month later !!!! You are good fab !!!
 /*

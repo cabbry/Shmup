@@ -27,7 +27,7 @@
 #include "filesystem.h"
 #include "math.h"
 
-static char gPVRTexIdentifier[4] = "PVR!";
+static char gPVRTexIdentifier[5] = "PVR!";	// v3: room for the NUL (only bytes 0-3 are ever read)
 
 
 typedef struct _PVRTexHeader

@@ -654,8 +654,6 @@ void COM_ClearBuffers(void)
 
 void COM_StopRecording(void)
 {
-	filehandle_t* ioFileHandle;
-	int int_numPlayers;
 	
 	if (!engine.playback.record)
 		return;
@@ -693,9 +691,9 @@ void COM_StopRecording(void)
 
 void COM_StartScene(void)
 {
+	filehandle_t* ioFileHandle;
 	static char filename[1024];
 	//Check if we need to play or record
-	filehandle_t* ioFileHandle;
 
 	if (engine.playback.play && engine.playback.record)
 	{

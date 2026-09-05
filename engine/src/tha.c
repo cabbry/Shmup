@@ -29,6 +29,7 @@
 #include "enemy_particules.h"
 #include "timer.h"
 #include "sounds.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 #define THA_TTR  700.0f
 #define THA_TIME_ONSCREEN (THA_TTR + enemy->ttl)

@@ -30,7 +30,7 @@
 #include "math.h"
 
 typedef float matrix_t[16];
-void matrix_multiplyVertexByMatrix(vec3_t pos, matrix_t modelViewProjectionMatrix, vec3_t dest);
+void matrix_multiplyVertexByMatrix(vec4_t pos, matrix_t modelViewProjectionMatrix, vec4_t dest);	// v3: vec4, as defined and as every caller passes
 void matrix_multiply(const matrix_t m1, const matrix_t m2, matrix_t dest);
 void matrix_transform_vec4t(const matrix_t m1, const vec4_t vect , vec4_t dest);
 void matrix_print(matrix_t m);

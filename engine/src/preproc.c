@@ -33,6 +33,7 @@
 #include "camera.h"
 #include "world.h"
 #include "timer.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 int logPreproc;
 
@@ -823,7 +824,7 @@ void PREPROC_PopulateRawFaceSet(prec_camera_frame_t* frame)
 			{
 				Log_Printf("	face %hd ms_vertices[0] = %f, %f. %f %f.\n",face.faceId,face.ms_vertices[0][X],face.ms_vertices[0][Y],face.ms_vertices[0][Z],face.ms_vertices[0][W]);
 				Log_Printf("	face %hd ms_vertices[1] = %f, %f. %f %f.\n",face.faceId,face.ms_vertices[1][X],face.ms_vertices[1][Y],face.ms_vertices[1][Z],face.ms_vertices[1][W]);
-				Log_Printf("	face %hd ms_vertices[2] = %f, %f. %f %f.\n",face.faceId,face.ms_vertices[2][X],face.ms_vertices[2][Y],face.ms_vertices[2][Z],face.ms_vertices[3][W]);	
+				Log_Printf("	face %hd ms_vertices[2] = %f, %f. %f %f.\n",face.faceId,face.ms_vertices[2][X],face.ms_vertices[2][Y],face.ms_vertices[2][Z],face.ms_vertices[2][W]);	// v3: was [3][W] -- one past the end of a 3-vertex face	
 			}
 			
 			//Project points into face
@@ -846,7 +847,10 @@ void PREPROC_PopulateRawFaceSet(prec_camera_frame_t* frame)
 			for (k=0 ; k < face.hs_numVertices ; k++)
 			{
 				//vectorScale( v, s, o ) v= 0*s
-				vectorScale(face.hs_vertices[k],1.0f/face.hs_vertices[k][3],face.ss_vertices[k]); 
+				// v3: ss_vertices are vec2 -- vectorScale wrote a THIRD component past each entry
+				// (and past the whole array on the last one) every bake, since 2009.
+				face.ss_vertices[k][X] = face.hs_vertices[k][X] / face.hs_vertices[k][3];
+				face.ss_vertices[k][Y] = face.hs_vertices[k][Y] / face.hs_vertices[k][3];
 				face.ss_numVertices++;
 			}
 			

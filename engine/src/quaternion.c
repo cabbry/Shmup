@@ -24,6 +24,7 @@
  */
 
 #include "quaternion.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 
 /**

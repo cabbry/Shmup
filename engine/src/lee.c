@@ -30,6 +30,7 @@
 #include "globals.h"
 #include "player.h"
 #include "sounds.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 
 //#define LEE_TTL 5000

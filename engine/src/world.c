@@ -34,6 +34,7 @@
 #include "player.h"
 #include "event.h"
 #include "titles.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 light_t light;
 

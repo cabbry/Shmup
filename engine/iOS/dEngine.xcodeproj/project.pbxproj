@@ -214,6 +214,7 @@
 		2D55CBFF102FE43100F3DC3F /* quaternion.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = quaternion.h; sourceTree = "<group>"; };
 		2D55CC00102FE43100F3DC3F /* quaternion.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = quaternion.c; sourceTree = "<group>"; };
 		2D55CC35102FEA8B00F3DC3F /* renderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = renderer.h; sourceTree = "<group>"; };
+		A3000006000000000000AA06 /* renderer_metal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = renderer_metal.h; sourceTree = "<group>"; };
 		2D55CC36102FEA8B00F3DC3F /* renderer.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = renderer.c; sourceTree = "<group>"; };
 		2D5821AD1EE6249700C5ECBA /* OpenAL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenAL.framework; path = System/Library/Frameworks/OpenAL.framework; sourceTree = SDKROOT; };
 		2D5821B01EE6295700C5ECBA /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
@@ -482,6 +483,7 @@
 				2DF34821102F62CC0052FFFF /* renderer_progr.h */,
 				2DF34822102F62CC0052FFFF /* renderer_progr.c */,
 				2D55CC35102FEA8B00F3DC3F /* renderer.h */,
+				A3000006000000000000AA06 /* renderer_metal.h */,
 				2D55CC36102FEA8B00F3DC3F /* renderer.c */,
 			);
 			name = renderer;

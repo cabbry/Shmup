@@ -34,6 +34,8 @@
 #include "native_services.h"
 #include "target.h"
 #include "world.h"	// v2: ship preview on the Custom screen
+#include "io_interface.h"	// round 41: IO_EVENT_* for the scrolling menus
+#include <stdlib.h>
 
 #define HOME_ATLAS "/data/menu/homeAtlas.png"
 
@@ -357,6 +359,7 @@ void MENU_Set(signed char menuId)
 		SCR_SetFadeFullScreen();
 		currentMenu = &menuScreens[currentMenuId];
 		currentMenu->alpha = 0;
+		currentMenu->scrollY = 0;	// round 41: a scrolling menu opens at its top
 	}
 	
 	
@@ -782,6 +785,22 @@ static char* MENU_Tr(const char* en)
 
 char menuCreated = 0;
 
+// Round 41: a horizontal brush stroke, 480 units wide, centred on (0,y) -- the
+// credits' separators, in the ink of the buttons (atlas 330,100 176x16).
+static void MENU_CreateBrushRule(menu_screen_t* screen, short y)
+{
+	vec2_t pos, dimensions, textPos, textDim;
+	pos[X] = 0;
+	pos[Y] = y;
+	dimensions[WIDTH]  = 480;
+	dimensions[HEIGHT] = 44;
+	textPos[X] = 330/(float)512;
+	textPos[Y] = 100/(float)512;
+	textDim[WIDTH]  = 176/(float)512;
+	textDim[HEIGHT] =  16/(float)512;
+	MENU_CreateImage(screen, pos, dimensions, textPos, textDim);
+}
+
 void MENU_Init(void)
 {
 	menu_screen_t* currentMenu;
@@ -879,64 +898,30 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowOthersMenu,NULL, buttonPos, buttonDim);
 
-	// FOUR sections now (production / artists / tester / special thanks), 12 lines
-	// and 3 rules between the title card and the Back button (whose top edge sits
-	// at -316). At the original size 2.2 a glyph cell is 35 units tall and 12 of
-	// them no longer fit: the roll is size 2.0 (cell 32) on a 36 step, and 58
-	// across a rule -- ~6 clear units between a cell and the rule, which is more
-	// than the 2 the shipped layout had under its first rule. Everything hangs
-	// off the first line at 200: that ceiling is the title card's, don't go up.
-	// NOTE: 4 images (title + 3 rules) is exactly MAX_NUM_MENU_IMAGES -- a fifth
-	// section would need that raised.
-	MENU_CreateText(currentMenu,0,200,2.0f,TEXT_CENTERED,  "Producer:     Fabien Sanglard");
-	MENU_CreateText(currentMenu,0,164,2.0f,TEXT_CENTERED,  "Game engine:  Fabien Sanglard");
-	MENU_CreateText(currentMenu,0,128,2.0f,TEXT_CENTERED,  "Graphics:     Fabien Sanglard");
-	MENU_CreateText(currentMenu,0, 92,2.0f,TEXT_CENTERED,  "Music:            Future Crew");
-	MENU_CreateText(currentMenu,0, 56,2.0f,TEXT_CENTERED,  "Reborn:             Jr Cabbry");
-
-	pos[X] = 0 ;
-	pos[Y] = 27 ;
-	dimensions[WIDTH] = 240*2.0;
-	dimensions[HEIGHT] = 7*2.1;
-	textPos[X] = 7/(float)512 ;
-	textPos[Y] = 85/(float)512 ;
-	textDim[WIDTH] = 251/(float)512 ;
-	textDim[HEIGHT] =6/(float)512 ;
-	//MENU_CreateImage(menu_screen_t* screen, vec2_t pos, vec2_t dimensions, vec2_t text[4])
-	MENU_CreateImage(currentMenu,pos,dimensions,textPos,textDim);
-
-
-	MENU_CreateText(currentMenu,0,  -2,2.0f,TEXT_CENTERED, "Artists:          Phil Walker");
-	MENU_CreateText(currentMenu,0, -38,2.0f,TEXT_CENTERED, "                  Mike Jensen");
-	MENU_CreateText(currentMenu,0, -74,2.0f,TEXT_CENTERED, "                 Sean Weisman");
-
-	pos[X] = 0 ;
-	pos[Y] =  -103;
-	dimensions[WIDTH] = 240*2.0;
-	dimensions[HEIGHT] = 7*2.1;
-	textPos[X] = 7/(float)512 ;
-	textPos[Y] = 85/(float)512 ;
-	textDim[WIDTH] = 251/(float)512 ;
-	textDim[HEIGHT] =6/(float)512 ;
-
-	MENU_CreateImage(currentMenu,pos,dimensions,textPos,textDim);
-
-	MENU_CreateText(currentMenu,0,-132,2.0f,TEXT_CENTERED, "Tester:                 Leo B");
-
-	pos[X] = 0 ;
-	pos[Y] =  -161;
-	dimensions[WIDTH] = 240*2.0;
-	dimensions[HEIGHT] = 7*2.1;
-	textPos[X] = 7/(float)512 ;
-	textPos[Y] = 85/(float)512 ;
-	textDim[WIDTH] = 251/(float)512 ;
-	textDim[HEIGHT] =6/(float)512 ;
-
-	MENU_CreateImage(currentMenu,pos,dimensions,textPos,textDim);
-
-	MENU_CreateText(currentMenu,0,-190,2.0f,TEXT_CENTERED,"Special Thanks:     Soojin Yi");
-	MENU_CreateText(currentMenu,0,-226,2.0f,TEXT_CENTERED,"                Jeremy Vernet");
-	MENU_CreateText(currentMenu,0,-262,2.0f,TEXT_CENTERED,"            Aurelien Sanglard");
+	// Round 41: the credits SCROLL. The title card and Back stay put; the roll of
+	// lines and its rules live in the band between them, follow the finger, and
+	// a thumb on the right says where you are. So the roll breathes again: size
+	// 2.0 on a 40 step, a rule 32 under a line and 32 above the next. The rules
+	// are brush strokes, in the ink of the buttons (atlas 330,100 176x16).
+	// 13 lines of MAX_NUM_MENU_TEXTS 16; 4 images (title + 3 rules) = the max.
+	MENU_CreateText(currentMenu,0, 200,2.0f,TEXT_CENTERED, "Producer:     Fabien Sanglard");
+	MENU_CreateText(currentMenu,0, 160,2.0f,TEXT_CENTERED, "Game engine:  Fabien Sanglard");
+	MENU_CreateText(currentMenu,0, 120,2.0f,TEXT_CENTERED, "Graphics:     Fabien Sanglard");
+	MENU_CreateText(currentMenu,0,  80,2.0f,TEXT_CENTERED, "Music:            Future Crew");
+	MENU_CreateText(currentMenu,0,  40,2.0f,TEXT_CENTERED, "Reborn:             Jr Cabbry");
+	MENU_CreateBrushRule(currentMenu, 8);
+	MENU_CreateText(currentMenu,0, -24,2.0f,TEXT_CENTERED, "Artists:          Phil Walker");
+	MENU_CreateText(currentMenu,0, -64,2.0f,TEXT_CENTERED, "                  Mike Jensen");
+	MENU_CreateText(currentMenu,0,-104,2.0f,TEXT_CENTERED, "                 Sean Weisman");
+	MENU_CreateBrushRule(currentMenu, -136);
+	MENU_CreateText(currentMenu,0,-168,2.0f,TEXT_CENTERED, "Testers:                Leo B");
+	MENU_CreateText(currentMenu,0,-208,2.0f,TEXT_CENTERED, "               Van Dike du 69");
+	MENU_CreateBrushRule(currentMenu, -240);
+	MENU_CreateText(currentMenu,0,-272,2.0f,TEXT_CENTERED, "Special Thanks:     Soojin Yi");
+	MENU_CreateText(currentMenu,0,-312,2.0f,TEXT_CENTERED, "                Jeremy Vernet");
+	MENU_CreateText(currentMenu,0,-352,2.0f,TEXT_CENTERED, "            Aurelien Sanglard");
+	// the band: from the top of the first line's cell to just above Back's top edge (-316)
+	MENU_SetScrollWindow(currentMenu, 218, -300, 1);
 
 
 		
@@ -1333,114 +1318,139 @@ ushort* indices;
 ushort numIndices;
 ushort numVertices;
 
+// One quad into the menu batch, its y shifted by dy (the scroll).
+static void MENU_PushQuad(xf_colorless_sprite_t* src, short dy)
+{
+	int k;
+	memcpy(vertice, src, 4 * sizeof(xf_colorless_sprite_t));
+	for (k = 0; k < 4; k++)
+		vertice[k].pos[Y] += dy;
+	indices[0] = numVertices+0;
+	indices[1] = numVertices+1;
+	indices[2] = numVertices+2;
+	indices[3] = numVertices+1;
+	indices[4] = numVertices+2;
+	indices[5] = numVertices+3;
+	vertice += 4;
+	indices += 6;
+	numIndices += 6;
+	numVertices += 4;
+}
+
+// A flat quad cut from the atlas: (u,v,w,h) in atlas pixels of a uniform patch.
+static void MENU_PushPatch(short x0, short y0, short x1, short y1, int u, int v, int w, int h)
+{
+	xf_colorless_sprite_t q[4];
+	q[0].pos[X] = x0; q[0].pos[Y] = y0; q[1].pos[X] = x0; q[1].pos[Y] = y1;
+	q[2].pos[X] = x1; q[2].pos[Y] = y0; q[3].pos[X] = x1; q[3].pos[Y] = y1;
+	q[0].text[X] = q[1].text[X] = (short)(u       / 512.0f * SHRT_MAX);
+	q[2].text[X] = q[3].text[X] = (short)((u + w) / 512.0f * SHRT_MAX);
+	q[0].text[Y] = q[2].text[Y] = (short)(v       / 512.0f * SHRT_MAX);
+	q[1].text[Y] = q[3].text[Y] = (short)((v + h) / 512.0f * SHRT_MAX);
+	MENU_PushQuad(q, 0);
+}
+
+// The scroll indicator: a dark track down the right edge of the clip band and
+// a white thumb whose size and place say how much lies below and above. Both
+// are cut from the ink buttons' interiors (the up sprite's dark fill, the down
+// sprite's white), so no new pixel in the atlas.
+#define SCROLL_THUMB_X0 (SS_W - 14)
+#define SCROLL_THUMB_X1 (SS_W - 6)
+static void MENU_PushScrollThumb(menu_screen_t* m)
+{
+	int trackH = m->clipTop - m->clipBottom;
+	int thumbH, thumbTop;
+	if (trackH <= 0 || m->scrollMax <= 0)
+		return;
+	thumbH = trackH * trackH / (trackH + m->scrollMax);
+	if (thumbH < 24) thumbH = 24;
+	thumbTop = m->clipTop - (int)(-m->scrollY) * (trackH - thumbH) / m->scrollMax;
+	MENU_PushPatch(SCROLL_THUMB_X0, (short)m->clipTop, SCROLL_THUMB_X1, (short)m->clipBottom, 70, 132, 20, 8);	// track
+	MENU_PushPatch(SCROLL_THUMB_X0, (short)thumbTop, SCROLL_THUMB_X1, (short)(thumbTop - thumbH), 229, 132, 20, 8);	// thumb
+}
+
 void MENU_Render(void)
 {
-
 	menu_image_t* image;
 	menu_button_t* button;
 	menu_text_t* text;
-	int i;
+	int i, firstScrolled;
 	menu_screen_t* currentMenu;
-	
+	short scroll;
+
 	currentMenu = &menuScreens[currentMenuId];
-	
+	scroll = currentMenu->scrollable ? currentMenu->scrollY : 0;
+	firstScrolled = currentMenu->scrollable ? currentMenu->scrollFromImage : currentMenu->numImages;
+
 	vertice = menuVertices;
 	indices = menuIndices;
 	numIndices = 0;
 	numVertices = 0;
-	
+
 	renderer.StartCleanFrame();
-	
 	renderer.Set2D();
-	
+
 	//First draw a fading over back scree
 	renderer.FadeScreen(0.40);
-	
+
 	renderer.SetMaterialTextureBlending(1);
 	renderer.SetTransparency(currentMenu->alpha);
-	
 	if (currentMenu->alpha < 1)
 		currentMenu->alpha += FADING_IN_TIME_PER_MS * timediff;
-	
-	
-	//First draw all images in the menu
-	//Log_Printf("Menu has %d images.\n",currentMenu->numImages);
-	for (i=0; i < currentMenu->numImages; i++) 
+
+	// Pass 1 -- what stays put: the fixed images (every image on a plain menu),
+	// the buttons, and the scroll indicator.
+	for (i = 0; i < firstScrolled && i < currentMenu->numImages; i++)
 	{
 		image = &currentMenu->images[i];
-		memcpy(vertice,image->vertices,4 * sizeof(xf_colorless_sprite_t));
-		
-		indices[0] = numVertices+0;
-		indices[1] = numVertices+1;
-		indices[2] = numVertices+2;
-		indices[3] = numVertices+1;
-		indices[4] = numVertices+2;
-		indices[5] = numVertices+3;
-		
-		vertice += 4;
-		indices += 6;
-		numIndices+= 6;
-		numVertices += 4;
+		MENU_PushQuad(image->vertices, 0);
 	}
-	
-	
-	
-	//Then draw all buttons images in the menu
-	//Log_Printf("Menu has %d buttons.\n",currentMenu->numButtons);
-	for (i=0; i < currentMenu->numButtons; i++) 
+	for (i = 0; i < currentMenu->numButtons; i++)
 	{
 		button = &currentMenu->buttons[i];
-		if (button->touch->down)
-		{
-			//Log_Printf("Down.\n");
-			memcpy(vertice,button->downVertices,4 * sizeof(xf_colorless_sprite_t));
-		}
-		else
-		{
-			//Log_Printf("Down.\n");
-			memcpy(vertice,button->upVertices,4 * sizeof(xf_colorless_sprite_t));
-		}
-		indices[0] = numVertices+0;
-		indices[1] = numVertices+1;
-		indices[2] = numVertices+2;
-		indices[3] = numVertices+1;
-		indices[4] = numVertices+2;
-		indices[5] = numVertices+3;
-		
-		vertice += 4;
-		indices += 6;
-		numIndices+= 6;
-		numVertices += 4;
+		MENU_PushQuad(button->touch->down ? button->downVertices : button->upVertices, 0);
 	}
-	
-	
-	//Ready draw everything.
+	if (currentMenu->scrollable)
+		MENU_PushScrollThumb(currentMenu);
 	renderer.SetTexture(textureAtlas.textureId);
-	renderer.RenderColorlessSprites(menuVertices,numIndices,menuIndices);
-	
+	if (numIndices)
+		renderer.RenderColorlessSprites(menuVertices, numIndices, menuIndices);
+
+	// Pass 2 -- what scrolls, inside the clip band: the rules and all the texts.
 	vertice = menuVertices;
 	indices = menuIndices;
 	numIndices = 0;
 	numVertices = 0;
-	
-	SCR_StartConvertText();
-	
-	//Now draw all texts (button + real text).
-	for (i=0; i < currentMenu->numTexts; i++) 
+	if (currentMenu->scrollable && renderer.SetScissor)
+		renderer.SetScissor(1, currentMenu->clipTop, currentMenu->clipBottom);
+	for (i = firstScrolled; i < currentMenu->numImages; i++)
 	{
-		text = &currentMenu->texts[i] ;
-		SCR_ConvertTextToVertices(text->text,text->font_size,text->textPos[X],text->textPos[Y],text->centerStyle);
+		image = &currentMenu->images[i];
+		MENU_PushQuad(image->vertices, scroll);
 	}
-	
-	for (i=0; i < currentMenu->numButtons; i++) 
+	if (numIndices)
+		renderer.RenderColorlessSprites(menuVertices, numIndices, menuIndices);
+
+	SCR_StartConvertText();
+	for (i = 0; i < currentMenu->numTexts; i++)
+	{
+		text = &currentMenu->texts[i];
+		SCR_ConvertTextToVertices(text->text, text->font_size, text->textPos[X], (short)(text->textPos[Y] + scroll), text->centerStyle);
+	}
+	SCR_RenderText();
+	if (currentMenu->scrollable && renderer.SetScissor)
+		renderer.SetScissor(0, 0, 0);
+
+	// Pass 3 -- the button labels, never clipped.
+	SCR_StartConvertText();
+	for (i = 0; i < currentMenu->numButtons; i++)
 	{
 		button = &currentMenu->buttons[i];
-		SCR_ConvertTextToVertices(button->text,button->font_size,button->textPos[X],button->textPos[Y],TEXT_CENTERED);
+		SCR_ConvertTextToVertices(button->text, button->font_size, button->textPos[X], button->textPos[Y], TEXT_CENTERED);
 	}
-
 	SCR_RenderText();
-	
 }
+
 
 void MENU_HandleTouches(void)
 {
@@ -1479,6 +1489,101 @@ void MENU_ClearButtonStates(void)
 		currentMenu->buttons[i].actionTriggered = 0;
 		currentMenu->buttons[i].touch->down = 0;
 	}
+}
+
+// ---- Round 41: scrolling menus ------------------------------------------------
+
+static void MENU_SetScroll(menu_screen_t* m, int y)
+{
+	if (y > 0) y = 0;
+	if (y < -m->scrollMax) y = -m->scrollMax;
+	m->scrollY = (short)y;
+}
+
+// Declare a screen scrollable: its texts and the images from firstImage on
+// scroll inside the band [clipBottom, clipTop]; scrollMax is how far the
+// lowest of them has to rise to clear the band's bottom edge.
+static void MENU_SetScrollWindow(menu_screen_t* m, short clipTop, short clipBottom, uchar firstImage)
+{
+	int i, yMin = clipBottom, y;
+	m->scrollable = 1;
+	m->scrollFromImage = firstImage;
+	m->clipTop = clipTop;
+	m->clipBottom = clipBottom;
+	m->scrollY = 0;
+	for (i = 0; i < m->numTexts; i++)
+	{
+		y = m->texts[i].textPos[Y] - 18;
+		if (y < yMin) yMin = y;
+	}
+	for (i = firstImage; i < m->numImages; i++)
+	{
+		int k;
+		for (k = 0; k < 4; k++)
+		{
+			y = m->images[i].vertices[k].pos[Y];
+			if (y < yMin) yMin = y;
+		}
+	}
+	m->scrollMax = (short)(clipBottom - yMin + 12);
+	if (m->scrollMax < 0) m->scrollMax = 0;
+}
+
+// The finger on a scrolling menu. y is in the 320x480 touch space (down is +);
+// SS units are twice that and up is +. Returns 1 when the event belongs to a
+// drag -- a moved event always, a release that ends a drag -- so the input
+// layer does not turn it into a button tap.
+static short sDragStartY, sDragScroll;
+static char  sDragging, sDragArmed;
+int MENU_ScrollTouch(int eventType, short touchY)
+{
+	menu_screen_t* m;
+	int dy;
+	if (currentMenuId == MENU_NONE)
+		return 0;
+	m = &menuScreens[currentMenuId];
+	if (!m->scrollable)
+		return 0;
+	if (eventType == IO_EVENT_BEGAN)
+	{
+		sDragStartY = touchY;
+		sDragScroll = m->scrollY;
+		sDragging = 0;
+		sDragArmed = 1;
+		return 0;
+	}
+	if (eventType == IO_EVENT_MOVED)
+	{
+		if (!sDragArmed)
+			return 1;
+		dy = touchY - sDragStartY;
+		if (dy > 6 || dy < -6)
+			sDragging = 1;
+		if (sDragging)
+			MENU_SetScroll(m, sDragScroll + 2 * dy);	// the content follows the finger
+		return 1;
+	}
+	// IO_EVENT_ENDED
+	dy = sDragging;
+	sDragging = 0;
+	sDragArmed = 0;
+	return dy;
+}
+
+// CI hooks (the camera cannot tap): SHMUP_MENU=<id> opens that menu on the
+// home scene, SHMUP_MENU_SCROLL=<n> presets its scroll (n <= 0).
+void MENU_ApplyEnvHooks(void)
+{
+	char* mid = getenv("SHMUP_MENU");
+	char* sc  = getenv("SHMUP_MENU_SCROLL");
+	if (mid && engine.sceneId == 0)
+	{
+		int id = atoi(mid);
+		if (id >= 0 && id < (int)(sizeof(menuScreens) / sizeof(menuScreens[0])))
+			MENU_Set((signed char)id);
+	}
+	if (sc && currentMenuId != MENU_NONE && menuScreens[currentMenuId].scrollable)
+		MENU_SetScroll(&menuScreens[currentMenuId], atoi(sc));
 }
 
 touch_t* MENU_GetCurrentButtonTouches(void)

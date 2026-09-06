@@ -59,6 +59,10 @@ void IO_PushEvent(io_event_s* event_in){
 		event.position[Y] = ( event.position[Y] - renderer.viewPortDimensions[VP_Y] ) * commScale[Y] ;//* renderer.resolution;
 
 
+		// Round 41: on a scrolling menu a vertical drag scrolls it, and its release is not a tap.
+		if (engine.menuVisible && MENU_ScrollTouch(event.type, event.position[Y]))
+			return;
+
 		// find which one it is closest to
 		t2 = currentTouchSet;
 		for (i  = 0 ; i < numButton ; i++ ) 

@@ -506,6 +506,7 @@ void dEngine_LoadScene(int sceneId)
 	P_ReloadShip();
 
 	MENU_Set(engine.scenes[engine.sceneId].defaultMenuId);
+	MENU_ApplyEnvHooks();	// round 41: CI can open a menu and preset its scroll (SHMUP_MENU, SHMUP_MENU_SCROLL)
 	
 	COM_StartScene();
 	

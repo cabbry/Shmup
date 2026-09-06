@@ -153,7 +153,12 @@ typedef struct renderer_t
 	
 	int (*IsTextureCompressionSupported)(int type);
 	void (*RefreshViewPort)();
-          
+
+	// Round 41: clip 2D drawing to a horizontal band of the screen, in SS units
+	// (yTop > yBottom); enable = 0 restores the whole screen. The scrolling
+	// credits draw their lines inside the band between the title card and Back.
+	void (*SetScissor)(int enable, short yTopSS, short yBottomSS);
+
 } renderer_t;
 
 extern renderer_t renderer;

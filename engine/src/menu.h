@@ -83,8 +83,19 @@ typedef struct menu_screen_t
 	
 	uchar numImages;
 	menu_image_t images[MAX_NUM_MENU_IMAGES];
-	
+
 	float alpha;
+
+	// Round 41: a scrolling screen (the credits). Texts and the images from
+	// scrollFromImage on scroll by scrollY (0 = top, down to -scrollMax) inside
+	// the clip band [clipBottom, clipTop]; buttons and the images before
+	// scrollFromImage stay put. A thin thumb on the right shows the position.
+	char  scrollable;
+	uchar scrollFromImage;
+	short scrollY;
+	short scrollMax;
+	short clipTop;
+	short clipBottom;
 
 } menu_screen_t;
 
@@ -106,6 +117,10 @@ void MENU_Init(void);
 void MENU_Set(signed char menuId);
 signed char MENU_Get(void);
 void MENU_Render(void);
+// Round 41: scrolling menus. ScrollTouch takes the input layer's event type (IO_EVENT_*) and the
+// finger's y in the 320x480 touch space; returns 1 when the event was a drag (and must not reach the buttons).
+int MENU_ScrollTouch(int eventType, short touchY);
+void MENU_ApplyEnvHooks(void);	// CI: SHMUP_MENU=<id> opens a menu at boot, SHMUP_MENU_SCROLL=<n> presets its scroll
 void MENU_HandleTouches(void);
 void MENU_FreeRessources(void);
 touch_t* MENU_GetCurrentButtonTouches(void);

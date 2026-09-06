@@ -1412,6 +1412,39 @@ static int IsTextureCompressionSupportedM(int type)
 	return (TEXTURE_FORMAT_PVRTC & type) ? TEXTURE_FORMAT_PVRTC : 0;
 }
 
+// Round 41: a horizontal clip band for 2D drawing, in SS units. The 2D ortho
+// maps y in [-SS_H, SS_H] onto the whole viewport height whatever the screen,
+// so the pixel rows follow directly; x spans the full viewport.
+static void SetScissorM(int enable, short yTopSS, short yBottomSS)
+{
+	MTLScissorRect sc;
+	int vpX = renderer.viewPortDimensions[VP_X];
+	int vpW = renderer.viewPortDimensions[VP_WIDTH];
+	int vpH = renderer.viewPortDimensions[VP_HEIGHT];
+	int vpY = sPixelH - renderer.viewPortDimensions[VP_Y] - vpH;	// top-left origin, like the viewport
+	int top, bottom;
+	if (!gEncoder)
+		return;
+	if (vpW <= 0 || vpH <= 0) { vpX = 0; vpY = 0; vpW = sPixelW; vpH = sPixelH; }
+	if (!enable || yTopSS <= yBottomSS)
+	{
+		sc.x = 0; sc.y = 0; sc.width = (NSUInteger)sPixelW; sc.height = (NSUInteger)sPixelH;
+		[gEncoder setScissorRect:sc];
+		return;
+	}
+	top    = vpY + (int)((SS_H - yTopSS)    * (long)vpH / (2 * SS_H));
+	bottom = vpY + (int)((SS_H - yBottomSS) * (long)vpH / (2 * SS_H));
+	if (top < 0) top = 0;
+	if (bottom > sPixelH) bottom = sPixelH;
+	if (bottom <= top) { top = 0; bottom = 1; }
+	sc.x = (NSUInteger)(vpX < 0 ? 0 : vpX);
+	sc.y = (NSUInteger)top;
+	sc.width  = (NSUInteger)vpW;
+	sc.height = (NSUInteger)(bottom - top);
+	if (sc.x + sc.width > (NSUInteger)sPixelW) sc.width = (NSUInteger)sPixelW - sc.x;
+	[gEncoder setScissorRect:sc];
+}
+
 static void RefreshViewPortM(void)
 {
 	// The viewport is applied per render pass from renderer.viewPortDimensions.
@@ -1445,4 +1478,5 @@ void initMetalRenderer(renderer_t* r)
 	r->SetTransparency = SetTransparencyM;
 	r->IsTextureCompressionSupported = IsTextureCompressionSupportedM;
 	r->RefreshViewPort = RefreshViewPortM;
+	r->SetScissor = SetScissorM;
 }

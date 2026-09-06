@@ -135,7 +135,12 @@ bool dEngine_ReadConfig(void)
 					// says what the scene is (kind, name, author, version, players).
 					currentSceneId = (int)LE_readReal();
 					LE_readToken();
-					dEngine_ReadPack(currentSceneId, LE_getCurrentToken());
+					{
+						char packPath[256];	// the lexer's token buffer moves on while the pack is read: copy the path first
+						strncpy(packPath, LE_getCurrentToken(), sizeof(packPath) - 1);
+						packPath[sizeof(packPath) - 1] = 0;
+						dEngine_ReadPack(currentSceneId, packPath);
+					}
 				}
 				
 				LE_readToken();

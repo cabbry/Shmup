@@ -18,6 +18,7 @@
 - (void)end;
 - (void)pause;
 - (void)resume;
+- (double)position;	// audio bench: seconds into the soundtrack, -1 without a queue
 
 
 @end

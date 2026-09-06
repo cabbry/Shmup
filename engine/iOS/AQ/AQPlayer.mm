@@ -146,6 +146,7 @@ AQPlayer::AQPlayer() :
 	mIsInitialized(false),
 	mNumPacketsToRead(0),
 	mCurrentPacket(0),
+	mStartPacket(0),
 	mIsDone(false),
 	mIsLooping(false) 
 {
@@ -290,6 +291,7 @@ void AQPlayer::CreateQueueForFile(CFStringRef inFilePath, int startAt)
 			f=  MIN(1,f);
 			
 			this->mCurrentPacket = f*fileDuration/fileDuration*nPackets;
+			this->mStartPacket = this->mCurrentPacket;
 //			printf("[AQBufferCallback] starting packet: %d.\n",(int)THIS->mCurrentPacket);
 			//printf("[CreateQueueForFile] just   mCurrentPacket=%d for object %p.\n",(int)this->mCurrentPacket,this);
 			
@@ -303,6 +305,19 @@ void AQPlayer::CreateQueueForFile(CFStringRef inFilePath, int startAt)
 	}
 	if (sndFile)
 		CFRelease(sndFile);
+}
+
+// Audio bench (round 40): where the soundtrack is, in seconds of the file --
+// the queue's own sample clock plus the cue it started from. -1 when there
+// is no queue (before init, after end). The replacement backend has to
+// report the same numbers for the same run: that is the contract.
+double AQPlayer::GetPositionSeconds()
+{
+	if (!mQueue || mDataFormat.mSampleRate <= 0) return -1;
+	AudioTimeStamp ts;
+	if (AudioQueueGetCurrentTime(mQueue, NULL, &ts, NULL) != noErr) return -1;
+	double cue = (double)mStartPacket * (double)mDataFormat.mFramesPerPacket / mDataFormat.mSampleRate;
+	return ts.mSampleTime / mDataFormat.mSampleRate + cue;
 }
 
 void AQPlayer::SetupNewQueue() 

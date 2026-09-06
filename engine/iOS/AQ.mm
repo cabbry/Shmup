@@ -51,6 +51,11 @@ char musicPaused=0;
 }
 
 
+- (double)position
+{
+	return player ? player->GetPositionSeconds() : -1;
+}
+
 - (void)resume
 {
 	if (!musicPaused)

@@ -1,0 +1,166 @@
+name: Smoke test the audio (act 1, sound trace)
+
+# Round 40 -- the audio bench. Sound cannot be photographed, so the engine
+# says what it plays: the OpenAL backend prints one "[snd] t=<sim> play <id>
+# <name>" line per sound it starts, and the soundtrack glue prints
+# "[music] t=<sim> wall=<ms> init|start|stop|pause|resume|pos=" lines, with
+# a position sample every ~5 s of game. Act 1 with autofire exercises all
+# four effects and the UNREALPM track cued at 0.
+#
+# The trace is the parity contract for the audio port: the game is
+# deterministic, so the [snd] sequence (times and ids) must be identical
+# run to run -- its signature is printed and uploaded; the music position
+# must advance at wall-clock rate from its cue.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build (iphonesimulator, arm64, no signing)
+        working-directory: engine/iOS
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project dEngine.xcodeproj \
+            -target Shmup \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -arch arm64 \
+            SYMROOT="$PWD/build" \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build | tail -5
+
+      - name: Boot a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone (1[5-9]|SE)" | head -1 | grep -oE "[0-9A-F-]{36}")
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
+          fi
+          echo "Using simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Launch act 1 with the probes on
+        id: run
+        run: |
+          APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+          UDID="${{ steps.sim.outputs.udid }}"
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch \
+            --terminate-running-process "$UDID" "$BUNDLE_ID" || true
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+          nohup env \
+            SIMCTL_CHILD_SHMUP_BAKE_SCENE=1 \
+            SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
+            SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
+            SIMCTL_CHILD_SHMUP_INVULN=1 \
+            SIMCTL_CHILD_SHMUP_AUTOFIRE=1 \
+            xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
+            > "$RUNNER_TEMP/audio.log" 2>&1 &
+          echo "bundle=$BUNDLE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for act 1, then read the sound trace
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="${{ steps.run.outputs.bundle }}"
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
+          START=$(date +%s)
+
+          sleep 45
+          echo "=== console head ==="
+          head -60 "$RUNNER_TEMP/audio.log" || true
+
+          for i in $(seq 1 140); do
+            LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+            [ -z "$LOG" ] && LOG="$RUNNER_TEMP/audio.log"
+            DONE=$(grep -c "scene] 1 -> 2" "$LOG" 2>/dev/null || true)
+            N=$(grep -c "^\[snd\] " "$LOG" 2>/dev/null || true)
+            M=$(grep -c "^\[music\] " "$LOG" 2>/dev/null || true)
+            MIN=$((($(date +%s)-START)/60))
+            echo "[$MIN min] sounds so far: ${N:-0}, music lines: ${M:-0}"
+            if [ "${DONE:-0}" -ge 1 ]; then
+              echo "act 1 completed"
+              break
+            fi
+            if [ "$MIN" -ge 35 ]; then
+              echo "::error::Timed out before act 1 finished. Log tail:"
+              tail -40 "$LOG" || true
+              exit 1
+            fi
+            sleep 15
+          done
+
+          LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+          [ -z "$LOG" ] && LOG="$RUNNER_TEMP/audio.log"
+          grep -E "^\[(snd|music|scene)\] " "$LOG" > audio-trace.log || true
+          echo "=== music lines ==="
+          grep "^\[music\] " audio-trace.log || true
+
+          # --- the effects: all four heard, and a signature of the whole sequence
+          PLASMA=$(grep -c "play 0 plasma" audio-trace.log || true)
+          EXPLO=$(grep -c "play 1 explosion" audio-trace.log || true)
+          GHOST=$(grep -c "play 2 ghost_launch" audio-trace.log || true)
+          ENEMY=$(grep -c "play 3 enemy_shot" audio-trace.log || true)
+          TOTAL=$(grep -c "^\[snd\] " audio-trace.log || true)
+          SIG=$(grep "^\[snd\] " audio-trace.log | shasum -a 256 | cut -c1-16)
+          echo "sfx: plasma=$PLASMA explosion=$EXPLO ghost_launch=$GHOST enemy_shot=$ENEMY total=$TOTAL"
+          echo "SFX SIGNATURE: $TOTAL events, sha256[0:16]=$SIG"
+          [ "${PLASMA:-0}" -ge 100 ] || { echo "::error::Autofire should have fired far more than $PLASMA plasma shots."; exit 1; }
+          [ "${EXPLO:-0}"  -ge 5 ]   || { echo "::error::Too few explosions ($EXPLO)."; exit 1; }
+          [ "${ENEMY:-0}"  -ge 5 ]   || { echo "::error::Too few enemy shots ($ENEMY)."; exit 1; }
+
+          # --- the soundtrack: UNREALPM cued at 0, started, and advancing at wall rate
+          grep -q "^\[music\] .* init data/music/UNREALPM.mp3 at=0" audio-trace.log || { echo "::error::UNREALPM was not cued at 0 for act 1."; exit 1; }
+          grep -q "^\[music\] .* start pos=" audio-trace.log || { echo "::error::The soundtrack never started."; exit 1; }
+          POS=$(grep "^\[music\] .* pos=" audio-trace.log | grep -v "start\|stop\|pause\|resume" | awk '{w=0;p=-1;for(f=1;f<=NF;f++){if($f~/^wall=/){sub("wall=","",$f);w=$f+0};if($f~/^pos=/){sub("pos=","",$f);p=$f+0}};print w, p}')
+          SAMPLES=$(echo "$POS" | grep -c . || true)
+          echo "position samples: $SAMPLES"
+          echo "$POS" | head -20
+          [ "$SAMPLES" -ge 3 ] || { echo "::error::Too few soundtrack position samples."; exit 1; }
+          echo "$POS" | awk 'BEGIN{bad=0;n=0} {if(n>0){dw=($1-pw)/1000.0; dp=$2-pp; if(dw>1){r=dp/dw; if(r<0.85||r>1.15){bad++; printf "rate %.3f between wall %d and %d (pos %.2f -> %.2f)\n", r, pw, $1, pp, $2}}} pw=$1; pp=$2; n++} END{print "off-rate intervals:", bad; exit (bad>1)?1:0}' || { echo "::error::The soundtrack does not advance at wall-clock rate."; exit 1; }
+          FIRST=$(echo "$POS" | head -1 | awk '{print $2}')
+          awk -v f="$FIRST" 'BEGIN{ if (f < 0) { print "::error::position unreadable (-1)"; exit 1 } }'
+
+          if ls ~/Library/Logs/DiagnosticReports/Shmup* >/dev/null 2>&1; then
+            echo "::error::A crash report exists:"; for c in ~/Library/Logs/DiagnosticReports/Shmup*; do head -40 "$c"; done
+            exit 1
+          fi
+          echo "AUDIO TRACE RECORDED. $TOTAL effects, signature $SIG, soundtrack at wall rate."
+
+      - name: Collect logs even on failure
+        if: always()
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="${{ steps.run.outputs.bundle }}"
+          cp "$RUNNER_TEMP/audio.log" console.log 2>/dev/null || true
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data 2>/dev/null)
+          [ -n "$CONTAINER" ] && cp "$CONTAINER"/Documents/*.log documents.log 2>/dev/null || true
+
+      - name: Upload the trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-trace
+          path: |
+            audio-trace.log
+            console.log
+            documents.log
+          if-no-files-found: ignore

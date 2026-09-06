@@ -14,6 +14,7 @@
 #include "sound_backend.h"
 #include "dEngine.h"
 #include "log.h"
+#include "timer.h"	// simulationTime, for the [snd] probe
 
 #ifdef WIN32
 #include "al.h"
@@ -203,6 +204,16 @@ void SND_BACKEND_Play(int sndId){
 	//alSourcei( source, AL_SOURCE_RELATIVE, AL_FALSE );
     alcMakeContextCurrent(context);
 	alSourcePlay( source );
+
+	// Audio bench (round 40): every sound the backend actually plays, stamped
+	// with the simulation time. The replacement backend must print the same
+	// sequence for the same run -- that is the parity contract.
+	if (Log_ProbesEnabled())
+	{
+		static const char* names[] = { "plasma", "explosion", "ghost_launch", "enemy_shot" };
+		Log_Printf("[snd] t=%d play %d %s
+", simulationTime, sndId, (sndId >= 0 && sndId < 4) ? names[sndId] : "?");
+	}
 	
 	//Log_Printf("playing sound %d on source %ud with soundBuffer %ud\n",sndId,source,sound->alBuffer);
 	if( alcGetError( device ) != ALC_NO_ERROR )

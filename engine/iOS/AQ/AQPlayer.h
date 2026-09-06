@@ -68,6 +68,7 @@ class AQPlayer
 		OSStatus						StopQueue();	
 		void							Pause();
 		void							Resume();
+		double							GetPositionSeconds();	// audio bench: seconds into the file (start cue included), -1 without a queue
 		
 		AudioQueueRef					Queue()					{ return mQueue; }
 		CAStreamBasicDescription		DataFormat() const		{ return mDataFormat; }		
@@ -96,6 +97,7 @@ class AQPlayer
 		Boolean							mIsInitialized;
 		UInt32							mNumPacketsToRead;
 		SInt64							mCurrentPacket;
+		SInt64							mStartPacket;		// the cue the queue started from, for GetPositionSeconds
 		UInt32							mIsRunning;
 		Boolean							mIsDone;
 		Boolean							mIsLooping;

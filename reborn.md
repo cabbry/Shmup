@@ -269,6 +269,22 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-06 — round 39 (3.0.3 confirmed and merged; the iPad's launch screen)
+
+- **Build 225 on device: "tout est ok".** `v3` merged into `master`
+  ([c03ff65]); the two branches point at the same commit. Master is SHMUP
+  Reborn 3.0.3 — the four-player netcode of v2 and the Metal renderer of v3.
+- **The iPad launch screen was iPhone-sized** ([d6d5685]). `UILaunchScreen`
+  shows its image at native size, centred, and the only image was the
+  375×667-pt iPhone picture — an iPhone-shaped stamp in the middle of the
+  iPad. The asset catalog now carries an *ipad* idiom: the same picture at
+  1080 pt tall, a poster on the black launch background (a few points
+  cropped on a 9.7", thin margins on an 11", a frame on a 12.9"). A mirrored
+  tiling of the picture into the margins was tried and rejected: the logo
+  reflected in the bands. Seen on an iPad simulator with the camera, which
+  gained a `device` input for it — and showed the game's own home screen on
+  an iPad for the first time.
+
 ### 2026-09-06 — round 38 (3.0.2 on device: the game is fine, the title is gone; and the buttons get a brush)
 
 - **v3.0.2 (build 224)** — the first OpenGL-free build. The tester: the game

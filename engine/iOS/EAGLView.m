@@ -210,20 +210,25 @@ AQ* audiocontroller;
 
 		UIDevice* thisDevice = [UIDevice currentDevice];
 
+		// The engine's surface, in pixels, BEFORE dEngine_Init: the menus are
+		// built in there and place their titles with a formula that divides by
+		// this height (menu.c, safeInsetTopPx * 2*SS_H / height). 3.0.2 left it
+		// at zero -- 0 * inf = NaN, and the SHMUP Reborn title went off-screen.
+		// Render at the native scale; handleTouches scales the finger onto the
+		// same surface.
+		CGFloat scale = [UIScreen mainScreen].scale;
+		int pw, ph;
+		self.contentScaleFactor = scale;
+		pw = (int)(self.bounds.size.width  * scale);
+		ph = (int)(self.bounds.size.height * scale);
+		renderer.glBuffersDimensions[WIDTH]  = pw;
+		renderer.glBuffersDimensions[HEIGHT] = ph;
+
 		[self checkEngineSettings];
-		
+
         dEngine_Init();
 
 		{
-			// Render at the native scale and hand the engine its surface in
-			// pixels; handleTouches scales the finger onto that same surface.
-			CGFloat scale = [UIScreen mainScreen].scale;
-			int pw, ph;
-			self.contentScaleFactor = scale;
-			pw = (int)(self.bounds.size.width  * scale);
-			ph = (int)(self.bounds.size.height * scale);
-			renderer.glBuffersDimensions[WIDTH]  = pw;
-			renderer.glBuffersDimensions[HEIGHT] = ph;
 			if (!MTL_Create((__bridge void*)self.layer, pw, ph))
 				NSLog(@"[Metal] backend init failed");
 			dEngine_InitDisplaySystem(METAL_RENDERER);

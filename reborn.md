@@ -318,6 +318,16 @@ it ever reached a device — which is why the game looks the same and why
 - **A black launch screen**, at the tester's request: the picture brought
   nothing. The first attempt lost the plist's key and closing tag to a
   careless edit and was repaired in the next commit — validate the XML.
+- **3.1.0 on device: music fine, shots odd, act 2 lagging "as if the sounds
+  slowed the game"** ([0aebdfc]). The effects backend stopped the player
+  node before every play, and `-[AVAudioPlayerNode stop]` is synchronous —
+  it waits for the render thread. Plasma fires every 83 ms: every shot
+  stalled the game loop, and every restart clicked. The node is now started
+  once and a retrigger schedules the buffer with *interrupts*, which cuts
+  the sound in flight and starts the new one at once — what replaying an
+  OpenAL source did, with nothing for the game loop to wait on. The trace
+  contract cannot see this (the sequence is the same either way); only the
+  device could. Shipped as 3.1.1.
 
 ### 2026-09-06 — round 39 (3.0.3 confirmed and merged; the iPad's launch screen)
 

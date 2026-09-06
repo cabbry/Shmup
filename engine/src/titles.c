@@ -185,6 +185,11 @@ void TITLE_Clear(void){
     title_mode = MODE_UNKNOWN;
 }
 
+int TITLE_IsShowing(void)
+{
+	return timeRemaining > 0 && title_mode != MODE_UNKNOWN;
+}
+
 void TITLE_Show_prolog(int tr)
 {
 	timeRemaining =  tr;

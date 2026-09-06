@@ -1320,7 +1320,9 @@ void PL_RenderPlayerPointers(void)
 		}
 		// Tutorial (scenes 14 = swipe, 15 = virtual pad) and Demo (scene 13): a
 		// BACK button at the top-centre to leave. Hit-tested in EAGLView.
-		if (engine.sceneId == 13 || engine.sceneId == 14 || engine.sceneId == 15)
+		// Not while the act title card is up: the card's band covers this
+		// very zone and the two used to print over each other (round 38).
+		if ((engine.sceneId == 13 || engine.sceneId == 14 || engine.sceneId == 15) && !TITLE_IsShowing())
 			SCR_ConvertTextToVertices("[ BACK ]",SCORE_FONT_SIZE,0,(short)(scoreY - 100),TEXT_CENTERED);
 		// Boss health bar (act 3), just under the score line while the fight is
 		// on. Only the "BOSS" label is font text (letters are proven on-screen);

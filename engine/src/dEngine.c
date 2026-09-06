@@ -103,21 +103,37 @@ bool dEngine_ReadConfig(void)
 				{
 					engine.numScenes = LE_readReal();
 				}
-				else 
+				else
 				if (!strcmp("scene", LE_getCurrentToken()))
 				{
 					currentSceneId = LE_readReal();
-					
+
 					LE_readToken(); //The name of the scene, here only to help developer to keep track of config.cfg
 					strReplace(LE_getCurrentToken(), '_', ' ');
 					strcpy(engine.scenes[currentSceneId].name, LE_getCurrentToken());
-					
+
 					LE_readToken();
 					strcpy(engine.scenes[currentSceneId].path, LE_getCurrentToken());
-					
+
+					// v4: a legacy entry gets its kind from the 2009 id convention
+					// (0 the intro, 1..numScenes-1 the acts, 13 demo, 14-15 tutorials).
+					engine.scenes[currentSceneId].kind =
+						(currentSceneId == 0) ? SCENE_KIND_INTRO :
+						(currentSceneId == 13) ? SCENE_KIND_DEMO :
+						(currentSceneId == 14 || currentSceneId == 15) ? SCENE_KIND_TUTORIAL : SCENE_KIND_ACT;
+
 					Log_Printf("Read scene %d, name %s, path %s\n",currentSceneId,engine.scenes[currentSceneId].name,engine.scenes[currentSceneId].path);
-					
-					
+
+
+				}
+				else
+				if (!strcmp("pack", LE_getCurrentToken()))
+				{
+					// v4 stage 1: "pack <sceneId> <path/to/pack.cfg>" -- the manifest
+					// says what the scene is (kind, name, author, version, players).
+					currentSceneId = (int)LE_readReal();
+					LE_readToken();
+					dEngine_ReadPack(currentSceneId, LE_getCurrentToken());
 				}
 				
 				LE_readToken();
@@ -256,8 +272,22 @@ bool dEngine_ReadConfig(void)
 	
 	LE_popLexer();
 	FS_CloseFile(config);
+
+	// v4: number the acts in id order; the progression, the licence check and
+	// the end-of-game card key on actIndex / numActs, not on scene ids.
+	{
+		int i, n = 0;
+		for (i = 0; i < MAX_NUM_SCENES; i++)
+		{
+			engine.scenes[i].actIndex = 0;
+			if (engine.scenes[i].kind == SCENE_KIND_ACT)
+				engine.scenes[i].actIndex = (char)++n;
+		}
+		engine.numActs = n;
+		Log_Printf("[pack] %d scenes, %d acts.\n", engine.numScenes, engine.numActs);
+	}
 	return true;
-	
+
 }
 
 uchar* screenShotBuffer;
@@ -349,6 +379,72 @@ static void dEngine_ApplyFakePlayers(void)
 			players[i].respawnCounter = (char)(n * numPlayerRespawn[DIFFICULTY_NORMAL]);	// the MP pool, N x 3
 		Log_Printf("[fake] %d ships in a solo game (CI).\n", n);
 	}
+}
+
+// v4 stage 1: read a level pack's manifest into scenes[sceneId]. The block:
+//   pack { format 1  id act1  name Act_I  kind act  author Fabien_Sanglard
+//          version 1  scene data/scenes/act1.scene  minPlayers 1  maxPlayers 4 }
+// Paths are from the data root, like every other file the engine opens. Keys it
+// does not know are skipped (one value each), so a newer manifest still loads.
+static void dEngine_ReadPack(int sceneId, const char* packPath)
+{
+	filehandle_t* f;
+	scene_t* s;
+	if (sceneId < 0 || sceneId >= MAX_NUM_SCENES)
+	{
+		Log_Printf("[pack] scene id %d out of range for %s\n", sceneId, packPath);
+		return;
+	}
+	f = FS_OpenFile(packPath, "rt");
+	if (!f)
+	{
+		Log_Printf("[pack] manifest not found: %s\n", packPath);
+		return;
+	}
+	FS_UploadToRAM(f);
+	s = &engine.scenes[sceneId];
+	s->kind = SCENE_KIND_UNKNOWN;
+	s->minPlayers = 1;
+	s->maxPlayers = MAX_NUM_PLAYERS;
+	s->version = 1;
+	LE_pushLexer();
+	LE_init(f);
+	while (LE_hasMoreData())
+	{
+		LE_readToken();
+		if (!strcmp("pack", LE_getCurrentToken()))
+		{
+			LE_readToken();	// {
+			LE_readToken();
+			while (LE_hasMoreData() && strcmp("}", LE_getCurrentToken()))
+			{
+				const char* key = LE_getCurrentToken();
+				if (!strcmp("format", key))          { (void)LE_readReal(); }
+				else if (!strcmp("id", key))         { LE_readToken(); strncpy(s->packId, LE_getCurrentToken(), sizeof(s->packId) - 1); }
+				else if (!strcmp("name", key))       { LE_readToken(); strReplace(LE_getCurrentToken(), '_', ' '); strncpy(s->name, LE_getCurrentToken(), sizeof(s->name) - 1); }
+				else if (!strcmp("author", key))     { LE_readToken(); strReplace(LE_getCurrentToken(), '_', ' '); strncpy(s->author, LE_getCurrentToken(), sizeof(s->author) - 1); }
+				else if (!strcmp("version", key))    { s->version = (short)LE_readReal(); }
+				else if (!strcmp("scene", key))      { LE_readToken(); strncpy(s->path, LE_getCurrentToken(), sizeof(s->path) - 1); }
+				else if (!strcmp("minPlayers", key)) { s->minPlayers = (char)LE_readReal(); }
+				else if (!strcmp("maxPlayers", key)) { s->maxPlayers = (char)LE_readReal(); }
+				else if (!strcmp("kind", key))
+				{
+					LE_readToken();
+					if      (!strcmp("intro", LE_getCurrentToken()))    s->kind = SCENE_KIND_INTRO;
+					else if (!strcmp("act", LE_getCurrentToken()))      s->kind = SCENE_KIND_ACT;
+					else if (!strcmp("demo", LE_getCurrentToken()))     s->kind = SCENE_KIND_DEMO;
+					else if (!strcmp("tutorial", LE_getCurrentToken())) s->kind = SCENE_KIND_TUTORIAL;
+					else Log_Printf("[pack] %s: unknown kind '%s'\n", packPath, LE_getCurrentToken());
+				}
+				else { LE_readToken(); }	// unknown key: skip its value
+				LE_readToken();
+			}
+		}
+	}
+	LE_popLexer();
+	FS_CloseFile(f);
+	Log_Printf("[pack] scene %d <- %s: id=%s kind=%d name=%s scene=%s players=%d-%d\n",
+		sceneId, packPath, s->packId, s->kind, s->name, s->path, s->minPlayers, s->maxPlayers);
 }
 
 bool dEngine_Init(void)
@@ -486,10 +582,10 @@ void dEngine_LoadScene(int sceneId)
 	gRuntimeCullMap = 0;
 
 	// Progression: remember the furthest act ever reached (solo or multiplayer).
-	// Acts are scenes 1..numScenes-1 (the demo/tutorial live at 13..15).
-	if (sceneId >= 1 && sceneId < engine.numScenes && sceneId > gHighestActReached)
+	// v4: an act is a scene of kind ACT; its 1-based actIndex is the progression unit.
+	if (SCENE_KIND(sceneId) == SCENE_KIND_ACT && engine.scenes[sceneId].actIndex > gHighestActReached)
 	{
-		gHighestActReached = sceneId;
+		gHighestActReached = engine.scenes[sceneId].actIndex;
 #ifdef __APPLE__
 		Native_SaveProgress(gHighestActReached);
 #endif
@@ -555,7 +651,7 @@ void dEngine_LoadScene(int sceneId)
 		
 	VIS_Update();
 	
-	if (engine.sceneId == 1 && engine.licenseType == LICENSE_LIMITED)
+	if (SCENE_IS(SCENE_KIND_ACT) && engine.scenes[engine.sceneId].actIndex == 1 && engine.licenseType == LICENSE_LIMITED)
 	{
 		ev = calloc(1, sizeof(event_t));
 		ev->time = 130000;
@@ -564,7 +660,7 @@ void dEngine_LoadScene(int sceneId)
 	}
     
     //We are back to main menu, init a few things
-    if (sceneId == 0 )
+    if (SCENE_KIND(sceneId) == SCENE_KIND_INTRO)
     {
         numPlayers = 1;
         PL_ResetPlayersScore();
@@ -879,7 +975,10 @@ void dEngine_ResumeGame(void)
 	// Single-player only: the freeze + countdown holds the world still locally,
 	// which would DESYNC a lockstep multiplayer game (the peer keeps simulating).
 	// In multiplayer we never pause/freeze.
-	if (entitiesAttachedToCamera && engine.mode == DE_MODE_SINGLEPLAYER)
+	// ... and only when the game is actually being played: on the GAME OVER
+	// screen the ships are still attached but a menu is up, and the countdown
+	// used to print over it (a Known issue since round 8, closed in round 42).
+	if (entitiesAttachedToCamera && engine.mode == DE_MODE_SINGLEPLAYER && !engine.menuVisible)
 		gCountdownMs = RESUME_COUNTDOWN_MS;
 }
 

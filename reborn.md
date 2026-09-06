@@ -145,11 +145,10 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Known issues
 
-- Minor: backgrounding the app on the GAME OVER screen still shows the
-  3-2-1-SHMUP overlay (cosmetic).
-- Minor/latent: the menu titles' safe-area offset is computed once at init,
-  before the inset is known, so it stays inactive — the titles clear the notch
-  via fixed margins today but wouldn't auto-adapt to a larger inset.
+- The menu title cards sit on fixed margins that clear today's notches. A
+  device with a much larger top inset would need those margins revisited
+  (the safe-inset term that used to be in the formula was dead code — the
+  inset is not known when the menus are built — and was removed in round 42).
 - Accepted (v3, Metal): a transparent-to-black fade shows under the act title
   card where OpenGL drew none — a fixed-pipeline emulation gap the tester
   judged "not shocking, keep it". Left as is on purpose.
@@ -336,6 +335,19 @@ it ever reached a device — which is why the game looks the same and why
   `rand()` in four files), the lockstep constraint that any script must be a
   pure function of the simulation, and the first draft of the pack format
   with the four stages and their proofs.
+- **Stage 1 landed** (`v4` branch): every scene comes from a **level pack** —
+  `data/levels/<dir>/pack.cfg`, a manifest with kind, name, author, version,
+  the scene path and the player range; `config.cfg` lists the eight packs;
+  the code keys on the pack's *kind* (intro, act, demo, tutorial) and on the
+  act's rank, not on scene ids — the progression, the licence check, the
+  end-of-game card, the menu stage, the BACK button, the life pool. Legacy
+  `scene` entries still load with their kind inferred. Proof: the CI traces
+  unchanged (below).
+- **Two old Known issues answered** while the tester re-read the document:
+  the resume countdown no longer arms over the GAME OVER screen (one
+  condition: no menu up), and the menu titles' dead safe-inset term is gone
+  — they sit on fixed margins, said plainly now. The README's broken splash
+  image points at a current home-screen capture.
 
 ### 2026-09-06 — round 41 (the credits: brush rules, a second tester, and a roll that scrolls)
 

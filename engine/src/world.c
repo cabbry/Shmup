@@ -59,7 +59,7 @@ void World_SetIntroShipPreview(int shipChoice)
 	float s = 1.0f;
 	int i;
 
-	if (engine.sceneId != 0 || num_map_entities < 1)
+	if (!SCENE_IS(SCENE_KIND_INTRO) || num_map_entities < 1)	// v4: the menu stage, by kind
 		return;
 
 	if (shipChoice >= 0 && shipChoice < NUM_SHIP_CHOICES)

@@ -7,7 +7,7 @@ and MacOS X.  It has also been ported to Linux by "xevz".
 
 The main project page is at [http://fabiensanglard.net/shmup/](http://fabiensanglard.net/shmup/)
 
-![SHMUP Splash](/engine/Default.png)
+![SHMUP Reborn -- the home screen](docs/images/home.png)
 
 Technical side
 ==============

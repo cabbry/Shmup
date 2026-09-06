@@ -569,7 +569,7 @@ void loadNativePNG(texture_t* tmpTex)
         // Tutorial (scenes 14 = swipe, 15 = virtual pad) and Demo (scene 13): a
         // top-centre BACK button to leave and return to the main menu. Swallow
         // the touch.
-        if ((engine.sceneId == 13 || engine.sceneId == 14 || engine.sceneId == 15) && myTouch.phase == UITouchPhaseBegan && !TITLE_IsShowing())
+        if ((SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) && myTouch.phase == UITouchPhaseBegan && !TITLE_IsShowing())	// v4: by kind
         {
             CGPoint local = [myTouch locationInView:self];
             CGFloat fx = local.x / self.bounds.size.width;

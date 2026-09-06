@@ -60,7 +60,7 @@ deterministic before a device does.
 ```
 data/levels/<id>/
   pack.cfg          the manifest
-  <name>.scene      the scene file, paths relative to the pack
+  <name>.scene      the scene file (paths inside it are from the data root, like every file the engine opens)
   <name>.cp         the camera rail (compiled to .cp2b at first load)
   title.png         the act card (optional)
   thumb.png         a thumbnail for the level list (optional)
@@ -74,11 +74,11 @@ pack
 {
     format   1
     id       act1
-    name     "明 -Dawn"
+    name     Act_I                    # underscores read as spaces
     kind     act            # act | intro | demo | tutorial
-    author   "Fabien Sanglard"
+    author   Fabien_Sanglard
     version  1
-    scene    act1.scene
+    scene    data/scenes/act1.scene   # from the data root
     music    data/music/UNREALPM.mp3   cue 0
     minPlayers 1   maxPlayers 4
 }
@@ -86,7 +86,7 @@ pack
 
 The four acts, the intro, the demo and the two tutorials become eight packs
 that *reference* the existing assets (no 15 MB texture move). `config.cfg`
-lists packs instead of scene paths; the code paths that key on scene ids key
+lists `pack <id> <path/to/pack.cfg>` entries instead of scene paths (legacy `scene` entries still load, their kind inferred from the 2009 ids); the code paths that keyed on scene ids key
 on `kind` and on the pack's place in the act order.
 
 **Proof for stage 1:** the four acts loaded from packs produce the same CI

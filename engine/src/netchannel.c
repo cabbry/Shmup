@@ -1539,7 +1539,7 @@ static void NET_ArmSetupFrames(void)
 // carries over. Deterministic -- every peer runs this on its own preload.
 static void NET_FillLifePoolIfMatchStart(void)
 {
-	if (engine.sceneId == 0)
+	if (SCENE_IS(SCENE_KIND_INTRO))	// v4: the menu stage, by kind
 	{
 		// Sized by the seats actually PRESENT, not by the seats booked: a
 		// player who never made it through the handshake shouldn't leave his

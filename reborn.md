@@ -208,18 +208,43 @@ to the true screen edges, and the touch-coordinate mapping.
   Needs: a 4-device session -- everything above is rig-proven at four,
   device-proven at two.
 - **🚀 v3 — the graphics overhaul** — **in progress on the `v3` branch (round
-  35)**: stage 1 ✅ every warning fixed or explicitly retired per file, the
+  35-36)**: stage 1 ✅ every warning fixed or explicitly retired per file, the
   project builds with `-Werror`; stage 2 ✅ ARC, a modern launch screen, the
   64-bit truncations made explicit; stage 3 ✅ the **Metal backend** is the
   default renderer — a third implementation of the renderer's 24-function
   table, a 1:1 port of the fixed-pipeline passes with the pipeline emulated in
   shaders, green on every smoke and on the first screenshots ever taken of
-  the game; OpenGL ES stays one switch away until the device round confirms. Then the OpenGL ES 1.1 (and the dormant ES 2.0) renderers
+  the game; on device (v3.0.0) it drew the home screen exactly and answered no tap — the touches were still in the OpenGL layer's 1x units, fixed in v3.0.1 (build 223, device verdict pending). OpenGL ES stays one switch away until that verdict. Then the OpenGL ES 1.1 (and the dormant ES 2.0) renderers
   retire, and with them the last 511 deprecation sites.
 
 ---
 
 ## Changelog
+
+### 2026-09-05→06 — round 36 (v3 meets the device: the touch that landed at a third)
+
+- **v3.0.0 (build 222)** — the first Metal build on hardware. The home screen
+  rendered pixel-for-pixel like 2.0.9. Not one menu button answered.
+- **The cause was never the renderer.** UIKit reports touches in *points*;
+  the engine maps them against the dimensions of its render surface. The
+  OpenGL layer had never been given a `contentScaleFactor`, so it rendered
+  at 1x and a point *was* a surface unit — the 2009 touch mapping held for
+  seventeen years by an accident of scale. The Metal surface is at the
+  native scale, three times larger: every tap reached the engine at a third
+  of where the finger was, and no button was ever under it. The menu drew
+  correctly because everything on the drawing side shares the same surface;
+  only the input side had kept the old unit.
+- **v3.0.1 (build 223)** — `handleTouches` scales each touch by surface over
+  view ([7e1dd23]): identity on OpenGL, ×3 on Metal, one line correct on
+  both. Gameplay swipes were never at risk; the engine normalises their
+  deltas through the viewport scale before using them. Nothing else changed.
+- **What the device round now decides.** Menus answer; then the game should
+  be identical to 2.0.9 to the eye — and sharper, since Metal draws at
+  native resolution, nine times the pixels OpenGL pushed. If frame rate
+  suffers the drawable scale can come down without touching anything else;
+  any colour, fog, translucency or texture difference is a fixed-pipeline
+  emulation gap and exactly what this round is for. *RendererType 0* in the
+  Settings app brings OpenGL back should it be needed.
 
 ### 2026-09-05 — round 35 (v3 opens: the warnings, then ARC — with `-Werror` on)
 

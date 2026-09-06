@@ -269,6 +269,40 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-06 — round 40 (the audio bench: the engine says what it plays)
+
+- **Why a bench first.** The last deprecated APIs in the project are audio's:
+  OpenAL for the four effects, AudioQueue (and the 2009 AudioSession calls)
+  for the soundtrack. Sound cannot be photographed, so before the port
+  touches anything the current backends describe themselves in the log,
+  behind the probe gate: `[snd] t=<sim> play <id> <name>` after every
+  `alSourcePlay`; `[music] t=<sim> wall=<ms> init|start|stop|pause|resume
+  pos=<s>` from the soundtrack glue, plus a position sample every ~5 s of
+  game. The AudioQueue player learned to report its position (sample clock
+  plus the cue it started from) for that.
+- **The contract** ([e72df2b], `smoke-audio.yml`). Act 1 with autofire
+  exercises three of the four effects (act 1 has no ghosts) and the
+  UNREALPM track cued at 0. Three runs, three identical `[snd]` sequences:
+  the game is deterministic, so the sequence's signature must not change
+  when the backend does. The soundtrack advances at wall-clock rate from
+  its cue, sampled 30 times across the act.
+
+  | act 1 (149 s of game) | |
+  |---|---|
+  | plasma / explosion / enemy shots | 1572 / 210 / 671 |
+  | `[snd]` events, signature | 2453, `5b0182b35b1e304f` |
+  | soundtrack position samples, off-rate intervals | 30, 0 |
+
+- **Two things the bench showed in passing.** The `init` probe prints the
+  bundle's absolute path (the first assertion matched the relative one and
+  failed, fixed); and the app's become-active path calls resume at launch,
+  16 ms into the game, which the wrapper ignores because nothing was paused.
+- **Plan.** Soundtrack to AVAudioPlayer (cue, pause/resume, the v2 rule that
+  the track plays on across acts), effects to AVAudioEngine (one player node
+  per effect, gain 0.5, a retrigger restarts the node — as one OpenAL source
+  per effect does today), then OpenAL, AudioQueue and the last pragmas
+  leave. The tester's "go quand tu veux" covers the builds of this round.
+
 ### 2026-09-06 — round 39 (3.0.3 confirmed and merged; the iPad's launch screen)
 
 - **Build 225 on device: "tout est ok".** `v3` merged into `master`

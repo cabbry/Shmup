@@ -1,10 +1,11 @@
 name: Smoke test the Metal backend (act 3, screenshots)
 
-# v3 stage 3. The same act-3 run as smoke-ttb.yml, on the Metal backend
-# (SHMUP_RENDERER=metal), held to the SAME [cull] luma assertions the OpenGL
-# backend has passed for twenty builds -- that trace is the parity contract.
-# Plus the thing OpenGL never allowed: the Simulator CAN screenshot a Metal
-# layer, so this run also captures frames and uploads them for eyes.
+# v3 stage 3. The same act-3 run as smoke-ttb.yml, held to the SAME [cull]
+# luma assertions the OpenGL backend passed for twenty builds -- that trace is
+# the parity contract. Plus the thing OpenGL never allowed: the Simulator CAN
+# screenshot a Metal layer, so this run also captures frames and uploads them
+# for eyes. Since round 37 Metal is the only backend (OpenGL ES retired); the
+# SHMUP_RENDERER switch is gone.
 
 on:
   workflow_dispatch:
@@ -60,8 +61,7 @@ jobs:
           UDID="${{ steps.sim.outputs.udid }}"
           xcrun simctl install "$UDID" "$APP"
           mkdir -p shots
-          nohup env SIMCTL_CHILD_SHMUP_RENDERER=metal \
-            xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$RUNNER_TEMP/menu.log" 2>&1 &
+          nohup xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$RUNNER_TEMP/menu.log" 2>&1 &
           sleep 25
           xcrun simctl io "$UDID" screenshot shots/menu_home.png || true
           sleep 4
@@ -79,7 +79,7 @@ jobs:
           xcrun simctl launch \
             --terminate-running-process "$UDID" "$BUNDLE_ID" || true
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
-          nohup env SIMCTL_CHILD_SHMUP_RENDERER=metal \
+          nohup env \
             SIMCTL_CHILD_SHMUP_BAKE_SCENE=3 \
             SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
             SIMCTL_CHILD_SHMUP_LOG_FILE=1 \

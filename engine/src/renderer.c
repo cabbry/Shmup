@@ -25,8 +25,6 @@
 
 #include "renderer.h"
 #include <math.h>
-#include "renderer_fixed.h"
-#include "renderer_progr.h"
 #if defined(__APPLE__) && defined(SHMUP_TARGET_IOS)
 #include "renderer_metal.h"	// v3
 #endif
@@ -205,20 +203,9 @@ void SCR_Init(void)
 
 void SCR_BindMethods(int rendererType)
 {
-	if (rendererType == GL_11_RENDERER)
-	{
-		Log_Printf("[Renderer] Running in mode OpenGL ES 1.1\n");
-		initFixedRenderer(&renderer);
-	}
-	
-	if (rendererType == GL_20_RENDERER)
-	{
-		Log_Printf("[Renderer] Running in mode OpenGL ES 2.0\n"); 
-		initProgrRenderer(&renderer);
-	}
-
+	// v3 (round 37): the OpenGL ES 1.1 and 2.0 backends are retired; the
+	// Metal backend is the one implementation of the table.
 #if defined(__APPLE__) && defined(SHMUP_TARGET_IOS)
-	// v3: the Metal backend -- same table, no OpenGL underneath.
 	if (rendererType == METAL_RENDERER)
 	{
 		Log_Printf("[Renderer] Running in mode Metal\n");

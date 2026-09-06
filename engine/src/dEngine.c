@@ -30,8 +30,6 @@
 #include "math.h"
 #include "camera.h"
 #include "renderer.h"
-#include "renderer_fixed.h"
-#include "renderer_progr.h"
 #include "filesystem.h"
 #include "timer.h"
 #include "world.h"

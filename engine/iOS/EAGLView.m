@@ -24,18 +24,14 @@
 
 
 
-// v3: every call into this API is deprecated by Apple, and every one of them goes when
-// stage 3 replaces EAGL with a Metal layer. Until then the noise is silenced HERE, explicitly, so that any NEW
-// deprecation elsewhere in the project still shows up in the audit.
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-
+// v3 (round 37): OpenGL ES retired. The view's layer is a CAMetalLayer and the
+// frame goes through renderer_metal.m; nothing deprecated is called from here.
 #import <QuartzCore/QuartzCore.h>
-#import <OpenGLES/EAGLDrawable.h>
+#import <QuartzCore/CAMetalLayer.h>
 #import "dEngineAppDelegate.h"
 
 #import "EAGLView.h"
-#import <QuartzCore/CAMetalLayer.h>	// v3
-#include "renderer_metal.h"		// v3
+#include "renderer_metal.h"
 #import "dEngine.h"
 #import "filesystem.h"
 #import "renderer.h"
@@ -68,13 +64,6 @@ AQ* audiocontroller;
 
 // A class extension to declare private methods
 @interface EAGLView ()
-
-@property (nonatomic, strong) EAGLContext *context;
-
-
-- (BOOL) createFramebuffer;
-- (void) destroyFramebuffer;
-
 @end
 
 
@@ -82,34 +71,14 @@ AQ* audiocontroller;
 
 @implementation EAGLView
 
-@synthesize context;
-
 @synthesize animating;
 @dynamic animationFrameInterval;
 
 
-// v3: which backend drives this view. Decided ONCE, before the layer exists
-// (+layerClass runs inside the view's init). METAL IS THE DEFAULT since it
-// passed the OpenGL smoke's own luma contract and the first screenshots of
-// the game ever taken (round 35). OpenGL ES stays one switch away as the
-// fallback for the device round: SHMUP_RENDERER=gl in the environment (the
-// CI smokes' input), or RendererType "0" in the user defaults.
-static int gUseMetal = -1;
-static int EAGLView_UseMetal(void)
-{
-	if (gUseMetal < 0)
-	{
-		const char* e = getenv("SHMUP_RENDERER");
-		NSString* pref = [[NSUserDefaults standardUserDefaults] stringForKey:@"RendererType"];
-		int wantGL = (e && !strcmp(e, "gl")) || (!e && [@"0" isEqualToString:pref]);
-		gUseMetal = wantGL ? 0 : 1;
-	}
-	return gUseMetal;
-}
-
-// You must implement this method
+// The view's backing layer. Metal since round 35, the only backend since
+// round 37 (the device round confirmed it: identical, sharper, menus answer).
 + (Class)layerClass {
-    return EAGLView_UseMetal() ? [CAMetalLayer class] : [CAEAGLLayer class];
+    return [CAMetalLayer class];
 }
 
 - (void) checkEngineSettings
@@ -227,32 +196,9 @@ static int EAGLView_UseMetal(void)
 		eaglview = self;
 		
 		
-        // Get the layer
-        if (!EAGLView_UseMetal())	// v3: a CAMetalLayer has no drawableProperties
-        {
-        CAEAGLLayer *eaglLayer = (CAEAGLLayer *)self.layer;
-        
-		
-		
-        eaglLayer.opaque = YES;
+		// v3 (round 37): the layer is a CAMetalLayer (+layerClass); OpenGL ES
+		// retired once the device round confirmed Metal.
 
-        eaglLayer.drawableProperties = [NSDictionary dictionaryWithObjectsAndKeys:
-                                        [NSNumber numberWithBool:NO], 
-										kEAGLDrawablePropertyRetainedBacking,
-										#ifndef GENERATE_VIDEO
-										kEAGLColorFormatRGB565
-										#else
-										kEAGLColorFormatRGBA8
-										#endif	
-										,
-										kEAGLDrawablePropertyColorFormat, nil];
-        }
-	
-        
-		NSString *rendererType = [[NSUserDefaults standardUserDefaults] stringForKey:@"RendererType"];
-		bool fixedDesired = [@"0" isEqualToString:rendererType];
-	
-		
 		//Set the texture quality
 		renderer.materialQuality = [[[NSUserDefaults standardUserDefaults] stringForKey:@"MaterialQuality"] intValue];
 		
@@ -261,26 +207,16 @@ static int EAGLView_UseMetal(void)
 		//#else
 		renderer.materialQuality = MATERIAL_QUALITY_HIGH;
 		//#endif
-		fixedDesired=1;
-    
-		UIDevice* thisDevice = [UIDevice currentDevice];
-        float w = [[UIScreen mainScreen] bounds].size.width;
-        float h = [[UIScreen mainScreen] bounds].size.height;
-        renderer.glBuffersDimensions[WIDTH] = w;
-        renderer.glBuffersDimensions[HEIGHT] = h;
 
-		
+		UIDevice* thisDevice = [UIDevice currentDevice];
+
 		[self checkEngineSettings];
 		
         dEngine_Init();
 
-		
-		if (EAGLView_UseMetal())
 		{
-			// v3: the Metal backend. The layer is already a CAMetalLayer
-			// (+layerClass); render at native scale, and hand the engine the
-			// surface in pixels -- the OpenGL path learns it from the
-			// renderbuffer, this one has to say it.
+			// Render at the native scale and hand the engine its surface in
+			// pixels; handleTouches scales the finger onto that same surface.
 			CGFloat scale = [UIScreen mainScreen].scale;
 			int pw, ph;
 			self.contentScaleFactor = scale;
@@ -292,33 +228,6 @@ static int EAGLView_UseMetal(void)
 				NSLog(@"[Metal] backend init failed");
 			dEngine_InitDisplaySystem(METAL_RENDERER);
 		}
-		else
-		{
-		if (!fixedDesired)
-			context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
-		
-		
-		if (context == nil)
-		{
-			context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES1];
-			 
-			if (!context || ![EAGLContext setCurrentContext:context]) {
-				return nil;
-			}
-			
-			dEngine_InitDisplaySystem(GL_11_RENDERER);
-		}
-		else
-		{
-			if (!context || ![EAGLContext setCurrentContext:context]) {
-				return nil;
-			}
-			
-			dEngine_InitDisplaySystem(GL_20_RENDERER);
-		}
-		
-		
-		}	// end of the OpenGL branch (v3)
 
 		renderer.props |= PROP_FOG;		
 		
@@ -385,23 +294,12 @@ static int EAGLView_UseMetal(void)
     return self;
 }
 
-- (void)drawView:(id)sender 
+- (void)drawView:(id)sender
 {
-	// v3: on Metal the frame is recorded and presented in one go.
-	if (EAGLView_UseMetal())
-	{
-		MTL_BeginFrame();
-		dEngine_HostFrame();
-		MTL_EndFrame();
-		return;
-	}
-	
-	glBindRenderbufferOES(GL_RENDERBUFFER_OES, viewRenderbuffer);
-    [context presentRenderbuffer:GL_RENDERBUFFER_OES];
-	
-	
+	// The frame is recorded and presented in one go.
+	MTL_BeginFrame();
 	dEngine_HostFrame();
-
+	MTL_EndFrame();
 }
 
 
@@ -429,20 +327,13 @@ static int EAGLView_UseMetal(void)
 //    
 //    self.window.frame = [[UIScreen mainScreen] bounds];
     
-    if (EAGLView_UseMetal())
     {
-        // v3: Metal -- resize the drawable and the engine's surface together.
+        // Resize the drawable and the engine's surface together.
         CGFloat scale = self.contentScaleFactor;
         int pw = (int)(self.bounds.size.width  * scale);
         int ph = (int)(self.bounds.size.height * scale);
         MTL_Resize(pw, ph);
         SRC_OnResizeScreen(pw, ph);
-    }
-    else
-    {
-        [EAGLContext setCurrentContext:context];
-        [self destroyFramebuffer];
-        [self createFramebuffer];
     }
     if (@available(iOS 11.0, *)) {
         renderer.safeInsetTopPx = self.safeAreaInsets.top * self.contentScaleFactor;
@@ -475,54 +366,6 @@ static int EAGLView_UseMetal(void)
 			[self startAnimation];
 		}
 	}
-}
-
-
-- (BOOL)createFramebuffer 
-{
-	
-    glGenFramebuffersOES(1, &viewFramebuffer);
-    glGenRenderbuffersOES(1, &viewRenderbuffer);
-    
-    glBindFramebufferOES(GL_FRAMEBUFFER_OES, viewFramebuffer);
-    glBindRenderbufferOES(GL_RENDERBUFFER_OES, viewRenderbuffer);
-    [context renderbufferStorage:GL_RENDERBUFFER_OES fromDrawable:(CAEAGLLayer*)self.layer];
-    glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES, GL_COLOR_ATTACHMENT0_OES, GL_RENDERBUFFER_OES, viewRenderbuffer);
-    
-    glGetRenderbufferParameterivOES(GL_RENDERBUFFER_OES, GL_RENDERBUFFER_WIDTH_OES, &renderer.glBuffersDimensions[WIDTH]);
-    glGetRenderbufferParameterivOES(GL_RENDERBUFFER_OES, GL_RENDERBUFFER_HEIGHT_OES, &renderer.glBuffersDimensions[HEIGHT]);
-    
-    //Depth buffer
-	glGenRenderbuffersOES(1, &depthRenderbuffer);
-	glBindRenderbufferOES(GL_RENDERBUFFER_OES, depthRenderbuffer);
-	glRenderbufferStorageOES(GL_RENDERBUFFER_OES, GL_DEPTH_COMPONENT16_OES, renderer.glBuffersDimensions[WIDTH], renderer.glBuffersDimensions[HEIGHT]);
-	glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES, GL_DEPTH_ATTACHMENT_OES, GL_RENDERBUFFER_OES, depthRenderbuffer);
-    
-    
-	
-	renderer.mainFramebufferId = viewFramebuffer;
-	
-    if(glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES) != GL_FRAMEBUFFER_COMPLETE_OES) 
-	{
-        NSLog(@"failed to make complete framebuffer object %x", glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES));
-        return NO;
-    }
-    
-    return YES;
-} 
-
-
-- (void)destroyFramebuffer {
-    
-    glDeleteFramebuffersOES(1, &viewFramebuffer);
-    viewFramebuffer = 0;
-    glDeleteRenderbuffersOES(1, &viewRenderbuffer);
-    viewRenderbuffer = 0;
-    
-    if(depthRenderbuffer) {
-        glDeleteRenderbuffersOES(1, &depthRenderbuffer);
-        depthRenderbuffer = 0;
-    }
 }
 
 
@@ -688,13 +531,7 @@ void loadNativePNG(texture_t* tmpTex)
 
 
 - (void)dealloc {
-    
     [self stopAnimation];
-    
-    if ([EAGLContext currentContext] == context) {
-        [EAGLContext setCurrentContext:nil];
-    }
-    
 }
 
 - (void) handleTouches:(UIEvent*)event 

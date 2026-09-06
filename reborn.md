@@ -295,6 +295,28 @@ it ever reached a device — which is why the game looks the same and why
   the 2009 fill so the white text reads as before; the down state is the
   white flash it always was. Painted at 4× and downsampled; every pixel of
   the atlas outside the two rectangles is byte-identical.
+- **The labels were not centered — since 2009** ([20151c7]). The tester saw
+  it the moment the ink frame gave the text an edge to be measured against.
+  Each glyph quad spans the pen ± one cell and the pen advances one cell, so
+  a run's ink is centered on the pen's *midpoint*, start + (n−1)/2 cells;
+  `SCR_ConvertTextToVertices` subtracted n/2 — every centered string sat half
+  a glyph left of its anchor, on the old rounded buttons too, invisibly. All
+  centered callers are anchored at x = 0 and simply become centered; the one
+  placed by eye with the bias in, the "BOSS" label, moves its anchor so it
+  does not move.
+- **The tutorial's BACK over the title card** ([487101f]) — a bug the tester
+  had carried in memory and never reported. `[ BACK ]` lives in the HUD's top
+  zone; the act card's band covers that zone for its first second, and the
+  two printed over each other. `TITLE_IsShowing()` now hides the label and
+  its hit-test while a card is up. The baseline frame from the new camera
+  below shows *Tutorial* with BACK across it; the fixed build could not be
+  caught in the act -- the Simulator replays the boot time at once and the
+  one-second card is gone before the first frame -- so the fix rests on the
+  code: the label is skipped exactly while `TITLE_Render` draws.
+- **A camera on demand** (`shots.yml`). Boot straight into a scene and
+  photograph it at chosen instants — down to a tenth of a second, which a
+  one-second title card requires. No assertions, frames as the result. The
+  tester's phrase for it: "now that you can make your own renders".
 
 ### 2026-09-06 — round 37 (the device says yes; OpenGL leaves)
 

@@ -146,6 +146,9 @@ to the true screen edges, and the touch-coordinate mapping.
 - Minor/latent: the menu titles' safe-area offset is computed once at init,
   before the inset is known, so it stays inactive — the titles clear the notch
   via fixed margins today but wouldn't auto-adapt to a larger inset.
+- Accepted (v3, Metal): a transparent-to-black fade shows under the act title
+  card where OpenGL drew none — a fixed-pipeline emulation gap the tester
+  judged "not shocking, keep it". Left as is on purpose.
 
 ## Roadmap
 
@@ -207,19 +210,52 @@ to the true screen edges, and the touch-coordinate mapping.
   and host-ruled deaths (one order, one pool, one survivor on every screen).
   Needs: a 4-device session -- everything above is rig-proven at four,
   device-proven at two.
-- **🚀 v3 — the graphics overhaul** — **in progress on the `v3` branch (round
-  35-36)**: stage 1 ✅ every warning fixed or explicitly retired per file, the
-  project builds with `-Werror`; stage 2 ✅ ARC, a modern launch screen, the
-  64-bit truncations made explicit; stage 3 ✅ the **Metal backend** is the
-  default renderer — a third implementation of the renderer's 24-function
-  table, a 1:1 port of the fixed-pipeline passes with the pipeline emulated in
-  shaders, green on every smoke and on the first screenshots ever taken of
-  the game; on device (v3.0.0) it drew the home screen exactly and answered no tap — the touches were still in the OpenGL layer's 1x units, fixed in v3.0.1 (build 223, device verdict pending). OpenGL ES stays one switch away until that verdict. Then the OpenGL ES 1.1 (and the dormant ES 2.0) renderers
-  retire, and with them the last 511 deprecation sites.
+- **🚀 v3 — the graphics overhaul** — **code-complete on the `v3` branch
+  (rounds 35-37)**: stage 1 ✅ every warning fixed or explicitly retired per
+  file, the project builds with `-Werror`; stage 2 ✅ ARC, a modern launch
+  screen, the 64-bit truncations made explicit; stage 3 ✅ the **Metal
+  backend** is the renderer — a 1:1 port of the fixed-pipeline passes with
+  the pipeline emulated in shaders, device-confirmed on v3.0.1 (build 223:
+  identical to 2.0.9, sharper, one accepted fade under the act title) — and
+  the OpenGL ES 1.1 and 2.0 renderers, EAGL and the OpenGLES framework are
+  **retired** (round 37), with the 511 deprecation sites they carried. What
+  remains deprecated is audio only (OpenAL, AudioQueue), pragma'd per file.
+  Next: a v3.0.2 build of the OpenGL-free tree, then the v3 branch can land.
 
 ---
 
 ## Changelog
+
+### 2026-09-06 — round 37 (the device says yes; OpenGL leaves)
+
+- **The verdict.** v3.0.1 on hardware: the menus answer, the game plays,
+  and — the tester's words — it is sharper. One difference spotted: a
+  transparent-to-black fade under the act title card that OpenGL never
+  drew. Judged not shocking, kept as is; it is listed under *Known issues*
+  as an accepted emulation gap rather than fixed, because the tester chose
+  that.
+- **The retirement** ([24d1a4c], [327bf98]). `renderer_fixed.c` — the 2009
+  fixed-pipeline renderer every build until now had shipped — and
+  `renderer_progr.c` — the ES 2.0 renderer dormant since 2010 — are deleted
+  with their headers. `renderer.h` keeps one renderer id; `SCR_BindMethods`
+  binds one table. The view keeps no `EAGLContext`, no renderbuffers, no
+  framebuffer create/destroy, no `SHMUP_RENDERER` / `RendererType` switch:
+  its layer is a `CAMetalLayer`, its frame is begin / host / end. It keeps
+  its 2009 name only because both nibs instantiate it by that name. The
+  OpenGLES framework and the two sources are out of both Xcode targets; the
+  smokes lose their `renderer` input.
+- **What the pragmas had hidden.** Removing the file-wide
+  `-Wdeprecated-declarations` silence from the view exposed exactly one
+  non-OpenGL deprecation: an encoding-less `initWithCString:` in the
+  soundtrack loader, deprecated since iOS 2.0. The strict build is green
+  again with it fixed. The pragmas that remain are audio's (OpenAL,
+  AudioQueue) — a stage of its own, if ever.
+- **What the retirement cannot un-prove.** The parity contract was measured
+  against OpenGL's own trace on the same commits; that trace is in the
+  round-35 artifacts and this document. The OpenGL smokes can no longer be
+  re-run, by construction. The Metal smokes still run — and did, on the
+  OpenGL-free tree: menu plus act 3 with the parity contract held, and four
+  ships through act 1, both green on [327bf98].
 
 ### 2026-09-05→06 — round 36 (v3 meets the device: the touch that landed at a third)
 

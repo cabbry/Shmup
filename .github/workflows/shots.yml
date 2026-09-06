@@ -16,6 +16,10 @@ on:
         description: "comma-separated seconds after launch at which to take a frame (decimals ok)"
         required: false
         default: "2,4,7,10,15,25"
+      device:
+        description: "simulator to use: iPhone (default) or iPad"
+        required: false
+        default: "iPhone"
       env:
         description: "extra SIMCTL_CHILD_* env, space-separated (e.g. SHMUP_AUTOFIRE=1)"
         required: false
@@ -54,9 +58,14 @@ jobs:
       - name: Boot a simulator
         id: sim
         run: |
-          UDID=$(xcrun simctl list devices available | grep -E "iPhone (1[5-9]|SE)" | head -1 | grep -oE "[0-9A-F-]{36}")
+          DEV="${{ inputs.device || 'iPhone' }}"
+          if [ "$DEV" = "iPad" ]; then
+            UDID=$(xcrun simctl list devices available | grep -E "iPad" | head -1 | grep -oE "[0-9A-F-]{36}")
+          else
+            UDID=$(xcrun simctl list devices available | grep -E "iPhone (1[5-9]|SE)" | head -1 | grep -oE "[0-9A-F-]{36}")
+          fi
           if [ -z "$UDID" ]; then
-            UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
+            UDID=$(xcrun simctl list devices available | grep "$DEV" | head -1 | grep -oE "[0-9A-F-]{36}")
           fi
           echo "Using simulator $UDID"
           xcrun simctl boot "$UDID"

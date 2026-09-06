@@ -230,7 +230,31 @@ game finished (four acts, a boss, an ending); **v2** — four-player multiplayer
   the title card; a black launch screen; the credits with brush separators, a
   third tester and a **scrolling roll** with a position thumb.
 
-### Open
+### Open — v4, scripting (opened 2026-09-06 on the `v4` branch)
+
+Fabien's second suggestion, finally: the `.scene` format is declarative and
+every reactive behaviour lives in C. The plan, four stages, each with its
+proof in CI; the format and the inventory are in
+[`docs/level-pack.md`](docs/level-pack.md).
+
+1. **Inventory and the level pack** — a manifest per level, the eight
+   existing scenes become packs that reference their assets, the code keys
+   on a pack's *kind* rather than on scene ids. Proof: the four acts from
+   packs produce today's traces.
+2. **Conditional events** — conditions, groups and phases in the events
+   block: the Devils' choreography and most of the boss ladder without a VM.
+   Proof: act III's Devils rewritten declaratively, same traces.
+3. **Lua** — sandboxed, one state per scene, a small API; the boss ladder
+   rewritten in Lua. Proof: the act IV traces, and the netrig at four for
+   determinism. Lua stays in bundled levels only (App Store 2.5.2).
+4. **Tools** — a pack validator, the CI camera pointed at a pack, the
+   format document. Exit test: a level written by the tester without C.
+
+Decided with the tester, and parked: a community level list (after stage
+4, declarative content only), first-party cosmetics through Apple's
+in-app purchase if ever, nothing Sorare-like for a long while.
+
+### Open — carried over
 
 - **A four-device session** for v2: everything is rig-proven at four,
   device-proven at two. Needs hardware and four hands.
@@ -293,6 +317,25 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-06 — round 42 (v4 opens: scripting — the inventory)
+
+- **Build 230: "tout est ok."** The credits scroll, round 41 closed.
+- **The roadmap rewritten as a record** of v1.x, v2, v3 and the 3.1 polish,
+  and **v4 opened on Fabien's second suggestion, scripting.** The tester also
+  asked about a community level store and a crypto currency for levels and
+  skins; the answer, argued in this session and kept for the record: the
+  store after the format has been used by someone else, declarative content
+  only; cosmetics first-party through in-app purchase if ever, with Fabien's
+  and Future Crew's agreement first; nothing Sorare-like — App Store 3.1.1
+  and 3.1.5, MiCA, and the French JONUM law it took Sorare to exist.
+- **The inventory** ([`docs/level-pack.md`](docs/level-pack.md)): what a
+  level is today (ten scene blocks, all declarative), what is hardcoded in C
+  (the boss ladder and its thresholds, the Devil's costumes and weapons, the
+  per-type enemy behaviours, the side-view geometry, the scene-id gates, and
+  `rand()` in four files), the lockstep constraint that any script must be a
+  pure function of the simulation, and the first draft of the pack format
+  with the four stages and their proofs.
 
 ### 2026-09-06 — round 41 (the credits: brush rules, a second tester, and a roll that scrolls)
 

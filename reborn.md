@@ -269,6 +269,33 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-06 — round 38 (3.0.2 on device: the game is fine, the title is gone; and the buttons get a brush)
+
+- **v3.0.2 (build 224)** — the first OpenGL-free build. The tester: the game
+  is OK — and the *SHMUP Reborn* title has vanished from the home screen.
+  The kanji below it were still there.
+- **The cause** ([e69cec7]). The menus are built inside `dEngine_Init`, and
+  the home title is placed with a formula that divides by the surface
+  height (`safeInsetTopPx * 2·SS_H / glBuffersDimensions[HEIGHT]`, menu.c).
+  The OpenGL path had always assigned that height, in points, before
+  `dEngine_Init`; the retirement dropped the assignment along with the
+  OpenGL code, so the height was zero when the title quad was placed —
+  0 × ∞ = NaN, and the quad went nowhere. The kanji image is positioned
+  without that term, which is why it survived. The Metal smoke's menu
+  screenshot on the retirement commit shows exactly the tester's screen;
+  on the fix it shows the title again. The surface size is now handed to
+  the engine, in pixels, ahead of `dEngine_Init`.
+- **The buttons, redrawn with a brush.** The tester asked for a new button
+  style; four mockups were offered — an ink-brush frame, a neon outline, a
+  bare rule under the text, a riveted steel plate — and the ink frame won:
+  "it goes with the kanji and the rules of the credits page". The two
+  159×64 button sprites in `homeAtlas.png` are repainted as four brush
+  strokes that land heavy, thin through the body and lift off in a spatter,
+  crossing at the corners the way the kanji strokes do. The up state keeps
+  the 2009 fill so the white text reads as before; the down state is the
+  white flash it always was. Painted at 4× and downsampled; every pixel of
+  the atlas outside the two rectangles is byte-identical.
+
 ### 2026-09-06 — round 37 (the device says yes; OpenGL leaves)
 
 - **The verdict.** v3.0.1 on hardware: the menus answer, the game plays,

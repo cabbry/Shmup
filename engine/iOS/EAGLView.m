@@ -56,13 +56,9 @@ void SND_MusicProbeTick(void);
 
 EAGLView *eaglview;
 
-#import "AQ.h"
-AQ* audiocontroller;
-
-// <AudioToolBox/AudioSession.h> removed: the AudioSession C API was removed
-// from the iOS SDK (replaced by AVAudioSession). It was already unused here
-// (the only consumer, AudioInterruptionListenerCallback, is commented out).
-#import <OpenAL/alc.h>
+// Round 40: the soundtrack glue (SND_*SoundTrack) lives in music_av.m now, on
+// AVAudioPlayer; the effects in sound_av.m, on AVAudioEngine. No OpenAL, no
+// AudioQueue, no AudioSession left in the project.
 
 
 
@@ -638,96 +634,6 @@ void loadNativePNG(texture_t* tmpTex)
 	[self handleTouches:event];
 }
 
-
-// Audio bench (round 40): the soundtrack's life, stamped with the simulation
-// time and a wall clock in ms (the music runs in wall time, the game in sim
-// time -- the Simulator decouples them at boot). The replacement backend
-// must print the same events, and positions that advance at the same rate.
-static long SND_WallMs(void)
-{
-	return (long)(CFAbsoluteTimeGetCurrent() * 1000.0);
-}
-
-// Called once per frame from drawView: a position sample every ~5 s of game.
-void SND_MusicProbeTick(void)
-{
-	static int frames = 0;
-	if (!Log_ProbesEnabled() || !engine.musicEnabled || !audiocontroller)
-		return;
-	if (++frames % 300 != 0)
-		return;
-	Log_Printf("[music] t=%d wall=%ld pos=%.2f\n", simulationTime, SND_WallMs(), [audiocontroller position]);
-}
-
-void SND_InitSoundTrack(char* filename,unsigned int startAt)
-{
-	if (!engine.musicEnabled)
-		return;
-
-	NSString* name = [NSString stringWithUTF8String:filename];	// v3: the un-encoded initWithCString: was the one deprecation the file pragma hid
-    audiocontroller = [[AQ alloc] init];
-    [audiocontroller initAudio];
-	[audiocontroller loadSoundTrack:name startAt:startAt];
-	if (Log_ProbesEnabled())
-		Log_Printf("[music] t=%d wall=%ld init %s at=%u\n", simulationTime, SND_WallMs(), filename, startAt);
-}
-
-void SND_StartSoundTrack(void)
-{
-
-	if (!engine.musicEnabled)
-	{
-		printf("[SND_StartSoundTrack] cancelled.\n");
-		return;
-	}
-
-
-	[audiocontroller start];
-	if (Log_ProbesEnabled())
-		Log_Printf("[music] t=%d wall=%ld start pos=%.2f\n", simulationTime, SND_WallMs(), [audiocontroller position]);
-}
-
-void SND_StopSoundTrack(void)
-{
-	if (!engine.musicEnabled)
-	{
-		printf("[SND_StopSoundTrack] cancelled.\n");
-		return;
-	}
-
-
-	if (Log_ProbesEnabled())
-		Log_Printf("[music] t=%d wall=%ld stop pos=%.2f\n", simulationTime, SND_WallMs(), [audiocontroller position]);
-	[audiocontroller end];
-}
-
-void SND_PauseSoundTrack(void)
-{
-	if (!engine.musicEnabled)
-	{
-		printf("[SND_PauseSoundTrack] cancelled.\n");
-		return;
-	}
-
-
-	[audiocontroller pause];
-	if (Log_ProbesEnabled())
-		Log_Printf("[music] t=%d wall=%ld pause pos=%.2f\n", simulationTime, SND_WallMs(), [audiocontroller position]);
-}
-
-void SND_ResumeSoundTrack(void)
-{
-	if (!engine.musicEnabled)
-	{
-		printf("[SND_ResumeSoundTrack] cancelled.\n");
-		return;
-	}
-
-
-	[audiocontroller resume];
-	if (Log_ProbesEnabled())
-		Log_Printf("[music] t=%d wall=%ld resume pos=%.2f\n", simulationTime, SND_WallMs(), [audiocontroller position]);
-}
 
 extern char*	FS_GameWritableDir(void);
 int Native_RetrieveListOf(char replayList[10][256])

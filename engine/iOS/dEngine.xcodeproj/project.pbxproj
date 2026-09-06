@@ -14,19 +14,15 @@
 		28AD733F0D9D9553002E5188 /* MainWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = 28AD733E0D9D9553002E5188 /* MainWindow.xib */; };
 		28FD14FE0DC6FC130079059D /* EAGLView.m in Sources */ = {isa = PBXBuildFile; fileRef = 28FD14FD0DC6FC130079059D /* EAGLView.m */; };
 		A3000001000000000000AA01 /* renderer_metal.m in Sources */ = {isa = PBXBuildFile; fileRef = A3000000000000000000AA00 /* renderer_metal.m */; };
+		A3000011000000000000AA11 /* sound_av.m in Sources */ = {isa = PBXBuildFile; fileRef = A3000010000000000000AA10 /* sound_av.m */; };
+		A3000014000000000000AA14 /* music_av.m in Sources */ = {isa = PBXBuildFile; fileRef = A3000013000000000000AA13 /* music_av.m */; };
 		A3000003000000000000AA03 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A3000002000000000000AA02 /* Metal.framework */; };
 		28FD15080DC6FC5B0079059D /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 28FD15070DC6FC5B0079059D /* QuartzCore.framework */; };
 		2D1212CA1118DE2B0051035B /* player.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D1212C91118DE2B0051035B /* player.c */; };
 		2D18CDD7106B44210028DF35 /* material.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D18CDD6106B44210028DF35 /* material.c */; };
 		2D18F4541121C85F0090DD9E /* enemy.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F4531121C85F0090DD9E /* enemy.c */; };
 		2D18F66311225A830090DD9E /* music.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F66211225A830090DD9E /* music.c */; };
-		2D18F97511225C420090DD9E /* AQ.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F97311225C420090DD9E /* AQ.mm */; };
-		2D18F9BC11225E8D0090DD9E /* AQPlayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F9B411225E8D0090DD9E /* AQPlayer.mm */; };
-		2D18F9BD11225E8D0090DD9E /* CADebugMacros.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F9B511225E8D0090DD9E /* CADebugMacros.cpp */; };
-		2D18F9BE11225E8D0090DD9E /* CAStreamBasicDescription.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F9B811225E8D0090DD9E /* CAStreamBasicDescription.cpp */; };
-		2D18F9BF11225E8D0090DD9E /* CAXException.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F9BA11225E8D0090DD9E /* CAXException.cpp */; };
 		2D18F9DA11225EE00090DD9E /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D18F9D911225EE00090DD9E /* CoreAudio.framework */; };
-		2D18F9E611225F150090DD9E /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D18F9E511225F150090DD9E /* AudioToolbox.framework */; };
 		2D24189D1275E5A200103BD3 /* lofb.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D24189C1275E5A200103BD3 /* lofb.c */; };
 		2D245EAC11BC5EAB005B2AB3 /* wavfile.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D245EAB11BC5EAB005B2AB3 /* wavfile.c */; };
 		2D245EC411BC6D05005B2AB3 /* sounds.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D245EC311BC6D05005B2AB3 /* sounds.c */; };
@@ -41,8 +37,6 @@
 		2D55CBD8102FDECF00F3DC3F /* math.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D55CBD7102FDECF00F3DC3F /* math.c */; };
 		2D55CC01102FE43100F3DC3F /* quaternion.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D55CC00102FE43100F3DC3F /* quaternion.c */; };
 		2D55CC37102FEA8B00F3DC3F /* renderer.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D55CC36102FEA8B00F3DC3F /* renderer.c */; };
-		2D5821AE1EE6249700C5ECBA /* OpenAL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D5821AD1EE6249700C5ECBA /* OpenAL.framework */; };
-		2D5821AF1EE624A100C5ECBA /* OpenAL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D5821AD1EE6249700C5ECBA /* OpenAL.framework */; };
 		2D5821B11EE6295700C5ECBA /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D5821B01EE6295700C5ECBA /* AVFoundation.framework */; };
 		2D5821B21EE6296000C5ECBA /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D5821B01EE6295700C5ECBA /* AVFoundation.framework */; };
 		2D5821B51EE68A6E00C5ECBA /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2D858BBA1EE3E6A900BEEA04 /* Images.xcassets */; };
@@ -63,6 +57,8 @@
 		2D7A3817129F38BF00AD251B /* dEngineAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 1D3623250D0F684500981E51 /* dEngineAppDelegate.m */; };
 		2D7A3818129F38BF00AD251B /* EAGLView.m in Sources */ = {isa = PBXBuildFile; fileRef = 28FD14FD0DC6FC130079059D /* EAGLView.m */; };
 		A3000004000000000000AA04 /* renderer_metal.m in Sources */ = {isa = PBXBuildFile; fileRef = A3000000000000000000AA00 /* renderer_metal.m */; };
+		A3000012000000000000AA12 /* sound_av.m in Sources */ = {isa = PBXBuildFile; fileRef = A3000010000000000000AA10 /* sound_av.m */; };
+		A3000015000000000000AA15 /* music_av.m in Sources */ = {isa = PBXBuildFile; fileRef = A3000013000000000000AA13 /* music_av.m */; };
 		A3000005000000000000AA05 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A3000002000000000000AA02 /* Metal.framework */; };
 		2D7A3819129F38BF00AD251B /* dEngine.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DF347D6102F5FCA0052FFFF /* dEngine.c */; };
 		2D7A381A129F38BF00AD251B /* matrix.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DF347EA102F61200052FFFF /* matrix.c */; };
@@ -87,11 +83,6 @@
 		2D7A382F129F38BF00AD251B /* player.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D1212C91118DE2B0051035B /* player.c */; };
 		2D7A3830129F38BF00AD251B /* enemy.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F4531121C85F0090DD9E /* enemy.c */; };
 		2D7A3831129F38BF00AD251B /* music.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F66211225A830090DD9E /* music.c */; };
-		2D7A3832129F38BF00AD251B /* AQ.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F97311225C420090DD9E /* AQ.mm */; };
-		2D7A3833129F38BF00AD251B /* AQPlayer.mm in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F9B411225E8D0090DD9E /* AQPlayer.mm */; };
-		2D7A3834129F38BF00AD251B /* CADebugMacros.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F9B511225E8D0090DD9E /* CADebugMacros.cpp */; };
-		2D7A3835129F38BF00AD251B /* CAStreamBasicDescription.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F9B811225E8D0090DD9E /* CAStreamBasicDescription.cpp */; };
-		2D7A3836129F38BF00AD251B /* CAXException.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D18F9BA11225E8D0090DD9E /* CAXException.cpp */; };
 		2D7A3837129F38BF00AD251B /* event.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DD7D0B9112470410009BD26 /* event.c */; };
 		2D7A3838129F38BF00AD251B /* preproc.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D5EBB30112B19F100E0DED0 /* preproc.c */; };
 		2D7A3839129F38BF00AD251B /* fx.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DB672F51135B5E500E29AAC /* fx.c */; };
@@ -113,7 +104,6 @@
 		2D7A384B129F38BF00AD251B /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 28FD15070DC6FC5B0079059D /* QuartzCore.framework */; };
 		2D7A384C129F38BF00AD251B /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2DF363441037D70500020D05 /* CoreGraphics.framework */; };
 		2D7A384D129F38BF00AD251B /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D18F9D911225EE00090DD9E /* CoreAudio.framework */; };
-		2D7A384E129F38BF00AD251B /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2D18F9E511225F150090DD9E /* AudioToolbox.framework */; };
 		2D7C75021037705600EAF594 /* camera.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D7C75011037705600EAF594 /* camera.c */; };
 		2D7C782910378FBC00EAF594 /* timer.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D7C782810378FBC00EAF594 /* timer.c */; };
 		2D838723125CEE0F00662A2E /* text.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D838722125CEE0F00662A2E /* text.c */; };
@@ -131,8 +121,6 @@
 		2DE1627314F8026900F58933 /* io_interface.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DE1627114F8026900F58933 /* io_interface.c */; };
 		2DE1627414F8044D00F58933 /* io_interface.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DE1627114F8026900F58933 /* io_interface.c */; };
 		2DE34DFE11C2E8F0004F1658 /* netchannel.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DE34DFD11C2E8F0004F1658 /* netchannel.c */; };
-		2DEE50C914EA42C60049D078 /* sound_openAL.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DEE50C814EA42C60049D078 /* sound_openAL.c */; };
-		2DEE50CA14EA42C60049D078 /* sound_openAL.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DEE50C814EA42C60049D078 /* sound_openAL.c */; };
 		2DEE50CE14EA49DC0049D078 /* log.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DEE50CC14EA49DC0049D078 /* log.c */; };
 		2DEE50CF14EA49DC0049D078 /* log.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DEE50CC14EA49DC0049D078 /* log.c */; };
 		2DEE8C1C12A3094D0029B4DB /* GameKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2DEE8C1B12A3094D0029B4DB /* GameKit.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
@@ -158,6 +146,8 @@
 		28FD14FC0DC6FC130079059D /* EAGLView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = EAGLView.h; sourceTree = "<group>"; };
 		28FD14FD0DC6FC130079059D /* EAGLView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = EAGLView.m; sourceTree = "<group>"; };
 		A3000000000000000000AA00 /* renderer_metal.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = renderer_metal.m; sourceTree = "<group>"; };
+		A3000010000000000000AA10 /* sound_av.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = sound_av.m; sourceTree = "<group>"; };
+		A3000013000000000000AA13 /* music_av.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = music_av.m; sourceTree = "<group>"; };
 		A3000002000000000000AA02 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		28FD15070DC6FC5B0079059D /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		29B97316FDCFA39411CA2CEA /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
@@ -170,19 +160,7 @@
 		2D18F4531121C85F0090DD9E /* enemy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = enemy.c; sourceTree = "<group>"; };
 		2D18F66111225A830090DD9E /* music.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = music.h; sourceTree = "<group>"; };
 		2D18F66211225A830090DD9E /* music.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = music.c; sourceTree = "<group>"; };
-		2D18F97211225C420090DD9E /* AQ.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AQ.h; sourceTree = "<group>"; };
-		2D18F97311225C420090DD9E /* AQ.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = AQ.mm; sourceTree = "<group>"; };
-		2D18F9B311225E8D0090DD9E /* AQPlayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AQPlayer.h; path = AQ/AQPlayer.h; sourceTree = "<group>"; };
-		2D18F9B411225E8D0090DD9E /* AQPlayer.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = AQPlayer.mm; path = AQ/AQPlayer.mm; sourceTree = "<group>"; };
-		2D18F9B511225E8D0090DD9E /* CADebugMacros.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = CADebugMacros.cpp; path = AQ/CADebugMacros.cpp; sourceTree = "<group>"; };
-		2D18F9B611225E8D0090DD9E /* CADebugMacros.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CADebugMacros.h; path = AQ/CADebugMacros.h; sourceTree = "<group>"; };
-		2D18F9B711225E8D0090DD9E /* CAMath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CAMath.h; path = AQ/CAMath.h; sourceTree = "<group>"; };
-		2D18F9B811225E8D0090DD9E /* CAStreamBasicDescription.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = CAStreamBasicDescription.cpp; path = AQ/CAStreamBasicDescription.cpp; sourceTree = "<group>"; };
-		2D18F9B911225E8D0090DD9E /* CAStreamBasicDescription.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CAStreamBasicDescription.h; path = AQ/CAStreamBasicDescription.h; sourceTree = "<group>"; };
-		2D18F9BA11225E8D0090DD9E /* CAXException.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = CAXException.cpp; path = AQ/CAXException.cpp; sourceTree = "<group>"; };
-		2D18F9BB11225E8D0090DD9E /* CAXException.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CAXException.h; path = AQ/CAXException.h; sourceTree = "<group>"; };
 		2D18F9D911225EE00090DD9E /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
-		2D18F9E511225F150090DD9E /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
 		2D24189B1275E5A200103BD3 /* lofb.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lofb.h; sourceTree = "<group>"; };
 		2D24189C1275E5A200103BD3 /* lofb.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = lofb.c; sourceTree = "<group>"; };
 		2D245EAA11BC5EAA005B2AB3 /* wavfile.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = wavfile.h; sourceTree = "<group>"; };
@@ -209,7 +187,6 @@
 		2D55CC35102FEA8B00F3DC3F /* renderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = renderer.h; sourceTree = "<group>"; };
 		A3000006000000000000AA06 /* renderer_metal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = renderer_metal.h; sourceTree = "<group>"; };
 		2D55CC36102FEA8B00F3DC3F /* renderer.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = renderer.c; sourceTree = "<group>"; };
-		2D5821AD1EE6249700C5ECBA /* OpenAL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenAL.framework; path = System/Library/Frameworks/OpenAL.framework; sourceTree = SDKROOT; };
 		2D5821B01EE6295700C5ECBA /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		2D58B6211EE383B100E5DEE6 /* Default-568h@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Default-568h@2x.png"; sourceTree = "<group>"; };
 		2D5EBB2F112B19F100E0DED0 /* preproc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = preproc.h; sourceTree = "<group>"; };
@@ -255,8 +232,6 @@
 		2DE1627214F8026900F58933 /* io_interface.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = io_interface.h; sourceTree = "<group>"; };
 		2DE34DFC11C2E8F0004F1658 /* netchannel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = netchannel.h; sourceTree = "<group>"; };
 		2DE34DFD11C2E8F0004F1658 /* netchannel.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = netchannel.c; sourceTree = "<group>"; };
-		2DEABEA81278BB4A00BC446A /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
-		2DEE50C814EA42C60049D078 /* sound_openAL.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = ../openal/sound_openAL.c; sourceTree = "<group>"; };
 		2DEE50CB14EA42EA0049D078 /* sound_backend.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sound_backend.h; sourceTree = "<group>"; };
 		2DEE50CC14EA49DC0049D078 /* log.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = log.c; sourceTree = "<group>"; };
 		2DEE50CD14EA49DC0049D078 /* log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = log.h; sourceTree = "<group>"; };
@@ -288,14 +263,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				2D5821B21EE6296000C5ECBA /* AVFoundation.framework in Frameworks */,
-				2D5821AE1EE6249700C5ECBA /* OpenAL.framework in Frameworks */,
 				1D60589F0D05DD5A006BFB54 /* Foundation.framework in Frameworks */,
 				1DF5F4E00D08C38300B7A737 /* UIKit.framework in Frameworks */,
 				28FD15080DC6FC5B0079059D /* QuartzCore.framework in Frameworks */,
 				A3000003000000000000AA03 /* Metal.framework in Frameworks */,
 				2DF363451037D70500020D05 /* CoreGraphics.framework in Frameworks */,
 				2D18F9DA11225EE00090DD9E /* CoreAudio.framework in Frameworks */,
-				2D18F9E611225F150090DD9E /* AudioToolbox.framework in Frameworks */,
 				2DEE8C1C12A3094D0029B4DB /* GameKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -305,14 +278,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				2D5821B11EE6295700C5ECBA /* AVFoundation.framework in Frameworks */,
-				2D5821AF1EE624A100C5ECBA /* OpenAL.framework in Frameworks */,
 				2D7A3848129F38BF00AD251B /* Foundation.framework in Frameworks */,
 				2D7A3849129F38BF00AD251B /* UIKit.framework in Frameworks */,
 				2D7A384B129F38BF00AD251B /* QuartzCore.framework in Frameworks */,
 				A3000005000000000000AA05 /* Metal.framework in Frameworks */,
 				2D7A384C129F38BF00AD251B /* CoreGraphics.framework in Frameworks */,
 				2D7A384D129F38BF00AD251B /* CoreAudio.framework in Frameworks */,
-				2D7A384E129F38BF00AD251B /* AudioToolbox.framework in Frameworks */,
 				2D4FCC2212A6ED7B006E7A70 /* GameKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -328,11 +299,11 @@
 				29B97316FDCFA39411CA2CEA /* main.m */,
 				32CA4F630368D1EE00C91783 /* dEngine_Prefix.pch */,
 				2D18F9B211225E7F0090DD9E /* AQ */,
-				2D18F97211225C420090DD9E /* AQ.h */,
-				2D18F97311225C420090DD9E /* AQ.mm */,
 				28FD14FC0DC6FC130079059D /* EAGLView.h */,
 				28FD14FD0DC6FC130079059D /* EAGLView.m */,
 				A3000000000000000000AA00 /* renderer_metal.m */,
+				A3000010000000000000AA10 /* sound_av.m */,
+				A3000013000000000000AA13 /* music_av.m */,
 				1D3623240D0F684500981E51 /* dEngineAppDelegate.h */,
 				1D3623250D0F684500981E51 /* dEngineAppDelegate.m */,
 			);
@@ -363,7 +334,6 @@
 				19C28FACFE9D520D11CA2CBB /* Products */,
 				2DAF72F110795BEA00FDD8CA /* Settings.bundle */,
 				2D18F9D911225EE00090DD9E /* CoreAudio.framework */,
-				2D18F9E511225F150090DD9E /* AudioToolbox.framework */,
 			);
 			name = CustomTemplate;
 			sourceTree = "<group>";
@@ -390,12 +360,10 @@
 			isa = PBXGroup;
 			children = (
 				2D5821B01EE6295700C5ECBA /* AVFoundation.framework */,
-				2D5821AD1EE6249700C5ECBA /* OpenAL.framework */,
 				2DF363441037D70500020D05 /* CoreGraphics.framework */,
 				28FD15070DC6FC5B0079059D /* QuartzCore.framework */,
 				1DF5F4DF0D08C38300B7A737 /* UIKit.framework */,
 				1D30AB110D05D00D00671497 /* Foundation.framework */,
-				2DEABEA81278BB4A00BC446A /* AudioToolbox.framework */,
 				2DEE8C1B12A3094D0029B4DB /* GameKit.framework */,
 			);
 			name = Frameworks;
@@ -404,15 +372,6 @@
 		2D18F9B211225E7F0090DD9E /* AQ */ = {
 			isa = PBXGroup;
 			children = (
-				2D18F9B311225E8D0090DD9E /* AQPlayer.h */,
-				2D18F9B411225E8D0090DD9E /* AQPlayer.mm */,
-				2D18F9B511225E8D0090DD9E /* CADebugMacros.cpp */,
-				2D18F9B611225E8D0090DD9E /* CADebugMacros.h */,
-				2D18F9B711225E8D0090DD9E /* CAMath.h */,
-				2D18F9B811225E8D0090DD9E /* CAStreamBasicDescription.cpp */,
-				2D18F9B911225E8D0090DD9E /* CAStreamBasicDescription.h */,
-				2D18F9BA11225E8D0090DD9E /* CAXException.cpp */,
-				2D18F9BB11225E8D0090DD9E /* CAXException.h */,
 			);
 			name = AQ;
 			sourceTree = "<group>";
@@ -422,7 +381,6 @@
 			children = (
 				2D18F66211225A830090DD9E /* music.c */,
 				2D18F66111225A830090DD9E /* music.h */,
-				2DEE50C814EA42C60049D078 /* sound_openAL.c */,
 				2DEE50CB14EA42EA0049D078 /* sound_backend.h */,
 				2D245EC311BC6D05005B2AB3 /* sounds.c */,
 				2D245EC211BC6D05005B2AB3 /* sounds.h */,
@@ -760,6 +718,8 @@
 				1D3623260D0F684500981E51 /* dEngineAppDelegate.m in Sources */,
 				28FD14FE0DC6FC130079059D /* EAGLView.m in Sources */,
 				A3000001000000000000AA01 /* renderer_metal.m in Sources */,
+				A3000011000000000000AA11 /* sound_av.m in Sources */,
+				A3000014000000000000AA14 /* music_av.m in Sources */,
 				2DF347D7102F5FCA0052FFFF /* dEngine.c in Sources */,
 				2DF347EB102F61200052FFFF /* matrix.c in Sources */,
 				2D55CBD8102FDECF00F3DC3F /* math.c in Sources */,
@@ -783,11 +743,6 @@
 				2D1212CA1118DE2B0051035B /* player.c in Sources */,
 				2D18F4541121C85F0090DD9E /* enemy.c in Sources */,
 				2D18F66311225A830090DD9E /* music.c in Sources */,
-				2D18F97511225C420090DD9E /* AQ.mm in Sources */,
-				2D18F9BC11225E8D0090DD9E /* AQPlayer.mm in Sources */,
-				2D18F9BD11225E8D0090DD9E /* CADebugMacros.cpp in Sources */,
-				2D18F9BE11225E8D0090DD9E /* CAStreamBasicDescription.cpp in Sources */,
-				2D18F9BF11225E8D0090DD9E /* CAXException.cpp in Sources */,
 				2DD7D0BA112470410009BD26 /* event.c in Sources */,
 				2D5EBB31112B19F100E0DED0 /* preproc.c in Sources */,
 				2DB672F61135B5E500E29AAC /* fx.c in Sources */,
@@ -804,7 +759,6 @@
 				2D4B637F1275FAF600ADD3DA /* shab.c in Sources */,
 				2DB6301F1281DF4F005353D1 /* fht.c in Sources */,
 				2D3EE688128C561D00A1E2F2 /* tha.c in Sources */,
-				2DEE50C914EA42C60049D078 /* sound_openAL.c in Sources */,
 				2DEE50CE14EA49DC0049D078 /* log.c in Sources */,
 				2DE1627414F8044D00F58933 /* io_interface.c in Sources */,
 			);
@@ -818,6 +772,8 @@
 				2D7A3817129F38BF00AD251B /* dEngineAppDelegate.m in Sources */,
 				2D7A3818129F38BF00AD251B /* EAGLView.m in Sources */,
 				A3000004000000000000AA04 /* renderer_metal.m in Sources */,
+				A3000012000000000000AA12 /* sound_av.m in Sources */,
+				A3000015000000000000AA15 /* music_av.m in Sources */,
 				2D7A3819129F38BF00AD251B /* dEngine.c in Sources */,
 				2D7A381A129F38BF00AD251B /* matrix.c in Sources */,
 				2D7A381D129F38BF00AD251B /* math.c in Sources */,
@@ -841,11 +797,6 @@
 				2D7A382F129F38BF00AD251B /* player.c in Sources */,
 				2D7A3830129F38BF00AD251B /* enemy.c in Sources */,
 				2D7A3831129F38BF00AD251B /* music.c in Sources */,
-				2D7A3832129F38BF00AD251B /* AQ.mm in Sources */,
-				2D7A3833129F38BF00AD251B /* AQPlayer.mm in Sources */,
-				2D7A3834129F38BF00AD251B /* CADebugMacros.cpp in Sources */,
-				2D7A3835129F38BF00AD251B /* CAStreamBasicDescription.cpp in Sources */,
-				2D7A3836129F38BF00AD251B /* CAXException.cpp in Sources */,
 				2D7A3837129F38BF00AD251B /* event.c in Sources */,
 				2D7A3838129F38BF00AD251B /* preproc.c in Sources */,
 				2D7A3839129F38BF00AD251B /* fx.c in Sources */,
@@ -862,7 +813,6 @@
 				2D7A3844129F38BF00AD251B /* shab.c in Sources */,
 				2D7A3845129F38BF00AD251B /* fht.c in Sources */,
 				2D7A3846129F38BF00AD251B /* tha.c in Sources */,
-				2DEE50CA14EA42C60049D078 /* sound_openAL.c in Sources */,
 				2DEE50CF14EA49DC0049D078 /* log.c in Sources */,
 				2DE1627314F8026900F58933 /* io_interface.c in Sources */,
 			);

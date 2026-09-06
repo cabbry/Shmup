@@ -210,8 +210,8 @@ to the true screen edges, and the touch-coordinate mapping.
   and host-ruled deaths (one order, one pool, one survivor on every screen).
   Needs: a 4-device session -- everything above is rig-proven at four,
   device-proven at two.
-- **🚀 v3 — the graphics overhaul** — **code-complete on the `v3` branch
-  (rounds 35-37)**: stage 1 ✅ every warning fixed or explicitly retired per
+- **🚀 v3 — the graphics overhaul** — **done, merged into master 2026-09-06
+  (rounds 35-38; build 225 "tout est ok")**: stage 1 ✅ every warning fixed or explicitly retired per
   file, the project builds with `-Werror`; stage 2 ✅ ARC, a modern launch
   screen, the 64-bit truncations made explicit; stage 3 ✅ the **Metal
   backend** is the renderer — a 1:1 port of the fixed-pipeline passes with
@@ -220,7 +220,7 @@ to the true screen edges, and the touch-coordinate mapping.
   the OpenGL ES 1.1 and 2.0 renderers, EAGL and the OpenGLES framework are
   **retired** (round 37), with the 511 deprecation sites they carried. What
   remains deprecated is audio only (OpenAL, AudioQueue), pragma'd per file.
-  Next: a v3.0.2 build of the OpenGL-free tree, then the v3 branch can land.
+  Shipped as 3.0.2 (OpenGL-free) and 3.0.3 (title, ink buttons, centered text).
 
 ---
 

@@ -1366,7 +1366,7 @@ static void MENU_PushScrollThumb(menu_screen_t* m)
 		return;
 	thumbH = trackH * trackH / (trackH + m->scrollMax);
 	if (thumbH < 24) thumbH = 24;
-	thumbTop = m->clipTop - (int)(-m->scrollY) * (trackH - thumbH) / m->scrollMax;
+	thumbTop = m->clipTop - (int)m->scrollY * (trackH - thumbH) / m->scrollMax;
 	MENU_PushPatch(SCROLL_THUMB_X0, (short)m->clipTop, SCROLL_THUMB_X1, (short)m->clipBottom, 70, 132, 20, 8);	// track
 	MENU_PushPatch(SCROLL_THUMB_X0, (short)thumbTop, SCROLL_THUMB_X1, (short)(thumbTop - thumbH), 229, 132, 20, 8);	// thumb
 }
@@ -1497,8 +1497,8 @@ void MENU_ClearButtonStates(void)
 
 static void MENU_SetScroll(menu_screen_t* m, int y)
 {
-	if (y > 0) y = 0;
-	if (y < -m->scrollMax) y = -m->scrollMax;
+	if (y < 0) y = 0;
+	if (y > m->scrollMax) y = m->scrollMax;
 	m->scrollY = (short)y;
 }
 
@@ -1562,7 +1562,7 @@ int MENU_ScrollTouch(int eventType, short touchY)
 		if (dy > 6 || dy < -6)
 			sDragging = 1;
 		if (sDragging)
-			MENU_SetScroll(m, sDragScroll + 2 * dy);	// the content follows the finger
+			MENU_SetScroll(m, sDragScroll - 2 * dy);	// the content follows the finger: down is - in touch space, + in SS
 		return 1;
 	}
 	// IO_EVENT_ENDED
@@ -1573,7 +1573,7 @@ int MENU_ScrollTouch(int eventType, short touchY)
 }
 
 // CI hooks (the camera cannot tap): SHMUP_MENU=<id> opens that menu on the
-// home scene, SHMUP_MENU_SCROLL=<n> presets its scroll (n <= 0).
+// home scene, SHMUP_MENU_SCROLL=<n> presets its scroll (0 = top, up to scrollMax).
 void MENU_ApplyEnvHooks(void)
 {
 	char* mid = getenv("SHMUP_MENU");

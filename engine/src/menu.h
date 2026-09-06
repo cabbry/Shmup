@@ -87,7 +87,7 @@ typedef struct menu_screen_t
 	float alpha;
 
 	// Round 41: a scrolling screen (the credits). Texts and the images from
-	// scrollFromImage on scroll by scrollY (0 = top, down to -scrollMax) inside
+	// scrollFromImage on scroll UP by scrollY (0 = top, up to scrollMax) inside
 	// the clip band [clipBottom, clipTop]; buttons and the images before
 	// scrollFromImage stay put. A thin thumb on the right shows the position.
 	char  scrollable;

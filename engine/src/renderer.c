@@ -372,8 +372,15 @@ void SCR_ConvertTextToVertices(const char* string, float size, short ss_cooX, sh
 	
 	if (centered)
 	{
-		//Adjust ss_cooX and ss_cooY so text is centered.
-		ss_cooX -= stringLength*charSpace/2;
+		// Adjust ss_cooX so the run of glyphs is centered on it. Each glyph
+		// quad spans ss_cooX +/- charWidth (two cells wide, overlapping) and
+		// the pen advances one cell per glyph, so the run's ink is centered on
+		// the pen's MIDPOINT: start + (n-1)*charSpace/2. Since 2009 this
+		// subtracted n*charSpace/2 -- half a cell too much -- and every
+		// centered string (menu buttons, titles, the countdown) sat half a
+		// glyph left of where it was asked to be. Reported by the tester on
+		// the ink buttons, whose frame made the offset visible (round 38).
+		ss_cooX -= (stringLength - 1) * charSpace / 2;
 	}
 	
 	

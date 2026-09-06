@@ -1113,7 +1113,7 @@ float playerDelta[MAX_NUM_PLAYERS][2] = {
 #define BOSS_BAR_LEFT		(-186)
 #define BOSS_BAR_RIGHT		( 284)
 #define BOSS_BAR_BORDER		3
-#define BOSS_BAR_LABEL_X	(-244)
+#define BOSS_BAR_LABEL_X	(-251)	// -244 when centered text sat half a glyph left (renderer.c, round 38): -7 keeps the device-validated spot
 
 static void P_SetBarQuad(xf_textureless_sprite_t* q, short l, short r, short top, short bot,
 						 uchar topRed, uchar topGreen, uchar topBlue,

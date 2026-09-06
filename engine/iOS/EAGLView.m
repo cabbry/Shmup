@@ -634,7 +634,7 @@ void SND_InitSoundTrack(char* filename,unsigned int startAt)
 	if (!engine.musicEnabled)
 		return;
 	
-	NSString* name = [[NSString alloc] initWithCString:filename];
+	NSString* name = [NSString stringWithUTF8String:filename];	// v3: the un-encoded initWithCString: was the one deprecation the file pragma hid
     audiocontroller = [[AQ alloc] init];
     [audiocontroller initAudio];
 	[audiocontroller loadSoundTrack:name startAt:startAt];

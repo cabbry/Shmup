@@ -128,7 +128,8 @@ jobs:
           [ "${ENEMY:-0}"  -ge 5 ]   || { echo "::error::Too few enemy shots ($ENEMY)."; exit 1; }
 
           # --- the soundtrack: UNREALPM cued at 0, started, and advancing at wall rate
-          grep -q "^\[music\] .* init data/music/UNREALPM.mp3 at=0" audio-trace.log || { echo "::error::UNREALPM was not cued at 0 for act 1."; exit 1; }
+          # the init probe prints the bundle's absolute path: match the file name
+          grep -q "^\[music\] .* init .*UNREALPM.mp3 at=0" audio-trace.log || { echo "::error::UNREALPM was not cued at 0 for act 1."; exit 1; }
           grep -q "^\[music\] .* start pos=" audio-trace.log || { echo "::error::The soundtrack never started."; exit 1; }
           POS=$(grep "^\[music\] .* pos=" audio-trace.log | grep -v "start\|stop\|pause\|resume" | awk '{w=0;p=-1;for(f=1;f<=NF;f++){if($f~/^wall=/){sub("wall=","",$f);w=$f+0};if($f~/^pos=/){sub("pos=","",$f);p=$f+0}};print w, p}')
           SAMPLES=$(echo "$POS" | grep -c . || true)

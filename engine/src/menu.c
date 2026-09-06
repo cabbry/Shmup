@@ -785,6 +785,8 @@ static char* MENU_Tr(const char* en)
 
 char menuCreated = 0;
 
+static void MENU_SetScrollWindow(menu_screen_t* m, short clipTop, short clipBottom, uchar firstImage);	// round 41, defined with the scroll code below
+
 // Round 41: a horizontal brush stroke, 480 units wide, centred on (0,y) -- the
 // credits' separators, in the ink of the buttons (atlas 330,100 176x16).
 static void MENU_CreateBrushRule(menu_screen_t* screen, short y)

@@ -269,6 +269,32 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-06 — round 41 (the credits: brush rules, a second tester, and a roll that scrolls)
+
+- **Build 229: "son nickel à présent."** The audio round is closed and v3 is
+  done: Metal, AVFoundation, not one deprecated API left.
+- **The credits page**, at the tester's request. The separators — the title
+  card's own underline, reused three times since 2009 — are brush strokes
+  now, in the ink of the buttons: a 176×16 sprite painted into the atlas's
+  one free corner, landing heavy, thinning, lifting off in a spatter.
+  "Van Dike du 69" and "Le K" join Leo B under *Testers*.
+- **And the roll scrolls** ("et faire une scroll bar ? verticale"). Rather
+  than cram fourteen lines above Back, the title card and Back stay put and
+  the roll lives in the band between them: it follows the finger (a
+  vertical drag; its release is not a tap), a thumb on the right says where
+  you are, and the lines are clipped at the band's edges. Under the hood: a
+  clip band per menu through a new renderer function (Metal's scissor
+  rect, in SS units — the 2D ortho maps ±480 onto the whole height, which
+  makes the pixel rows a one-liner), `MENU_Render` in three passes (fixed
+  quads and the indicator, clipped scrolled quads and texts, button
+  labels), a drag handler fed by the input layer before its button search,
+  and a menu declaring its band and letting the code derive how far the
+  lowest line has to rise. Plain menus are untouched. The first capture
+  scrolled the wrong way — positive now lifts the roll.
+- **The camera learned two hooks** (`SHMUP_MENU=<id>`, `SHMUP_MENU_SCROLL=<n>`):
+  it cannot tap, so this is how it photographs a menu, and the credits at
+  their top and bottom.
+
 ### 2026-09-06 — round 40 (the audio bench: the engine says what it plays)
 
 - **Why a bench first.** The last deprecated APIs in the project are audio's:

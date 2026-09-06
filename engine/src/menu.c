@@ -905,7 +905,7 @@ void MENU_Init(void)
 	// a thumb on the right says where you are. So the roll breathes again: size
 	// 2.0 on a 40 step, a rule 32 under a line and 32 above the next. The rules
 	// are brush strokes, in the ink of the buttons (atlas 330,100 176x16).
-	// 13 lines of MAX_NUM_MENU_TEXTS 16; 4 images (title + 3 rules) = the max.
+	// 14 lines of MAX_NUM_MENU_TEXTS 16; 4 images (title + 3 rules) = the max.
 	MENU_CreateText(currentMenu,0, 200,2.0f,TEXT_CENTERED, "Producer:     Fabien Sanglard");
 	MENU_CreateText(currentMenu,0, 160,2.0f,TEXT_CENTERED, "Game engine:  Fabien Sanglard");
 	MENU_CreateText(currentMenu,0, 120,2.0f,TEXT_CENTERED, "Graphics:     Fabien Sanglard");
@@ -918,10 +918,11 @@ void MENU_Init(void)
 	MENU_CreateBrushRule(currentMenu, -136);
 	MENU_CreateText(currentMenu,0,-168,2.0f,TEXT_CENTERED, "Testers:                Leo B");
 	MENU_CreateText(currentMenu,0,-208,2.0f,TEXT_CENTERED, "               Van Dike du 69");
-	MENU_CreateBrushRule(currentMenu, -240);
-	MENU_CreateText(currentMenu,0,-272,2.0f,TEXT_CENTERED, "Special Thanks:     Soojin Yi");
-	MENU_CreateText(currentMenu,0,-312,2.0f,TEXT_CENTERED, "                Jeremy Vernet");
-	MENU_CreateText(currentMenu,0,-352,2.0f,TEXT_CENTERED, "            Aurelien Sanglard");
+	MENU_CreateText(currentMenu,0,-248,2.0f,TEXT_CENTERED, "                         Le K");
+	MENU_CreateBrushRule(currentMenu, -280);
+	MENU_CreateText(currentMenu,0,-312,2.0f,TEXT_CENTERED, "Special Thanks:     Soojin Yi");
+	MENU_CreateText(currentMenu,0,-352,2.0f,TEXT_CENTERED, "                Jeremy Vernet");
+	MENU_CreateText(currentMenu,0,-392,2.0f,TEXT_CENTERED, "            Aurelien Sanglard");
 	// the band: from the top of the first line's cell to just above Back's top edge (-316)
 	MENU_SetScrollWindow(currentMenu, 218, -300, 1);
 

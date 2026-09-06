@@ -73,9 +73,11 @@ typedef struct event_spawnEnemy_payload_t
 	
 	int ttl;
 	uchar subType ;
-	
+
 	float parameters[NUM_ENEMY_PARAMETERS];
-	
+
+	char group[16];		// v4 stage 2: the group the enemy joins ("" = none)
+
 } event_spawnEnemy_payload_t ;
 
 typedef struct event_title_payload_t
@@ -113,6 +115,11 @@ typedef struct event_ttb_payload_t
 void EV_InitForScene(void);
 void EV_ReadEnemiesEvents(void);
 void EV_ReadTextsEvents(void);
+// v4 stage 2: the spawn grammars, callable by the rules block too. ParseSpawnParams
+// expects the lexer just after "spawnEnemy"; ParseCircleWave just after
+// "spawnEnemyWave circle" -- it fills up to maxOut payloads and returns how many.
+void EV_ParseSpawnParams(event_spawnEnemy_payload_t* payload);
+int  EV_ParseCircleWave(event_spawnEnemy_payload_t* out, int maxOut, float ttl);
 void EV_Update(void);
 void EV_CleanAllRemainingEvents(void);
 void EV_AddEvent(event_t* event);

@@ -33,6 +33,7 @@
 #include "lexer.h"
 #include "player.h"
 #include "event.h"
+#include "rules.h"	// v4 stage 2
 #include "titles.h"
 #include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
@@ -510,6 +511,11 @@ void World_OpenScene(char* filename)
 			camera.fov = 2.0f * atanf( tanf(camera.fov * DEG_TO_RAD / 2.0f) * renderer.vScale ) / DEG_TO_RAD;
 		}
 		else 
+		if (!strcmp("rules", LE_getCurrentToken()))	// v4 stage 2: conditional events
+		{
+			RULES_Read();
+		}
+		else
 		if (!strcmp("enemies", LE_getCurrentToken()))
 		{
 			EV_ReadEnemiesEvents();

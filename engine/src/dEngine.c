@@ -43,6 +43,7 @@
 #include "world.h"
 #include "lexer.h"
 #include "event.h"
+#include "rules.h"	// v4 stage 2
 #include "native_services.h"
 #include "fx.h"
 #include "vis.h"
@@ -601,6 +602,7 @@ void dEngine_LoadScene(int sceneId)
 	engine.musicStartAt= 0;
 
 	// Now actually start loading things
+	RULES_InitForScene();	// v4 stage 2: the scene file may carry a rules block
 	World_OpenScene(engine.scenes[engine.sceneId].path);
 
 	// Apply the chosen ship to player 0 now that the level config has set modelPath
@@ -883,6 +885,7 @@ void dEngine_HostFrame(void)
 
 	
 	EV_Update();
+	RULES_Update();	// v4 stage 2: conditional events, after the timeline
 	TITLE_Update();
 	CAM_Update();
 	DYN_TEXT_Update();

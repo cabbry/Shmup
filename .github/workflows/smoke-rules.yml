@@ -1,0 +1,152 @@
+name: Smoke test the rules (conditional events, scene 12)
+
+# v4 stage 2 -- the rules bench. Scene 12 (data/levels/test_rules) chains
+# three waves by RULES, not by the clock: w2 spawns 1.5 s after w1 is wiped
+# out, w3 when w2 is, and a clock rule fires at 60 s. With autofire on, the
+# engine prints "[rule] t=<sim> fire <name> ..." for every rule that fires.
+# The smoke asserts the order (w2 before w3 before late), that w2 fired only
+# after the last w1 enemy died (the [snd] explosion trace dates the deaths),
+# and prints the fire times -- deterministic run to run, like every trace.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build (iphonesimulator, arm64, no signing)
+        working-directory: engine/iOS
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project dEngine.xcodeproj \
+            -target Shmup \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -arch arm64 \
+            SYMROOT="$PWD/build" \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build | tail -5
+
+      - name: Boot a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone (1[5-9]|SE)" | head -1 | grep -oE "[0-9A-F-]{36}")
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
+          fi
+          echo "Using simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Launch the rules bench with the probes on
+        id: run
+        run: |
+          APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+          UDID="${{ steps.sim.outputs.udid }}"
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch \
+            --terminate-running-process "$UDID" "$BUNDLE_ID" || true
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+          nohup env \
+            SIMCTL_CHILD_SHMUP_BAKE_SCENE=12 \
+            SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
+            SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
+            SIMCTL_CHILD_SHMUP_INVULN=1 \
+            SIMCTL_CHILD_SHMUP_AUTOFIRE=1 \
+            xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
+            > "$RUNNER_TEMP/rules.log" 2>&1 &
+          echo "bundle=$BUNDLE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the late rule, then read the trace
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="${{ steps.run.outputs.bundle }}"
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
+          START=$(date +%s)
+
+          sleep 40
+          echo "=== console head ==="
+          head -60 "$RUNNER_TEMP/rules.log" || true
+
+          for i in $(seq 1 60); do
+            LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+            [ -z "$LOG" ] && LOG="$RUNNER_TEMP/rules.log"
+            LATE=$(grep -c "\[rule\] t=.* fire late" "$LOG" 2>/dev/null || true)
+            N=$(grep -c "^\[rule\] t=" "$LOG" 2>/dev/null || true)
+            MIN=$((($(date +%s)-START)/60))
+            echo "[$MIN min] rules fired so far: ${N:-0}"
+            if [ "${LATE:-0}" -ge 1 ]; then
+              echo "the clock rule fired"
+              break
+            fi
+            if [ "$MIN" -ge 25 ]; then
+              echo "::error::Timed out before the 60 s rule fired. Log tail:"
+              tail -40 "$LOG" || true
+              exit 1
+            fi
+            sleep 10
+          done
+
+          LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+          [ -z "$LOG" ] && LOG="$RUNNER_TEMP/rules.log"
+          grep -E "^\[(rule|snd|devil|scene|pack)\] " "$LOG" > rules-trace.log || true
+          echo "=== the rules as parsed ==="
+          grep "^\[rule\] [a-z0-9]*: " rules-trace.log || true
+          echo "=== the fires ==="
+          grep "^\[rule\] t=" rules-trace.log || true
+
+          T2=$(grep "^\[rule\] t=.* fire w2 "   rules-trace.log | head -1 | grep -oE "t=[0-9]+" | grep -oE "[0-9]+")
+          T3=$(grep "^\[rule\] t=.* fire w3 "   rules-trace.log | head -1 | grep -oE "t=[0-9]+" | grep -oE "[0-9]+")
+          TL=$(grep "^\[rule\] t=.* fire late " rules-trace.log | head -1 | grep -oE "t=[0-9]+" | grep -oE "[0-9]+")
+          echo "fire times: w2=${T2:-none} w3=${T3:-none} late=${TL:-none}"
+          [ -n "$T2" ] || { echo "::error::rule w2 never fired (w1 never cleared?)"; exit 1; }
+          [ -n "$T3" ] || { echo "::error::rule w3 never fired (w2 never cleared?)"; exit 1; }
+          [ -n "$TL" ] || { echo "::error::the clock rule never fired"; exit 1; }
+          [ "$T2" -lt "$T3" ] || { echo "::error::w3 fired before w2"; exit 1; }
+          [ "$TL" -ge 60000 ] || { echo "::error::the clock rule fired early ($TL)"; exit 1; }
+          # w2 fires the tick after the last w1 death: at least three explosions before it
+          EXPL_BEFORE_W2=$(grep "^\[snd\] t=.* play 1 explosion" rules-trace.log | awk -v t="$T2" '{split($2,a,"="); if (a[2]+0 <= t) n++} END{print n+0}')
+          echo "explosions before w2 fired: $EXPL_BEFORE_W2"
+          [ "$EXPL_BEFORE_W2" -ge 3 ] || { echo "::error::w2 fired before the three w1 ships had exploded"; exit 1; }
+          echo "RULES FIRED IN ORDER: w2@$T2 w3@$T3 late@$TL"
+
+          if ls ~/Library/Logs/DiagnosticReports/Shmup* >/dev/null 2>&1; then
+            echo "::error::A crash report exists:"; for c in ~/Library/Logs/DiagnosticReports/Shmup*; do head -40 "$c"; done
+            exit 1
+          fi
+
+      - name: Collect logs even on failure
+        if: always()
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="${{ steps.run.outputs.bundle }}"
+          cp "$RUNNER_TEMP/rules.log" console.log 2>/dev/null || true
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data 2>/dev/null)
+          [ -n "$CONTAINER" ] && cp "$CONTAINER"/Documents/*.log documents.log 2>/dev/null || true
+
+      - name: Upload the trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rules-trace
+          path: |
+            rules-trace.log
+            console.log
+            documents.log
+          if-no-files-found: ignore

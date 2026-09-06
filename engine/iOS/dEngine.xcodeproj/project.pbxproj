@@ -15,6 +15,7 @@
 		28FD14FE0DC6FC130079059D /* EAGLView.m in Sources */ = {isa = PBXBuildFile; fileRef = 28FD14FD0DC6FC130079059D /* EAGLView.m */; };
 		A3000001000000000000AA01 /* renderer_metal.m in Sources */ = {isa = PBXBuildFile; fileRef = A3000000000000000000AA00 /* renderer_metal.m */; };
 		A3000011000000000000AA11 /* sound_av.m in Sources */ = {isa = PBXBuildFile; fileRef = A3000010000000000000AA10 /* sound_av.m */; };
+		A3000021000000000000AA21 /* rules.c in Sources */ = {isa = PBXBuildFile; fileRef = A3000020000000000000AA20 /* rules.c */; };
 		A3000014000000000000AA14 /* music_av.m in Sources */ = {isa = PBXBuildFile; fileRef = A3000013000000000000AA13 /* music_av.m */; };
 		A3000003000000000000AA03 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A3000002000000000000AA02 /* Metal.framework */; };
 		28FD15080DC6FC5B0079059D /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 28FD15070DC6FC5B0079059D /* QuartzCore.framework */; };
@@ -58,6 +59,7 @@
 		2D7A3818129F38BF00AD251B /* EAGLView.m in Sources */ = {isa = PBXBuildFile; fileRef = 28FD14FD0DC6FC130079059D /* EAGLView.m */; };
 		A3000004000000000000AA04 /* renderer_metal.m in Sources */ = {isa = PBXBuildFile; fileRef = A3000000000000000000AA00 /* renderer_metal.m */; };
 		A3000012000000000000AA12 /* sound_av.m in Sources */ = {isa = PBXBuildFile; fileRef = A3000010000000000000AA10 /* sound_av.m */; };
+		A3000022000000000000AA22 /* rules.c in Sources */ = {isa = PBXBuildFile; fileRef = A3000020000000000000AA20 /* rules.c */; };
 		A3000015000000000000AA15 /* music_av.m in Sources */ = {isa = PBXBuildFile; fileRef = A3000013000000000000AA13 /* music_av.m */; };
 		A3000005000000000000AA05 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A3000002000000000000AA02 /* Metal.framework */; };
 		2D7A3819129F38BF00AD251B /* dEngine.c in Sources */ = {isa = PBXBuildFile; fileRef = 2DF347D6102F5FCA0052FFFF /* dEngine.c */; };
@@ -186,6 +188,8 @@
 		2D55CC00102FE43100F3DC3F /* quaternion.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = quaternion.c; sourceTree = "<group>"; };
 		2D55CC35102FEA8B00F3DC3F /* renderer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = renderer.h; sourceTree = "<group>"; };
 		A3000006000000000000AA06 /* renderer_metal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = renderer_metal.h; sourceTree = "<group>"; };
+		A3000020000000000000AA20 /* rules.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = rules.c; sourceTree = "<group>"; };
+		A3000023000000000000AA23 /* rules.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = rules.h; sourceTree = "<group>"; };
 		2D55CC36102FEA8B00F3DC3F /* renderer.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = renderer.c; sourceTree = "<group>"; };
 		2D5821B01EE6295700C5ECBA /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		2D58B6211EE383B100E5DEE6 /* Default-568h@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Default-568h@2x.png"; sourceTree = "<group>"; };
@@ -424,6 +428,8 @@
 			children = (
 				2D55CC35102FEA8B00F3DC3F /* renderer.h */,
 				A3000006000000000000AA06 /* renderer_metal.h */,
+				A3000020000000000000AA20 /* rules.c */,
+				A3000023000000000000AA23 /* rules.h */,
 				2D55CC36102FEA8B00F3DC3F /* renderer.c */,
 			);
 			name = renderer;
@@ -719,6 +725,7 @@
 				28FD14FE0DC6FC130079059D /* EAGLView.m in Sources */,
 				A3000001000000000000AA01 /* renderer_metal.m in Sources */,
 				A3000011000000000000AA11 /* sound_av.m in Sources */,
+				A3000021000000000000AA21 /* rules.c in Sources */,
 				A3000014000000000000AA14 /* music_av.m in Sources */,
 				2DF347D7102F5FCA0052FFFF /* dEngine.c in Sources */,
 				2DF347EB102F61200052FFFF /* matrix.c in Sources */,
@@ -773,6 +780,7 @@
 				2D7A3818129F38BF00AD251B /* EAGLView.m in Sources */,
 				A3000004000000000000AA04 /* renderer_metal.m in Sources */,
 				A3000012000000000000AA12 /* sound_av.m in Sources */,
+				A3000022000000000000AA22 /* rules.c in Sources */,
 				A3000015000000000000AA15 /* music_av.m in Sources */,
 				2D7A3819129F38BF00AD251B /* dEngine.c in Sources */,
 				2D7A381A129F38BF00AD251B /* matrix.c in Sources */,

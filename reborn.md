@@ -348,6 +348,12 @@ it ever reached a device — which is why the game looks the same and why
   condition: no menu up), and the menu titles' dead safe-inset term is gone
   — they sit on fixed margins, said plainly now. The README's broken splash
   image points at a current home-screen capture.
+- **Stage 1 proven.** On the pack build the three smokes reproduce their
+  traces to the number: the Metal smoke's parity contract (26 side-view
+  samples, no black sky or city, the cameo's dip at 57 s), four ships
+  through act 1 (134 of 134 probes), and the audio trace's signature
+  `5b0182b35b1e304f` — the same 2453 events as the OpenAL baseline of
+  round 40. The log now opens with the eight packs and "5 scenes, 4 acts".
 
 ### 2026-09-06 — round 41 (the credits: brush rules, a second tester, and a roll that scrolls)
 

@@ -211,8 +211,7 @@ void SND_BACKEND_Play(int sndId){
 	if (Log_ProbesEnabled())
 	{
 		static const char* names[] = { "plasma", "explosion", "ghost_launch", "enemy_shot" };
-		Log_Printf("[snd] t=%d play %d %s
-", simulationTime, sndId, (sndId >= 0 && sndId < 4) ? names[sndId] : "?");
+		Log_Printf("[snd] t=%d play %d %s\n", simulationTime, sndId, (sndId >= 0 && sndId < 4) ? names[sndId] : "?");
 	}
 	
 	//Log_Printf("playing sound %d on source %ud with soundBuffer %ud\n",sndId,source,sound->alBuffer);

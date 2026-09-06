@@ -284,6 +284,16 @@ it ever reached a device — which is why the game looks the same and why
   reflected in the bands. Seen on an iPad simulator with the camera, which
   gained a `device` input for it — and showed the game's own home screen on
   an iPad for the first time.
+- **Build 226 on a 12.9": the bands were too wide** ([27f5e96]). The poster
+  was sized for the smaller iPads; on the largest it left 143 pt above and
+  below and 208 pt on each side. The iPad image is now a full canvas for
+  the largest iPad (1024×1366 pt) in which the 1080-pt poster sits on its
+  own edges smeared outward — the motion-blurred city keeps streaking to the
+  screen's edge — darkened toward the edges, the poster feathered over the
+  smear (the bands run under it, else the fade melted into black and drew a
+  dark frame — seen, fixed). Smaller iPads show the centred crop. Composed
+  in PowerShell like the ink buttons; previews for 12.9", 11" and 9.7"
+  before committing.
 
 ### 2026-09-06 — round 38 (3.0.2 on device: the game is fine, the title is gone; and the buttons get a brush)
 

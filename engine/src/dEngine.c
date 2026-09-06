@@ -66,6 +66,8 @@ engine_info_t engine;
 char* screenShotDirectory = "./";//"/Users/fabiensanglard/Pictures/dEngine/";
 
 
+static void dEngine_ReadPack(int sceneId, const char* packPath);	// v4 stage 1, defined below dEngine_ReadConfig
+
 bool dEngine_ReadConfig(void)
 {
 	filehandle_t* config;

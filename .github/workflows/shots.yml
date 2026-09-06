@@ -96,6 +96,11 @@ jobs:
             echo "frame at ${s}s"
           done
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+          # a crash on launch leaves the home screen in every frame and a report here
+          if ls ~/Library/Logs/DiagnosticReports/Shmup* >/dev/null 2>&1; then
+            echo "::warning::crash report(s) found"; ls ~/Library/Logs/DiagnosticReports/Shmup*
+            for c in ~/Library/Logs/DiagnosticReports/Shmup*; do cp "$c" shots/; echo "== $c"; head -c 6000 "$c"; echo; done
+          fi
           cp "$RUNNER_TEMP/app.log" console.log 2>/dev/null || true
           ls -la shots
 

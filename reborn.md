@@ -50,49 +50,6 @@ It's meant to be shown to Fabien and kept up to date as the project evolves.
 
 ---
 
-## Graphics stack — before and after v3
-
-The game code never changed sides: it draws through the same 24-function
-`renderer_t` table it has used since 2009. What changed is everything under
-that table, from the API down to the layer on screen.
-
-**Before v3 — every build up to 2.0.9 (2009 → 2026)**
-
-```mermaid
-flowchart TB
-    subgraph game["Game code (unchanged by v3)"]
-        HF["dEngine_HostFrame → SCR_RenderFrame\nworld / entities / bullets / FX / menu / HUD"]
-    end
-    HF --> T["renderer_t — 24 function pointers\nSet3D · Set2D · RenderEntities · RenderFXSprites · UpLoadToGPU …"]
-    T --> F["renderer_fixed.c — OpenGL ES 1.1 fixed pipeline\nglMatrixMode · glLightfv · glFogf · glTexEnv · client arrays · VBOs\n(renderer_progr.c, ES 2.0 shaders, never bound since 2010)"]
-    F --> GL["OpenGLES.framework\ndeprecated by Apple since iOS 12"]
-    GL --> V["EAGLView — CAEAGLLayer + EAGLContext\nrenderbuffer at 1× (points), 16-bit depth\npresentRenderbuffer each CADisplayLink tick"]
-    V --> S["Screen — 1× resolution\n(touch points = surface units, by accident)"]
-```
-
-**After v3 — from 3.0.0 (Metal default) and 3.0.2 (OpenGL removed)**
-
-```mermaid
-flowchart TB
-    subgraph game2["Game code (unchanged by v3)"]
-        HF2["dEngine_HostFrame → SCR_RenderFrame\nworld / entities / bullets / FX / menu / HUD"]
-    end
-    HF2 --> T2["renderer_t — the same 24 function pointers"]
-    T2 --> M["renderer_metal.m — 1:1 port of the fixed-pipeline passes\nfixed pipeline emulated in one vertex + one fragment shader (MSL, compiled at launch)\nlighting · GL_LINEAR fog · REPLACE/MODULATE/ADD · blend · depth · cull"]
-    M --> R["Per-frame plumbing\nPSO cache 5 vertex kinds × 3 blends · 3 × 4 MB ring buffer + semaphore\ntexture cache RGBA8 + PVRTC · mid-frame readback for the [cull] probe"]
-    R --> MT["Metal.framework"]
-    MT --> V2["EAGLView (name kept for the nibs) — CAMetalLayer\ndrawable at native scale (×3), depth attachment\nBeginFrame → HostFrame → EndFrame each CADisplayLink tick"]
-    V2 --> S2["Screen — native resolution, 9× the pixels\n(touches scaled by surface / view)"]
-```
-
-What the two pictures share is the point of the whole exercise: the table.
-The Metal backend was written *against* the OpenGL one — the same passes in
-the same order, held to the OpenGL trace's own luma assertions in CI before
-it ever reached a device — which is why the game looks the same and why
-`renderer_fixed.c` could be deleted rather than kept as a fallback.
-
----
-
 ## Work log
 
 ### 1 — Compiling under Xcode 26
@@ -264,6 +221,49 @@ to the true screen edges, and the touch-coordinate mapping.
   **retired** (round 37), with the 511 deprecation sites they carried. What
   remains deprecated is audio only (OpenAL, AudioQueue), pragma'd per file.
   Next: a v3.0.2 build of the OpenGL-free tree, then the v3 branch can land.
+
+---
+
+## Graphics stack — before and after v3
+
+The game code never changed sides: it draws through the same 24-function
+`renderer_t` table it has used since 2009. What changed is everything under
+that table, from the API down to the layer on screen.
+
+**Before v3 — every build up to 2.0.9 (2009 → 2026)**
+
+```mermaid
+flowchart TB
+    subgraph game["Game code (unchanged by v3)"]
+        HF["dEngine_HostFrame → SCR_RenderFrame\nworld / entities / bullets / FX / menu / HUD"]
+    end
+    HF --> T["renderer_t — 24 function pointers\nSet3D · Set2D · RenderEntities · RenderFXSprites · UpLoadToGPU …"]
+    T --> F["renderer_fixed.c — OpenGL ES 1.1 fixed pipeline\nglMatrixMode · glLightfv · glFogf · glTexEnv · client arrays · VBOs\n(renderer_progr.c, ES 2.0 shaders, never bound since 2010)"]
+    F --> GL["OpenGLES.framework\ndeprecated by Apple since iOS 12"]
+    GL --> V["EAGLView — CAEAGLLayer + EAGLContext\nrenderbuffer at 1× (points), 16-bit depth\npresentRenderbuffer each CADisplayLink tick"]
+    V --> S["Screen — 1× resolution\n(touch points = surface units, by accident)"]
+```
+
+**After v3 — from 3.0.0 (Metal default) and 3.0.2 (OpenGL removed)**
+
+```mermaid
+flowchart TB
+    subgraph game2["Game code (unchanged by v3)"]
+        HF2["dEngine_HostFrame → SCR_RenderFrame\nworld / entities / bullets / FX / menu / HUD"]
+    end
+    HF2 --> T2["renderer_t — the same 24 function pointers"]
+    T2 --> M["renderer_metal.m — 1:1 port of the fixed-pipeline passes\nfixed pipeline emulated in one vertex + one fragment shader (MSL, compiled at launch)\nlighting · GL_LINEAR fog · REPLACE/MODULATE/ADD · blend · depth · cull"]
+    M --> R["Per-frame plumbing\nPSO cache 5 vertex kinds × 3 blends · 3 × 4 MB ring buffer + semaphore\ntexture cache RGBA8 + PVRTC · mid-frame readback for the [cull] probe"]
+    R --> MT["Metal.framework"]
+    MT --> V2["EAGLView (name kept for the nibs) — CAMetalLayer\ndrawable at native scale (×3), depth attachment\nBeginFrame → HostFrame → EndFrame each CADisplayLink tick"]
+    V2 --> S2["Screen — native resolution, 9× the pixels\n(touches scaled by surface / view)"]
+```
+
+What the two pictures share is the point of the whole exercise: the table.
+The Metal backend was written *against* the OpenGL one — the same passes in
+the same order, held to the OpenGL trace's own luma assertions in CI before
+it ever reached a device — which is why the game looks the same and why
+`renderer_fixed.c` could be deleted rather than kept as a fallback.
 
 ---
 

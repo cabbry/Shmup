@@ -147,11 +147,15 @@ void SND_BACKEND_Play(int sndId)
 	if (!SND_AV_Start())
 		return;
 
-	// A retrigger restarts the sound, as replaying an OpenAL source did.
+	// A retrigger restarts the sound, as replaying an OpenAL source did. Done
+	// by INTERRUPTING the buffer in flight, never by stopping the node: on
+	// device (3.1.0) -[AVAudioPlayerNode stop] per shot -- plasma fires every
+	// 83 ms -- stalled the game loop until the render thread answered ("act 2
+	// lags as if the sounds slowed the game") and clicked at every restart.
 	node = gNodes[sndId];
-	[node stop];
-	[node scheduleBuffer:gBuffers[sndId] atTime:nil options:0 completionHandler:nil];
-	[node play];
+	if (!node.isPlaying)
+		[node play];
+	[node scheduleBuffer:gBuffers[sndId] atTime:nil options:AVAudioPlayerNodeBufferInterrupts completionHandler:nil];
 
 	// Audio bench: the same line the OpenAL backend printed -- the smoke's
 	// signature of the sequence is the parity contract.

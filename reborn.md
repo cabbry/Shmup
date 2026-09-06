@@ -114,8 +114,12 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Status
 
-- ✅ Compiles on Xcode 26 (simulator build + signed device archive).
-- ✅ Live on **TestFlight** — runs full-speed on device, sound and gameplay intact.
+- ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
+  ARC; simulator build and signed device archive in CI.
+- ✅ Live on **TestFlight** as **SHMUP Reborn 3.1.x** — Metal renderer at native
+  resolution, AVFoundation audio, full speed on device, iPhone and iPad.
+- ✅ Four acts, a boss, an ending; 2-4 player co-op over LAN and online
+  (device-confirmed at two); leaderboards.
 - ✅ Full-screen: fills tall iPhones with no black edge gaps, HUD anchored to the
   safe area, 2D sprites de-stretched (round sprites are round again).
 
@@ -152,75 +156,96 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Roadmap
 
-### Done — the 2009 wishlist, delivered
+Where the project stands after three major versions, forty-one rounds of
+feedback and 230 TestFlight builds. The version line is: **v1.x** — the 2009
+game finished (four acts, a boss, an ending); **v2** — four-player multiplayer;
+**v3** — the modern stack (Metal, AVFoundation, not one deprecated API left).
 
-- **🎯 Boss fight — ✅ DONE** (Fabien's #1 wish — the thing he ran out of money for
-  in 2009). The long-dormant LOFB is now a real climax, its own **Act IV**: an HP
+### Done — the 2009 wishlist, delivered (v1.x)
+
+- **🎯 Boss fight — ✅** (Fabien's #1 wish — the thing he ran out of money for
+  in 2009). The long-dormant LOFB is a real climax, its own **Act IV**: an HP
   pool with a quad-drawn health bar, an attack ladder that unlocks with damage
   (aimed fans → rotating spray → escort waves → big energy shots → red homing
   seekers → frenzy), **destructible arms** that silence their side, shoot-downable
   homing missiles, and a **mega-laser** with a readable charge-up telegraph. The
   `boss.png` card announces it at last, and finishing it ends the game for real
   (MISSION COMPLETE card, rank D→S). Player-tested over ~18 rounds of feedback.
-- **A new level — ✅ DONE: Act III, "夕 -Dusk"**, inserted before the boss act.
-  Its own title card, a dusk sky with stars and crossing meteors, three phases of
+- **A new level — ✅ Act III, "夕 -Dusk"**, inserted before the boss act. Its own
+  title card, a dusk sky with stars and crossing meteors, three phases of
   mixed-type waves the original acts never ran, the resurrection of **"le Devil"**
   (`ENEMY_HAB` — modeled and coded by Fabien in 2009, never once spawned by any
   shipped scene) in three costumes with three weapons, and a storm-lit cameo of
   the Act IV boss crossing the sky. Declared **frozen** by the tester after
   round 30: *"Pour moi l'act 3 est ok. On n'y touche plus."*
-- **TTB system — ✅ DONE, and shipped as content** (homage to the manga *Tokyo Toy
-  Box*): mid-level, the camera swings **90° from top-down to a true side view**
-  for thirty seconds — the vertical shooter becomes a side-scroller, enemies,
-  bullets and the ship itself all re-reading correctly — then swings back. The
-  full journey (a naive roll, the corridor orbit, the ship's profile blend, the
-  side-view sky, per-view wave authoring) is rounds 19-31 of the changelog.
-- **Online multiplayer (GKMatch) — ✅ DONE** and listed under features; LAN co-op
-  additionally gained the **second-chance rule** (round 31).
+- **TTB system — ✅ shipped as content** (homage to the manga *Tokyo Toy Box*):
+  mid-level, the camera swings **90° from top-down to a true side view** for
+  thirty seconds — the vertical shooter becomes a side-scroller, enemies,
+  bullets and the ship itself all re-reading correctly — then swings back.
+  Rounds 19-31 of the changelog.
+- **Online multiplayer (GKMatch) — ✅**, LAN co-op with the **second-chance
+  rule** (round 31), leaderboards, a pause that survives backgrounding with a
+  3-2-1 countdown, full-screen on tall phones, 1:1 finger tracking.
+
+### Done — v2, four-player multiplayer (rounds 25-34)
+
+- **The netcode rebuilt for four**: seats (0..3) on both GameKit and the LAN, a
+  counting-barrier handshake, per-seat sequence/liveness state, a mid-match drop
+  that parks the ship and lets the match continue, **host migration** (the
+  lowest active seat leads, on every peer at once), **host-ruled deaths** (one
+  order, one pool, one survivor on every screen), remote-ship de-jitter with
+  the resync in wire order and a half-RTT clock alignment at the online GO.
+- **The game at four**: a staggered two-row formation, a shared pool of N×3
+  lives and ONE team score, four named ships (Falcon, Viper, the resurrected
+  Phoenix, the translucent Ghost) with four bullet colours and a Custom screen
+  that previews the pick on the menu stage, a party-size picker and a LAN
+  roster that seats four, `Game Solo` / `Game Multi` menus, a shared HUD.
+- **Proven**: `tools/netrig` runs four real network stacks in one process
+  (229 checks, 14 scenarios, mutants) and found ten defects, three of them
+  from 2010; **device-confirmed at two players, LAN and online**, act
+  transitions and all. Still owed a four-device session (rig-proven at four).
+
+### Done — v3, the modern stack (rounds 35-40)
+
+- **Warnings to zero, `-Werror` on**; ARC across the Objective-C layer; the
+  64-bit truncations made explicit. Two 2009 bugs fell out of the pass.
+- **Metal** replaces OpenGL ES 1.1 (round 35-37): a 1:1 port of the fixed
+  pipeline behind the renderer's 24-function table, held in CI to the OpenGL
+  trace's own luma contract before it ever met a device, then confirmed on
+  hardware — identical, sharper (native resolution). The OpenGL renderers,
+  EAGL and their 511 deprecation sites are gone.
+- **AVFoundation** replaces OpenAL and AudioQueue (round 40): effects on
+  AVAudioEngine, soundtrack on AVAudioPlayer, held to the engine's own sound
+  trace — identical event sequence, music at wall rate. **The project has no
+  deprecated API left.**
+- **The camera and the benches**: screenshots of any scene at chosen instants,
+  a menu opener and a scroll preset for the camera, an audio trace with a
+  deterministic signature, the Metal smoke with the parity contract. A
+  regression can now be seen or heard in CI before it reaches a tester.
+
+### Done — the 3.1 polish (rounds 38-41)
+
+- Ink-brush menu buttons chosen from four proposals; centered text really
+  centered (a half-glyph bias since 2009); the tutorial's BACK no longer over
+  the title card; a black launch screen; the credits with brush separators, a
+  third tester and a **scrolling roll** with a position thumb.
 
 ### Open
 
-- **Enemy / boss scripting** (Fabien's suggestion): the `.scene` event format is
-  declarative (spawn timelines); reactive behaviour still lives in C (the boss
-  ladder is hardcoded in `lofb.c`, the Devil's weapons in `enemy.c`). If a
-  second boss or community levels ever happen, evaluate the lightest thing that
-  works — conditional triggers in the event system vs. a small VM/Lua.
-- **Gameplay videos on YouTube** (Fabien's suggestion): record short progress
-  videos (solo run, the Act III TTB beat, 2-player LAN, online match) so people
-  can see the project evolve. With all four acts now playable end to end, this
-  is mostly a recording session away.
-- **App Store release?** The game is feature-complete: four acts, a boss, an
-  ending, online multiplayer, leaderboards. Invitations are now handled in code
-  too (v2 added the accept-an-invite listener — the matchmaker could always
-  *send* one, but nothing was listening, so tapping Play did nothing), though
-  iMessage invites and SharePlay only light up once the app is on the App Store.
-- **🚀 v2 — 3-4 player multiplayer** (the next major version) — **on TestFlight
-  (v2.0.8), 2-player LAN AND online device-confirmed, act transitions
-  included** (rounds 32-34): the transport speaks SEATS (0..N-1, seat 0 hosts)
-  on both GameKit and the LAN, the
-  handshake is a counting barrier, per-seat sequence/liveness state replaces
-  every "the peer" scalar, a mid-match drop parks that ship and the match
-  continues, `MAX_NUM_PLAYERS` is 4 with a staggered 2-row formation, a shared
-  pool of N×3 lives, ONE team score, 4 named ships (Falcon, Viper, the
-  resurrected Phoenix, the translucent Ghost), a LAN roster that seats a party
-  of four, a party-size picker, and a Custom screen
-  that previews the picked ship on the menu stage, remote-ship de-jitter with
-  the ABS resync in wire order, and a half-RTT clock alignment at the online
-  GO, host migration (the lowest active seat leads, on every peer at once),
-  and host-ruled deaths (one order, one pool, one survivor on every screen).
-  Needs: a 4-device session -- everything above is rig-proven at four,
-  device-proven at two.
-- **🚀 v3 — the graphics overhaul** — **done, merged into master 2026-09-06
-  (rounds 35-38; build 225 "tout est ok")**: stage 1 ✅ every warning fixed or explicitly retired per
-  file, the project builds with `-Werror`; stage 2 ✅ ARC, a modern launch
-  screen, the 64-bit truncations made explicit; stage 3 ✅ the **Metal
-  backend** is the renderer — a 1:1 port of the fixed-pipeline passes with
-  the pipeline emulated in shaders, device-confirmed on v3.0.1 (build 223:
-  identical to 2.0.9, sharper, one accepted fade under the act title) — and
-  the OpenGL ES 1.1 and 2.0 renderers, EAGL and the OpenGLES framework are
-  **retired** (round 37), with the 511 deprecation sites they carried. What
-  remains deprecated is audio only (OpenAL, AudioQueue), pragma'd per file.
-  Shipped as 3.0.2 (OpenGL-free) and 3.0.3 (title, ink buttons, centered text).
+- **A four-device session** for v2: everything is rig-proven at four,
+  device-proven at two. Needs hardware and four hands.
+- **Enemy / boss scripting** (Fabien's suggestion): the `.scene` event format
+  is declarative (spawn timelines); reactive behaviour still lives in C (the
+  boss ladder in `lofb.c`, the Devil's weapons in `enemy.c`). If a second boss
+  or community levels ever happen, evaluate the lightest thing that works —
+  conditional triggers in the event system vs. a small VM/Lua.
+- **Gameplay videos on YouTube** (Fabien's suggestion): the four acts, the Act
+  III side-view beat, a LAN match, an online match. A recording session away.
+- **App Store release?** Feature-complete, modern stack, nothing deprecated.
+  iMessage invites and SharePlay only light up once the app is on the store.
+- **Small things**: the accepted fade under the act title card on Metal; the
+  menu buttons touching the screen edges on iPad; the two cosmetic notes under
+  *Known issues*.
 
 ---
 

@@ -13,7 +13,7 @@ on:
         required: false
         default: "13"
       seconds:
-        description: "comma-separated seconds after launch at which to take a frame"
+        description: "comma-separated seconds after launch at which to take a frame (decimals ok)"
         required: false
         default: "2,4,7,10,15,25"
       env:
@@ -79,10 +79,11 @@ jobs:
           echo "launching scene $SCENE with: $ENVS"
           # shellcheck disable=SC2086
           nohup env $ENVS xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$RUNNER_TEMP/app.log" 2>&1 &
-          T0=$(date +%s)
+          T0=$(perl -MTime::HiRes=time -e 'printf "%.1f", time')
           for s in $(echo "$SECONDS_LIST" | tr ',' ' '); do
-            while [ $(( $(date +%s) - T0 )) -lt "$s" ]; do sleep 0.2; done
-            xcrun simctl io "$UDID" screenshot "shots/scene${SCENE}_t$(printf %03d "$s")s.png" || true
+            # decimals allowed ("0.8,1.1,1.4"): a title card lasts about a second
+            while perl -MTime::HiRes=time -e "exit(time - $T0 < $s ? 0 : 1)"; do sleep 0.05; done
+            xcrun simctl io "$UDID" screenshot "shots/scene${SCENE}_t$(printf %05.1f "$s")s.png" || true
             echo "frame at ${s}s"
           done
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true

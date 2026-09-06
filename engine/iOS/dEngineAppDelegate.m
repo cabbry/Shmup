@@ -49,6 +49,18 @@ static BOOL     gMatchStarted = NO;
 
 
 
+// v3: the root view controller. It exists for ONE reason -- the status bar.
+// -[UIApplication setStatusBarHidden:] has been deprecated since iOS 9 in
+// favour of the view controller saying so itself; the plist's UIStatusBarHidden
+// alone is ignored while UIViewControllerBasedStatusBarAppearance (default YES)
+// is in force. This is the same full-screen game, minus the deprecated call.
+@interface ShmupRootViewController : UIViewController
+@end
+@implementation ShmupRootViewController
+- (BOOL)prefersStatusBarHidden { return YES; }
+- (UIStatusBarAnimation)preferredStatusBarUpdateAnimation { return UIStatusBarAnimationNone; }
+@end
+
 @implementation dEngineAppDelegate
 
 @synthesize window;
@@ -57,7 +69,7 @@ static BOOL     gMatchStarted = NO;
 
 - (void) stopEngineActivity
 {
-	Native_UploadScore(players[controlledPlayer].score);
+	Native_UploadScore(P_GetDisplayScore());	// v2 P3: team score in MP
 	dEngine_Pause();
 	[glView stopAnimation];
 }
@@ -65,12 +77,11 @@ static BOOL     gMatchStarted = NO;
 - (void) applicationDidFinishLaunching:(UIApplication *)application
 {
 	NSLog(@"applicationDidFinishLaunching");
-	[[UIApplication sharedApplication] setStatusBarHidden:YES];
 	[UIApplication sharedApplication].idleTimerDisabled = YES;
 
     if (vc == nil)
     {
-        vc = [UIViewController new];
+        vc = [ShmupRootViewController new];	// v3: hides the status bar the non-deprecated way
 
     }
     [self.window setRootViewController:vc];
@@ -83,6 +94,13 @@ static BOOL     gMatchStarted = NO;
             [vc presentViewController:gcVC animated:YES completion:nil];
         } else if ([GKLocalPlayer local].isAuthenticated) {
             NSLog(@"[GameCenter] authenticated as %@", [GKLocalPlayer local].displayName);
+            // v2 P4: listen for invitations. Without this an invited player
+            // taps "Play" in Game Center / iMessage and NOTHING happens --
+            // and inviting three friends is the natural way to fill a party
+            // of four. The listener has to be registered after auth, and only
+            // once (registering twice delivers every callback twice).
+            [[GKLocalPlayer local] unregisterAllListeners];
+            [[GKLocalPlayer local] registerListener:this];
         } else {
             NSLog(@"[GameCenter] not authenticated: %@", error);
         }
@@ -155,11 +173,6 @@ static BOOL     gMatchStarted = NO;
 	printf("*****************************************************\n");
 }
 
-- (void)dealloc {
-	[window release];
-	[glView release];
-	[super dealloc];
-}
 
 // Dismiss the Game Center leaderboard sheet when the player taps Done.
 - (void)gameCenterViewControllerDidFinish:(GKGameCenterViewController *)gameCenterViewController {
@@ -175,8 +188,7 @@ static BOOL     gMatchStarted = NO;
 - (void)matchmakerViewController:(GKMatchmakerViewController *)viewController didFindMatch:(GKMatch *)match {
 	[viewController dismissViewControllerAnimated:YES completion:nil];
 	if (gMatch != match) {
-		[gMatch release];
-		gMatch = [match retain];
+		// (ARC: the assignment below releases the old match)		gMatch = match;
 	}
 	gMatch.delegate = this;
 	[self tryStartMatch];
@@ -194,41 +206,105 @@ static BOOL     gMatchStarted = NO;
 	NET_AbortOnlineMatch();
 }
 
+#pragma mark - GKLocalPlayerListener (invitations)
+
+// A friend invited us and the player accepted (from Game Center, iMessage, or a
+// notification). v2 P4: this is what makes an invitation actually do something.
+// The engine has to be put into multiplayer mode here exactly as the Online
+// menu button does, because we are arriving from outside the menu flow -- then
+// Apple's matchmaker takes over with the invite's own party size.
+- (void)player:(GKPlayer *)player didAcceptInvite:(GKInvite *)invite {
+	if (!this || !vc) return;
+
+	Native_CancelOnlineMatchmaking();		// drop any stale match first
+
+	engine.mode = DE_MODE_MULTIPLAYER;
+	NET_Init();
+	net.transport = NET_TRANSPORT_GAMECENTER;
+	PL_ResetPlayersScore();
+	engine.difficultyLevel = DIFFICULTY_NORMAL;
+	MENU_Set(MENU_MULTIPLAYER);
+	sprintf(MENU_GetMultiplayerTextLine(0), "Joining a friend's game...");
+
+	GKMatchmakerViewController* mmvc = [[GKMatchmakerViewController alloc] initWithInvite:invite];
+	if (mmvc == nil) {
+		NET_AbortOnlineMatch();
+		return;
+	}
+	mmvc.matchmakerDelegate = this;
+	[vc presentViewController:mmvc animated:YES completion:nil];
+}
+
+// v2 P1: the seat table. Every participant's gamePlayerID, sorted ascending;
+// the index in that order IS the seat (seat 0 hosts). Every device computes
+// the identical table without negotiation -- the N-player generalization of
+// the old "lowest id wins SERVER" pairwise compare, bit-identical to it at 2.
+static NSArray<NSString*>*      gSeatIds = nil;			// seat -> gamePlayerID
+static NSDictionary<NSString*, NSNumber*>* gSeatByPlayer = nil;	// gamePlayerID -> seat
+
+static void GKSeats_Clear(void) {
+	gSeatIds = nil;
+	gSeatByPlayer = nil;
+}
+
 // A peer connected or dropped.
 - (void)match:(GKMatch *)match player:(GKPlayer *)player didChangeConnectionState:(GKPlayerConnectionState)state {
 	if (match != gMatch) return;
 	if (state == GKPlayerStateDisconnected) {
-		gMatchStarted = NO;
-		if (NET_IsRunning())
-			NET_OnPeerLost();		// mid-match: clean scene reset + "other player left" notice
-		else
+		gMatchStarted = NO;			// this match will never re-arm by itself
+		// NET_IsInMatch, not NET_IsRunning: between two acts the state drops
+		// back to NET_STARTED, and the abort path below frees the session
+		// without reloading the menu scene -- the abandoned act would keep
+		// simulating behind the menu.
+		if (NET_IsInMatch()) {
+			// v2 P2: mid-match a single drop parks that seat and the match
+			// continues; the engine falls back to the full "connection lost"
+			// teardown by itself when the LAST remote seat goes.
+			NSNumber* n = [gSeatByPlayer objectForKey:player.gamePlayerID];
+			if (n != nil)
+				NET_OnSeatLost([n intValue]);
+			else
+				NET_OnPeerLost();	// unknown sender: not our table, bail out clean
+		} else {
 			NET_AbortOnlineMatch();	// still matchmaking: just back out to the menu
+		}
 		return;
 	}
 	[self tryStartMatch];
 }
 
-// A packet arrived from the peer: hand the raw bytes straight to the engine.
+// A packet arrived from a peer: attribute it to its seat, then hand the raw
+// bytes to the engine. An unknown sender maps to -1 and the engine drops it.
 - (void)match:(GKMatch *)match didReceiveData:(NSData *)data fromRemotePlayer:(GKPlayer *)player {
 	if (match != gMatch) return;
-	NET_OnNetworkData(data.bytes, (int)data.length);
+	int seat = -1;
+	NSNumber* n = [gSeatByPlayer objectForKey:player.gamePlayerID];
+	if (n != nil) seat = [n intValue];
+	NET_OnNetworkDataFrom(seat, data.bytes, (int)data.length);
 }
 
-// Elect a deterministic role and start exactly once, after every expected player
-// is connected. Both ends run the same comparison (lowest gamePlayerID wins the
-// SERVER seat), so they agree on who is Player One without any negotiation.
+// Build the seat table and start exactly once, after every expected player is
+// connected (expectedPlayerCount == 0 is already N-safe).
 - (void)tryStartMatch {
 	if (gMatchStarted || gMatch == nil) return;
-	if (gMatch.expectedPlayerCount != 0) return;	// still waiting for the peer
+	if (gMatch.expectedPlayerCount != 0) return;	// still waiting for peers
 
 	NSString* myId = [GKLocalPlayer local].gamePlayerID;
-	NSString* peerId = nil;
-	for (GKPlayer* p in gMatch.players) { peerId = p.gamePlayerID; break; }	// 2-player: a single peer
+	NSMutableArray<NSString*>* ids = [NSMutableArray arrayWithObject:myId];
+	for (GKPlayer* p in gMatch.players)
+		[ids addObject:p.gamePlayerID];
+	[ids sortUsingSelector:@selector(compare:)];
 
-	BOOL isServer = (peerId == nil) || ([myId compare:peerId] == NSOrderedAscending);
+	NSMutableDictionary<NSString*, NSNumber*>* bySeat = [NSMutableDictionary dictionaryWithCapacity:ids.count];
+	for (NSUInteger s = 0; s < ids.count; s++)
+		[bySeat setObject:[NSNumber numberWithInt:(int)s] forKey:[ids objectAtIndex:s]];
+
+	GKSeats_Clear();
+	gSeatIds = [ids copy];					// MRC: owned
+	gSeatByPlayer = [bySeat copy];			// MRC: owned
 
 	gMatchStarted = YES;
-	NET_StartOnlineMatch(isServer ? 1 : 0);
+	NET_StartOnlineMatch((int)[ids indexOfObject:myId], (int)ids.count);
 }
 
 @end
@@ -254,6 +330,14 @@ static BOOL     gMatchStarted = NO;
  real in EAGLView.m -- it uses NSFileManager and needs no modernization.
 */
 
+// v2: menu localization -- French menus when the user's preferred language is
+// French. One read; the menu is built once.
+int Native_IsFrenchLanguage(void) {
+	NSArray<NSString*>* langs = [NSLocale preferredLanguages];
+	if (langs.count == 0) return 0;
+	return [langs[0] hasPrefix:@"fr"] ? 1 : 0;
+}
+
 void Native_UploadScore(uint score) {
 	if (![GKLocalPlayer local].isAuthenticated)
 		return;
@@ -273,18 +357,13 @@ void Action_ShowGameCenter(void* tag) {
 	if (!this || !vc) return;
 	if (![GKLocalPlayer local].isAuthenticated) return;
 
-	GKGameCenterViewController* gcvc;
-	if (@available(iOS 14.0, *)) {
-		gcvc = [[GKGameCenterViewController alloc] initWithLeaderboardID:@"shmup.highscores"
-		                                                    playerScope:GKLeaderboardPlayerScopeGlobal
-		                                                      timeScope:GKLeaderboardTimeScopeAllTime];
-	} else {
-		gcvc = [[GKGameCenterViewController alloc] init];
-		gcvc.viewState = GKGameCenterViewControllerStateLeaderboards;
-	}
+	// v3: the deployment target is iOS 15, so the pre-14 viewState branch was
+	// dead code -- and deprecated. The iOS 14 initializer stands alone.
+	GKGameCenterViewController* gcvc = [[GKGameCenterViewController alloc] initWithLeaderboardID:@"shmup.highscores"
+	                                                                                 playerScope:GKLeaderboardPlayerScopeGlobal
+	                                                                                   timeScope:GKLeaderboardTimeScopeAllTime];
 	gcvc.gameCenterDelegate = this;
 	[vc presentViewController:gcvc animated:YES completion:nil];
-	[gcvc release];
 }
 void Native_UploadFileTo(char path[256]) {}
 
@@ -307,8 +386,11 @@ void Native_SaveProgress(int highestAct) {
 
 #pragma mark - Online multiplayer bridge (engine -> GameKit)
 
-// Present Apple's matchmaker UI (invite a friend, or auto-match an opponent).
-void Native_StartOnlineMatchmaking(void) {
+// Present Apple's matchmaker UI (invite friends, or auto-match).
+// v2 P4: partySize is the EXACT size picked in the menu (2/3/4): min == max,
+// so the match only starts once precisely that many players are connected --
+// and NET_StartOnlineMatch derives the seat table from the full roster.
+void Native_StartOnlineMatchmaking(int partySize) {
 	if (!this || !vc) return;
 	if (![GKLocalPlayer local].isAuthenticated) {
 		// Not signed into Game Center: cannot matchmake -- bounce back to the menu.
@@ -318,22 +400,22 @@ void Native_StartOnlineMatchmaking(void) {
 
 	Native_CancelOnlineMatchmaking();	// drop any stale match first
 
+	if (partySize < 2) partySize = 2;
+	if (partySize > MAX_NUM_PLAYERS) partySize = MAX_NUM_PLAYERS;
+
 	GKMatchRequest* req = [[GKMatchRequest alloc] init];
-	req.minPlayers = 2;
-	req.maxPlayers = 2;
+	req.minPlayers = partySize;
+	req.maxPlayers = partySize;
 
 	GKMatchmakerViewController* mmvc = [[GKMatchmakerViewController alloc] initWithMatchRequest:req];
 	if (mmvc == nil) {
 		// Matchmaking unavailable (e.g. Game Center restricted): back out cleanly.
-		[req release];
 		NET_AbortOnlineMatch();
 		return;
 	}
 	mmvc.matchmakerDelegate = this;
 	[vc presentViewController:mmvc animated:YES completion:nil];
 
-	[mmvc release];
-	[req release];
 }
 
 // Tear down the live match (also called from NET_Free when an online session ends).
@@ -341,9 +423,9 @@ void Native_CancelOnlineMatchmaking(void) {
 	GKMatch* m = gMatch;
 	gMatch = nil;				// nil first so re-entrant delegate callbacks bail out
 	gMatchStarted = NO;
+	GKSeats_Clear();			// v2 P1: the seat table dies with the match
 	m.delegate = nil;
 	[m disconnect];
-	[m release];
 }
 
 // Send a packet to the peer. Setup/death packets go reliable; per-frame runtime

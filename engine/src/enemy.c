@@ -38,6 +38,7 @@
 #include "shab.h"
 #include "fht.h"
 #include "tha.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 //Warning this matrix is declared as row major: <-- Shit !! This line was actually useful 4 month later !!!! You are good fab !!!
 /*
@@ -328,14 +329,32 @@ void ENE_Update(void)
 			// view space on top, so spinners keep spinning face-on.
 			{
 				static matrix_t ttbEnemyBlend;
+				static matrix_t ttbEnemyBlend34;
 				static int      ttbBlendStamp = -1;
+				static int      ttbSideways = 0;
 				// one build per frame, shared by every enemy
 				if (ttbBlendStamp != simulationTime)
 				{
+					float qx = 0, qy = -1;
 					CAM_GetTTBBlend(ttbEnemyBlend, 0.0f);
+					// flat discs (turret, Devil) hold a 3/4 pose: their full
+					// profile is a blade nobody recognizes on device
+					CAM_GetTTBBlendCapped(ttbEnemyBlend34, 0.0f, 0.62f);
+					CAM_TTBRotateSS(&qx, &qy);
+					ttbSideways = (qx < -0.707f || qx > 0.707f);
 					ttbBlendStamp = simulationTime;
 				}
-				matrix_multiply(eulerMatrix, ttbEnemyBlend, tmp);
+				if (enemy->type == ENEMY_FHT && ttbSideways)
+					// blend FIRST, spin after: the FHT's yAxisRot lands on
+					// its own tilted disc axis -- the spikes wheel inside a
+					// fixed 3/4 ellipse instead of cartwheeling the picture
+					// (spinning the projected image read as loopings on
+					// device the moment any of the face showed)
+					matrix_multiply(ttbEnemyBlend34, eulerMatrix, tmp);
+				else if (enemy->type == ENEMY_SHAB || enemy->type == ENEMY_HAB || enemy->type == ENEMY_FHT)
+					matrix_multiply(eulerMatrix, ttbEnemyBlend34, tmp);
+				else
+					matrix_multiply(eulerMatrix, ttbEnemyBlend, tmp);
 			}
 			matrix_multiply(cameraInvRot,tmp,entity->matrix);
 				
@@ -366,34 +385,165 @@ void ENE_Update(void)
 
 #define DEVIL_TTR  700.0f
 #define DEVIL_TIME_ONSCREEN (DEVIL_TTR + 4000)
+// THE DEVIL'S ARMORY (2026). The enemy particle pool renders in the same
+// pass as the player's bullets, with the player's bullet ATLAS bound
+// (renderer_fixed.c: SetTextureF(bulletConfig.bulletTexture)) -- so a Devil
+// can fire SHAB's red ball, THA's teardrop, or even steal the player's own
+// yellow shot with nothing but texture coordinates. 128x128 atlas cells:
+#define DEVIL_RED_U      (80/128.0f*SHRT_MAX)	// SHAB's classic red ball, 16x16
+#define DEVIL_RED_V      (0/128.0f*SHRT_MAX)
+#define DEVIL_RED_W      (16/128.0f*SHRT_MAX)
+#define DEVIL_RED_H      (16/128.0f*SHRT_MAX)
+#define DEVIL_THA_U      (16/128.0f*SHRT_MAX)	// THA's teardrop, 16x32, row 0
+#define DEVIL_THA_V      (0/128.0f*SHRT_MAX)
+#define DEVIL_THA_W      (16/128.0f*SHRT_MAX)
+#define DEVIL_THA_H      (32/128.0f*SHRT_MAX)
+#define DEVIL_YELLOW_U   (48/128.0f*SHRT_MAX)	// the player's bullet, colour column 3
+#define DEVIL_YELLOW_V   (0/128.0f*SHRT_MAX)
+#define DEVIL_YELLOW_W   (16/128.0f*SHRT_MAX)
+#define DEVIL_YELLOW_H   (32/128.0f*SHRT_MAX)
+
+#define DEVIL_BULLET_TTL   2600
+#define DEVIL_BULLET_SIZE  0.055f
+
+// One Devil bullet. offX/offY (ss units) displace the muzzle from the hull,
+// dirX/dirY is the authored direction, speed = screens travelled over a ttl.
+// Both the offset and the velocity rotate with the TTB beat, like every
+// authored (non-aimed) enemy pattern in the act.
+static void emitDevilBullet(enemy_t* enemy, float offX, float offY,
+                            float dirX, float dirY, float speed,
+                            float u, float v, float w, float h)
+{
+	enemy_part_t* bullet;
+	float ox = offX * SS_H;
+	float oy = offY * SS_H;
+	float vx = dirX * speed * SS_H;
+	float vy = dirY * speed * SS_H;
+	float cx, cy;
+
+	CAM_TTBRotateSS(&ox, &oy);
+	CAM_TTBRotateSS(&vx, &vy);
+
+	cx = enemy->ss_position[X] * SS_W + ox;
+	cy = enemy->ss_position[Y] * SS_H + oy;
+
+	bullet = ENPAR_GetNextParticule();
+	bullet->ttl = DEVIL_BULLET_TTL;
+	bullet->originalTTL = DEVIL_BULLET_TTL;
+
+	bullet->ss_boudaries[UP]    = bullet->ss_starting_boudaries[UP]    = cy + DEVIL_BULLET_SIZE/2 * SS_H / gVScale;
+	bullet->ss_boudaries[DOWN]  = bullet->ss_starting_boudaries[DOWN]  = cy - DEVIL_BULLET_SIZE/2 * SS_H / gVScale;
+	bullet->ss_boudaries[LEFT]  = bullet->ss_starting_boudaries[LEFT]  = cx - DEVIL_BULLET_SIZE/2 * SS_H;
+	bullet->ss_boudaries[RIGHT] = bullet->ss_starting_boudaries[RIGHT] = cx + DEVIL_BULLET_SIZE/2 * SS_H;
+
+	// 0 3
+	// 1 2
+	bullet->text[0][U] = u;      bullet->text[0][V] = v;
+	bullet->text[1][U] = u;      bullet->text[1][V] = v + h;
+	bullet->text[2][U] = u + w;  bullet->text[2][V] = v + h;
+	bullet->text[3][U] = u + w;  bullet->text[3][V] = v;
+
+	bullet->posDiff[X] = vx;
+	bullet->posDiff[Y] = vy;
+}
+
 void updateHAB(enemy_t* enemy)
 {
 	float f;
+	int costume = (int)enemy->parameters[PARAMETER_HAB_COSTUME];
+
+	// Device verdict on 1.6.5: the GHOST is too transparent -- "on ne le
+	// voit a peine". Make it SHIMMER: the veil breathes between a readable
+	// haze and a bright spectral flash (~every 1.3s) -- pure function of
+	// simulationTime, lockstep-safe. Runs from the first frame of the
+	// barrel-roll in, so the eye catches it entering. The anthracite keeps
+	// its static stealth coat: that one read fine on device.
+	if (costume == 2)
+	{
+		float s = 0.5f + 0.5f * sinf(simulationTime * 0.005f);
+		s = s * s;
+		enemy->entity.color[A] = 0.42f + s * 0.33f;
+	}
+
 	if (enemy->timeCounter < DEVIL_TTR)
 	{
-		
+
 		f = enemy->timeCounter / DEVIL_TTR ;
-	
+
 		f= MIN(f,1);
-	
+
 		enemy->ss_position[X] = enemy->spawn_startPosition[X] + f*(enemy->spawn_endPosition[X] - enemy->spawn_startPosition[X]);
 		enemy->ss_position[Y] = enemy->spawn_startPosition[Y] + f*(enemy->spawn_endPosition[Y] - enemy->spawn_startPosition[Y]);
-	
+
 		//As a devil is seen from above, the roll is actually a rotatiom around Y.
 		enemy->entity.zAxisRot = (1-f)*enemy->entity.zAxisRot;
-	
-		
+
+
 		return;
 	}
-	
-	
-	
-	
+
+
+
+
 	//ON screen and battle
 	enemy->entity.zAxisRot = 0 ;
-	
-	
-	
+
+	// The costume picks the weapon (stashed by event.c). Silent during the
+	// barrel-rolls; the guns run only while parked.
+	if (enemy->timeCounter < DEVIL_TIME_ONSCREEN)
+	{
+		switch (costume) {
+		case 1:
+			// ANTHRACITE -- THE LASSO: a dense stream of THA teardrops
+			// whose aim swings like a whip (+-31 degrees around straight
+			// ahead, ~1.4s period); in flight the chain of bullets reads
+			// as one undulating rope.
+			if (simulationTime - enemy->lastTimeFired >= 130)
+			{
+				float ang = -M_PI/2 + 0.55f * sinf(enemy->timeCounter * 0.0045f);
+				emitDevilBullet(enemy, 0, 0, cosf(ang), sinf(ang), 1.6f,
+				                DEVIL_THA_U, DEVIL_THA_V, DEVIL_THA_W, DEVIL_THA_H);
+				enemy->lastTimeFired = simulationTime;
+			}
+			break;
+
+		case 2:
+			// GHOST -- THE RIPPLES: a ring of the player's own yellow
+			// bullets expands from the hull, like a stone dropped in
+			// water. Device verdict on 198: 1.4s / 0.75 was too tame --
+			// now ~5 waves over the 4s window and faster fronts.
+			if (simulationTime - enemy->lastTimeFired >= 850)
+			{
+				int i;
+				for (i = 0; i < 14; i++)
+				{
+					float ang = i * (2*M_PI/14);
+					emitDevilBullet(enemy, 0, 0, cosf(ang), sinf(ang), 1.15f,
+					                DEVIL_YELLOW_U, DEVIL_YELLOW_V, DEVIL_YELLOW_W, DEVIL_YELLOW_H);
+				}
+				enemy->lastTimeFired = simulationTime;
+			}
+			break;
+
+		default:
+			// ORIGINAL -- THE TRIDENT: three continuous straight streams
+			// of classic red balls, one per prong.
+			if (simulationTime - enemy->lastTimeFired >= 210)
+			{
+				emitDevilBullet(enemy, -0.10f, -0.04f, 0, -1, 2.0f,
+				                DEVIL_RED_U, DEVIL_RED_V, DEVIL_RED_W, DEVIL_RED_H);
+				emitDevilBullet(enemy,  0.00f, -0.07f, 0, -1, 2.0f,
+				                DEVIL_RED_U, DEVIL_RED_V, DEVIL_RED_W, DEVIL_RED_H);
+				emitDevilBullet(enemy,  0.10f, -0.04f, 0, -1, 2.0f,
+				                DEVIL_RED_U, DEVIL_RED_V, DEVIL_RED_W, DEVIL_RED_H);
+				enemy->lastTimeFired = simulationTime;
+			}
+			break;
+		}
+	}
+
+
+
 	if (enemy->timeCounter > DEVIL_TIME_ONSCREEN)
 	{
 		f = (enemy->timeCounter - DEVIL_TIME_ONSCREEN) / DEVIL_TTR ;

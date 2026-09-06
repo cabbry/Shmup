@@ -33,8 +33,8 @@
  extern "C" {
  #endif
 
-#define GL_11_RENDERER 0
-#define GL_20_RENDERER 1
+// 0 and 1 were the OpenGL ES 1.1 and 2.0 backends, retired in v3 (round 37).
+#define METAL_RENDERER 2	// v3: the Metal backend (engine/iOS/renderer_metal.m)
 
 // The following defines are used in order to test a bitvector for supported texture compression formats
 #define TEXTURE_FORMAT_PNG    0

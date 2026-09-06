@@ -43,7 +43,7 @@ typedef struct button_t
 	touch_t* touch;
 	vec2short_t textPos;
 	
-	char* text;
+	const char* text;	// v3: a label we point at, never write
 	float font_size;
 	buttonAction action;
 	buttonUpdate update;
@@ -74,14 +74,14 @@ typedef struct menu_screen_t
 {
 	
 	
-	char numTexts;
+	uchar numTexts;
 	menu_text_t texts[MAX_NUM_MENU_TEXTS];
 	
-	char numButtons;
+	uchar numButtons;
 	menu_button_t buttons[MAX_NUM_MENU_BUTTONS];
 	touch_t touches[MAX_NUM_MENU_BUTTONS];
 	
-	char numImages;
+	uchar numImages;
 	menu_image_t images[MAX_NUM_MENU_IMAGES];
 	
 	float alpha;
@@ -99,6 +99,8 @@ typedef struct menu_screen_t
 #define MENU_SELECT_DIFFICULTY 7
 #define MENU_SELECT_SHIP 8
 #define MENU_SELECT_ACT 9
+#define MENU_ONLINE_SIZE 10	// v2 P4: pick the party size (2/3/4)
+#define MENU_MULTI_MODE 11	// v2: Game Multi -> Local / Online / Back
 
 void MENU_Init(void);
 void MENU_Set(signed char menuId);

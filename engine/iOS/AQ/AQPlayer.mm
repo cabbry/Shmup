@@ -48,6 +48,11 @@ Copyright (C) 2009 Apple Inc. All Rights Reserved.
 */
 
 
+// v3: every call into this API is deprecated by Apple, and every one of them goes when
+// the audio backend leaves AudioQueue (a later stage). Until then the noise is silenced HERE, explicitly, so that any NEW
+// deprecation elsewhere in the project still shows up in the audit.
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 #include "AQPlayer.h"
 #include "AudioToolbox/AudioFile.h"
 
@@ -65,7 +70,7 @@ void AQPlayer::AQBufferCallback(void *					inUserData,
 	UInt32 nPackets = THIS->GetNumPacketsToRead();
 	OSStatus result = AudioFileReadPackets(THIS->GetAudioFileID(), false, &numBytes, inCompleteAQBuffer->mPacketDescriptions, THIS->GetCurrentPacket(), &nPackets, inCompleteAQBuffer->mAudioData);
 	if (result)
-		printf("AudioFileReadPackets failed: %ld", result);
+		printf("AudioFileReadPackets failed: %d", (int)result);
 	if (nPackets > 0) {
 		inCompleteAQBuffer->mAudioDataByteSize = numBytes;		
 		inCompleteAQBuffer->mPacketDescriptionCount = nPackets;		

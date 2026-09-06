@@ -42,6 +42,7 @@
 #include "event.h"
 #include "native_services.h"
 #include "enemy_particules.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 // Reused engine services with no public prototype.
 extern void emitSHABBullet(enemy_t* enemy, float angle);	// shab.c: one enemy bullet at an angle
@@ -915,7 +916,7 @@ void LOFB_OnBossDeath(enemy_t* enemy)
 	// mopping up escorts during the victory lap don't count anymore.
 	for (i = 0; i < numPlayers; i++)
 		players[i].score += (LOFB_VICTORY_BONUS << engine.difficultyLevel);
-	Native_UploadScore(players[controlledPlayer].score);
+	Native_UploadScore(P_GetDisplayScore());	// v2 P3: team score in MP
 	gScoreLocked = 1;
 
 	// End-of-act choreography, same as the other acts: the ships fly to their

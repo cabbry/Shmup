@@ -78,11 +78,16 @@ int NET_Init(void);
 
 typedef struct net_channel_t
 {
+	// v2: the buffer FIRST. Every read path casts it to net_packet_t*, and at
+	// its old offset (22, after the sockaddr + two chars) that cast was
+	// misaligned by 2 -- undefined behaviour the 2010 code got away with
+	// because ARM tolerates unaligned loads. Offset 0 is aligned by
+	// construction; nothing here travels on the wire, so this is free.
+	uchar					buffer[BUFFER_SIZE];
 	int						udpSocket;
 	struct sockaddr_in		peerAddr; 
 	char					serverAddResolved ;
 	char					setupRequested;
-	uchar					buffer[BUFFER_SIZE];
 
 #define NET_UNKNOWN 0
 #define NET_SERVER  1
@@ -99,6 +104,10 @@ int				state;
 #define NET_TRANSPORT_GAMECENTER	1	// GameKit GKMatch (online, NAT-traversed)
 int				transport;
 
+	// v2 P1: seat identity (0..numSeats-1, seat 0 hosts). At 2 players seat 0
+	// is exactly the old NET_SERVER and seat 1 the old NET_CLIENT.
+	int				ownSeat;
+	int				numSeats;
 
 	unsigned int lastReceivedSequenceNumber;
 	unsigned int lastSentSequenceNumber;
@@ -110,11 +119,11 @@ int				transport;
 	
 typedef struct net_channel_t
 {
+	uchar					buffer[BUFFER_SIZE];	// v2: first, so the net_packet_t* cast is aligned
 	int						udpSocket;
-	//struct sockaddr_in		peerAddr; 
+	//struct sockaddr_in		peerAddr;
 	char					serverAddResolved ;
 	char					setupRequested;
-	uchar					buffer[BUFFER_SIZE];
 
 #define NET_UNKNOWN 0
 #define NET_SERVER  1
@@ -131,6 +140,10 @@ int				state;
 #define NET_TRANSPORT_GAMECENTER	1	// GameKit GKMatch (online, NAT-traversed)
 int				transport;
 
+	// v2 P1: seat identity (0..numSeats-1, seat 0 hosts). At 2 players seat 0
+	// is exactly the old NET_SERVER and seat 1 the old NET_CLIENT.
+	int				ownSeat;
+	int				numSeats;
 
 	unsigned int lastReceivedSequenceNumber;
 	unsigned int lastSentSequenceNumber;
@@ -156,18 +169,43 @@ void NET_Free(void);
 char NET_IsInitialized();
 
 void Net_SendDie(command_t* command);
+// v2.0.9 HOST AUTHORITY ON DEATHS. Every device used to rule on its own hull's
+// death and tell the others after the fact -- two deaths inside one network
+// latency at a pool of 2 were then ordered differently on each device, and
+// each screen kept a DIFFERENT ship alive. Now a hit is a REQUEST to the host,
+// the host applies the death and broadcasts one ORDER carrying the pool it
+// ruled on; every device (host included) applies deaths in that order only.
+int  NET_DeathAuthority(void);					// true while a match is running (MP, >= 2 seats)
+void NET_PlayerHit(int seat);						// P_Die's MP entry: rule locally (host) or request
 
-void NET_OnActLoaded(void);
 
 void NET_OnNextLevelLoad(void);
 char NET_IsRunning(void);
+char NET_IsInMatch(void);	// v2: RUNNING *or* between levels (see the .c)
+// v2 P4: the party size the player picked in the menu (2..MAX_NUM_PLAYERS). On
+// the LAN the roster stops waiting as soon as it reaches this, so a duo starts
+// instantly; below it, a few seconds of network silence start the game anyway.
+void NET_SetPartyTarget(int n);
 
 uint NET_GetDropedPackets(void);
 
 // Online (GameKit) multiplayer entry points, called FROM the iOS GameKit layer.
-void NET_StartOnlineMatch(int isServer);			// role decided by GKMatch; begin the handshake
+// v2 P1: the boolean role became a SEAT. Every device sorts all gamePlayerIDs
+// (its own included) ascending; the index in that order is the seat, seat 0
+// hosts. Deterministic on every device without negotiation -- the N-player
+// generalization of the old "lowest id wins SERVER" pairwise compare, and
+// bit-identical to it at 2 players.
+void NET_StartOnlineMatch(int mySeat, int numSeats);
 void NET_AbortOnlineMatch(void);					// matchmaking cancelled, peer dropped, or failed
-void NET_OnPeerLost(void);							// peer vanished mid-match: clean reset + notice
-void NET_OnNetworkData(const void* data, int len);	// a packet arrived over GKMatch (push)
+void NET_OnPeerLost(void);							// LAST peer vanished mid-match: clean reset + notice
+// v2 P2: ONE seat vanished mid-match -- park its ship and keep playing; falls
+// back to NET_OnPeerLost() when no remote seat is left. Called by the per-seat
+// liveness timeout (all transports) and by the GameKit disconnect callback.
+void NET_OnSeatLost(int seat);
+// v2 P1: inbound packets carry their SENDER SEAT (the GameKit layer maps the
+// GKPlayer back through the seat table). With one peer the seat is redundant;
+// with three it is the only honest identity -- the in-packet playerId is
+// sender-declared and will be validated against this, never trusted alone.
+void NET_OnNetworkDataFrom(int senderSeat, const void* data, int len);
 char NET_IsOnline(void);							// true when the active transport is GameKit
 #endif

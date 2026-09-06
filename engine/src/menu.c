@@ -33,10 +33,13 @@
 #include "event.h"
 #include "native_services.h"
 #include "target.h"
+#include "world.h"	// v2: ship preview on the Custom screen
 
 #define HOME_ATLAS "/data/menu/homeAtlas.png"
 
-menu_screen_t menuScreens[10];
+static char* MENU_Tr(const char* en);	// v2: menu localization (table below)
+
+menu_screen_t menuScreens[12];	// v2 P4: + MENU_ONLINE_SIZE; v2: + MENU_MULTI_MODE
 int currentMenuId;
 
 texture_t textureAtlas;
@@ -137,7 +140,7 @@ void MENU_CreateText(menu_screen_t* screen, short posX, short posY, float size,u
 #define BUTTON_TEXT_Y_COO (104/(float)512*SHRT_MAX)
 #define BUTTON_TEXT_WIDTH (159/(float)512*SHRT_MAX)
 #define BUTTON_TEXT_HEIGHT (64/(float)512*SHRT_MAX)
-void MENU_CreateButtonWithTag(menu_screen_t* screen,char* text,float fontSize, buttonAction action,void* tag,buttonUpdate update,
+void MENU_CreateButtonWithTag(menu_screen_t* screen,const char* text,float fontSize, buttonAction action,void* tag,buttonUpdate update,
 					   vec2short_t pos, vec2short_t dimensions
 					   )
 {
@@ -194,7 +197,7 @@ void MENU_CreateButtonWithTag(menu_screen_t* screen,char* text,float fontSize, b
 	screen->numButtons++;
 }
 
-void MENU_CreateButton(menu_screen_t* screen,char* text,float fontSize, buttonAction action,buttonUpdate update,
+void MENU_CreateButton(menu_screen_t* screen,const char* text,float fontSize, buttonAction action,buttonUpdate update,
 					   vec2short_t pos, vec2short_t dimensions
 					   )
 {
@@ -444,12 +447,12 @@ static void MENU_UpdateActLockStatus(int lockedActTried)
 	// "Grey out" locked acts: swap the button label (button text is a pointer,
 	// so swapping between the two literals is safe; the font is single-colour).
 	for (act = 1; act <= NUM_ACT_BUTTONS; act++)
-		screen->buttons[act - 1].text = (act <= gHighestActReached) ? actLabels[act] : "Locked";
+		screen->buttons[act - 1].text = MENU_Tr((act <= gHighestActReached) ? actLabels[act] : "Locked");
 
 	if (lockedActTried > 1)
-		sprintf(line, "Locked - finish Act %s first", actRoman[lockedActTried - 1]);
+		sprintf(line, MENU_Tr("Locked - finish Act %s first"), actRoman[lockedActTried - 1]);
 	else if (gHighestActReached >= 2)
-		sprintf(line, "Unlocked up to Act %s", actRoman[gHighestActReached]);
+		sprintf(line, MENU_Tr("Unlocked up to Act %s"), actRoman[gHighestActReached]);
 	else
 		line[0] = '\0';
 }
@@ -510,29 +513,57 @@ void Action_PreGoToGameCenter(void* tag)
 
 }
 
+// v2 P4: which transport the party-size picker is choosing for.
+static int gPartyPickIsOnline = 0;
+
 void Action_ConfigureMultiplayer(void* tag)
 {
 	int i;
+	int partySize = tag ? *(int*)tag : 2;
+
+	if (partySize < 2) partySize = 2;
+	if (partySize > MAX_NUM_PLAYERS) partySize = MAX_NUM_PLAYERS;
 
 	MENU_Set(MENU_MULTIPLAYER);
 	engine.mode = DE_MODE_MULTIPLAYER;
 	NET_Init();
+	NET_SetPartyTarget(partySize);	// the roster stops waiting once this many are found
 	PL_ResetPlayersScore();
 
-	// Shared life pool in multiplayer: 2 players' worth (3+3=6), since both players
-	// draw from the same pool (mirrored on each death in P_Die).
+	// Shared life pool in multiplayer, mirrored on each death in P_Die. This is
+	// just a PLACEHOLDER: the real pool (numPlayers x 3) is set at match start
+	// by the handshake preload, once the seat count is known (v2 P3).
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = 2 * numPlayerRespawn[DIFFICULTY_NORMAL];
 
 	engine.difficultyLevel = DIFFICULTY_NORMAL;
 }
 
+// v2 P4: both multiplayer buttons open the party-size picker first.
+void Action_ShowLanSizeMenu(void* tag)
+{
+	gPartyPickIsOnline = 0;
+	MENU_Set(MENU_ONLINE_SIZE);
+}
+
 #ifdef __APPLE__
+void Action_ShowOnlineSizeMenu(void* tag)
+{
+	gPartyPickIsOnline = 1;
+	MENU_Set(MENU_ONLINE_SIZE);
+}
+
 // Online multiplayer over Game Center (GKMatch): same as the LAN setup, but the
 // transport is GameKit instead of Bonjour/UDP and matchmaking is driven by Apple.
+// v2 P4: tag carries the EXACT party size picked (2/3/4) -- min == max, so
+// GameKit only starts the match once precisely that many players are matched.
 void Action_ConfigureOnlineMultiplayer(void* tag)
 {
 	int i;
+	int partySize = tag ? *(int*)tag : 2;
+
+	if (partySize < 2) partySize = 2;
+	if (partySize > MAX_NUM_PLAYERS) partySize = MAX_NUM_PLAYERS;
 
 	MENU_Set(MENU_MULTIPLAYER);
 	engine.mode = DE_MODE_MULTIPLAYER;
@@ -540,16 +571,30 @@ void Action_ConfigureOnlineMultiplayer(void* tag)
 	net.transport = NET_TRANSPORT_GAMECENTER;	// ...then switch this session to online
 	PL_ResetPlayersScore();
 
-	// Shared life pool in multiplayer: 2 players' worth (3+3=6), mirrored on death.
+	// Shared life pool placeholder -- the real pool (numPlayers x 3) is set at
+	// match start by the handshake preload (v2 P3).
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = 2 * numPlayerRespawn[DIFFICULTY_NORMAL];
 
 	engine.difficultyLevel = DIFFICULTY_NORMAL;
 
-	sprintf(MENU_GetMultiplayerTextLine(0), "Finding an opponent...");
-	Native_StartOnlineMatchmaking();		// presents the Game Center matchmaker UI
+	sprintf(MENU_GetMultiplayerTextLine(0), "Finding %d players...", partySize);
+	Native_StartOnlineMatchmaking(partySize);	// presents the Game Center matchmaker UI
 }
 #endif
+
+// The picker's buttons land here: same screen, two destinations.
+void Action_PickPartySize(void* tag)
+{
+#ifdef __APPLE__
+	if (gPartyPickIsOnline)
+	{
+		Action_ConfigureOnlineMultiplayer(tag);
+		return;
+	}
+#endif
+	Action_ConfigureMultiplayer(tag);
+}
 
 #ifdef SHMUP_TARGET_ANDROID  
 #include "native_URL.h"
@@ -574,6 +619,7 @@ void Action_ShowHomeMenu(void* tag)
 
 void Action_ShowOthersMenu(void* tag)
 {
+	World_ClearIntroShipPreview();	// leaving Custom: the classic intro hull returns
 	MENU_Set(MENU_OTHERS);
 }
 
@@ -582,14 +628,24 @@ void Action_ShowOthersMenu(void* tag)
 static const char* customColorNames[NUM_BULLET_COLORS] = { "Red", "Blue", "Invisible", "Yellow" };
 static void MENU_UpdateCustomSelection(void)
 {
-	const char* col = (gBulletColor >= 0 && gBulletColor < NUM_BULLET_COLORS) ? customColorNames[gBulletColor] : "?";
-	int ship = (gShipChoice >= 0 && gShipChoice < NUM_SHIP_CHOICES) ? gShipChoice + 1 : 1;
-	sprintf(menuScreens[MENU_SELECT_SHIP].texts[1].text, "Ship %d  -  %s", ship, col);
+	// The ship names live on the Custom buttons; mirror them here so the
+	// status line reads "Falcon - Red" rather than a bare index.
+	static const char* shipNames[NUM_SHIP_CHOICES] = { "Falcon", "Viper", "Phoenix", "Ghost" };
+	const char* col = (gBulletColor >= 0 && gBulletColor < NUM_BULLET_COLORS) ? MENU_Tr(customColorNames[gBulletColor]) : "?";
+	const char* ship = (gShipChoice >= 0 && gShipChoice < NUM_SHIP_CHOICES) ? shipNames[gShipChoice] : shipNames[0];
+	sprintf(menuScreens[MENU_SELECT_SHIP].texts[1].text, "%s  -  %s", ship, col);
+}
+
+// v2: Game Multi (home) -> pick the transport: Local / Online / Back.
+void Action_ShowMultiModeMenu(void* tag)
+{
+	MENU_Set(MENU_MULTI_MODE);
 }
 
 void Action_ShowShipMenu(void* tag)
 {
 	MENU_UpdateCustomSelection();	// reflect the current choice when entering
+	World_SetIntroShipPreview(gShipChoice);	// v2: YOUR ship on the orbit stage
 	MENU_Set(MENU_SELECT_SHIP);
 }
 
@@ -601,6 +657,7 @@ void Action_SelectShip(void* tag)
 	if (choice >= 0 && choice < NUM_SHIP_CHOICES)
 		gShipChoice = choice;
 	MENU_UpdateCustomSelection();
+	World_SetIntroShipPreview(gShipChoice);	// v2: the orbit stage follows the pick
 	MENU_ClearButtonStates();	// don't leave the just-pressed button highlighted
 #ifdef __APPLE__
 	Native_SaveLoadout(gShipChoice, gBulletColor);	// persist across restarts
@@ -636,7 +693,7 @@ void Action_BackToHome(void* tag)
 void Action_BackToOptions(void* tag)
 {
 	NET_Free();
-	MENU_Set(MENU_OTHERS);
+	MENU_Set(MENU_MULTI_MODE);	// v2: multiplayer lives under Game Multi now
 }
 
 void Action_BackToHomeAfterGameOver(void* tag)
@@ -664,10 +721,69 @@ void MENU_SetGameOverScore(unsigned int score)
 
 //  0  2
 //  1  3
+// ------------------------------------------------------------------------
+// v2: menu localization. The device language decides ONCE at menu build
+// (Native_IsFrenchLanguage); MENU_Tr maps the ENGLISH label written at each
+// build site to its French twin. Unknown strings pass through unchanged, so
+// a forgotten label shows English rather than nothing. Accented strings use
+// Latin-1 escapes (the font atlas carries real glyphs in rows 12-15, and the
+// renderer indexes it unsigned since the accent fix in renderer.c); note the
+// "Cr\xE9" "dits" splicing -- a hex escape would otherwise swallow a
+// following hex-digit letter.
+// ------------------------------------------------------------------------
+static int gMenuFrench = 0;
+
+typedef struct menu_tr_t { const char* en; const char* fr; } menu_tr_t;
+static const menu_tr_t gMenuTr[] = {
+	{ "Game Solo",           "Jeu Solo" },
+	{ "Game Multi",          "Jeu Multi" },
+	{ "Others",              "Autres" },
+	{ "Back",                "Retour" },
+	{ "New Game",            "Lancer" },
+	{ "Credits",             "Cr\xE9" "dits" },
+	{ "Tutorial",            "Tutoriel" },
+	{ "Scores",              "Scores" },
+	{ "Custom",              "Custom" },
+	{ "Demo",                "D\xE9" "mo" },
+	{ "Local",               "Local" },
+	{ "Online",              "En ligne" },
+	{ "Easy",                "Facile" },
+	{ "Normal",              "Normal" },
+	{ "Insane",              "Extr\xEAme" },
+	{ "Act I",               "Acte I" },
+	{ "Act II",              "Acte II" },
+	{ "Act III",             "Acte III" },
+	{ "Act IV",              "Acte IV" },
+	{ "Locked",              "Bloqu\xE9" },
+	{ "2 Players",           "2 Joueurs" },
+	{ "3 Players",           "3 Joueurs" },
+	{ "4 Players",           "4 Joueurs" },
+	{ "MULTIPLAYER",         "MULTIJOUEUR" },
+	{ "How many players ?",  "Combien de joueurs ?" },
+	{ "SELECT ACT",          "CHOISIR L'ACTE" },
+	{ "CUSTOM",              "CUSTOM" },
+	{ "Locked - finish Act %s first", "Bloqu\xE9 - finis d'abord l'Acte %s" },
+	{ "Unlocked up to Act %s",        "D\xE9" "bloqu\xE9 jusqu'\xE0 l'Acte %s" },
+	{ "Red",                 "Rouge" },
+	{ "Blue",                "Bleu" },
+	{ "Invisible",           "Invisible" },
+	{ "Yellow",              "Jaune" },
+};
+
+static char* MENU_Tr(const char* en)
+{
+	int i;
+	if (gMenuFrench)
+		for (i = 0; i < (int)(sizeof(gMenuTr)/sizeof(gMenuTr[0])); i++)
+			if (!strcmp(gMenuTr[i].en, en))
+				return (char*)gMenuTr[i].fr;
+	return (char*)en;
+}
+
 char menuCreated = 0;
+
 void MENU_Init(void)
 {
-	char* recordUpdatableString;
 	menu_screen_t* currentMenu;
 	
 	vec2_t pos ;
@@ -684,6 +800,7 @@ void MENU_Init(void)
 		return;
 	
 	Log_Printf("[Menu System] Initializing...\n");
+	gMenuFrench = Native_IsFrenchLanguage();	// v2: one decision, at build time
 	
 	memset(menuScreens,0,sizeof(menuScreens));
 	
@@ -720,7 +837,7 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 270);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "New Game", 3, Action_SpecifyDifficulty,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Game Solo"), 3, Action_SpecifyDifficulty,NULL, buttonPos, buttonDim);
 
 	
 	
@@ -730,14 +847,14 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Others", 3, Action_ShowOthersMenu,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Others"), 3, Action_ShowOthersMenu,NULL, buttonPos, buttonDim);
 
 	buttonPos[X] = -160 ; 
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	actId = calloc(1, sizeof(char));
-	MENU_CreateButton(currentMenu, "Tutorial", 3, Action_GoToTutorial,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Game Multi"), 3, Action_ShowMultiModeMenu,NULL, buttonPos, buttonDim);	// v2: was Tutorial (moved to Others)
 
 	
 	
@@ -760,7 +877,7 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 100);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowOthersMenu,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowOthersMenu,NULL, buttonPos, buttonDim);
 
 	// FOUR sections now (production / artists / tester / special thanks), 12 lines
 	// and 3 rules between the title card and the Back button (whose top edge sits
@@ -851,13 +968,13 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Back", 3, Action_BackToOptions,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_BackToOptions,NULL, buttonPos, buttonDim);
 	
 	buttonPos[X] = 0 ; 
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT - 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "New Game", 3, Action_startMultiplayerGame,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("New Game"), 3, Action_startMultiplayerGame,NULL, buttonPos, buttonDim);
 	
 	
 	
@@ -874,7 +991,7 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT+ 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Back", 3, Action_BackToHomeAfterGameOver,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_BackToHomeAfterGameOver,NULL, buttonPos, buttonDim);
 	
 	pos[X] = 0 ; 
 	pos[Y] = (SS_COO_SYST_HEIGHT - 180) - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]) - 55 ;
@@ -900,13 +1017,12 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 90);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
 	
 	buttonPos[X] = 0 ; 
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 260);
 	buttonDim[WIDTH] = (220 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	recordUpdatableString = calloc(21, sizeof(char));
 	//MENU_CreateButton(currentMenu, recordUpdatableString, 2.5f, Action_ChangeReplayRecordingState,MENU_UpdateReplayList, buttonPos, buttonDim);
 	
 	
@@ -925,56 +1041,39 @@ void MENU_Init(void)
 	MENU_CreateImageWithVerticalText(currentMenu,pos,dimensions,textPos,textDim);
 	
 	
+	// v2 layout (user's order): row 1 Custom | Scores, row 2 Tutorial | Demo,
+	// row 3 Credits (centred), Back centred at the bottom.
 	buttonPos[X] = -160;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	actId = calloc(1, sizeof(char));
-	*actId = 13 ;
-	MENU_CreateButtonWithTag(currentMenu, "Demo", 3, Action_PlayDemo,actId,NULL, buttonPos, buttonDim);
-	
-	buttonPos[X] = -160 ; 
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Credits", 3, Action_ShowCreditsMenu,NULL, buttonPos, buttonDim);
-	
-	
-#ifndef SHMUP_TARGET_ANDROID
-	// Multiplayer: LAN peer-to-peer over Bonjour/DNS-SD. Modern iOS gates that
-	// behind the Local Network permission, declared in the Info.plist
-	// (NSLocalNetworkUsageDescription + NSBonjourServices = _DodgeServer._udp).
-	buttonPos[X] = -160 ;
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Local Network", 2.0f, Action_ConfigureMultiplayer,NULL, buttonPos, buttonDim);
-#endif
+	MENU_CreateButton(currentMenu, MENU_Tr("Custom"), 3, Action_ShowShipMenu,NULL, buttonPos, buttonDim);
 
-#ifdef __APPLE__
-	// Online multiplayer over Game Center (GKMatch): matchmaking + NAT traversal
-	// handled by Apple, so it plays beyond the LAN. Both players must be signed
-	// into Game Center.
-	buttonPos[X] = 160 ;
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Online", 3, Action_ConfigureOnlineMultiplayer,NULL, buttonPos, buttonDim);
-#endif
-
-	// Game Center "High Scores" leaderboard viewer.
-	buttonPos[X] = 160 ;
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Scores", 3, Action_ShowGameCenter,NULL, buttonPos, buttonDim);
-
-	// Solo ship + bullet-colour selection (top-right).
 	buttonPos[X] = 160 ;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Custom", 3, Action_ShowShipMenu,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Scores"), 3, Action_ShowGameCenter,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = -160 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Tutorial"), 3, Action_GoToTutorial,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = 160;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	actId = calloc(1, sizeof(char));
+	*actId = 13 ;
+	MENU_CreateButtonWithTag(currentMenu, MENU_Tr("Demo"), 3, Action_PlayDemo,actId,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Credits"), 3, Action_ShowCreditsMenu,NULL, buttonPos, buttonDim);
 //
 //	if (engine.gameCenterPossible)
 //    {
@@ -989,13 +1088,13 @@ void MENU_Init(void)
 
 	
 	
-	buttonPos[X] = 160 ; 
+	buttonPos[X] = 0 ; 
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	actId = calloc(1, sizeof(char));
 	*actId = 15 ;
-	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
 
 	buttonPos[X] = -160 ; 
 	buttonPos[Y] = (-SS_H + 220);
@@ -1024,7 +1123,7 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	difficultyLevel = calloc(1, sizeof(int));
 	*difficultyLevel = DIFFICULTY_EASY;
-	MENU_CreateButtonWithTag(currentMenu, "Easy", 3, Action_PickDifficulty,difficultyLevel,NULL, buttonPos, buttonDim);
+	MENU_CreateButtonWithTag(currentMenu, MENU_Tr("Easy"), 3, Action_PickDifficulty,difficultyLevel,NULL, buttonPos, buttonDim);
 
 	buttonPos[X] = 0 ;
 	buttonPos[Y] = (SS_H - 510);
@@ -1032,7 +1131,7 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	difficultyLevel = calloc(1, sizeof(int));
 	*difficultyLevel = DIFFICULTY_NORMAL;
-	MENU_CreateButtonWithTag(currentMenu, "Normal", 3, Action_PickDifficulty,difficultyLevel,NULL, buttonPos, buttonDim);
+	MENU_CreateButtonWithTag(currentMenu, MENU_Tr("Normal"), 3, Action_PickDifficulty,difficultyLevel,NULL, buttonPos, buttonDim);
 
 	buttonPos[X] =  0 ;
 	buttonPos[Y] = (SS_H - 660);
@@ -1040,14 +1139,14 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	difficultyLevel = calloc(1, sizeof(int));
 	*difficultyLevel = DIFFICULTY_INSANE;
-	MENU_CreateButtonWithTag(currentMenu, "Insane", 3, Action_PickDifficulty,difficultyLevel,NULL, buttonPos, buttonDim);
+	MENU_CreateButtonWithTag(currentMenu, MENU_Tr("Insane"), 3, Action_PickDifficulty,difficultyLevel,NULL, buttonPos, buttonDim);
 
 	// Back to the main menu (so New Game -> difficulty selection is escapable).
 	buttonPos[X] = 0 ;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
 
 
 	// --- Act select (solo), after the difficulty pick: start at any act with full
@@ -1055,7 +1154,7 @@ void MENU_Init(void)
 	// clearing the whole game in one run.
 	currentMenu = &menuScreens[MENU_SELECT_ACT];
 
-	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, "SELECT ACT");
+	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, MENU_Tr("SELECT ACT"));
 	// texts[1]: lock/progress status line (filled by MENU_UpdateActLockStatus).
 	MENU_CreateText(currentMenu, 0, (SS_H - 230), 2.0f, TEXT_CENTERED, "");
 
@@ -1075,7 +1174,7 @@ void MENU_Init(void)
 			buttonDim[HEIGHT] = 64 * 2;
 			actId = calloc(1, sizeof(char));
 			*actId = a + 1;
-			MENU_CreateButtonWithTag(currentMenu, gridLabels[a], 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
+			MENU_CreateButtonWithTag(currentMenu, MENU_Tr(gridLabels[a]), 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
 		}
 	}
 
@@ -1083,22 +1182,30 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Back", 3, Action_SpecifyDifficulty,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_SpecifyDifficulty,NULL, buttonPos, buttonDim);
 
 
 	// --- Loadout menu (solo: Others -> Ship): pick ship (left) + bullet colour (right) ---
 	currentMenu = &menuScreens[MENU_SELECT_SHIP];
 
-	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, "CUSTOM");
+	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, MENU_Tr("CUSTOM"));
 	// Status line (texts[1]) showing the current selection, updated on each pick.
 	MENU_CreateText(currentMenu, 0, (SS_H - 240), 2.2f, TEXT_CENTERED, "Ship 1  -  Red");
 
 	{
-		static const char* shipLabels[NUM_SHIP_CHOICES]   = { "Ship 1", "Ship 2" };
+		static const char* shipLabels[NUM_SHIP_CHOICES]   = { "Falcon", "Viper", "Phoenix", "Ghost" };	// Phoenix: the hull that came back from the dead
 		// Confirmed on device: column 0 = red (default), 1 = blue, 2 = invisible (kept as a
 		// stealth option), 3 = yellow.
 		static const char* colorLabels[NUM_BULLET_COLORS] = { "Red", "Blue", "Invisible", "Yellow" };
 		int k;
+
+		// One grid, ONE pitch: ship k and colour k sit on the same row (they used
+		// to run at 115 and 150, so the two columns drifted apart down the
+		// screen). 130 clears the 128-unit button height, and five rows of it --
+		// four choices plus Back -- still fit above the bottom edge: the last
+		// row's centre is at -360, its edge at -424, inside SS_H 480.
+		#define LOADOUT_ROW_PITCH 130
+		#define LOADOUT_ROW_Y(k)  ((SS_H - 320) - (k)*LOADOUT_ROW_PITCH)
 
 		// Ships (left column)
 		for (k = 0; k < NUM_SHIP_CHOICES; k++)
@@ -1106,32 +1213,107 @@ void MENU_Init(void)
 			int* t = calloc(1, sizeof(int));
 			*t = k;
 			buttonPos[X] = -160 ;
-			buttonPos[Y] = (SS_H - 320) - k*150;
+			buttonPos[Y] = LOADOUT_ROW_Y(k);
 			buttonDim[WIDTH] = (159 * 2);
 			buttonDim[HEIGHT] = 64 * 2;
 			MENU_CreateButtonWithTag(currentMenu, shipLabels[k], 3, Action_SelectShip, t, NULL, buttonPos, buttonDim);
 		}
 
-		// Bullet colours (right column)
+		// Row order on screen, which is NOT the colour's atlas column: the
+		// player asked for Yellow above Invisible, and Invisible is column 2
+		// while Yellow is column 3. So the row carries the COLUMN as its tag
+		// and the label comes from the same table -- swapping the display
+		// order can never silently hand someone the wrong bullets.
+		static const int colorRows[NUM_BULLET_COLORS] = { 0, 1, 3, 2 };
+
+		// Bullet colours (right column), row for row with the ships
 		for (k = 0; k < NUM_BULLET_COLORS; k++)
 		{
 			int* t = calloc(1, sizeof(int));
-			*t = k;
+			*t = colorRows[k];
 			buttonPos[X] = 160 ;
-			buttonPos[Y] = (SS_H - 320) - k*150;
+			buttonPos[Y] = LOADOUT_ROW_Y(k);
 			buttonDim[WIDTH] = (159 * 2);
 			buttonDim[HEIGHT] = 64 * 2;
-			MENU_CreateButtonWithTag(currentMenu, colorLabels[k], 3, Action_SelectBulletColor, t, NULL, buttonPos, buttonDim);
+			MENU_CreateButtonWithTag(currentMenu, MENU_Tr(colorLabels[colorRows[k]]), 3, Action_SelectBulletColor, t, NULL, buttonPos, buttonDim);
 		}
 	}
 
-	// Back sits in the empty bottom-LEFT cell, on the same row as the 4th colour
-	// (Yellow, right), so it no longer overlaps it.
-	buttonPos[X] = -160 ;
-	buttonPos[Y] = (SS_H - 320) - 3*150;
+	// Back gets its own row under the grid, centred: both columns are full now.
+	// Under the LONGER column -- the two counts are independent constants, so
+	// taking either one on faith is how a future fifth colour would land on top
+	// of this button.
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = LOADOUT_ROW_Y((NUM_SHIP_CHOICES > NUM_BULLET_COLORS) ? NUM_SHIP_CHOICES : NUM_BULLET_COLORS);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, "Back", 3, Action_ShowOthersMenu, NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowOthersMenu, NULL, buttonPos, buttonDim);
+
+
+	// --- v2 P4: the party-size picker, shared by BOTH multiplayer buttons
+	// (Others -> Local Network / Online). On the LAN the pick is what stops the
+	// roster from waiting, so a duo starts as instantly as it always did. ---
+	currentMenu = &menuScreens[MENU_ONLINE_SIZE];
+
+	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, MENU_Tr("MULTIPLAYER"));
+	MENU_CreateText(currentMenu, 0, (SS_H - 240), 2.2f, TEXT_CENTERED, MENU_Tr("How many players ?"));
+
+	{
+		static const char* sizeLabels[3] = { "2 Players", "3 Players", "4 Players" };
+		int k;
+		for (k = 0; k < 3; k++)
+		{
+			int* t = calloc(1, sizeof(int));
+			*t = k + 2;
+			buttonPos[X] = 0;
+			buttonPos[Y] = (SS_H - 340) - k*150;
+			buttonDim[WIDTH] = (220 * 2);
+			buttonDim[HEIGHT] = 64 * 2;
+			MENU_CreateButtonWithTag(currentMenu, MENU_Tr(sizeLabels[k]), 3, Action_PickPartySize, t, NULL, buttonPos, buttonDim);
+		}
+	}
+
+	buttonPos[X] = 0;
+	buttonPos[Y] = (SS_H - 340) - 3*150;
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowMultiModeMenu, NULL, buttonPos, buttonDim);	// v2: back to Local/Online
+
+
+	// --- v2: Game Multi (home) -> transport picker: Local / Online / Back.
+	// The two entries lived in Others; the user promoted multiplayer to the
+	// front page. Same platform gates as before: LAN needs Bonjour (not
+	// Android), Online needs Game Center (Apple only). ---
+	currentMenu = &menuScreens[MENU_MULTI_MODE];
+
+	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, MENU_Tr("MULTIPLAYER"));
+
+#ifndef SHMUP_TARGET_ANDROID
+	// LAN peer-to-peer over Bonjour/DNS-SD. Modern iOS gates that behind the
+	// Local Network permission, declared in the Info.plist
+	// (NSLocalNetworkUsageDescription + NSBonjourServices = _DodgeServer._udp).
+	buttonPos[X] = 0;
+	buttonPos[Y] = (SS_H - 340);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Local"), 3, Action_ShowLanSizeMenu,NULL, buttonPos, buttonDim);
+#endif
+
+#ifdef __APPLE__
+	// Online over Game Center (GKMatch): matchmaking + NAT traversal handled
+	// by Apple, so it plays beyond the LAN. Both players must be signed in.
+	buttonPos[X] = 0;
+	buttonPos[Y] = (SS_H - 340) - 150;
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Online"), 3, Action_ShowOnlineSizeMenu,NULL, buttonPos, buttonDim);
+#endif
+
+	buttonPos[X] = 0;
+	buttonPos[Y] = (SS_H - 340) - 2*150;
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowHomeMenu, NULL, buttonPos, buttonDim);
 
 
 	menuCreated = 1;

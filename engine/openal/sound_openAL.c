@@ -6,6 +6,11 @@
 //  Copyright (c) 2012 Memset Software. All rights reserved.
 //
 
+// v3: every call into this API is deprecated by Apple, and every one of them goes when
+// the audio backend leaves OpenAL (a later stage). Until then the noise is silenced HERE, explicitly, so that any NEW
+// deprecation elsewhere in the project still shows up in the audit.
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 #include "sound_backend.h"
 #include "dEngine.h"
 #include "log.h"
@@ -48,7 +53,7 @@ void SND_BACKEND_Upload(sound_t* sound, int soundID)
 {
     alGenBuffers(1, &(alMetadatas[soundID].alBuffer));
     
-	alBufferData(alMetadatas[soundID].alBuffer, formatEquivalent[sound->format], sound->data, sound->size, sound->metaData.sample_rate );
+	alBufferData(alMetadatas[soundID].alBuffer, formatEquivalent[sound->format], sound->data, (ALsizei)sound->size, (ALsizei)sound->metaData.sample_rate );
     if( alcGetError( device ) != ALC_NO_ERROR )
     {
         Log_Printf( "Failed to upload sound\n" );

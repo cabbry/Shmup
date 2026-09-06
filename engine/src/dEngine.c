@@ -30,8 +30,6 @@
 #include "math.h"
 #include "camera.h"
 #include "renderer.h"
-#include "renderer_fixed.h"
-#include "renderer_progr.h"
 #include "filesystem.h"
 #include "timer.h"
 #include "world.h"
@@ -181,12 +179,19 @@ bool dEngine_ReadConfig(void)
 				{
 					LE_readToken();
 					strcpy(players[1].modelPath, LE_getCurrentToken());
+					// v2 P3: no scene authors model2/model3 -- seat 3 falls
+					// back to seat 1's hull (Custom loadouts re-point it via
+					// P_ReloadShip anyway; this only guards the boot load).
+					if (MAX_NUM_PLAYERS > 3)
+						strcpy(players[3].modelPath, LE_getCurrentToken());
 				}
-				else 
+				else
 				if (!strcmp("model0", LE_getCurrentToken()))
 				{
 					LE_readToken();
 					strcpy(players[0].modelPath, LE_getCurrentToken());
+					if (MAX_NUM_PLAYERS > 2)	// v2 P3: seat 2 <- seat 0's hull
+						strcpy(players[2].modelPath, LE_getCurrentToken());
 				}
 				else 
 					if (!strcmp("bulletTextureName", LE_getCurrentToken()))
@@ -320,6 +325,32 @@ void dEngine_WriteScreenshot(char* directory)
 	
 }
 
+// CI hook (v2): SHMUP_FAKE_PLAYERS=<n> flies n ships in a SOLO game -- the
+// 4-player RENDERING paths (four attached hulls, the seat 2/3 spawns world.c
+// synthesizes, pointers, muzzle flashes x4, the x12 pool on the HUD, LEE
+// picking the nearest of four) had never run anywhere: the rig proves the
+// netcode with no renderer, the smoke plays solo. Passengers 1..n-1 get no
+// input and just fly attached (autofire covers them too). Singleplayer only,
+// like every CI hook: never a lockstep peer's state. Applied AFTER
+// P_InitPlayers (dEngine_InitDisplaySystem), which resets numPlayers to 1 --
+// the first run of the four-ship smoke set it in dEngine_Init and watched
+// P_InitPlayers quietly take it back.
+static void dEngine_ApplyFakePlayers(void)
+{
+	char* fake = getenv("SHMUP_FAKE_PLAYERS");
+	if (fake && engine.mode == DE_MODE_SINGLEPLAYER)
+	{
+		int n = atoi(fake), i;
+		if (n < 1) n = 1;
+		if (n > MAX_NUM_PLAYERS) n = MAX_NUM_PLAYERS;
+		numPlayers = (uchar)n;
+		controlledPlayer = 0;
+		for (i = 0; i < MAX_NUM_PLAYERS; i++)
+			players[i].respawnCounter = (char)(n * numPlayerRespawn[DIFFICULTY_NORMAL]);	// the MP pool, N x 3
+		Log_Printf("[fake] %d ships in a solo game (CI).\n", n);
+	}
+}
+
 bool dEngine_Init(void)
 {
 	FS_InitFilesystem();
@@ -383,6 +414,7 @@ bool dEngine_Init(void)
 			dEngine_RequireSceneId(atoi(bakeScene));
 	}
 
+
 	return true;
 }
 
@@ -400,12 +432,18 @@ void dEngine_InitDisplaySystem(uchar rendererType)
 	
 	engine.menuVisible = 0;
 	MENU_Set(MENU_HOME);
+
+	dEngine_ApplyFakePlayers();	// CI: after P_InitPlayers, which would reset numPlayers
 }
 
 // Progression: the furthest act (scene 1..3) ever reached. Gates the act-select
 // screen -- an act is only selectable once it has been reached in play. Persisted
 // on iOS (NSUserDefaults) and restored at launch.
 int gHighestActReached = 1;
+
+// v2: the soundtrack file currently loaded in the native player, so a scene
+// change to the SAME track lets the music play on (see dEngine_LoadScene).
+static char gPlayingTrack[256] = "";
 
 void dEngine_LoadScene(int sceneId)
 {
@@ -476,10 +514,26 @@ void dEngine_LoadScene(int sceneId)
 	
 	ENE_Precache();
 	
+	// v2: the four acts share ONE soundtrack file (UNREALPM.mp3, each act's
+	// scene merely cueing a different startMusicAt) -- so let it PLAY ON
+	// across level transitions instead of rewinding to each act's cue (user
+	// request). Only a real track change touches the player: title <-> game
+	// (UNREALTH vs UNREALPM), or a music-less scene.
 	if (engine.musicFilename[0] != '\0')
 	{
-		SND_InitSoundTrack(engine.musicFilename,engine.musicStartAt);
-		SND_StartSoundTrack();
+		if (strcmp(gPlayingTrack, engine.musicFilename) != 0)
+		{
+			SND_StopSoundTrack();
+			SND_InitSoundTrack(engine.musicFilename,engine.musicStartAt);
+			SND_StartSoundTrack();
+			strncpy(gPlayingTrack, engine.musicFilename, sizeof(gPlayingTrack)-1);
+			gPlayingTrack[sizeof(gPlayingTrack)-1] = '\0';
+		}
+	}
+	else
+	{
+		SND_StopSoundTrack();
+		gPlayingTrack[0] = '\0';
 	}
 	
 	
@@ -518,9 +572,10 @@ void dEngine_LoadScene(int sceneId)
     
 }
 
+
 void dEngine_FreeSceneRessources(void)
 {
-    
+
 	//A LOT A LOT OF THINGS TO FREE HERE !!!!
 	// Scenes
 	EV_CleanAllRemainingEvents();
@@ -612,23 +667,56 @@ void dEngine_RequireSceneId(int sceneId)
 
 void dEngine_CheckState(void)
 {
-	
+	int previousScene;
+
 	if (engine.requiredSceneId == engine.sceneId)
 		return;
-	
-	SND_StopSoundTrack();
+
+	previousScene = engine.sceneId;
+
+	if (Log_ProbesEnabled())
+		Log_Printf("[scene] %d -> %d (t=%d)\n", engine.sceneId, engine.requiredSceneId, simulationTime);
+
+	// v2: do NOT stop the soundtrack here -- dEngine_LoadScene decides, and a
+	// same-track transition (act to act) now lets the music play on.
 	
 	dEngine_FreeSceneRessources();
 	
 	dEngine_LoadScene(engine.requiredSceneId);
-	
-	
+
+
 	engine.sceneId = engine.requiredSceneId;
-	
-	
+
+
 	dEngine_JumpInTime();
-	
-	
+
+	// CI hook: SHMUP_REPLAY_SCENE=<n> re-enters scene n ONCE, the first time
+	// we LEAVE it. Full teardown (FreeSceneRessources) then a fresh entry --
+	// the exact path of a player's game-over/menu/retry, which is where the
+	// 205-209 cameo lottery lived: the smoke's single fresh run could never
+	// reproduce a dangling mesh-cache pointer. Keyed on the scene we came
+	// FROM (code review: keyed on the destination, a boot into any other
+	// scene burned the one shot before scene n ever ran, silently coupling
+	// this to SHMUP_BAKE_SCENE). Singleplayer only: a local env jump inside
+	// a lockstep match would desync the peers.
+	{
+		static int replayScene = -2;
+		static int replayed = 0;
+		if (replayScene == -2)
+		{
+			char* e = getenv("SHMUP_REPLAY_SCENE");
+			replayScene = e ? atoi(e) : 0;
+		}
+		if (replayScene > 0 && !replayed &&
+		    engine.mode == DE_MODE_SINGLEPLAYER &&
+		    previousScene == replayScene && engine.sceneId != replayScene)
+		{
+			replayed = 1;
+			if (Log_ProbesEnabled())
+				Log_Printf("[replay] re-entering scene %d (CI)\n", replayScene);
+			dEngine_RequireSceneId(replayScene);
+		}
+	}
 }
 
 void dEngine_HostFrame(void)
@@ -751,6 +839,7 @@ void dEngine_Pause(void)
 	engine.menuVisible = 0;
 	MENU_Set(MENU_HOME);
 	SND_StopSoundTrack();
+	gPlayingTrack[0] = '\0';	// v2: the app went to background -- next scene re-inits the track
 	SND_FinalizeRecord();
 	//dEngine_RequireSceneId(0);
 	engine.sceneId = -1;

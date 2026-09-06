@@ -31,6 +31,7 @@
 #include "timer.h"
 #include "enemy_particules.h"
 #include "sounds.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 #define STATE_SHAB_SPAWNING			0
 #define STATE_SHAB_HELLING			1

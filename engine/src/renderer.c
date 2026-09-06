@@ -25,8 +25,9 @@
 
 #include "renderer.h"
 #include <math.h>
-#include "renderer_fixed.h"
-#include "renderer_progr.h"
+#if defined(__APPLE__) && defined(SHMUP_TARGET_IOS)
+#include "renderer_metal.h"	// v3
+#endif
 #include "stats.h"
 #include "timer.h"
 #include "fx.h"
@@ -202,17 +203,15 @@ void SCR_Init(void)
 
 void SCR_BindMethods(int rendererType)
 {
-	if (rendererType == GL_11_RENDERER)
+	// v3 (round 37): the OpenGL ES 1.1 and 2.0 backends are retired; the
+	// Metal backend is the one implementation of the table.
+#if defined(__APPLE__) && defined(SHMUP_TARGET_IOS)
+	if (rendererType == METAL_RENDERER)
 	{
-		Log_Printf("[Renderer] Running in mode OpenGL ES 1.1\n");
-		initFixedRenderer(&renderer);
+		Log_Printf("[Renderer] Running in mode Metal\n");
+		initMetalRenderer(&renderer);
 	}
-	
-	if (rendererType == GL_20_RENDERER)
-	{
-		Log_Printf("[Renderer] Running in mode OpenGL ES 2.0\n"); 
-		initProgrRenderer(&renderer);
-	}
+#endif
 	
 	strcpy(scrFont.path,STATS_FONT_PATH);
 	TEX_MakeStaticAvailable(&scrFont);
@@ -360,7 +359,7 @@ void SCR_ConvertTextToVertices(const char* string, float size, short ss_cooX, sh
 	ushort charSpace = charWidth;
 	
 	
-	stringLength = strlen(string);
+	stringLength = (int)strlen(string);
 	
 	//Check that we won't overflow the vertices rendition buffer
 	if ( scr_TextNumVertices + stringLength * 4 > MAX_NUM_TEXT_VERTICES)
@@ -373,8 +372,15 @@ void SCR_ConvertTextToVertices(const char* string, float size, short ss_cooX, sh
 	
 	if (centered)
 	{
-		//Adjust ss_cooX and ss_cooY so text is centered.
-		ss_cooX -= stringLength*charSpace/2;
+		// Adjust ss_cooX so the run of glyphs is centered on it. Each glyph
+		// quad spans ss_cooX +/- charWidth (two cells wide, overlapping) and
+		// the pen advances one cell per glyph, so the run's ink is centered on
+		// the pen's MIDPOINT: start + (n-1)*charSpace/2. Since 2009 this
+		// subtracted n*charSpace/2 -- half a cell too much -- and every
+		// centered string (menu buttons, titles, the countdown) sat half a
+		// glyph left of where it was asked to be. Reported by the tester on
+		// the ink buttons, whose frame made the offset visible (round 38).
+		ss_cooX -= (stringLength - 1) * charSpace / 2;
 	}
 	
 	
@@ -383,8 +389,12 @@ void SCR_ConvertTextToVertices(const char* string, float size, short ss_cooX, sh
 	for (i=0; i < stringLength; i++) 
 	{
 		//	Log_Printf("character %c=%d\n",*currentChar,*currentChar);
-		textCoo[X] = *currentChar & 15;
-		textCoo[Y] = *currentChar >> 4;
+		// v2: UNSIGNED indexing -- the atlas has real Latin-1 accent glyphs
+		// (rows 12-15), but char is SIGNED on Apple ARM64: an accented byte
+		// (0xE9, 'e acute') went negative and the arithmetic shift produced
+		// a negative row. French needs the top half of the table.
+		textCoo[X] = (uchar)*currentChar & 15;
+		textCoo[Y] = (uchar)*currentChar >> 4;
 		
 		scr_p_TextVertices[0].pos[X] = ss_cooX-charWidth;
 		scr_p_TextVertices[0].pos[Y] = ss_cooY+charHeight;

@@ -62,6 +62,11 @@ typedef void (*updateFunction_t)(struct enemy_t*)  ;
 
 #define NUM_ENEMY_PARAMETERS 6
 
+// The Devil (ENEMY_HAB) has no scripted parameters: its scratch is free.
+// [0] holds the costume (0 original, 1 anthracite, 2 ghost), which picks
+// both the skin (event.c) and the weapon (updateHAB).
+#define PARAMETER_HAB_COSTUME 0
+
 typedef struct enemy_t
 {
 	unsigned int uniqueId;

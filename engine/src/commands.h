@@ -46,7 +46,9 @@
 
 #define NET_RTM_COMMAND 3
 #define NET_RTM_ABS_UPDATE 4
-#define NET_RTM_DIED 5
+#define NET_RTM_DIED 5			// v1: peer-declared death -- retired by the v2.0.9 host authority (kept: replay files carry it)
+#define NET_RTM_DIE_REQ 6		// v2.0.9: client -> host, "my hull was hit, rule on it"
+#define NET_RTM_DIE_ORDER 7		// v2.0.9: host -> all, "seat X dies; pool before = delta[X], death seq = delta[Y]"
 
 typedef struct command_t
 {

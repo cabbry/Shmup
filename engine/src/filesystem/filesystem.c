@@ -51,6 +51,7 @@ bool FS_InitFilesystem( void )
 	Log_Printf("SHMUP :\n");
 	Log_Printf("===========\n");
 	Log_Printf("[Filesystem] Initialized.\n");
+	return true;	// v3: the function is bool and never said so
 }
 
 char*	FS_GameWritableDir(void)
@@ -117,9 +118,9 @@ filehandle_t* FS_OpenFile( const char *filename, char* mode  )
 		hFile->isWritable = 1;
 
 	//Get filesize.
-	pos = ftell (fd);
+	pos = (int)ftell (fd);
 	fseek (fd, 0, SEEK_END);
-	end = ftell (fd);
+	end = (int)ftell (fd);
 	fseek (fd, pos, SEEK_SET);
 	hFile->filesize = end;
 	

@@ -34,6 +34,7 @@
 #include "player.h"
 #include "event.h"
 #include "titles.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 light_t light;
 
@@ -42,6 +43,57 @@ light_t light;
 entity_t map[MAX_NUM_ENTITIES];
 uchar num_map_entities;
 int numBackgroundEntities=0;
+
+
+// v2: the Custom screen previews the CHOSEN ship on the menu's orbit stage.
+// The menu's "rotating ship" is a STATIC map entity circled by the camera
+// path, so the preview is just a model swap on that entity -- plus a
+// compensating uniform scale: the player hulls are ~2.8x the intro mesh
+// (hpp_ship.obj is hpp.obj rescaled to match p1/p2), and the intro camera
+// was framed for the small one. Menu-scene only, display-only: the sim
+// never reads this entity, so lockstep is untouched.
+void World_SetIntroShipPreview(int shipChoice)
+{
+	entity_t* e;
+	const char* path = "data/models/players/hpp.obj.md5mesh";	// the classic intro model
+	float s = 1.0f;
+	int i;
+
+	if (engine.sceneId != 0 || num_map_entities < 1)
+		return;
+
+	if (shipChoice >= 0 && shipChoice < NUM_SHIP_CHOICES)
+	{
+		path = gShipPaths[shipChoice];
+		s = 0.35f;			// 1.9 (intro hull) / ~5.4 (player hulls)
+	}
+
+	e = &map[num_map_entities - 1];		// intro.map has ONE entity, after 0 background
+
+	// FULL_DRAW, and the entity's ORIGINAL indices buffer stays untouched.
+	// Both halves matter, and the first build of this preview crashed on
+	// opening for getting them wrong: the baked vis system (vis.c) memcpys
+	// its per-camera-keyframe index set INTO map[].indices every update --
+	// swapping that buffer for one sized to the previewed model let a full
+	// hpp vis set (3906 tris) smash a p1-sized allocation (222 tris). Left
+	// alone, the buffer is always big enough (the sets are cut from the hpp
+	// mesh), the vis writes stay harmless, and FULL_DRAW makes the renderer
+	// draw the previewed MODEL's own complete index list instead. (Reloading
+	// PARTIAL would also have reallocated the buffer -- same bomb.)
+	if (!ENT_LoadEntity(e, (char*)path, ENT_FULL_DRAW))
+		return;
+
+	for (i = 0; i < 16; i++)
+		e->matrix[i] = 0;
+	e->matrix[0] = e->matrix[5] = e->matrix[10] = s;
+	e->matrix[15] = 1.0f;
+	ENT_GenerateWorldSpaceBBox(e);
+}
+
+void World_ClearIntroShipPreview(void)
+{
+	World_SetIntroShipPreview(-1);		// -1 = the classic intro model at 1:1
+}
 
 void World_ReadMatrix(matrix_t target)
 {
@@ -683,6 +735,25 @@ void World_OpenScene(char* filename)
 	}
 
 	LE_popLexer();
+
+	// v2 P3: every shipped scene authors exactly TWO player spawn matrices
+	// (id 0 / id 1). Seats 2/3 would attach with a zero matrix and project to
+	// garbage -- synthesize their spawns on the segment between the authored
+	// pair: seat 2 at 1/4 of the way, seat 3 at 3/4 (the same inner-pair order
+	// as the P_FormationX quinconce). Orientation rows copy the parent seat.
+	{
+		int s2, k;
+		for (s2 = 2; s2 < MAX_NUM_PLAYERS; s2++)
+		{
+			float t = (s2 == 2) ? 0.25f : 0.75f;
+			int parent = s2 - 2;
+			for (k = 0; k < 16; k++)
+				players[s2].entity.matrix[k] = players[parent].entity.matrix[k];
+			for (k = 12; k < 15; k++)	// translation: lerp between seat 0 and 1
+				players[s2].entity.matrix[k] =
+					players[0].entity.matrix[k] + t * (players[1].entity.matrix[k] - players[0].entity.matrix[k]);
+		}
+	}
 }
 
 

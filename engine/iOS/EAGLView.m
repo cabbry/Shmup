@@ -24,11 +24,14 @@
 
 
 
+// v3 (round 37): OpenGL ES retired. The view's layer is a CAMetalLayer and the
+// frame goes through renderer_metal.m; nothing deprecated is called from here.
 #import <QuartzCore/QuartzCore.h>
-#import <OpenGLES/EAGLDrawable.h>
+#import <QuartzCore/CAMetalLayer.h>
 #import "dEngineAppDelegate.h"
 
 #import "EAGLView.h"
+#include "renderer_metal.h"
 #import "dEngine.h"
 #import "filesystem.h"
 #import "renderer.h"
@@ -46,6 +49,7 @@
 #include "netchannel.h"
 #include "globals.h"
 #include "io_interface.h"
+#include "titles.h"	// TITLE_IsShowing: the BACK hit-test yields to the title card
 
 EAGLView *eaglview;
 
@@ -61,13 +65,6 @@ AQ* audiocontroller;
 
 // A class extension to declare private methods
 @interface EAGLView ()
-
-@property (nonatomic, retain) EAGLContext *context;
-
-
-- (BOOL) createFramebuffer;
-- (void) destroyFramebuffer;
-
 @end
 
 
@@ -75,15 +72,14 @@ AQ* audiocontroller;
 
 @implementation EAGLView
 
-@synthesize context;
-
 @synthesize animating;
 @dynamic animationFrameInterval;
 
 
-// You must implement this method
+// The view's backing layer. Metal since round 35, the only backend since
+// round 37 (the device round confirmed it: identical, sharper, menus answer).
 + (Class)layerClass {
-    return [CAEAGLLayer class];
+    return [CAMetalLayer class];
 }
 
 - (void) checkEngineSettings
@@ -201,29 +197,9 @@ AQ* audiocontroller;
 		eaglview = self;
 		
 		
-        // Get the layer
-        CAEAGLLayer *eaglLayer = (CAEAGLLayer *)self.layer;
-        
-		
-		
-        eaglLayer.opaque = YES;
+		// v3 (round 37): the layer is a CAMetalLayer (+layerClass); OpenGL ES
+		// retired once the device round confirmed Metal.
 
-        eaglLayer.drawableProperties = [NSDictionary dictionaryWithObjectsAndKeys:
-                                        [NSNumber numberWithBool:NO], 
-										kEAGLDrawablePropertyRetainedBacking,
-										#ifndef GENERATE_VIDEO
-										kEAGLColorFormatRGB565
-										#else
-										kEAGLColorFormatRGBA8
-										#endif	
-										,
-										kEAGLDrawablePropertyColorFormat, nil];
-	
-        
-		NSString *rendererType = [[NSUserDefaults standardUserDefaults] stringForKey:@"RendererType"];
-		bool fixedDesired = [@"0" isEqualToString:rendererType];
-	
-		
 		//Set the texture quality
 		renderer.materialQuality = [[[NSUserDefaults standardUserDefaults] stringForKey:@"MaterialQuality"] intValue];
 		
@@ -232,46 +208,33 @@ AQ* audiocontroller;
 		//#else
 		renderer.materialQuality = MATERIAL_QUALITY_HIGH;
 		//#endif
-		fixedDesired=1;
-    
-		UIDevice* thisDevice = [UIDevice currentDevice];
-        float w = [[UIScreen mainScreen] bounds].size.width;
-        float h = [[UIScreen mainScreen] bounds].size.height;
-        renderer.glBuffersDimensions[WIDTH] = w;
-        renderer.glBuffersDimensions[HEIGHT] = h;
 
-		
+		UIDevice* thisDevice = [UIDevice currentDevice];
+
+		// The engine's surface, in pixels, BEFORE dEngine_Init: the menus are
+		// built in there and place their titles with a formula that divides by
+		// this height (menu.c, safeInsetTopPx * 2*SS_H / height). 3.0.2 left it
+		// at zero -- 0 * inf = NaN, and the SHMUP Reborn title went off-screen.
+		// Render at the native scale; handleTouches scales the finger onto the
+		// same surface.
+		CGFloat scale = [UIScreen mainScreen].scale;
+		int pw, ph;
+		self.contentScaleFactor = scale;
+		pw = (int)(self.bounds.size.width  * scale);
+		ph = (int)(self.bounds.size.height * scale);
+		renderer.glBuffersDimensions[WIDTH]  = pw;
+		renderer.glBuffersDimensions[HEIGHT] = ph;
+
 		[self checkEngineSettings];
-		
+
         dEngine_Init();
 
-		
-		if (!fixedDesired)
-			context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
-		
-		
-		if (context == nil)
 		{
-			context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES1];
-			 
-			if (!context || ![EAGLContext setCurrentContext:context]) {
-				[self release];
-				return nil;
-			}
-			
-			dEngine_InitDisplaySystem(GL_11_RENDERER);
+			if (!MTL_Create((__bridge void*)self.layer, pw, ph))
+				NSLog(@"[Metal] backend init failed");
+			dEngine_InitDisplaySystem(METAL_RENDERER);
 		}
-		else
-		{
-			if (!context || ![EAGLContext setCurrentContext:context]) {
-				[self release];
-				return nil;
-			}
-			
-			dEngine_InitDisplaySystem(GL_20_RENDERER);
-		}
-		
-		
+
 		renderer.props |= PROP_FOG;		
 		
 		
@@ -337,15 +300,12 @@ AQ* audiocontroller;
     return self;
 }
 
-- (void)drawView:(id)sender 
+- (void)drawView:(id)sender
 {
-	
-	glBindRenderbufferOES(GL_RENDERBUFFER_OES, viewRenderbuffer);
-    [context presentRenderbuffer:GL_RENDERBUFFER_OES];
-	
-	
+	// The frame is recorded and presented in one go.
+	MTL_BeginFrame();
 	dEngine_HostFrame();
-
+	MTL_EndFrame();
 }
 
 
@@ -373,9 +333,14 @@ AQ* audiocontroller;
 //    
 //    self.window.frame = [[UIScreen mainScreen] bounds];
     
-    [EAGLContext setCurrentContext:context];
-    [self destroyFramebuffer];
-    [self createFramebuffer];
+    {
+        // Resize the drawable and the engine's surface together.
+        CGFloat scale = self.contentScaleFactor;
+        int pw = (int)(self.bounds.size.width  * scale);
+        int ph = (int)(self.bounds.size.height * scale);
+        MTL_Resize(pw, ph);
+        SRC_OnResizeScreen(pw, ph);
+    }
     if (@available(iOS 11.0, *)) {
         renderer.safeInsetTopPx = self.safeAreaInsets.top * self.contentScaleFactor;
     }
@@ -396,7 +361,7 @@ AQ* audiocontroller;
 	// frame interval setting of one will fire 60 times a second when the display refreshes
 	// at 60 times a second. A frame interval setting of less than one results in undefined
 	// behavior.
-	NSLog(@"frameInterval=%d",frameInterval);
+	NSLog(@"frameInterval=%ld",(long)frameInterval);
 	if (frameInterval >= 1)
 	{
 		animationFrameInterval = frameInterval;
@@ -407,54 +372,6 @@ AQ* audiocontroller;
 			[self startAnimation];
 		}
 	}
-}
-
-
-- (BOOL)createFramebuffer 
-{
-	
-    glGenFramebuffersOES(1, &viewFramebuffer);
-    glGenRenderbuffersOES(1, &viewRenderbuffer);
-    
-    glBindFramebufferOES(GL_FRAMEBUFFER_OES, viewFramebuffer);
-    glBindRenderbufferOES(GL_RENDERBUFFER_OES, viewRenderbuffer);
-    [context renderbufferStorage:GL_RENDERBUFFER_OES fromDrawable:(CAEAGLLayer*)self.layer];
-    glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES, GL_COLOR_ATTACHMENT0_OES, GL_RENDERBUFFER_OES, viewRenderbuffer);
-    
-    glGetRenderbufferParameterivOES(GL_RENDERBUFFER_OES, GL_RENDERBUFFER_WIDTH_OES, &renderer.glBuffersDimensions[WIDTH]);
-    glGetRenderbufferParameterivOES(GL_RENDERBUFFER_OES, GL_RENDERBUFFER_HEIGHT_OES, &renderer.glBuffersDimensions[HEIGHT]);
-    
-    //Depth buffer
-	glGenRenderbuffersOES(1, &depthRenderbuffer);
-	glBindRenderbufferOES(GL_RENDERBUFFER_OES, depthRenderbuffer);
-	glRenderbufferStorageOES(GL_RENDERBUFFER_OES, GL_DEPTH_COMPONENT16_OES, renderer.glBuffersDimensions[WIDTH], renderer.glBuffersDimensions[HEIGHT]);
-	glFramebufferRenderbufferOES(GL_FRAMEBUFFER_OES, GL_DEPTH_ATTACHMENT_OES, GL_RENDERBUFFER_OES, depthRenderbuffer);
-    
-    
-	
-	renderer.mainFramebufferId = viewFramebuffer;
-	
-    if(glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES) != GL_FRAMEBUFFER_COMPLETE_OES) 
-	{
-        NSLog(@"failed to make complete framebuffer object %x", glCheckFramebufferStatusOES(GL_FRAMEBUFFER_OES));
-        return NO;
-    }
-    
-    return YES;
-} 
-
-
-- (void)destroyFramebuffer {
-    
-    glDeleteFramebuffersOES(1, &viewFramebuffer);
-    viewFramebuffer = 0;
-    glDeleteRenderbuffersOES(1, &viewRenderbuffer);
-    viewRenderbuffer = 0;
-    
-    if(depthRenderbuffer) {
-        glDeleteRenderbuffersOES(1, &depthRenderbuffer);
-        depthRenderbuffer = 0;
-    }
 }
 
 
@@ -501,7 +418,8 @@ AQ* audiocontroller;
 			free(machine);
 				
 				
-			[displayLink setFrameInterval:animationFrameInterval];	
+			// v3: preferredFramesPerSecond replaces the deprecated setFrameInterval: (and the typed receiver ends the "multiple methods named" ambiguity)
+			((CADisplayLink*)displayLink).preferredFramesPerSecond = (animationFrameInterval > 0) ? (NSInteger)(60 / animationFrameInterval) : 60;
 			[displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
 		}
 		else
@@ -549,10 +467,9 @@ AQ* audiocontroller;
 	
 	
 	NSString* name = [NSString stringWithFormat:@"%@/%@",
-					  [[[NSString alloc] initWithCString:FS_Gamedir() encoding:NSASCIIStringEncoding] autorelease],
+					  [[NSString alloc] initWithCString:FS_Gamedir() encoding:NSASCIIStringEncoding],
 					  tmpName
 					  ];
-	[tmpName release];
 	spriteImage = [UIImage imageWithContentsOfFile:name].CGImage; 
 	
 	
@@ -572,9 +489,9 @@ AQ* audiocontroller;
 	if(spriteImage) 
 	{
 		
-		text->width = CGImageGetWidth(spriteImage);
-		text->height = CGImageGetHeight(spriteImage);
-		text->bpp = CGImageGetBitsPerPixel(spriteImage);//
+		text->width = (uint)CGImageGetWidth(spriteImage);
+		text->height = (uint)CGImageGetHeight(spriteImage);
+		text->bpp = (uint)CGImageGetBitsPerPixel(spriteImage);
 		text->numMipmaps = 1;
 		
 		text->data    = (ubyte **)calloc(1, sizeof(ubyte*));
@@ -585,13 +502,13 @@ AQ* audiocontroller;
 		{
 			text->format = TEXTURE_GL_RGB;
 			//NSLog(@"TEXTURE_GL_RGB, bpp=%d ",text->bpp);
-			spriteContext = CGBitmapContextCreate(text->data[0], text->width, text->height, 8, text->width * 4, CGImageGetColorSpace(spriteImage), kCGImageAlphaNoneSkipLast);
+			spriteContext = CGBitmapContextCreate(text->data[0], text->width, text->height, 8, text->width * 4, CGImageGetColorSpace(spriteImage), (CGBitmapInfo)kCGImageAlphaNoneSkipLast);
 		}
 		else 
 		{
 			text->format = TEXTURE_GL_RGBA;		
 			//NSLog(@"TEXTURE_GL_RGBA, bpp=%d  ",text->bpp);
-			spriteContext = CGBitmapContextCreate(text->data[0], text->width, text->height, 8, text->width * 4, CGImageGetColorSpace(spriteImage), kCGImageAlphaPremultipliedLast);
+			spriteContext = CGBitmapContextCreate(text->data[0], text->width, text->height, 8, text->width * 4, CGImageGetColorSpace(spriteImage), (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
 		}
 
 		
@@ -620,15 +537,7 @@ void loadNativePNG(texture_t* tmpTex)
 
 
 - (void)dealloc {
-    
     [self stopAnimation];
-    
-    if ([EAGLContext currentContext] == context) {
-        [EAGLContext setCurrentContext:nil];
-    }
-    
-    [context release];  
-    [super dealloc];
 }
 
 - (void) handleTouches:(UIEvent*)event 
@@ -639,17 +548,28 @@ void loadNativePNG(texture_t* tmpTex)
     static int previousTouchCount;
 
 
+    // v3.0.1: UIKit reports touches in points; the engine maps them against its
+    // surface (glBuffersDimensions / viewPortDimensions). The OpenGL surface was
+    // the layer at 1x, so points WERE surface units. The Metal surface is at the
+    // native scale, so a touch has to be scaled onto it -- else every tap lands
+    // at a third of where the finger is and no menu button is ever hit (3.0.0).
+    // The ratio is identity on the OpenGL path: this line is correct on both.
+    CGFloat toSurface = self.bounds.size.width > 0
+        ? renderer.glBuffersDimensions[WIDTH] / self.bounds.size.width : 1;
+
     NSSet *iPhonetouches = [event allTouches];
     for (UITouch *myTouch in iPhonetouches)
     {
         touchCount++;
         CGPoint touchLocation = [myTouch locationInView:nil];
         CGPoint prevTouchLocation = [myTouch previousLocationInView:nil];
+        touchLocation.x *= toSurface;  touchLocation.y *= toSurface;
+        prevTouchLocation.x *= toSurface;  prevTouchLocation.y *= toSurface;
 
         // Tutorial (scenes 14 = swipe, 15 = virtual pad) and Demo (scene 13): a
         // top-centre BACK button to leave and return to the main menu. Swallow
         // the touch.
-        if ((engine.sceneId == 13 || engine.sceneId == 14 || engine.sceneId == 15) && myTouch.phase == UITouchPhaseBegan)
+        if ((engine.sceneId == 13 || engine.sceneId == 14 || engine.sceneId == 15) && myTouch.phase == UITouchPhaseBegan && !TITLE_IsShowing())
         {
             CGPoint local = [myTouch locationInView:self];
             CGFloat fx = local.x / self.bounds.size.width;
@@ -720,11 +640,10 @@ void SND_InitSoundTrack(char* filename,unsigned int startAt)
 	if (!engine.musicEnabled)
 		return;
 	
-	NSString* name = [[NSString alloc] initWithCString:filename];
+	NSString* name = [NSString stringWithUTF8String:filename];	// v3: the un-encoded initWithCString: was the one deprecation the file pragma hid
     audiocontroller = [[AQ alloc] init];
     [audiocontroller initAudio];
 	[audiocontroller loadSoundTrack:name startAt:startAt];
-	[name release];
 }
 
 void SND_StartSoundTrack(void)

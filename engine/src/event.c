@@ -186,11 +186,21 @@ void EV_SpawnEnemy(event_t* event)
 	// difficulty: 0 = the resurrected original silver, 1 = the anthracite
 	// stealth (the texture darkens under GL_MODULATE, red stripes survive as
 	// embers), 2 = the translucent ghost (alpha < 1: the enemy pass blends it).
-	// Costumes are cosmetic: energy resets to the type's base, undoing the
-	// generic subType multipliers above (the MP doubling comes after).
+	// The costume also picks the weapon: updateHAB reads it back from the
+	// scratch parameters. Energy is a flat elite pool, not the type's base
+	// (10) nor the generic subType multipliers above -- a Devil stays on
+	// screen ~4s and must survive focused fire (the MP doubling comes after).
 	if (eventPayload->type == ENEMY_HAB)
 	{
-		enemy->energy = enemyTypeEnergy[ENEMY_HAB];
+		enemy->energy = 55;	// 80 outlived the fun on device ("un peu trop de vie")
+		enemy->parameters[PARAMETER_HAB_COSTUME] = (float)eventPayload->subType;
+		// runtime proof for the smoke log: every Devil spawn, timestamped
+		// (device report of a missing V5 ghost -- the parse was clean, so
+		// the truth has to come from the running engine)
+		if (Log_ProbesEnabled())
+			Log_Printf("[devil] t=%d costume=%d at %.2f,%.2f\n",
+				simulationTime, eventPayload->subType,
+				enemy->ss_position[X], enemy->ss_position[Y]);
 		switch (eventPayload->subType) {
 			case 1:		// anthracite
 				enemy->entity.color[R] = 0.30f;
@@ -198,11 +208,12 @@ void EV_SpawnEnemy(event_t* event)
 				enemy->entity.color[B] = 0.42f;
 				enemy->entity.color[A] = 1;
 				break;
-			case 2:		// ghost
+			case 2:		// ghost -- 0.30 was unreadable on device;
+						// updateHAB shimmers alpha 0.42..0.75 from here
 				enemy->entity.color[R] = 0.85f;
 				enemy->entity.color[G] = 0.95f;
 				enemy->entity.color[B] = 1.0f;
-				enemy->entity.color[A] = 0.30f;
+				enemy->entity.color[A] = 0.42f;
 				break;
 			default:	// the original, as decoded from the 2009 .pvr
 				enemy->entity.color[R] = 1;
@@ -213,12 +224,13 @@ void EV_SpawnEnemy(event_t* event)
 		}
 	}
 
-	// In multiplayer there are two ships firing (~twice the DPS), so enemies felt too
-	// easy with solo HP. Double their energy to keep the challenge comparable. Applied
-	// identically on both devices (same events, same mode) so it stays deterministic.
-	// One-shot WEAK enemies (energy 1) are left alone.
-	if (engine.mode == DE_MODE_MULTIPLAYER && enemy->energy > 1)
-		enemy->energy *= 2;
+	// In multiplayer N ships fire (~N times the DPS), so enemies felt too easy
+	// with solo HP. Scale their energy by the ship count to keep the challenge
+	// comparable (v2 P3: was a flat x2 for the 2-player mode -- identical at 2).
+	// Applied identically on every device (same events, same mode/numPlayers)
+	// so it stays deterministic. One-shot WEAK enemies (energy 1) are left alone.
+	if (engine.mode == DE_MODE_MULTIPLAYER && enemy->energy > 1 && numPlayers >= 2)
+		enemy->energy *= numPlayers;
 	
 
 	
@@ -250,9 +262,11 @@ void EV_ShowProlog(event_t* event)
 
 void EV_ShowEpilog(event_t* event)
 {
-	//Log_Printf("EV_ShowEpilog()\n");
 	event_title_payload_t* pl;
 	pl = event->payload;
+	// outro diagnostics (205: the act never reached scene 4 in the smoke)
+	if (Log_ProbesEnabled())
+		Log_Printf("[title] epilog event fired t=%d dur=%d\n", simulationTime, pl->duration);
 	TITLE_Show_epilog(pl->duration);
 }
 
@@ -297,9 +311,12 @@ void EV_AutoPilotPls(event_t* event)
 		players[i].autopilot.enabled = 1;
 		players[i].autopilot.timeCounter  = PLAYER_ENDLEVEL_REPLACMENT;
 		players[i].autopilot.originalTime = PLAYER_ENDLEVEL_REPLACMENT;
-		players[i].autopilot.end_ss_position[X] = (i-0.5)*2*0.3;
-		
-		players[i].autopilot.end_ss_position[Y] = -0.3;
+		// v2 P3: the end-of-level rest formation. 0.6*P_FormationX(i) is
+		// bit-exact with the 2010 (i-0.5)*2*0.3 for seats 0/1, and pulls
+		// seats 2/3 into the inner staggered pair instead of off-screen.
+		players[i].autopilot.end_ss_position[X] = 0.6f * P_FormationX(i);
+
+		players[i].autopilot.end_ss_position[Y] = -0.3f + ((i < 2) ? 0.0f : -0.2f);
 		//Log_Printf("player %d end_ss_position[%.2f,%.2f]\n",players[i].autopilot.end_ss_position[X],players[i].autopilot.end_ss_position[Y]);
 		players[i].autopilot.diff_ss_position[X] = players[i].ss_position[X] - players[i].autopilot.end_ss_position[X];
 		players[i].autopilot.diff_ss_position[Y] = players[i].ss_position[Y] - players[i].autopilot.end_ss_position[Y];
@@ -310,7 +327,7 @@ void EV_AutoPilotPls(event_t* event)
 
 void EV_SaveScore(event_t* event)
 {
-	Native_UploadScore(players[controlledPlayer].score);
+	Native_UploadScore(P_GetDisplayScore());	// v2 P3: team score in MP
 }
 
 

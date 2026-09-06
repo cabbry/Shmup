@@ -43,7 +43,7 @@ typedef struct text_t
 typedef struct text_lib_t
 {
 	text_t texts[MAX_NUM_TEXTS];
-	char numTexts;
+	uchar numTexts;
 } text_lib_t;
 
 text_lib_t textLib;

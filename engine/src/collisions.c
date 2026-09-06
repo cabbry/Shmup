@@ -423,6 +423,11 @@ void COLL_CheckPlayers(void)
 	if (players[controlledPlayer].invulnerableFor > 0)
 		return;
 
+	// v2.0.9: a hit already reported to the host, awaiting its ruling -- the
+	// hull flies on for a round trip but cannot be hit twice for one death.
+	if (players[controlledPlayer].deathPending)
+		return;
+
 	// Out of lives (RIP, parked off-screen): the corpse can't collide anymore --
 	// stray bullets used to "kill" it again and end the multiplayer match while
 	// the other player was still alive.
@@ -448,6 +453,14 @@ void COLL_CheckPlayers(void)
 
 		P_Die(controlledPlayer);
 		partLib.particules[j].ttl = 0;
+		// One death per frame, full stop. P_Die raises invulnerableFor, but
+		// that flag is only tested at the TOP of this function -- so without
+		// this return a burst whose bullets straddle the hull in the same
+		// frame charged the player two or three lives at once. With a shared
+		// pool and a counter on screen that reads as "x2 became x0, there was
+		// no x1"; in 2010, with three lives each and hearts to count, it just
+		// read as bad luck.
+		return;
 	}
 
 	// Boss homing missiles: unlike escort ships, their body is lethal on contact.
@@ -465,6 +478,7 @@ void COLL_CheckPlayers(void)
 			{
 				P_Die(controlledPlayer);
 				e->energy = 0;
+				return;			// one death per frame -- see the note above
 			}
 			e = e->next;
 		}
@@ -537,7 +551,7 @@ void COLL_CheckEnemies(void)
 					bullets[j].expirationTime = simulationTime;
 					// Same visible bullet burst as a body hit -- arm hits used to
 					// eat the bullet with almost no feedback ("il ne se passe rien").
-					Spawn_BulletParticules(&bullets[j], i);
+					Spawn_BulletParticules(&bullets[j], i & 1);	// v2 P3: 2 impact sprite types only
 					{
 						static int lastArmImpact = -1000;
 						if (simulationTime - lastArmImpact > 40 || simulationTime < lastArmImpact)
@@ -631,7 +645,7 @@ void COLL_CheckEnemies(void)
 				{
 
 					bullets[j].expirationTime = simulationTime ;
-					Spawn_BulletParticules(&bullets[j],i);
+					Spawn_BulletParticules(&bullets[j], i & 1);	// v2 P3: 2 impact sprite types only
 				}
 				
 				if (enemy->energy <= 0)
@@ -749,6 +763,11 @@ void COLL_CheckEnemies(void)
 
 	// User in invulnerable
 	if (players[controlledPlayer].invulnerableFor > 0)
+		return;
+
+	// v2.0.9: a hit already reported to the host, awaiting its ruling -- the
+	// hull flies on for a round trip but cannot be hit twice for one death.
+	if (players[controlledPlayer].deathPending)
 		return;
 
 	// Out of lives (RIP): same guard as COLL_CheckPlayers -- no corpse collisions.

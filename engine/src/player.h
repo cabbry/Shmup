@@ -39,7 +39,7 @@ extern texture_t pointersTexture;
 #define MAX_PLAYER_BULLETS 16
 
 #define BULLET_DEFAULT_ENERGY 1
-#define MAX_NUM_PLAYERS 2
+#define MAX_NUM_PLAYERS 4	// v2 P3: was 2 -- every per-player array sizes off this
 
 
 
@@ -99,11 +99,14 @@ typedef struct playerBulletSprite_t
 */
 
 //Variable storing players bullet AND firing flash (in front of the player ship)
-// Vertices needed is number_of_players * number_of_bullets * 4 +  number_of_players * 4 = number_of_players * (number_of_bullets*4 +4)
-// Indices needed is number_of_players * number_of_bullets * 6 + number_of_players * 6 =   number_of_players * (number_of_bullets * 6 + 6)
+// Per player: one quad per live bullet, PLUS the muzzle flash -- which is TWO
+// quads, one per gun (P_PrepareBulletSprites draws gun 0 and gun 1). The 2010
+// arithmetic budgeted a single flash quad (+4 vertices / +6 indices), so the
+// pool was always one quad per player short; at 4 players the overrun doubled.
+// v2 P3: budget both guns (+8 / +12).
 extern int numPBulletsIndices;
-extern unsigned short bulletIndices[(MAX_PLAYER_BULLETS * 6 + 6)*MAX_NUM_PLAYERS];
-extern xf_colorless_sprite_t pBulletVertices[(MAX_PLAYER_BULLETS*4+4)*MAX_NUM_PLAYERS];
+extern unsigned short bulletIndices[(MAX_PLAYER_BULLETS * 6 + 12)*MAX_NUM_PLAYERS];
+extern xf_colorless_sprite_t pBulletVertices[(MAX_PLAYER_BULLETS*4+8)*MAX_NUM_PLAYERS];
 
 
 typedef struct bullet_t
@@ -213,6 +216,12 @@ typedef struct player_t
 	ushort invulFlickering;
 	char respawnCounter;
 	uchar shouldDraw;
+
+	// v2.0.9 host authority on deaths: this hull was hit and its death is
+	// awaiting the host's ruling. Collisions are suspended meanwhile (the
+	// request is resent until the order arrives, or times out).
+	char deathPending;
+	int  deathPendingSince;
 	
 	autopilot_t autopilot;
 	int showPointer;
@@ -232,7 +241,7 @@ typedef struct player_t
 
 extern uchar numPlayers;
 extern uchar controlledPlayer;
-extern player_t players[2];
+extern player_t players[MAX_NUM_PLAYERS];	// v2 P0: was a literal 2 out of sync with the macro
 extern uchar entitiesAttachedToCamera;
 
 void P_InitPlayers(void);
@@ -256,7 +265,8 @@ void P_UpdateGhosts(player_t* player);
 void P_PrepareGhostSprites(void);
 void P_FireGhosts(player_t* player);
 
-void P_Die(uchar playerId);
+void P_Die(uchar playerId);			// a hull was hit: routes to the host authority in MP
+void P_ApplyDeath(uchar playerId);	// the death itself (FX, pool, respawn/RIP, game over) -- no network
 void P_UpdateSSBoundaries(uchar pId);
 
 void P_CreatePointerCoordinates(void);
@@ -276,18 +286,27 @@ void PL_RenderPlayerPointers(void);
 extern unsigned char numPlayerRespawn[];
 
 // Solo loadout selection (Others -> Ship). See player.c / menu.c.
-// (Ship 3 / hpp was dropped: its model renders far too small.)
-#define NUM_SHIP_CHOICES 2
+// v2: Ship 3 / hpp RESURRECTED -- it was not broken art, just authored ~2.8x
+// smaller than p1/p2 (1.9 vs 5.5 units of wingspan); the mesh was rescaled
+// offline, the same cure as the Devil in 1.6.4.
+#define NUM_SHIP_CHOICES 4
 extern int gShipChoice;
 #define NUM_BULLET_COLORS 4
 extern int gBulletColor;
 // Multiplayer per-player Custom loadout, synced during the handshake (netchannel.c).
-extern int gMPShipChoice[2];
-extern int gMPBulletColor[2];
+extern const char* gShipPaths[NUM_SHIP_CHOICES];
+extern int gMPShipChoice[MAX_NUM_PLAYERS];
+extern int gMPBulletColor[MAX_NUM_PLAYERS];
 // Score frozen after the boss's killing blow (victory lap gains don't count).
 extern int gScoreLocked;
 // Re-apply the chosen ship(s) to the player entities (called on scene load, after
 // modelPath is set; solo = player 0, multiplayer = both players).
 void P_ReloadShip(void);
+
+// v2 P3: 4-player support.
+uint  P_GetDisplayScore(void);	// the TEAM score in MP (sum), own score solo
+float P_FormationX(int playerId);	// staggered 2-row formation (quinconce)
+float P_FormationY(int playerId);
+int   P_NearestAlivePlayer(float ssX, float ssY);	// enemy aim target
 
 #endif

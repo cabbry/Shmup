@@ -146,40 +146,668 @@ to the true screen edges, and the touch-coordinate mapping.
 - Minor/latent: the menu titles' safe-area offset is computed once at init,
   before the inset is known, so it stays inactive — the titles clear the notch
   via fixed margins today but wouldn't auto-adapt to a larger inset.
+- Accepted (v3, Metal): a transparent-to-black fade shows under the act title
+  card where OpenGL drew none — a fixed-pipeline emulation gap the tester
+  judged "not shocking, keep it". Left as is on purpose.
 
 ## Roadmap
 
-- **🎯 Boss fight** (Fabien's #1 wish — the thing he ran out of money for in 2009): the
-  traces are all there in the repo — an unused **"BOSS" title card** ships in
-  `data/titles/boss.png`, and act 2 ends with a commented-out *"To_Be_Continued..."*.
-  The plan: make the boss the **climax of the new level** — investigate which asset is
-  the boss seen at the end of level 2, then extend the enemy/event system to drive a real
-  encounter (its own HP pool, attack phases, patterns), announced by that title card at last.
+### Done — the 2009 wishlist, delivered
+
+- **🎯 Boss fight — ✅ DONE** (Fabien's #1 wish — the thing he ran out of money for
+  in 2009). The long-dormant LOFB is now a real climax, its own **Act IV**: an HP
+  pool with a quad-drawn health bar, an attack ladder that unlocks with damage
+  (aimed fans → rotating spray → escort waves → big energy shots → red homing
+  seekers → frenzy), **destructible arms** that silence their side, shoot-downable
+  homing missiles, and a **mega-laser** with a readable charge-up telegraph. The
+  `boss.png` card announces it at last, and finishing it ends the game for real
+  (MISSION COMPLETE card, rank D→S). Player-tested over ~18 rounds of feedback.
+- **A new level — ✅ DONE: Act III, "夕 -Dusk"**, inserted before the boss act.
+  Its own title card, a dusk sky with stars and crossing meteors, three phases of
+  mixed-type waves the original acts never ran, the resurrection of **"le Devil"**
+  (`ENEMY_HAB` — modeled and coded by Fabien in 2009, never once spawned by any
+  shipped scene) in three costumes with three weapons, and a storm-lit cameo of
+  the Act IV boss crossing the sky. Declared **frozen** by the tester after
+  round 30: *"Pour moi l'act 3 est ok. On n'y touche plus."*
+- **TTB system — ✅ DONE, and shipped as content** (homage to the manga *Tokyo Toy
+  Box*): mid-level, the camera swings **90° from top-down to a true side view**
+  for thirty seconds — the vertical shooter becomes a side-scroller, enemies,
+  bullets and the ship itself all re-reading correctly — then swings back. The
+  full journey (a naive roll, the corridor orbit, the ship's profile blend, the
+  side-view sky, per-view wave authoring) is rounds 19-31 of the changelog.
+- **Online multiplayer (GKMatch) — ✅ DONE** and listed under features; LAN co-op
+  additionally gained the **second-chance rule** (round 31).
+
+### Open
+
 - **Enemy / boss scripting** (Fabien's suggestion): the `.scene` event format is
-  declarative (spawn timelines); a boss needs *reactive* behaviour (phases, conditions).
-  Evaluate the lightest thing that works — extending the event system with conditional
-  triggers vs. embedding a small VM/Lua for enemy injection and boss scripting.
-- **Gameplay videos on YouTube** (Fabien's suggestion): record short progress videos
-  (solo run, 2-player LAN, online match) so people can see the project evolve.
-- **3–4 player multiplayer** (idea, later): the current netcode is strictly 2-player
-  (peer-to-peer, `controlledPlayer` / `!controlledPlayer`, `numPlayers = 2`), so N players
-  would be a real rewrite — N-way command sync / topology, more ship slots and lives logic.
-- Optional deeper modernization: ARC migration, 64-bit audit, `AVAudioSession`, and
-  clearing the ~600 deprecation warnings (then re-enabling the strict clang flags).
-- A new level (study `data/scenes`, the `event` system, the on-rails `cameraPath`, and
-  the preprocessor), reusing the existing assets. **→ started in round 19: Act III.**
-- **TTB system** (homage to the manga *Tokyo Toy Box*): a scripted perspective shift
-  mid-level — at preprogrammed points the camera rotates **90° from the usual top-down
-  view into a side view**, briefly turning the vertical shooter into a side-scroller,
-  then swings up again to the top-down view. The ship keeps flying forward the whole
-  time — nothing ever scrolls backwards. Authored as a beat in the new level, with the
-  camera path and decor built for it. Made possible by the game being real 3D.
-  **→ DONE in round 19** (`ttbRoll` scene event + camera roll, see the changelog);
-  what remains is content: enemy waves authored for each view, and the act's own art.
+  declarative (spawn timelines); reactive behaviour still lives in C (the boss
+  ladder is hardcoded in `lofb.c`, the Devil's weapons in `enemy.c`). If a
+  second boss or community levels ever happen, evaluate the lightest thing that
+  works — conditional triggers in the event system vs. a small VM/Lua.
+- **Gameplay videos on YouTube** (Fabien's suggestion): record short progress
+  videos (solo run, the Act III TTB beat, 2-player LAN, online match) so people
+  can see the project evolve. With all four acts now playable end to end, this
+  is mostly a recording session away.
+- **App Store release?** The game is feature-complete: four acts, a boss, an
+  ending, online multiplayer, leaderboards. Invitations are now handled in code
+  too (v2 added the accept-an-invite listener — the matchmaker could always
+  *send* one, but nothing was listening, so tapping Play did nothing), though
+  iMessage invites and SharePlay only light up once the app is on the App Store.
+- **🚀 v2 — 3-4 player multiplayer** (the next major version) — **on TestFlight
+  (v2.0.8), 2-player LAN AND online device-confirmed, act transitions
+  included** (rounds 32-34): the transport speaks SEATS (0..N-1, seat 0 hosts)
+  on both GameKit and the LAN, the
+  handshake is a counting barrier, per-seat sequence/liveness state replaces
+  every "the peer" scalar, a mid-match drop parks that ship and the match
+  continues, `MAX_NUM_PLAYERS` is 4 with a staggered 2-row formation, a shared
+  pool of N×3 lives, ONE team score, 4 named ships (Falcon, Viper, the
+  resurrected Phoenix, the translucent Ghost), a LAN roster that seats a party
+  of four, a party-size picker, and a Custom screen
+  that previews the picked ship on the menu stage, remote-ship de-jitter with
+  the ABS resync in wire order, and a half-RTT clock alignment at the online
+  GO, host migration (the lowest active seat leads, on every peer at once),
+  and host-ruled deaths (one order, one pool, one survivor on every screen).
+  Needs: a 4-device session -- everything above is rig-proven at four,
+  device-proven at two.
+- **🚀 v3 — the graphics overhaul** — **code-complete on the `v3` branch
+  (rounds 35-37)**: stage 1 ✅ every warning fixed or explicitly retired per
+  file, the project builds with `-Werror`; stage 2 ✅ ARC, a modern launch
+  screen, the 64-bit truncations made explicit; stage 3 ✅ the **Metal
+  backend** is the renderer — a 1:1 port of the fixed-pipeline passes with
+  the pipeline emulated in shaders, device-confirmed on v3.0.1 (build 223:
+  identical to 2.0.9, sharper, one accepted fade under the act title) — and
+  the OpenGL ES 1.1 and 2.0 renderers, EAGL and the OpenGLES framework are
+  **retired** (round 37), with the 511 deprecation sites they carried. What
+  remains deprecated is audio only (OpenAL, AudioQueue), pragma'd per file.
+  Next: a v3.0.2 build of the OpenGL-free tree, then the v3 branch can land.
+
+---
+
+## Graphics stack — before and after v3
+
+The game code never changed sides: it draws through the same 24-function
+`renderer_t` table it has used since 2009. What changed is everything under
+that table, from the API down to the layer on screen.
+
+**Before v3 — every build up to 2.0.9 (2009 → 2026)**
+
+```mermaid
+flowchart TB
+    subgraph game["Game code (unchanged by v3)"]
+        HF["dEngine_HostFrame → SCR_RenderFrame\nworld / entities / bullets / FX / menu / HUD"]
+    end
+    HF --> T["renderer_t — 24 function pointers\nSet3D · Set2D · RenderEntities · RenderFXSprites · UpLoadToGPU …"]
+    T --> F["renderer_fixed.c — OpenGL ES 1.1 fixed pipeline\nglMatrixMode · glLightfv · glFogf · glTexEnv · client arrays · VBOs\n(renderer_progr.c, ES 2.0 shaders, never bound since 2010)"]
+    F --> GL["OpenGLES.framework\ndeprecated by Apple since iOS 12"]
+    GL --> V["EAGLView — CAEAGLLayer + EAGLContext\nrenderbuffer at 1× (points), 16-bit depth\npresentRenderbuffer each CADisplayLink tick"]
+    V --> S["Screen — 1× resolution\n(touch points = surface units, by accident)"]
+```
+
+**After v3 — from 3.0.0 (Metal default) and 3.0.2 (OpenGL removed)**
+
+```mermaid
+flowchart TB
+    subgraph game2["Game code (unchanged by v3)"]
+        HF2["dEngine_HostFrame → SCR_RenderFrame\nworld / entities / bullets / FX / menu / HUD"]
+    end
+    HF2 --> T2["renderer_t — the same 24 function pointers"]
+    T2 --> M["renderer_metal.m — 1:1 port of the fixed-pipeline passes\nfixed pipeline emulated in one vertex + one fragment shader (MSL, compiled at launch)\nlighting · GL_LINEAR fog · REPLACE/MODULATE/ADD · blend · depth · cull"]
+    M --> R["Per-frame plumbing\nPSO cache 5 vertex kinds × 3 blends · 3 × 4 MB ring buffer + semaphore\ntexture cache RGBA8 + PVRTC · mid-frame readback for the [cull] probe"]
+    R --> MT["Metal.framework"]
+    MT --> V2["EAGLView (name kept for the nibs) — CAMetalLayer\ndrawable at native scale (×3), depth attachment\nBeginFrame → HostFrame → EndFrame each CADisplayLink tick"]
+    V2 --> S2["Screen — native resolution, 9× the pixels\n(touches scaled by surface / view)"]
+```
+
+What the two pictures share is the point of the whole exercise: the table.
+The Metal backend was written *against* the OpenGL one — the same passes in
+the same order, held to the OpenGL trace's own luma assertions in CI before
+it ever reached a device — which is why the game looks the same and why
+`renderer_fixed.c` could be deleted rather than kept as a fallback.
 
 ---
 
 ## Changelog
+
+### 2026-09-06 — round 38 (3.0.2 on device: the game is fine, the title is gone; and the buttons get a brush)
+
+- **v3.0.2 (build 224)** — the first OpenGL-free build. The tester: the game
+  is OK — and the *SHMUP Reborn* title has vanished from the home screen.
+  The kanji below it were still there.
+- **The cause** ([e69cec7]). The menus are built inside `dEngine_Init`, and
+  the home title is placed with a formula that divides by the surface
+  height (`safeInsetTopPx * 2·SS_H / glBuffersDimensions[HEIGHT]`, menu.c).
+  The OpenGL path had always assigned that height, in points, before
+  `dEngine_Init`; the retirement dropped the assignment along with the
+  OpenGL code, so the height was zero when the title quad was placed —
+  0 × ∞ = NaN, and the quad went nowhere. The kanji image is positioned
+  without that term, which is why it survived. The Metal smoke's menu
+  screenshot on the retirement commit shows exactly the tester's screen;
+  on the fix it shows the title again. The surface size is now handed to
+  the engine, in pixels, ahead of `dEngine_Init`.
+- **The buttons, redrawn with a brush.** The tester asked for a new button
+  style; four mockups were offered — an ink-brush frame, a neon outline, a
+  bare rule under the text, a riveted steel plate — and the ink frame won:
+  "it goes with the kanji and the rules of the credits page". The two
+  159×64 button sprites in `homeAtlas.png` are repainted as four brush
+  strokes that land heavy, thin through the body and lift off in a spatter,
+  crossing at the corners the way the kanji strokes do. The up state keeps
+  the 2009 fill so the white text reads as before; the down state is the
+  white flash it always was. Painted at 4× and downsampled; every pixel of
+  the atlas outside the two rectangles is byte-identical.
+- **The labels were not centered — since 2009** ([20151c7]). The tester saw
+  it the moment the ink frame gave the text an edge to be measured against.
+  Each glyph quad spans the pen ± one cell and the pen advances one cell, so
+  a run's ink is centered on the pen's *midpoint*, start + (n−1)/2 cells;
+  `SCR_ConvertTextToVertices` subtracted n/2 — every centered string sat half
+  a glyph left of its anchor, on the old rounded buttons too, invisibly. All
+  centered callers are anchored at x = 0 and simply become centered; the one
+  placed by eye with the bias in, the "BOSS" label, moves its anchor so it
+  does not move.
+- **The tutorial's BACK over the title card** ([487101f]) — a bug the tester
+  had carried in memory and never reported. `[ BACK ]` lives in the HUD's top
+  zone; the act card's band covers that zone for its first second, and the
+  two printed over each other. `TITLE_IsShowing()` now hides the label and
+  its hit-test while a card is up. The baseline frame from the new camera
+  below shows *Tutorial* with BACK across it; the fixed build could not be
+  caught in the act -- the Simulator replays the boot time at once and the
+  one-second card is gone before the first frame -- so the fix rests on the
+  code: the label is skipped exactly while `TITLE_Render` draws.
+- **A camera on demand** (`shots.yml`). Boot straight into a scene and
+  photograph it at chosen instants — down to a tenth of a second, which a
+  one-second title card requires. No assertions, frames as the result. The
+  tester's phrase for it: "now that you can make your own renders".
+
+### 2026-09-06 — round 37 (the device says yes; OpenGL leaves)
+
+- **The verdict.** v3.0.1 on hardware: the menus answer, the game plays,
+  and — the tester's words — it is sharper. One difference spotted: a
+  transparent-to-black fade under the act title card that OpenGL never
+  drew. Judged not shocking, kept as is; it is listed under *Known issues*
+  as an accepted emulation gap rather than fixed, because the tester chose
+  that.
+- **The retirement** ([24d1a4c], [327bf98]). `renderer_fixed.c` — the 2009
+  fixed-pipeline renderer every build until now had shipped — and
+  `renderer_progr.c` — the ES 2.0 renderer dormant since 2010 — are deleted
+  with their headers. `renderer.h` keeps one renderer id; `SCR_BindMethods`
+  binds one table. The view keeps no `EAGLContext`, no renderbuffers, no
+  framebuffer create/destroy, no `SHMUP_RENDERER` / `RendererType` switch:
+  its layer is a `CAMetalLayer`, its frame is begin / host / end. It keeps
+  its 2009 name only because both nibs instantiate it by that name. The
+  OpenGLES framework and the two sources are out of both Xcode targets; the
+  smokes lose their `renderer` input.
+- **What the pragmas had hidden.** Removing the file-wide
+  `-Wdeprecated-declarations` silence from the view exposed exactly one
+  non-OpenGL deprecation: an encoding-less `initWithCString:` in the
+  soundtrack loader, deprecated since iOS 2.0. The strict build is green
+  again with it fixed. The pragmas that remain are audio's (OpenAL,
+  AudioQueue) — a stage of its own, if ever.
+- **What the retirement cannot un-prove.** The parity contract was measured
+  against OpenGL's own trace on the same commits; that trace is in the
+  round-35 artifacts and this document. The OpenGL smokes can no longer be
+  re-run, by construction. The Metal smokes still run — and did, on the
+  OpenGL-free tree: menu plus act 3 with the parity contract held, and four
+  ships through act 1, both green on [327bf98].
+
+### 2026-09-05→06 — round 36 (v3 meets the device: the touch that landed at a third)
+
+- **v3.0.0 (build 222)** — the first Metal build on hardware. The home screen
+  rendered pixel-for-pixel like 2.0.9. Not one menu button answered.
+- **The cause was never the renderer.** UIKit reports touches in *points*;
+  the engine maps them against the dimensions of its render surface. The
+  OpenGL layer had never been given a `contentScaleFactor`, so it rendered
+  at 1x and a point *was* a surface unit — the 2009 touch mapping held for
+  seventeen years by an accident of scale. The Metal surface is at the
+  native scale, three times larger: every tap reached the engine at a third
+  of where the finger was, and no button was ever under it. The menu drew
+  correctly because everything on the drawing side shares the same surface;
+  only the input side had kept the old unit.
+- **v3.0.1 (build 223)** — `handleTouches` scales each touch by surface over
+  view ([7e1dd23]): identity on OpenGL, ×3 on Metal, one line correct on
+  both. Gameplay swipes were never at risk; the engine normalises their
+  deltas through the viewport scale before using them. Nothing else changed.
+- **What the device round now decides.** Menus answer; then the game should
+  be identical to 2.0.9 to the eye — and sharper, since Metal draws at
+  native resolution, nine times the pixels OpenGL pushed. If frame rate
+  suffers the drawable scale can come down without touching anything else;
+  any colour, fog, translucency or texture difference is a fixed-pipeline
+  emulation gap and exactly what this round is for. *RendererType 0* in the
+  Settings app brings OpenGL back should it be needed.
+
+### 2026-09-05 — round 35 (v3 opens: the warnings, then ARC — with `-Werror` on)
+
+The tester's "fait toute la v3 en autonomie… Fire !" — the graphics overhaul,
+staged by risk on a `v3` branch cut from `v2`'s head (the four-device test
+still owes `v2` a session; fixes cherry-pick).
+
+- **Stage 1 — the warnings, then the strict flags.** A new audit workflow
+  keeps the full `xcodebuild` log and prints a histogram: **545 distinct
+  sites, 511 of them deprecations** — every OpenGL ES / EAGL / OpenAL /
+  CoreAudio call the platform has deprecated, i.e. the APIs the later stages
+  retire, not warnings to "fix". The other 34 were real. Two were bugs the
+  game has carried since 2009: the visibility bake's perspective divide wrote
+  a *third* component into two-component screen vertices — past each entry,
+  and past the whole array on the last vertex, at every bake; and `matrix.h`
+  promised `vec3_t` for a function whose definition and every caller use
+  `vec4_t` — the prototype lied about the fourth float the code reads and
+  writes. The rest was hygiene made explicit (64→32-bit casts where the value
+  is bounded, a `time_t` epoch base where it was not, format strings, a `bool`
+  function that never returned, a log line sitting after its own `return`, a
+  GCC-only `-fsingle-precision-constant` clang had never honoured). The
+  deprecations are silenced *per file*, each pragma naming the stage that
+  retires its API, so a new deprecation anywhere else still surfaces. Then
+  `GCC_TREAT_WARNINGS_AS_ERRORS = YES` in the project, and the `-Wno-error=…`
+  downgrades the Xcode 26 port had carried leave every build workflow.
+  **Zero warnings, `-Werror`, green.**
+- **Stage 2 — ARC.** Twenty-five manual retain/release sites, two deallocs
+  and one autorelease pool across three files; one bridged cast
+  (`NSString*` → `CFStringRef` in the audio queue) was all ARC asked to see.
+  The deprecated launch image became an ordinary image set shown by the
+  modern `UILaunchScreen` entry; `setStatusBarHidden:` gave way to a
+  one-method root view controller; the dead pre-iOS-14 Game Center branch
+  went; the touch-data script phases admit they run every build. Both smokes
+  (act 3 twice, four ships through act 1) green on the result.
+- **Stage 3 — Metal — begun.** Two facts decided the shape: all OpenGL lives
+  in two files (the ES 1.1 renderer that ships, and a 2010 ES 2.0 renderer
+  that has been dormant behind a setting for fifteen years) with *zero* GL
+  calls elsewhere, and the engine talks to the renderer through a table of
+  24 functions bound at start-up. So the Metal backend is a third
+  implementation of that table (`renderer_metal.m`): a 1:1 port of the fixed
+  renderer's passes — skybox domes, the boss cameo, the crossing stars, the
+  live cull and its `[cull]` probe, ghost and flicker enemies — with the fixed
+  pipeline emulated in one vertex/one fragment shader (GL's one-light
+  default-material lighting, per-vertex linear fog, REPLACE/MODULATE/ADD,
+  alpha and additive blending). It compiles clean under `-Werror`, sits
+  behind `SHMUP_RENDERER=metal` (default still OpenGL), and gets its own
+  smoke: act 3 on Metal held to the *same* luma assertions the OpenGL backend
+  has passed for twenty builds — the parity contract — plus, for the first
+  time, Simulator screenshots of the game, which the OpenGL layer never
+  allowed.
+
+- **Stage 3 — Metal is the default.** First real run: the parity contract
+  held (26 side-view samples, no black sky, no missing city, the cameo's dip
+  at 57 s where OpenGL measured it), and the first screenshots ever taken of
+  this game — the prolog under the dusk dome, the boss silhouette among the
+  crossing stars, the top-down chase, the *水 -Water Act IV* card mid-wipe,
+  and the home screen with its orbiting hull — look like the game. The act
+  runs in two minutes of wall-clock on Metal where the OpenGL emulation took
+  ten. Default flipped ([7a7143f]); OpenGL ES stays one switch away
+  (`SHMUP_RENDERER=gl`, or *RendererType 0* in the settings) for the device
+  round; every smoke — act 3 twice with re-entry, four ships through act 1,
+  menu plus act 3 with screenshots — is green on Metal. What remains: the
+  tester's device verdict, then the retirement of both OpenGL renderers and
+  EAGL — and with them the last 511 deprecation sites.
+
+
+### 2026-08-29→30 — round 34 (online confirmed — and the two limits I had left open)
+
+- **v2.0.8 (build 220): online plays, and the two screens agree.** The first
+  working online match had reported "assez fluide mais légère désynchro"; two
+  mechanisms, both fixed. The 300ms absolute-position correction had been
+  jumping the de-jitter queue — applied before stale deltas it already
+  contained, which then re-applied on top: overshoot, pull-back, never quite
+  settling. It rides the queue now, in wire order. And a 2010 design flaw the
+  LAN could never show: the host resets its sim clock when it *sends* the GO,
+  a client when it *receives* it — a permanent half-RTT phase offset between
+  two sims that derive every enemy from that clock. The GO answers the
+  client's latest NOTIFY_LOADED one round trip later, so that gap is an RTT
+  sample; the client now starts half of it ahead. Tester's verdict: *"ligne
+  sur la 220 -> ok. fin d'acte en multijoueur -> ok"* — **two-player v2 is
+  device-confirmed end to end**, LAN, online and act transitions.
+- **Host migration.** The host was literally seat 0; lose it and the party
+  played the level on leaderless, then hung at the next act's barrier. The
+  host is now the *lowest active seat*, derived on every peer from the same
+  activeMask — the survivors agree on the successor with nothing new on the
+  wire, and the role (JOIN sender, barrier, death authority) follows it.
+- **The host rules on deaths** — the review's Failure C, finally. Each device
+  used to apply its own hull's death first and hear about the others later;
+  two deaths within one latency at a pool of 2 left a *different* ship alive
+  on each screen. A hit is now a request, the host applies the death and
+  broadcasts one order carrying the pool it ruled on, and every device
+  applies deaths in that order only. Collisions pause while a ruling is
+  pending; an unanswered request is resent, then dropped, so a lost answer
+  can never make a hull immortal.
+- **Rig: 229 checks.** Two new scenarios stage exactly these — the host
+  quitting mid-match (one successor, the next level's barrier clears under
+  it), and both hulls hit in the same frame at a pool of 2 (same pool, same
+  single survivor on both screens). A mutant that rules deaths locally, the
+  v1 way, fails six assertions.
+
+### 2026-08-25→28 — round 33 (v2 meets the devices: six builds of feedback)
+
+v2.0.0 (build 212) went to TestFlight on the tester's go — and the first
+device sessions did what no rig can: they played the game. Six builds in
+three days, each one driven by a bug report in plain French.
+
+- **"La caméra passe carrément dans le vaisseau du menu"** (212) — my own
+  regression: `hpp.obj.md5mesh` is the model the title screen orbits, and
+  Ship 3 pointed at that same file, so the ×2.8 rescale that gave the hull
+  p1/p2's wingspan also blew up the intro. Same art, two scales, two files:
+  the intro mesh went back byte-for-byte (blob hashes compared against the
+  pre-212 commit), and Ship 3 got its own `hpp_ship.obj.md5mesh`. Lesson
+  learned the hard way: before rescaling a "player" asset, grep `data/` for
+  who else loads it.
+- **"On n'arrive pas à faire une partie à 2"** (213) — the big one, LAN and
+  online failing the same way. Reading the code found nothing; teaching the
+  rig the case it had never played found everything: **mDNS that only flows
+  one way**, which on a real network is the *normal* case. Two real faults:
+  an unseated device was **deaf** (the handshake pump mistook "nobody has
+  seated me yet" for "the watchdog tore this session down" — both read
+  `NET_UNDETERMINED` — and returned before draining its socket, so the
+  roster gossip built to repair exactly this could never run on the only
+  device that needed it), and a gossip-seated device was **mute**
+  (`serverAddResolved`, a v1 flag only the mDNS callback ever set, kept
+  `isInitialized` false, so `NET_Send` returned early and the host dropped
+  the silent peer after five seconds). Three new rig scenarios pin both
+  directions plus a GameKit pair matched 300 frames apart: 199 checks.
+- **"Le x passe de 2 à 0, il n'y a pas le 1"** (214, once the LAN pair
+  worked) — a **2010 bug**: `P_Die` raises the invulnerability window, but
+  `COLL_CheckPlayers` only reads it at the top of the function and then
+  walks the bullet and missile loops with no exit after a kill — a burst
+  whose bullets straddle the hull in one frame charged two or three lives.
+  Fifteen years of three-lives-and-count-the-hearts read it as bad luck; a
+  shared pool with a number on it made it arithmetic. One death per frame
+  now, full stop.
+- **Menus, en français** (215-217): the Custom grid aligned on one row
+  pitch, Yellow above Invisible (the row carries its atlas column as its
+  tag, so display order can never silently hand out unpicked bullets), the
+  ships named — **Falcon, Viper, Phoenix, Ghost** — the home screen
+  reworked (Game Solo / Game Multi → Local | Online), Tutorial moved into a
+  reordered Others, the soundtrack no longer restarts between levels of the
+  same act, French labels throughout, and the lives display is one icon +
+  `xN` in every mode, snug against the screen edge, the icon staying put at
+  `x0` instead of orphaning its counter.
+- **"Ça saccade un peu"** (LAN, 2 players) — WiFi delivers in bursts: two
+  movement commands one frame, none the next; applied raw that is a
+  double-speed jump then a freeze. Remote movement now flows through a
+  per-seat **de-jitter queue** drained at the sender's own emission rate
+  (one per frame, two while a backlog exceeds three), corrections and
+  deaths staying immediate — bounded latency, and the 300ms ABS resync
+  mops up any residue.
+- **The Custom screen shows the ship** — the menu's "rotating ship" was
+  always a static entity circled by the camera path, so previewing your
+  pick is a model swap on that entity plus the inverse of the famous ×2.8
+  (player hulls at 0.35 fill the intro camera's framing exactly). Enter
+  Custom: your ship is on the stage; tap another: the stage follows;
+  leave: the classic intro hull returns.
+
+Still open from these sessions: the **online** half of the 213 report was
+never reproduced — the rig plays a staggered GameKit start clean, the
+GameKit path reads clean, and the discriminant for the next device test is
+the "Online - you are Player N of M" line: if it never appears, Apple never
+matched the two devices and the fault is not in this code.
+
+### 2026-08-25 — round 32 (v2 in five phases: the netcode learns to count past two)
+
+The 4-player rewrite, executed as staged surgery on the v2 branch — each phase
+compile-proven locally (zig cc against the real macOS headers, mock `dns_sd.h`)
+and smoke-tested on CI before the next:
+
+- **P0 — the minefield.** ~120 lines of dead 2010 prediction code removed (its
+  only consumer sat after an unconditional `return`), the death packet got its
+  own type (it shipped as `NET_RUNNING` — a value from an unrelated enum that
+  collided with `NET_RTM_COMMAND`), and every hardcoded `2` in the player
+  arrays now sizes off `MAX_NUM_PLAYERS`.
+- **P1 — seats, not roles.** Every device sorts all `gamePlayerID`s (its own
+  included); the index in that order is the SEAT, seat 0 hosts — the N-player
+  generalization of "lowest id wins", bit-identical at 2. Inbound packets carry
+  their sender's seat, mapped by the GameKit layer.
+- **P2 — per-seat state.** `net_peer_t gPeers[]`: per-seat sequence space,
+  liveness clock, barrier flags. The handshake is a COUNTING BARRIER (host
+  counts joins → one preload echo; counts loads → dedupes the colour table,
+  one GO carrying the full loadout table). Packets stamp `senderSeat` +
+  `protoVersion` (recycled dead fields — same offsets, same size; a v1 build
+  joining a v2 lobby is dropped at the door instead of desyncing). And the
+  rule the tester asked for: **one player dropping must not kill the party** —
+  `NET_OnSeatLost` parks the ship (the exact RIP idiom from `P_Die`) and play
+  continues; only the LAST peer's loss ends the session.
+- **P3 — four ships in the sky.** `MAX_NUM_PLAYERS = 4`; seats 2/3 tuck in
+  behind-and-between the classic pair (quinconce; scene assets only author two
+  spawn matrices, so `world.c` synthesizes the inner pair); shared pool of
+  **N×3 lives** (12 at four — "le jeu est chaud, il faut au moins 10 vies")
+  shown as one icon + `x12` (twelve icons would overflow the sprite buffer);
+  **one team score** everywhere a score is shown or uploaded; enemy HP scales
+  ×N; LEE aims at the *nearest* living ship (it had aimed at player 0 since
+  2009); ships 3 & 4 exist (the `hpp` high-poly hull resurrected from the
+  intro, and the Ghost — the classic hull at 55% alpha).
+- **P4 — the lobby.** The LAN election becomes a sorted-IP ROSTER with a 4s
+  settle window (so a party of four all get seated before anyone starts), the
+  discovery pump keeps browsing after first contact, and sends broadcast one
+  datagram per seated remote. Online, **Others → Online** now asks "How many
+  players?" (2/3/4) and GameKit matches exactly that many.
+
+**And then the part that actually matters: proving it.** A party of four cannot
+be tested here — it needs four iPhones on one WiFi, or four Game Center
+accounts. So `tools/netrig` runs **four instances of the real
+`engine/src/netchannel.c` in a single process**: each peer is the engine file
+compiled *verbatim* with its symbols macro-renamed, on top of a fake in-memory
+UDP network and a GKMatch mock (plus POSIX/`dns_sd` shims, so the Apple branch
+compiles off-iOS). 152 assertions over 7 scenarios — a party forming out of
+order, a seat dying *during* the handshake, level transitions, a player
+quitting mid-match, one device that never discovers another — and six
+deliberate mutants that must fail, because a harness which passes on broken
+code proves nothing.
+
+It found ten defects, four of them deadlocks that would have shipped:
+
+- **The handshake had no timeout at all.** The per-seat liveness check lives in
+  `NET_Receive`, which returns early until the match is running — and the sim
+  clock is *paused* during the handshake, so milliseconds cannot measure a
+  silence there anyway. One player quitting between two acts hung the whole
+  party, forever. Now a frame-counted watchdog drops the seat holding the
+  barrier and re-evaluates it (no packet was coming to trigger that).
+- **A silent host reads exactly like a dead host.** With four players the two
+  early joiners tore their sessions down while the host was still waiting on
+  the fourth — hence a lobby heartbeat.
+- **The LAN seat table was private to each device.** Seats came from each
+  device's own Bonjour browse, and a settled roster stopped re-browsing: device
+  B could stay unaware that device C exists, seat everyone differently, and the
+  party would split into two incompatible simulations — or deadlock outright
+  when the seat *numbers* disagreed and every packet failed its identity check.
+  Lobby packets now gossip their sender's roster; the tables converge.
+- **Parking a lost ship was four independent stopwatches.** Hundreds of
+  milliseconds apart (seconds, over GKMatch), and for that whole window the
+  parked ship sat at different positions on different devices — enough for the
+  aiming enemies to fire along different vectors and the simulations to part
+  ways for good. The host decides now.
+
+And a few older ghosts, from 2010: `net.buffer` sat two bytes off alignment
+while every read path casts it to a packet struct (undefined behaviour ARM
+happened to tolerate — the rig's sanitizer caught it on the first run); the
+muzzle-flash budget counted one quad per ship where the engine draws two, so
+the bullet vertex pool had always been a quad short per player; and the
+absolute-position resync — the drift correction this streaming netcode leans
+on — had been silent from act 2 onwards ever since, because the level start
+rewinds the clock below its own timestamp.
+
+### 2026-08-24 — round 31 (the second chance, the audit — and v1.8.0 closes the chapter)
+- **🆕 The second-chance life** (the tester's design, formalizing a bug he loves):
+  LAN co-op runs a shared life pool; when it dries up, the dead ship parks and
+  the survivor plays on — and if the survivor finishes the act, the scene reset
+  resurrects the fallen wingman for the next level. That accident is now a rule:
+  the pool receives ONE gift life at level entry, strictly when both counters
+  are at zero. Strictly: a review finding showed `<= 0` would also resurrect a
+  LOST match (-1/-1) into a zombie run with an already-uploaded score whenever
+  a scene load raced the game-over events.
+- **A full 8-angle code review** over the sprint's diff, five parallel reviewers,
+  ten findings, all fixed in one commit: the outro now reads the camera's own
+  scene-safe drift velocity (the private tracker carried another scene's
+  coordinates across the timer reset — the same static-vs-scene disease as the
+  cameo, caught before shipping this time); the CI hooks are singleplayer-gated
+  (local env state inside a lockstep sim is a desync waiting for a peer); the
+  frame's client-state baseline lives once in `Set3DF`, mirroring `Set2DF`; the
+  mesh-cache generation belongs to the cache itself (`ENT_CacheGeneration`,
+  bumped inside the free — the next cross-scene entity holder is safe by
+  construction); every diagnostic probe sits behind one cached gate, silent on
+  player devices; and a lovely bash trap — `grep -c … || echo 0` prints "0\n0"
+  on zero matches under Actions' `bash -e` — had killed the smoke's crash guard
+  exactly in its target case.
+- **🆕 The home screen finally says who it is**: a small *Reborn*, Brush Script
+  like the act cards, scrawled uphill across the P of the 2009 SHMUP logo.
+
+### 2026-08-24 — round 30 (the lottery was a dangling pointer — and the act is DONE)
+- Three device runs of the same build: cameo once, nothing once, one crash — and
+  once, the whole sky went dark gray. Two rounds of GL forensics (a client-state
+  lockdown around the cameo, then a full state baseline for the decor pass,
+  plus a smoke that finally *fires its guns* so the FX passes churn like a real
+  game) hardened the renderer but didn't kill the lottery.
+- The shared TestFlight crash log closed it: same site, but through the driver's
+  client-array path this time — *the content was random*. The real killer:
+  `ENT_ClearModelsLibrary` frees every non-static mesh at EVERY scene change,
+  and the cameo's static entity kept its model pointer forever. First run after
+  app launch: fresh model, works. Every replay — game over, menu, act 4 and
+  back: freed heap, recycled by whatever the player's own run allocated.
+  Drawable garbage, nothing, or SIGSEGV. **The lottery odds were set by the
+  player's own session history — and the smoke, which ran the act exactly once
+  from a cold boot, could never see it.**
+- Cure and proof, both structural: the mesh cache bumps a generation on every
+  purge and the cameo reloads when stale; and the smoke now **plays like a
+  player** — it finishes act III, tears the scene down, re-enters, and a new
+  assertion demands the cameo's probe dip in the REPLAY pass. The run prints
+  its own verdict: *"CAMEO PRESENT ON REPLAY. The lottery is dead."*
+- On device: **cameo with lightning, three runs out of three.** And with the
+  outro rush finally outrunning the camera (the 2010 escape constant assumed a
+  rail that had ended; act 3 detaches mid-cruise, so the camera used to overtake
+  the fleeing ship and swallow it), the tester called it:
+  ***"Pour moi l'act 3 est ok. On n'y touche plus."*** — Act III is frozen.
+
+### 2026-08-24 — round 29 (the probe learns to see — measurement replaces hope)
+- After three invisible-cameo builds, the loop changed: no more shipping and
+  praying. The cameo's flight was moved across the patch of pixels the smoke's
+  `[cull]` trace already measures every second — so a rendering cameo MUST dent
+  the sky-band luma, and the lightning MUST spike it. Two Simulator runs
+  measured exactly that (48 → 26, bumps at the strike timestamps), turning
+  "je ne le vois pas" from a mystery into a differential: renders in the
+  Simulator, invisible on device.
+- That differential killed two hypotheses with one Release-configured smoke
+  (compiler exonerated) and led to the device-only suspects: the silhouette
+  went **untextured** — flat fixed-pipeline color, the exact path of the
+  crossing stars that had always worked on device — erasing every texture-state
+  divergence at once. The outro was mechanized the same way: the ship's escape
+  now adds the camera's own measured speed, so the "fonce tout droit" exit
+  reads identically in every act, and the prolog keeps its 2010 look bit-exact.
+- The end-of-act mystery dissolved under the same instruments: the epilog →
+  transition chain was traced (`[title]`, `[scene]`) and proved *working* — the
+  "disappearing ship" was the classic fly-off playing 1 second under the epilog
+  card's fade instead of 2 seconds on stage, as act 1 stages it.
+
+### 2026-08-23/24 — round 28 (storm over the city — and a 16-year-old GL landmine)
+- The boss cameo was reported invisible no matter its size or tint, and TestFlight
+  logged a device crash. The crash log (pulled via the App Store Connect API) showed
+  a SIGSEGV inside the GL driver under `RenderTTBBossCameoF`, faulting on address
+  `0x0154014c014b014a` — **consecutive vertex indices read as a pointer**.
+- **Both symptoms were one bug**: the runtime-loaded boss model lives in RAM, and
+  `RenderEntityF`'s client-array path (2010) never unbinds `GL_ARRAY_BUFFER`. Any
+  VRAM entity drawn earlier leaves its VBO bound, turning the cameo's heap pointers
+  into buffer offsets: garbage triangles most frames (invisible), a wild read when
+  the address falls badly (the crash). One `glBindBuffer(GL_ARRAY_BUFFER, 0)` fixes
+  both. The 2010 code was never wrong on 2010's fixed draw order — the new act
+  reordered the frame and armed it.
+- **Belt and suspenders**: the cameo also now flies **above the true horizon**
+  (the camera pitches 28° down; towers top out below camera height, so nothing can
+  ever rise above that line to cover a no-depth-write silhouette drawn before the
+  city). Proven with the scene mock at three crossing positions before pushing.
+- **🆕 Lightning** (the tester's idea: "le faire clignoter comme éclairé par un
+  éclair"): a fixed strike train — doubles, 120 ms exponential decay, pure function
+  of the simulation clock so both lockstep peers see the same storm — flashes the
+  hull from brooding silhouette (0.30) to near-white (0.94). The last strike lights
+  its dive behind the skyline.
+- The finale's last hedgehog circle was cut: its 6 s lifetime outlived the control
+  lock before the stats card. The Devils came down from 80 to 55 HP.
+
+### 2026-08-23 — round 27 (the hedgehog spin saga, or: trust the rig, not the axis names)
+- Four device rounds to make the FHT roll properly in the side view, ending with a
+  lesson worth the price: **the 2010 euler formulas have permuted axis names** — at
+  x=z=0, `yAxisRot` builds a rotation about the matrix **Z**, and `zAxisRot` one
+  about the matrix **Y**. Three shipped attempts each spun a wrong axis (loopings /
+  yaw / tilted loopings, in that order).
+- After the third miss the tester set the rule that should have been round one:
+  *"arrête d'utiliser mon quota GitHub Actions — simule avant d'envoyer."* A local
+  rig (`spin_rig.c`: the real `camera.c` + `matrix.c`, the euler construction
+  verbatim, the real FHT mesh) replayed all four shipped configurations and
+  **reproduced all four device verdicts** — then, and only then, was the fifth
+  configuration believed: compose `blend34 · euler` with the spin on "zAxisRot" =
+  rotation about the model's own tilted disc axis. Disc-normal drift over a full
+  turn: **0.0°** — the 3/4 ellipse holds still, the spikes wheel inside it, a coin
+  spinning at three quarters. Upright keeps the 2010 cartwheel bit-exact.
+- The metric matters: bounding boxes barely move under a yaw (15%) — the
+  discriminator that matches perception is the **projected disc normal**.
+
+### 2026-08-23 — round 26 (the side view fights back)
+- Tester's brief after the first armed pass: hedgehogs everywhere, a sweeper that
+  actually sweeps, and craft you can recognize. Delivered as one round:
+- **FHT ×3** (28 → 84 in the 26 s window), nearly all dead straight — the earlier
+  "loopings" were authored curve control points, not the engine.
+- **The balayeur climbs**: its 2010 drift is a hardcoded `+X` slide; in the side
+  view the same drift now runs up the screen, curtain streaming left — two
+  climbers scale the whole screen while firing.
+- **The drops lie down**: the curtain's quad was axis-aligned; it now swaps extents
+  and quarter-turns its texture with the beat, head leading. Upright emission stays
+  bit-exact 2010. All of it proven in `tha_rig.c` (real `tha.c` compiled, 9 asserts,
+  the bugs reproduced BEFORE the fixes were trusted).
+- **3/4 poses**: `CAM_GetTTBBlendCapped(0.62)` — flat disc craft (turret, Devils,
+  then the hedgehog too) hold a readable three-quarter pose instead of thinning to
+  a 5.7-unit blade (11.5 units tall at 3/4).
+- The three Devils tour the side view one per costume, and the V5 ambush closes as
+  a simultaneous mirror pincer — the smoke log's new `[devil]` trace proved a
+  "missing" ghost had spawned all along, just 400 ms too late to be seen.
+
+### 2026-08-23 — round 25 (the Devils fight — phase 1 validated)
+- **🆕 The Devil's weapons**, one per costume, all drawn from bullets the game
+  already owns (the enemy particle pass binds the PLAYER's bullet atlas — a weapon
+  is just texture coordinates): the Original fires a **trident** of three straight
+  red streams; the Anthracite whips a **lasso** of sweeper drops; the Ghost drops
+  a stone in water — expanding **rings of the player's own yellow shots**.
+- Devils became real elites: a flat 80 HP (the type's 2009 base was 10) and a
+  further ×0.85 mesh trim. The ghost's unreadable 0.30 alpha now **shimmers**
+  0.42..0.75 on the simulation clock.
+- Tester's verdict: *"les devils sont nickel"* — **phase 1 of Act III validated.**
+
+### 2026-08-22/23 — round 24 (the Devil resurrected — a 2009 enemy's first spawn)
+- **🆕 The hidden enemy ships.** `ENEMY_HAB`, "le Devil" — modeled, textured and
+  coded by Fabien in 2009-2010, never once spawned by any shipped scene — enters
+  the game seventeen years later. Its original texture was recovered by decoding
+  the shipped `.pvr` (PVRTC1-4bpp decoder written for the occasion) and installed
+  where `enemies.mtl` had pointed all along.
+- **Three costumes** via the entity tint the boss missiles already used: the
+  resurrected silver, an anthracite stealth coat, a translucent ghost (the enemy
+  pass gained per-entity alpha blending). The tester picked all three: one Devil
+  per phase of the act.
+- Phase 1 redesigned to the tester's plan: three LEE columns under a parked
+  turret; the three Devils; a four-sweeper pincer over hedgehog volleys;
+  converging act-1-style columns; a rear-rake ambush.
+- **🆕 The boss cameo** (tester's idea): the Act IV boss crosses the side-view sky
+  once, face-on, a distant dark silhouette between the dome and the stars —
+  foreshadowing, not a fight.
+
+### 2026-08-17 — round 23 (Act III gets its enemies — and the smoke test earns its keep)
+- **Waves authored per view** (104 events): mixed-type combos the original acts
+  never ran, plus classics; the side view packs staggered hedgehog streams across
+  the tall screen. Enemies blend to **profile** in the side view through the same
+  shared matrix as the player, so their authored spins still read; authored bullet
+  patterns rotate with the beat (`CAM_TTBRotateSS`), aimed shots stay aimed —
+  screen space IS the screen in any view.
+- **The CI mystery**: two red smoke runs showed "scene 0 at twenty minutes". Not a
+  crash — the Simulator's idle ship was being **rammed** by the first hedgehog,
+  game over, menu, and the sim clock never resets. The invulnerability guard only
+  covered the bullet path; ramming deaths live in a second collision routine.
+  Lessons now baked into the harness notes: percussion kills bypass
+  `COLL_CheckPlayers`, the sim timer survives game-over, and stdout is buffered.
+- A one-page **rogues' gallery PDF** (every enemy rendered from its real mesh and
+  texture, the boss enthroned below) became the design table for everything above.
+
+### 2026-08-16/17 — round 22 (the transition lands — "la transition est nickel")
+- Build 190's verdicts closed one by one: the ship's hull reads 20% slimmer in
+  profile, bullets thin with the beat, the ghost fan rotates at fire time, and the
+  sky domes sank to -2500 so the horizon seam vanished behind the skyline.
+- **🆕 Crossing stars**: nine of them on three parallax layers slide across the
+  side-view sky, trails behind the motion, pure function of the simulation clock.
+- **The 180° snap, root-caused**: at both beat transitions the ship flipped
+  belly-first for one arc. The `fromAboveRotation` initializer's braces group **per
+  column**, not per row — the in-plane arc was leaving from a transposed pose. Two
+  sign flips fix it; at f=0 the blend is the original billboard **bit-exact**. The
+  lesson that stuck: probe transitions at intermediate blend values, and read
+  column-major initializers as columns.
 
 ### 2026-08-16 — round 21 (TTB on-device round 1: the ship flies right-side up, shoots forward)
 - Build 188 on device: the side view itself reads (the act-1 rail's own camera

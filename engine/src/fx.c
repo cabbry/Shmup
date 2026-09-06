@@ -30,6 +30,7 @@
 #include "renderer.h"
 #include <limits.h>
 #include "enemy.h"
+#include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 //EXPLOSIONS VARS
 texture_t explosionTexture;
@@ -151,7 +152,7 @@ void FX_InitMem(void)
 //		uchar boolean2 = ;
 //		uchar boolean = boolean1 ^ boolean2;
 		//sprite->text[U] = 49/128.0f * SHRT_MAX + 15/128.0f*SHRT_MAX * (((i%4)&1) == ((i%4)&2)>>1);
-		sprite->text[V] = 16/128.0f* SHRT_MAX * ((i&2)>>1 ^ i&1);//((i&2) ^ (i&1));
+		sprite->text[V] = 16/128.0f* SHRT_MAX * (((i&2)>>1) ^ (i&1));	// v3: parenthesized -- same value, & binds looser than ^
 		
 		//sprite->text[X] = SHRT_MAX * (((i%4)&1) == ((i%4)&2)>>1);
 		//sprite->text[Y] = SHRT_MAX * (((i%4)&2) == 2);
@@ -816,8 +817,8 @@ smoke_t* FX_GetSmoke(vec2_t ss_position,float ss_sizeX, float ss_sizeY)
 	}
 	
 	//Randomize slightly size
-	ss_sizeX += ss_sizeX * rand()/RAND_MAX*0.5f;
-	ss_sizeY += ss_sizeY * rand()/RAND_MAX*0.5f;
+	ss_sizeX += ss_sizeX * rand()/(float)RAND_MAX*0.5f;
+	ss_sizeY += ss_sizeY * rand()/(float)RAND_MAX*0.5f;
 
 	// De-stretch the smoke height on a tall screen (keeps the puff round).
 	ss_sizeY = ss_sizeY / gVScale;

@@ -57,7 +57,6 @@ void COLL_InitUnitCube(void);
 Intersection_test COLL_CheckAgainstUnitCube(prec_face_t* face);
 
 
-static float COLL_distPointPlan(vec3_t point, plan_t* plan);
 
 Intersection_test COLL_CheckFaceAgainstPlan(prec_face_t* face,plan_t* plan);
 

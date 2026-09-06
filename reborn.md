@@ -302,6 +302,22 @@ it ever reached a device — which is why the game looks the same and why
   per effect, gain 0.5, a retrigger restarts the node — as one OpenAL source
   per effect does today), then OpenAL, AudioQueue and the last pragmas
   leave. The tester's "go quand tu veux" covers the builds of this round.
+- **The port** ([126edfc]). Effects on AVAudioEngine (`sound_av.m`): one
+  player node per effect at volume 0.5, a retrigger stops and reschedules,
+  the 8-bit WAVs converted once to float32. Soundtrack on AVAudioPlayer
+  (`music_av.m`): cue, no loop, pause keeps the position, stop discards the
+  player, playback category so the game is heard on silent as before. Gone:
+  AQ and its 2009 Apple sample code, OpenAL out of the targets, both
+  frameworks, and the last two deprecation pragmas — **the project has no
+  deprecated API left.**
+- **The contract held.** Same run, new backend: the `[snd]` play sequence
+  is identical line for line to the OpenAL baseline (2453 events, diff
+  empty), the soundtrack at wall rate over 31 samples, the Metal smoke
+  green alongside. The smoke's signature now hashes play lines only — the
+  new backend's init lines had joined the count. Shipped as 3.1.0.
+- **A black launch screen**, at the tester's request: the picture brought
+  nothing. The first attempt lost the plist's key and closing tag to a
+  careless edit and was repaired in the next commit — validate the XML.
 
 ### 2026-09-06 — round 39 (3.0.3 confirmed and merged; the iPad's launch screen)
 

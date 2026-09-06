@@ -119,8 +119,9 @@ jobs:
           EXPLO=$(grep -c "play 1 explosion" audio-trace.log || true)
           GHOST=$(grep -c "play 2 ghost_launch" audio-trace.log || true)
           ENEMY=$(grep -c "play 3 enemy_shot" audio-trace.log || true)
-          TOTAL=$(grep -c "^\[snd\] " audio-trace.log || true)
-          SIG=$(grep "^\[snd\] " audio-trace.log | shasum -a 256 | cut -c1-16)
+          # play lines only: a backend's init chatter ([snd] backend / buffer ...) is not part of the sequence
+          TOTAL=$(grep -c "^\[snd\] t=.* play " audio-trace.log || true)
+          SIG=$(grep "^\[snd\] t=.* play " audio-trace.log | shasum -a 256 | cut -c1-16)
           echo "sfx: plasma=$PLASMA explosion=$EXPLO ghost_launch=$GHOST enemy_shot=$ENEMY total=$TOTAL"
           echo "SFX SIGNATURE: $TOTAL events, sha256[0:16]=$SIG"
           [ "${PLASMA:-0}" -ge 100 ] || { echo "::error::Autofire should have fired far more than $PLASMA plasma shots."; exit 1; }

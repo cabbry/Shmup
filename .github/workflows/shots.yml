@@ -1,0 +1,100 @@
+name: Screenshots of a scene (Simulator, Metal)
+
+# Round 38. A camera on demand: boot straight into a scene and photograph it
+# at the given seconds of wall-clock after launch. For the eyes -- the
+# tutorial's BACK button over the title card, a menu layout, a HUD tweak --
+# without a TestFlight round-trip. No assertions; the frames are the result.
+
+on:
+  workflow_dispatch:
+    inputs:
+      scene:
+        description: "scene id to jump to at boot (SHMUP_BAKE_SCENE); 0 = the menu"
+        required: false
+        default: "13"
+      seconds:
+        description: "comma-separated seconds after launch at which to take a frame"
+        required: false
+        default: "2,4,7,10,15,25"
+      env:
+        description: "extra SIMCTL_CHILD_* env, space-separated (e.g. SHMUP_AUTOFIRE=1)"
+        required: false
+        default: ""
+
+jobs:
+  shots:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build (iphonesimulator, arm64, no signing)
+        working-directory: engine/iOS
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project dEngine.xcodeproj \
+            -target Shmup \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -arch arm64 \
+            SYMROOT="$PWD/build" \
+            IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+            ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build | tail -5
+
+      - name: Boot a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone (1[5-9]|SE)" | head -1 | grep -oE "[0-9A-F-]{36}")
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
+          fi
+          echo "Using simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Launch the scene and photograph it
+        run: |
+          APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
+          UDID="${{ steps.sim.outputs.udid }}"
+          SCENE="${{ inputs.scene || '13' }}"
+          SECONDS_LIST="${{ inputs.seconds || '2,4,7,10,15,25' }}"
+          EXTRA="${{ inputs.env }}"
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p shots
+          ENVS=""
+          if [ "$SCENE" != "0" ]; then ENVS="SIMCTL_CHILD_SHMUP_BAKE_SCENE=$SCENE"; fi
+          for kv in $EXTRA; do ENVS="$ENVS SIMCTL_CHILD_$kv"; done
+          echo "launching scene $SCENE with: $ENVS"
+          # shellcheck disable=SC2086
+          nohup env $ENVS xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$RUNNER_TEMP/app.log" 2>&1 &
+          T0=$(date +%s)
+          for s in $(echo "$SECONDS_LIST" | tr ',' ' '); do
+            while [ $(( $(date +%s) - T0 )) -lt "$s" ]; do sleep 0.2; done
+            xcrun simctl io "$UDID" screenshot "shots/scene${SCENE}_t$(printf %03d "$s")s.png" || true
+            echo "frame at ${s}s"
+          done
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+          cp "$RUNNER_TEMP/app.log" console.log 2>/dev/null || true
+          ls -la shots
+
+      - name: Upload the frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shots-scene-${{ inputs.scene || '13' }}
+          path: |
+            shots/
+            console.log
+          if-no-files-found: ignore

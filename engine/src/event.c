@@ -239,6 +239,9 @@ void EV_SpawnEnemy(event_t* event)
 	strncpy(enemy->group, eventPayload->group, sizeof(enemy->group) - 1);
 	enemy->group[sizeof(enemy->group) - 1] = 0;
 	RULES_NoteSpawn(enemy);
+	if (Log_ProbesEnabled() && enemy->group[0])
+		Log_Printf("[spawn] t=%d type=%d sub=%d group=%s energy=%d ttl=%d\n",
+			simulationTime, enemy->type, eventPayload->subType, enemy->group, enemy->energy, enemy->ttl);
 	
 
 	

@@ -1,10 +1,10 @@
 # The rules bench (v4 stage 2). Not a level: a CI scene that exercises the
-# conditional events on act 1's city with autofire on. Three waves chained by
-# RULES, not by the clock:
-#   w1  a timeline spawn at 9 s: three weak FHT tagged "w1"
-#   w2  RULE: when w1 is cleared, 1.5 s later, three weak FHT tagged "w2"
-#   w3  RULE: when w2 is cleared, a circle of 6 weak LEE tagged "w3"
-#   end RULE: when w3 is cleared, 2 s later, request the menu (scene 0)
+# conditional events on act 1's city with autofire on and no player input --
+# so every wave flies STRAIGHT DOWN THE CENTRE COLUMN, where the ship's own
+# bullets are. Three waves chained by RULES, not by the clock:
+#   w1   a timeline spawn at 9 s: three weak FHT tagged "w1"
+#   w2   RULE: when w1 is cleared, 1.5 s later, three weak FHT tagged "w2"
+#   w3   RULE: when w2 is cleared, three more, tagged "w3"
 #   late RULE: after 60 s, one hard FHT -- proves the clock trigger too
 # The smoke reads the "[rule] t=... fire" lines: w2 after the last w1 death,
 # w3 after the last w2 death, in that order, deterministic run to run.
@@ -93,24 +93,25 @@ enemies
 {
 	settime 9000
 	setttl 8000
-	at 0000 spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.15 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3 group w1
-	at 0400 spawnEnemy mouvement 2 xOffset  0.0 xWidth 0.15 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3 group w1
-	at 0800 spawnEnemy mouvement 2 xOffset  0.5 xWidth 0.15 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3 group w1
+	at 0000 spawnEnemy mouvement 1 enemyType 1 startPos 0 1.2 endPos 0 -1.2 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3 group w1
+	at 0700 spawnEnemy mouvement 1 enemyType 1 startPos 0 1.2 endPos 0 -1.2 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3 group w1
+	at 1400 spawnEnemy mouvement 1 enemyType 1 startPos 0 1.2 endPos 0 -1.2 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3 group w1
 }
 
 rules
 {
 	setttl 8000
 	rule w2   when cleared w1  after 1500
-	          spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.15 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
-	          spawnEnemy mouvement 2 xOffset  0.0 xWidth 0.15 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
-	          spawnEnemy mouvement 2 xOffset  0.5 xWidth 0.15 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
+	          spawnEnemy mouvement 1 enemyType 1 startPos 0 1.2 endPos 0 -1.2 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
+	          spawnEnemy mouvement 1 enemyType 1 startPos 0 1.2 endPos 0 -1.2 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
+	          spawnEnemy mouvement 1 enemyType 1 startPos 0 1.2 endPos 0 -1.2 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
 	          group w2
 	rule w3   when cleared w2
-	          spawnEnemyWave circle enemyNum 6 enemyType 2 percentageInvulnerable 0 angleOffset 0 subType 3
+	          spawnEnemy mouvement 1 enemyType 1 startPos 0 1.2 endPos 0 -1.2 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
+	          spawnEnemy mouvement 1 enemyType 1 startPos 0 1.2 endPos 0 -1.2 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
+	          spawnEnemy mouvement 1 enemyType 1 startPos 0 1.2 endPos 0 -1.2 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
 	          group w3
 	rule late when after 60000
-	          spawnEnemy mouvement 2 xOffset 0.0 xWidth 0.25 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	          spawnEnemy mouvement 1 enemyType 1 startPos 0 1.2 endPos 0 -1.2 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
 	          group late
 }
-

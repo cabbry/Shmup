@@ -187,7 +187,10 @@ static BOOL     gMatchStarted = NO;
 - (void)matchmakerViewController:(GKMatchmakerViewController *)viewController didFindMatch:(GKMatch *)match {
 	[viewController dismissViewControllerAnimated:YES completion:nil];
 	if (gMatch != match) {
-		// (ARC: the assignment below releases the old match)		gMatch = match;
+		// ARC: the assignment releases the old match. (v3 stage 2 had glued this
+		// statement onto the comment line -- online play found its peer and never
+		// started, gMatch staying nil; caught on device in 4.0.2.)
+		gMatch = match;
 	}
 	gMatch.delegate = this;
 	[self tryStartMatch];

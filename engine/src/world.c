@@ -497,7 +497,7 @@ void World_OpenScene(char* filename)
 				// hardcoded to the boss act's scene id.
 				if (!strcmp("driftAtEnd", LE_getCurrentToken()))
 				{
-					gCameraDriftAtEnd = (LE_readReal() != 0);
+					gCameraDriftAtEnd = (int)LE_readReal();	// 4.0.4: 1 classic patrol, 2 level patrol (see camera.c)
 				}
 
 				LE_readToken();

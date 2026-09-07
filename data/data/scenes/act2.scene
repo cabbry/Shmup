@@ -44,7 +44,9 @@ camera
 	# patrol the engine froze the decor for the whole card ("l'ecran se fige").
 	# Hand over to the end-of-rail patrol -- the boss act flies this very rail
 	# with it: two seconds of settle, then the 180 arc, live decor culling.
-	driftAtEnd: 1
+	# Mode 2 = the LEVEL patrol: this rail ends pitched and mode 1 climbed the
+	# camera into the fog (a black card, 4.0.4 camera run); mode 2 keeps the altitude.
+	driftAtEnd: 2
 }
 
 fog 

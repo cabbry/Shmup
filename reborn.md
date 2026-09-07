@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 3.1.x** — Metal renderer at native
+- ✅ Live on **TestFlight** as **SHMUP Reborn 4.0.x** — Metal renderer at native
   resolution, AVFoundation audio, full speed on device, iPhone and iPad.
 - ✅ Four acts, a boss, an ending; 2-4 player co-op over LAN and online
   (device-confirmed at two); leaderboards.
@@ -240,11 +240,13 @@ proof in CI; the format and the inventory are in
    existing scenes become packs that reference their assets, the code keys
    on a pack's *kind* rather than on scene ids. Proof: the four acts from
    packs produce today's traces.
-2. **Conditional events — ✅ (round 43)** — conditions, groups and phases in the events
-   block: the Devils' choreography and most of the boss ladder without a VM.
-   Proof: act III's Devils rewritten declaratively, same traces.
-3. **Lua** — sandboxed, one state per scene, a small API; the boss ladder
-   rewritten in Lua. Proof: the act IV traces, and the netrig at four for
+2. **Conditional events — ✅ (rounds 43-44)** — conditions, groups and phases in the events
+   block, and the boss ladder written as rules (2b, same act-IV trace).
+   Proof: the rules bench (scene 12), and act IV's ladder from rules with
+   the same sound trace as the C thresholds.
+3. **Lua** — only if a need appears that rules cannot say: sandboxed, one
+   state per scene, a small API.
+   Proof: the act IV traces, and the netrig at four for
    determinism. Lua stays in bundled levels only (App Store 2.5.2).
 4. **Tools** — a pack validator, the CI camera pointed at a pack, the
    format document. Exit test: a level written by the tester without C.
@@ -316,6 +318,36 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-07 — round 44 (v4 stage 2b: the boss ladder becomes data — same trace)
+
+- **The ladder as flags** (`v4`: three commits). The boss's five attacks
+  (`spray`, `minions`, `bigshot`, `missiles`, `frenzy`) are on/off flags in
+  `lofb.c`. The built-in thresholds (HP ≤ 85/75/50/25 %) set them every
+  frame, as since round 15; a scene whose rules carry a `bossAttack` action
+  takes the ladder over. New trigger `hpAtMost <group> <pct>` — `≤`, integer
+  arithmetic, the boss's own formula — and a per-group energy budget that
+  follows the most the group ever held (the boss sets its real pool while
+  arriving, after it spawned). Act IV now carries its ladder as four rules
+  on `group boss`; the patterns, cadences, laser clock and arms stay in C.
+  Grammar in [`docs/level-pack.md`](docs/level-pack.md) §5b.
+- **The proof, before touching the scene**: `smoke-audio.yml` takes the
+  scene as an input; act IV with autofire and the C thresholds gave a
+  baseline (3012 effects, signature `2cffa0a19c6f0a10`, attacks on at
+  70100 / 89100 / 129533 / 172700 ms). With the rules block: the same
+  signature, the same four frames, the `[rule] fire` lines on the very
+  ticks. Two details made it exact rather than close: rules are evaluated
+  after the collisions (a rule and the boss read the same energy the same
+  frame — the bench's `cleared` fires moved one tick earlier, w2 12483 →
+  12466, and stayed green), and a rule sees the damage a destroyed arm
+  still owes before the boss applies it (`LOFB_EffectiveEnergy`).
+- **Two things the bench caught in its own script.** The scene-4 ladder
+  assertion read nothing on a trace that plainly had the lines: `on$"` in a
+  double-quoted grep is bash's `$"…"` locale quoting. And the boss has no
+  `enemy_shot` effect, so the act-1 floor on it is act-1 only.
+- Boss fight untouched by construction: no cadence, pattern or number
+  changed; the trace is the witness. Not built on device yet — the next
+  build (4.0.1) is where the tester meets it.
 
 ### 2026-09-07 — round 43 (v4 stage 2: rules — and the two bugs the bench caught)
 

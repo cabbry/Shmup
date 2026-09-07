@@ -96,8 +96,9 @@ jobs:
           START=$(date +%s)
           SCENE="${{ inputs.scene || 1 }}"
           MAXMIN="${{ inputs.maxMin || 35 }}"
-          case "$SCENE" in 0) TRACK=UNREALTH;; *) TRACK=UNREALPM;; esac
-          echo "scene $SCENE, track $TRACK, up to $MAXMIN min"
+          case "$SCENE" in 0) TRACK=UNREALTH; SCN=data/data/scenes/intro.scene;; *) TRACK=UNREALPM; SCN="data/data/scenes/act$SCENE.scene";; esac
+          CUE=$(awk '/startMusicAt/{print $2}' "$SCN" 2>/dev/null); CUE="${CUE:-0}"
+          echo "scene $SCENE, track $TRACK cued at $CUE, up to $MAXMIN min"
 
           sleep 45
           echo "=== console head ==="
@@ -159,7 +160,7 @@ jobs:
             [ "$(grep -c "^\[rule\] t=.* fire " audio-trace.log || true)" -ge 0 ]
           fi
 
-          # --- the soundtrack: UNREALPM cued at 0, started, and advancing at wall rate
+          # --- the soundtrack: the scene's track cued where the scene says, started, and advancing at wall rate
           # the init probe prints the bundle's absolute path: match the file name
           grep -q "^\[music\] .* init .*$TRACK.mp3 at=0" audio-trace.log || { echo "::error::$TRACK was not cued at 0 for scene $SCENE."; exit 1; }
           grep -q "^\[music\] .* start pos=" audio-trace.log || { echo "::error::The soundtrack never started."; exit 1; }

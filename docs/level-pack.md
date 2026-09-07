@@ -1,4 +1,4 @@
-# Level packs — the v4 format (stages 1-2 landed)
+# Level packs — the v4 format (stages 1-2b landed)
 
 *Round 42. This is the inventory the v4 scripting work starts from, and the
 first draft of the format a level will ship in. It will change as the stages
@@ -143,10 +143,61 @@ behind the probe gate; `smoke-rules.yml` reads it on the bench scene
 fired in order, the second one only after the last ship of the first is
 dead, the clock rule at 60 s.
 
-What stage 2 does **not** do yet: change an enemy after it spawned (fire
-patterns, cadences) or express the boss's own ladder — the next step
-(2b) wires `lofb.c`'s phases to `hpBelow boss` rules and adds `set`
-actions; what remains after that is what Lua is for (§6).
+What stage 2 does **not** do: change an enemy's own behaviour after it
+spawned (fire patterns, cadences) — the boss is the one exception, through
+the flags below; anything else of that kind is what Lua is for (§6).
+
+### 5b. Stage 2b — the boss ladder as rules (landed, round 44)
+
+The boss's five attacks are **flags** in `lofb.c`. By default the built-in
+thresholds set them from the boss's HP every frame, exactly as since the
+fight was built; a scene whose rules carry a `bossAttack` action takes the
+ladder over, and from then on only the rules move the flags. Act IV ships
+with its ladder written this way:
+
+```
+enemies
+{
+    at 9000 spawnEnemy mouvement 1 enemyType 4 ...   # the LOFB
+    group boss
+}
+
+rules
+{
+    rule spray    hpAtMost boss 85   bossAttack spray on
+    rule minions  hpAtMost boss 75   bossAttack minions on
+    rule bigshot  hpAtMost boss 50   bossAttack bigshot on
+    rule finale   hpAtMost boss 25   bossAttack missiles on   bossAttack frenzy on
+}
+```
+
+| word | meaning |
+|---|---|
+| `hpAtMost <group> <pct>` | the group's alive energy is at most *pct* % of the most it ever held (integer arithmetic, the same as `lofb.c`'s own; the group must still be alive — a dead group is `cleared`, not "at 0 %") |
+| `bossAttack <name> on\|off` | flips one of `spray`, `minions`, `bigshot`, `missiles`, `frenzy` when the rule fires; the first one parsed makes the ladder scripted |
+
+What stays in C: the patterns themselves, their cadences, the mega-laser's
+own clock, the arms and their reward (both arms down still cancels the big
+shots). What a pack can do now: reorder the ladder, drop an attack, key one
+on the clock (`after`) or on a wave (`cleared escort`), turn one off again.
+
+**The proof** is the act-IV sound trace (`smoke-audio.yml`, input `scene=4`,
+autofire, invulnerable): with the C thresholds and with the rules block the
+signature is the same (`2cffa0a19c6f0a10`, 3012 effects) and the five
+`[boss] t=… attack … on` transitions fall on the same frames — 70100,
+89100, 129533, 172700 (missiles and frenzy together). Two details made
+that exact:
+
+- rules are evaluated **after the collisions** and before the enemies
+  update, so a rule and the boss read the same energy on the same frame;
+  this also moves the bench's `cleared` fires one tick earlier (w2 at
+  12466 instead of 12483) — the group is seen dead the tick it dies;
+- the damage a destroyed arm owes is applied inside the boss's own update;
+  `LOFB_EffectiveEnergy` lets a rule see it one step early, so an arm kill
+  that crosses a threshold fires the rule on the frame the C ladder used to.
+
+The smoke asserts the five transitions, in order, once each, on scene 4.
+`hpBelow` keeps its strict `<`; both HP triggers now require the group alive.
 
 ## 6. Stage 3 — a small VM, for what conditions cannot say
 

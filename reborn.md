@@ -319,6 +319,39 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-07 — round 45 (the ships stay; three Devils for the finale)
+
+- **End of level, unified** (user call after 4.0.1: "les fins de niveaux ne
+  sont pas toutes les mêmes, des fois le vaisseau disparaît"). The four
+  acts ended two ways. Acts I-III regrouped the ships, then *detached* them
+  a second later: the 2010 "fonce tout droit" rush, the ship receding into
+  the distance and off the screen while the camera flew on, the epilog card
+  then playing over an empty stage for 7, 4 and 6 s. Act IV parked the
+  ships in their rest formation under its ending card. The CI camera on act
+  II showed the rush plainly: the ship a speck at 142.8 s, nothing at
+  143.5-145, the card at 147. Now every act ends like the boss act: the
+  regroup autopilot **holds** (`autopilot.holdAtEnd`, a zero-length
+  autopilot once the flight is done — no control handed back, no firing,
+  no survival score), the three `detachAt` are gone, the three cards last
+  6 s. The prolog keeps the 2010 look untouched; the outro compensation in
+  `player.c` stays for any pack that still detaches.
+- **Act III finale** (user call): the hard spinner of combo 5 became the
+  anthracite Devil, whose lasso now whips from the centre while the hedgehog
+  circles ring it; the twin aimed-fan SHABs of combo 6 became two ghost
+  Devils side by side with the LEE columns between them. A Devil's life is
+  fixed in `enemy.c` (0.7 s roll in, 4 s of guns, 0.7 s roll out), so their
+  ttl is 5600 whatever the combo's. Camera: the anthracite rolling in at
+  78 s and its THA stream at ~83 s; probe: both spawns on their ticks.
+- **Proof so far**: strict build green; act I's sound trace identical
+  (2453 effects, `5b0182b35b1e304f` — the ending is after the last shot);
+  act II runs through its card and into act III with the parked ship --
+  the camera has it, small and still, under the stats card at 142-145 s
+  (`[title] epilog done -> next scene (t=148000)`). Not built yet.
+- **A tool lesson for stage 4**: the camera's seconds are wall-clock and the
+  Simulator runs the game 3 to 19 s behind it, differently every run —
+  three runs missed the same two seconds of act II. The camera should key
+  on simulation time (poll the log for `t=`), not on `sleep`.
+
 ### 2026-09-07 — round 44 (v4 stage 2b: the boss ladder becomes data — same trace)
 
 - **The ladder as flags** (`v4`: three commits). The boss's five attacks

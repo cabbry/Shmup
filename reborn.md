@@ -348,6 +348,12 @@ it ever reached a device — which is why the game looks the same and why
   rule at 60 s; the three regression smokes stay green on the event-list
   change — the timeline is parsed in order, so the new branch never runs
   for the shipped scenes.
+- **A false alarm worth keeping.** The audio smoke on the event-list fix
+  reported 2475 events instead of 2453 and a new signature. The first 2453
+  were identical; the 22 extra were act 2's opening shots, logged while the
+  runner copied the file — how many slip in varies with the copy's timing.
+  The contract is act 1: the trace is now cut at the scene change. Three
+  earlier runs had matched only because the copy came sooner.
 
 ### 2026-09-06 — round 42 (v4 opens: scripting — the inventory)
 

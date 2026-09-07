@@ -110,7 +110,9 @@ jobs:
 
           LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
           [ -z "$LOG" ] && LOG="$RUNNER_TEMP/audio.log"
-          grep -E "^\[(snd|music|scene)\] " "$LOG" > audio-trace.log || true
+          # the contract is ACT 1: cut the trace at the scene change -- the app plays on into
+          # act 2 while the log is copied, and how many act-2 shots slip in varies run to run
+          grep -E "^\[(snd|music|scene)\] " "$LOG" | awk '{print} /^\[scene\] 1 -> 2/{exit}' > audio-trace.log || true
           echo "=== music lines ==="
           grep "^\[music\] " audio-trace.log || true
 

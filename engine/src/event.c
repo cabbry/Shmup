@@ -540,6 +540,28 @@ void EV_AddEvent(event_t* event)
 
 }
 
+// v4 stage 2: spawns of that group still waiting in the timeline (or scheduled
+// by a rule). "cleared" must wait for them: the first ship of a wave can die
+// the tick it spawns, before its sisters exist -- the bench caught exactly
+// that (w2 fired 50 ms into w1).
+int EV_PendingSpawnsInGroup(const char* group)
+{
+	event_t* e;
+	int n = 0;
+	if (!group || !group[0])
+		return 0;
+	for (e = nextEvent; e != NULL; e = e->next)
+	{
+		if (e->type == EV_SPAWN_ENEMY && e->payload)
+		{
+			event_spawnEnemy_payload_t* p = (event_spawnEnemy_payload_t*)e->payload;
+			if (!strcmp(p->group, group))
+				n++;
+		}
+	}
+	return n;
+}
+
 void EV_Update(void)
 {
 	event_t* toDelete;

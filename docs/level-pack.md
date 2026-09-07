@@ -1,4 +1,4 @@
-# Level packs — the v4 format (draft, stage 1)
+# Level packs — the v4 format (stages 1-2 landed)
 
 *Round 42. This is the inventory the v4 scripting work starts from, and the
 first draft of the format a level will ship in. It will change as the stages
@@ -93,33 +93,60 @@ on `kind` and on the pack's place in the act order.
 traces as today — the `[cull]` luma trace of the TTB smoke, the sound
 signature of the audio smoke, the four-ship smoke.
 
-## 5. Stage 2 — conditional events (the light path)
+## 5. Stage 2 — conditional events (landed, round 43)
 
-The `events` block gains **conditions**, **groups** and **phases**, so most
-of the boss ladder and all of the Devils' choreography can be written
-without a VM:
+A scene may carry a `rules` block. Where the `enemies` and `events` blocks
+*schedule*, a rule *reacts*: it watches the simulation and, when its
+condition holds, schedules spawns. Enemies carry a **group** name for that.
 
 ```
-events
+enemies
 {
-    group boss
-    {
-        when hpBelow 85  spawnPattern spray  cadence 900
-        when hpBelow 75  every 6000 spawnEnemyWave circle 6 1 …
-        when hpBelow 50  spawnPattern bigshot cadence 2400
-        when hpBelow 25  set fanCount 5  set fanCadence 1100
-        every 35000 for 4000  laser
-        when armDestroyed left   damageBoss 120
-        when cleared group escort1   at +2000 spawnEnemyWave …
-    }
+    settime 9000  setttl 8000
+    at 0000 spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.15 enemyType 1 ... subType 3  group w1
+    at 0400 spawnEnemy ...                                                             group w1
+}
+
+rules
+{
+    setttl 8000
+    rule w2   when cleared w1  after 1500
+              spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.15 enemyType 1 ... subType 3
+              spawnEnemy ...
+              group w2
+    rule w3   when cleared w2
+              spawnEnemyWave circle enemyNum 6 enemyType 2 percentageInvulnerable 0 angleOffset 0 subType 3
+              group w3
+    rule late when after 60000
+              spawnEnemy ...
+    rule tick when hpBelow boss 50  every 6000
+              spawnEnemyWave circle enemyNum 4 enemyType 1 percentageInvulnerable 0 angleOffset 0 subType 3
 }
 ```
 
-Conditions: `hpBelow`, `hpAbove`, `cleared <group>`, `armDestroyed`,
-`players <n>`, `after <ms>`, `every <ms>`, `for <ms>`. Actions: the spawns
-we have, plus fire patterns and parameter sets on a named enemy.
-Deterministic by construction (no code runs, only tables), and safe to
-download later (§6).
+| word | meaning |
+|---|---|
+| `rule <name>` | starts a rule; `when` is optional sugar |
+| `cleared <group>` | the group has spawned at least once, none is alive, **and none is still to come** in the timeline or from a rule |
+| `hpBelow <group> <pct>` | the group's alive energy is under *pct* % of what it spawned with (the boss is a group of one) |
+| `players <n>` | at least *n* seats |
+| `after <ms>` | as a trigger: the scene clock has passed *ms*; after a trigger: the spawns land *ms* later |
+| `every <ms>` | re-fire while the condition holds, at most every *ms*; without it a rule fires once |
+| `spawnEnemy …`, `spawnEnemyWave circle …` | the enemies-block grammars, verbatim (`EV_ParseSpawnParams`, `EV_ParseCircleWave`) |
+| `group <name>` | tags what the rule (or, in the enemies block, the previous `at` line) spawns |
+
+Rules are evaluated once per simulation tick, after the timeline, as pure
+functions of the clock and the enemy list — every peer computes the same
+answer, so lockstep holds. `rules.c` prints `[rule] t=<sim> fire <name> …`
+behind the probe gate; `smoke-rules.yml` reads it on the bench scene
+(`data/levels/test_rules`, scene 12, CI only): three waves chained by rules,
+fired in order, the second one only after the last ship of the first is
+dead, the clock rule at 60 s.
+
+What stage 2 does **not** do yet: change an enemy after it spawned (fire
+patterns, cadences) or express the boss's own ladder — the next step
+(2b) wires `lofb.c`'s phases to `hpBelow boss` rules and adds `set`
+actions; what remains after that is what Lua is for (§6).
 
 ## 6. Stage 3 — a small VM, for what conditions cannot say
 

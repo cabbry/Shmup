@@ -120,6 +120,7 @@ void EV_ReadTextsEvents(void);
 // "spawnEnemyWave circle" -- it fills up to maxOut payloads and returns how many.
 void EV_ParseSpawnParams(event_spawnEnemy_payload_t* payload);
 int  EV_ParseCircleWave(event_spawnEnemy_payload_t* out, int maxOut, float ttl);
+int  EV_PendingSpawnsInGroup(const char* group);	// spawns of that group still to come
 void EV_Update(void);
 void EV_CleanAllRemainingEvents(void);
 void EV_AddEvent(event_t* event);

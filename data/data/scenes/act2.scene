@@ -40,6 +40,11 @@ camera
 	attachAt: 09000
 	# no detachAt (4.0.2): the ships park at movePlayersToDefautlSSLocation (139 s)
 	# and stay in formation under the epilog card, as in the boss act
+	# 4.0.4: this rail runs out right as the epilog card comes up, and without a
+	# patrol the engine froze the decor for the whole card ("l'ecran se fige").
+	# Hand over to the end-of-rail patrol -- the boss act flies this very rail
+	# with it: two seconds of settle, then the 180 arc, live decor culling.
+	driftAtEnd: 1
 }
 
 fog 

@@ -145,7 +145,19 @@ jobs:
           echo "SFX SIGNATURE: $TOTAL events, sha256[0:16]=$SIG"
           [ "${PLASMA:-0}" -ge 100 ] || { echo "::error::Autofire should have fired far more than $PLASMA plasma shots."; exit 1; }
           [ "${EXPLO:-0}"  -ge 5 ]   || { echo "::error::Too few explosions ($EXPLO)."; exit 1; }
-          [ "${ENEMY:-0}"  -ge 5 ]   || { echo "::error::Too few enemy shots ($ENEMY)."; exit 1; }
+          # the boss speaks through explosions and its own bullets, not the enemy_shot effect
+          [ "$SCENE" = "4" ] || [ "${ENEMY:-0}" -ge 5 ] || { echo "::error::Too few enemy shots ($ENEMY)."; exit 1; }
+
+          # --- scene 4: the boss ladder, in order, each attack once
+          if [ "$SCENE" = "4" ]; then
+            ON=$(grep "^\[boss\] t=.* attack .* on$" audio-trace.log | awk '{print $2, $4}' | sed 's/t=//')
+            echo "ladder: $(echo "$ON" | tr '\n' ' ')"
+            [ "$(echo "$ON" | grep -c .)" -eq 5 ] || { echo "::error::Expected 5 attack-on transitions, got: $ON"; exit 1; }
+            echo "$ON" | awk '{t[$2]=$1} END{ if (!("spray" in t && "minions" in t && "bigshot" in t && "missiles" in t && "frenzy" in t)) {print "::error::an attack is missing"; exit 1}
+              if (!(t["spray"] < t["minions"] && t["minions"] < t["bigshot"] && t["bigshot"] < t["missiles"] && t["missiles"] == t["frenzy"])) {print "::error::ladder out of order"; exit 1}
+              print "ladder order ok: spray", t["spray"], "< minions", t["minions"], "< bigshot", t["bigshot"], "< missiles = frenzy", t["missiles"] }' || exit 1
+            [ "$(grep -c "^\[rule\] t=.* fire " audio-trace.log || true)" -ge 0 ]
+          fi
 
           # --- the soundtrack: UNREALPM cued at 0, started, and advancing at wall rate
           # the init probe prints the bundle's absolute path: match the file name

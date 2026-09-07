@@ -161,10 +161,10 @@ static int RULES_Holds(const rule_t* r)
 			return g && g->seen && RULES_GroupAlive(r->group) == 0 && EV_PendingSpawnsInGroup(r->group) == 0;
 		case RT_HPBELOW:
 			g = RULES_FindGroup(r->group, 0);
-			return g && g->seen && RULES_GroupHpPct(r->group) < r->value;
+			return g && g->seen && RULES_GroupAlive(r->group) > 0 && RULES_GroupHpPct(r->group) < r->value;
 		case RT_HPATMOST:
 			g = RULES_FindGroup(r->group, 0);
-			return g && g->seen && RULES_GroupHpPct(r->group) <= r->value;
+			return g && g->seen && RULES_GroupAlive(r->group) > 0 && RULES_GroupHpPct(r->group) <= r->value;
 		case RT_PLAYERS:
 			return numPlayers >= r->value;
 		case RT_AFTER:

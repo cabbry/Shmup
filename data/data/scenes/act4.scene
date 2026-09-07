@@ -149,6 +149,7 @@ enemies
 
 	# THE BOSS. Eases down to its hover point, then lofb.c takes over.
 	at 9000 spawnEnemy mouvement 1 enemyType 4 startPos 0 1.35 endPos 0 0.55 controlPoint 0 1 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	group boss
 
 
 }
@@ -164,6 +165,18 @@ events
 {
 	at 40000 uploadScore
 
+}
+# v4 stage 2b: the boss's attack ladder, as rules. The thresholds lofb.c used
+# since the fight was built (HP at most 85 / 75 / 50 / 25 % of the fight's pool),
+# read on the same frame -- the act-4 sound trace is identical with and without
+# this block. Cadences, patterns and the mega-laser clock stay in lofb.c; a pack
+# may reorder the ladder, drop an attack, or key it on the clock ("after").
+rules
+{
+	rule spray    hpAtMost boss 85   bossAttack spray on
+	rule minions  hpAtMost boss 75   bossAttack minions on
+	rule bigshot  hpAtMost boss 50   bossAttack bigshot on
+	rule finale   hpAtMost boss 25   bossAttack missiles on   bossAttack frenzy on
 }
 
 

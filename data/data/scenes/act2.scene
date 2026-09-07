@@ -38,15 +38,9 @@ camera
 	zFar:	22000
 	
 	attachAt: 09000
-	# no detachAt (4.0.2): the ships park at movePlayersToDefautlSSLocation (139 s)
-	# and stay in formation under the epilog card, as in the boss act
-	# 4.0.4: this rail runs out right as the epilog card comes up, and without a
-	# patrol the engine froze the decor for the whole card ("l'ecran se fige").
-	# Hand over to the end-of-rail patrol -- the boss act flies this very rail
-	# with it: two seconds of settle, then the 180 arc, live decor culling.
-	# Mode 2 = the LEVEL patrol: this rail ends pitched and mode 1 climbed the
-	# camera into the fog (a black card, 4.0.4 camera run); mode 2 keeps the altitude.
-	driftAtEnd: 2
+	# no detachAt (4.0.2): the ships park at movePlayersToDefautlSSLocation (131.5 s)
+	# and stay in formation under the epilog card, which ends before this rail
+	# runs out (~141.5 s) -- no end-of-rail patrol here (4.0.5).
 }
 
 fog 
@@ -103,8 +97,8 @@ title
 	titleName  data/titles/hopeTitle.png
 	prolog start 2000 duration 7000
 		
-	at 139000 movePlayersToDefautlSSLocation
-	epilog start 142000 duration 6000
+	at 131500 movePlayersToDefautlSSLocation
+	epilog start 134500 duration 6000
 	
 }
 
@@ -380,7 +374,7 @@ texts_events
 
 events
 {
-	at 142000 uploadScore
+	at 134500 uploadScore
 
 }
 

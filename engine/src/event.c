@@ -523,6 +523,18 @@ void EV_AddEvent(event_t* event)
 		return;
 	}
 
+	// ... and an event EARLIER than the head goes in front of it. The 2009
+	// insertion only ever looked past the head, which was fine for a timeline
+	// read in order; a rule firing mid-level while the camera's detach waits
+	// at 140 s had its spawns filed BEHIND that detach -- never to fire (the
+	// bench: "fire w2" printed, no w2 ship ever spawned).
+	if (event->time < nextEvent->time)
+	{
+		event->next = nextEvent;
+		nextEvent = event;
+		return;
+	}
+
 	cEvent = nextEvent;
 	
 	//Search

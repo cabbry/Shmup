@@ -150,7 +150,7 @@ jobs:
 
           # --- scene 4: the boss ladder, in order, each attack once
           if [ "$SCENE" = "4" ]; then
-            ON=$(grep "^\[boss\] t=.* attack .* on$" audio-trace.log | awk '{print $2, $4}' | sed 's/t=//')
+            ON=$(tr -d "\r" < audio-trace.log | grep -E "^\[boss\] t=[0-9]+ attack [a-z]+ on" | awk '{print $2, $4}' | sed "s/t=//")
             echo "ladder: $(echo "$ON" | tr '\n' ' ')"
             [ "$(echo "$ON" | grep -c .)" -eq 5 ] || { echo "::error::Expected 5 attack-on transitions, got: $ON"; exit 1; }
             echo "$ON" | awk '{t[$2]=$1} END{ if (!("spray" in t && "minions" in t && "bigshot" in t && "missiles" in t && "frenzy" in t)) {print "::error::an attack is missing"; exit 1}

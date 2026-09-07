@@ -243,6 +243,7 @@ void P_ResetPlayer(int i)
 	player->showPointer = 0;
 	player->autopilot.enabled = 0;
 	player->autopilot.holdAtEnd = 0;	// 4.0.2: a fresh hull is not parked
+	player->autopilot.parked = 0;
 	player->deathPending = 0;		// v2.0.9: no ruling outstanding on a fresh hull
 	player->deathPendingSince = 0;
 	
@@ -764,6 +765,7 @@ void P_Update(void)
 					player->autopilot.diff_ss_position[Y] = 0;
 					player->autopilot.timeCounter  = 2000000;
 					player->autopilot.originalTime = 2000000;
+					player->autopilot.parked = 1;
 				}
 				
 				
@@ -791,6 +793,15 @@ void P_Update(void)
 			// a side camera. The blend follows the camera's own swing fraction
 			// (camera.ttbAngle), so both moves land together; f stays 0 on every
 			// act without a ttbRoll and this is the original matrix product.
+			// 4.0.3: a PARKED ship is no longer a billboard. Attached, the pose is
+			// rebuilt every frame so the ship always shows its top to the camera --
+			// invisible while the rail flies flat, wrong once the end of a rail
+			// pitches or banks under the epilog card (act 1 climbs into the sky:
+			// "la camera tourne mais le vaisseau reste vu de dessus"). Until 4.0.1
+			// the detach froze the ship in world space; the park now keeps the
+			// orientation it had when the hold engaged, and only the translation
+			// below still follows the camera.
+			if (!player->autopilot.parked)
 			{
 				float f = fabsf(camera.ttbAngle) / ((float)M_PI * 0.5f);
 

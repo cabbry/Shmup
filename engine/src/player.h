@@ -181,6 +181,7 @@ typedef struct autopilot_t
 {
 	uchar enabled;
 	uchar holdAtEnd;	// 4.0.2: once this run ends, stay parked at end_ss_position (end of level)
+	uchar parked;		// 4.0.3: the hold engaged -- the ship keeps its WORLD orientation from here on
 	int timeCounter;
 	float originalTime;
 	vec2_t diff_ss_position;

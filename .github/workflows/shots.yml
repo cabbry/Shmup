@@ -89,18 +89,26 @@ jobs:
           ENVS=""
           if [ "$SCENE" != "0" ]; then ENVS="SIMCTL_CHILD_SHMUP_BAKE_SCENE=$SCENE"; fi
           for kv in $EXTRA; do ENVS="$ENVS SIMCTL_CHILD_$kv"; done
+          # the sim-timed mode reads the engine's own log file: force it on, with the t= probe
+          if [ -n "${{ inputs.simSeconds }}" ]; then ENVS="$ENVS SIMCTL_CHILD_SHMUP_LOG_FILE=1 SIMCTL_CHILD_SHMUP_CULL_DEBUG=1"; fi
           echo "launching scene $SCENE with: $ENVS"
           # shellcheck disable=SC2086
           nohup env $ENVS xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$RUNNER_TEMP/app.log" 2>&1 &
           SIM_LIST="${{ inputs.simSeconds }}"
           if [ -n "$SIM_LIST" ]; then
-            # sim-timed frames: wait for the engine's clock (the [cull] probe prints t=<ms> every second)
+            # sim-timed frames: wait for the ENGINE's clock. Read the app's own log file
+            # (flushed per line -- the relayed console arrives in blocks, 10 s late), and
+            # only this scene's [cull] lines (the next act restarts t at 0).
+            CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
             T0=$(perl -MTime::HiRes=time -e 'printf "%.1f", time')
             for s in $(echo "$SIM_LIST" | tr ',' ' '); do
               TARGET=$(awk -v s="$s" 'BEGIN{printf "%d", s*1000}')
               while :; do
-                NOW=$(grep -o "t=[0-9]*" "$RUNNER_TEMP/app.log" 2>/dev/null | tail -1 | tr -d 't=')
+                LOG=$(ls -t "$CONTAINER"/Documents/*.log "$CONTAINER"/Documents/*.txt 2>/dev/null | head -1)
+                NOW=""
+                [ -n "$LOG" ] && NOW=$(grep -o "^\[cull\] scene=$SCENE .* t=[0-9]*" "$LOG" 2>/dev/null | tail -1 | grep -o "t=[0-9]*" | tr -d 't=')
                 [ -n "$NOW" ] && [ "$NOW" -ge "$TARGET" ] && break
+                if [ -n "$LOG" ] && grep -q "^\[scene\] $SCENE -> " "$LOG" 2>/dev/null; then echo "::error::scene $SCENE ended before ${s}s (last t=$NOW)"; break 2; fi
                 if perl -MTime::HiRes=time -e "exit(time - $T0 < 900 ? 1 : 0)"; then echo "::error::sim clock never reached ${s}s (last t=$NOW)"; break 2; fi
                 sleep 0.1
               done

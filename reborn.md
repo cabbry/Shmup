@@ -320,6 +320,26 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-07 — round 48 (4.0.4 on device: "lol, le vaisseau repart en marche arrière")
+
+- **The level patrol read wrong.** Flying the camera back over the city
+  kept the decor alive under act II's card, but a camera flying backwards
+  is a ship reversing: the tester laughed. His call: cut the last wave and
+  end the act while the rail still flies forward — simpler, and no patrol.
+- **Act II ends 7.5 s earlier.** The second "impossible dual X-sin FHT"
+  wave (133-136 s) is gone; the regroup is at 131.5 s, the card at
+  134.5-140.5 s, the rail runs out at ~141.5 s. `driftAtEnd` is off again
+  for act II; the level patrol stays in `camera.c`, selectable, unused.
+- **Proof**: the probe shows the rail live through 140 s (position
+  advancing at the rail's pace, no patrol), the card from 134516 to 140500
+  and the scene change on that tick; the camera shows the stats card over
+  the moving night city, the ship parked.
+- **A chained edit that lied.** The first cut commit only moved the ending:
+  a `grep -q` on a mis-numbered line short-circuited the `&&` chain that
+  deleted the wave, and the rest of the script ran anyway. The awk that
+  lists the last spawn time caught it before the build. Verify the effect,
+  not the command.
+
 ### 2026-09-07 — round 47 (4.0.3 on device: acts I, III, IV end right; act II froze — the level patrol)
 
 - **Device verdicts on 4.0.3**: the end of act I ("nickel"), act III and

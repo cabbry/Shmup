@@ -355,19 +355,24 @@ enemies
 
 	# ---------- FINALE (78-104s, top-down): combos at full tilt ----------
 
-	# COMBO 5: circle wave AROUND a hard spinner.
+	# COMBO 5: circle waves AROUND the stealth Devil (user call, 4.0.2: the hard
+	# spinner that sat here became the anthracite -- its lasso whips from the
+	# centre while the hedgehogs ring it). A Devil's life is fixed by enemy.c
+	# (0.7s roll in, 4s of guns, 0.7s roll out): its ttl is always 5600.
 	settime 78000
-	setttl 10000
-	at 0    spawnEnemy mouvement 1 enemyType 3 startPos 2 0.5 endPos 0.0 0.3 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 1 firingAngle1 0 firingAngle2 360 numThread 7 rotAngle -120
+	setttl 5600
+	at 0    spawnEnemy mouvement 1 enemyType 0 startPos 1.6 0.3 endPos 0.0 0.3 controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
 	setttl 6000
 	at 800  spawnEnemyWave circle enemyNum 12 enemyType 1 percentageInvulnerable 20 angleoffset 0 defaultType 0
 	at 4500 spawnEnemyWave circle enemyNum 10 enemyType 1 percentageInvulnerable 20 angleoffset 45 defaultType 0
 
-	# COMBO 6: twin aimed-fan SHABs WITH LEE columns between them.
+	# COMBO 6: TWO GHOST Devils side by side (user call, 4.0.2: the twin
+	# aimed-fan SHABs became the translucent pair -- their ripples cross)
+	# WITH LEE columns between them.
 	addtime 10500
-	setttl 8000
-	at 0    spawnEnemy mouvement 1 enemyType 3 startPos  2 0.5 endPos  0.5 0.55 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 -110 firingAngle2 -35 numThread 3 rotAngle 0
-	at 300  spawnEnemy mouvement 1 enemyType 3 startPos -2 0.5 endPos -0.5 0.55 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 -145 firingAngle2 -70 numThread 3 rotAngle 0
+	setttl 5600
+	at 0    spawnEnemy mouvement 1 enemyType 0 startPos  1.6 0.55 endPos  0.5 0.55 controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
+	at 300  spawnEnemy mouvement 1 enemyType 0 startPos -1.6 0.55 endPos -0.5 0.55 controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
 	setttl 7000
 	at 1000 spawnEnemy mouvement 0 startAngle 0   fireFrequency 55 enemyType 2 startPos -0.2 1.2 endPos -0.2 -1.2 controlPoint -0.2 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
 	at 1600 spawnEnemy mouvement 0 startAngle 180 fireFrequency 55 enemyType 2 startPos  0.2 1.2 endPos  0.2 -1.2 controlPoint  0.2 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5

@@ -118,7 +118,8 @@ to the true screen edges, and the touch-coordinate mapping.
   ARC; simulator build and signed device archive in CI.
 - ✅ Live on **TestFlight** as **SHMUP Reborn 4.0.x** — Metal renderer at native
   resolution, AVFoundation audio, full speed on device, iPhone and iPad.
-- ✅ Four acts, a boss, an ending; 2-4 player co-op over LAN and online
+- ✅ Four acts, a boss, an ending; 2-4 player co-op over LAN and online (online
+  broken from 3.0.0 to 4.0.2 by an ARC-pass typo, fixed in 4.0.3)
   (device-confirmed at two); leaderboards.
 - ✅ Full-screen: fills tall iPhones with no black edge gaps, HUD anchored to the
   safe area, 2D sprites de-stretched (round sprites are round again).
@@ -318,6 +319,31 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-07 — round 46 (4.0.2 on device: the billboard under the card, and online play was dead since v3)
+
+- **"La caméra tourne mais le vaisseau reste vu de dessus"** (end of act I).
+  An attached ship is a billboard: its pose is rebuilt every frame from the
+  camera so it always shows its top. Invisible while a rail flies flat; at
+  the end of act I the rail pitches and swings over the city under the card,
+  and the parked ship of round 45 stayed glued face-on. Until 4.0.1 the
+  detach had frozen the ship in world space. Now the park does the same for
+  the orientation only (`autopilot.parked`): the rotation stops updating
+  when the hold engages, the translation keeps following the camera. The
+  camera on act I: the ship under the stats card, banking with the
+  camera's swing from 142 to 148 s, then act II.
+- **Online play never started since v3.** The tester: "il trouve l'autre
+  joueur mais la game ne se lance pas". In the ARC pass (round 35) the
+  statement that keeps the found match had been glued onto the end of its
+  own comment line — `gMatch = match;` commented out, the match found and
+  dropped, the start bailing on a nil match. LAN was untouched (the "multi
+  à 2" of 4.0.0 was LAN). One line back on its own line; a scan of the ARC
+  diff finds no other swallowed statement. Lesson for any sed/awk that
+  inserts a comment: grep the diff for `^\+\s*//.*;\s*$`.
+- **Not reproduced, then explained**: the CI camera on act III's side view
+  showed the ship in profile on every frame — the report was about a
+  different moment, and the tester's location (end of act I) pointed at the
+  mechanism above. Ask where before hunting.
 
 ### 2026-09-07 — round 45 (the ships stay; three Devils for the finale)
 

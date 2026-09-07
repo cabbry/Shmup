@@ -240,7 +240,7 @@ proof in CI; the format and the inventory are in
    existing scenes become packs that reference their assets, the code keys
    on a pack's *kind* rather than on scene ids. Proof: the four acts from
    packs produce today's traces.
-2. **Conditional events** — conditions, groups and phases in the events
+2. **Conditional events — ✅ (round 43)** — conditions, groups and phases in the events
    block: the Devils' choreography and most of the boss ladder without a VM.
    Proof: act III's Devils rewritten declaratively, same traces.
 3. **Lua** — sandboxed, one state per scene, a small API; the boss ladder
@@ -316,6 +316,38 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-07 — round 43 (v4 stage 2: rules — and the two bugs the bench caught)
+
+- **Conditional events landed** (`v4`: [f6b3392] → [47ee04f]). A scene may
+  carry a `rules` block; where the timelines schedule, a rule *reacts*:
+  `rule w2 when cleared w1 after 1500 spawnEnemy … group w2`. Triggers:
+  `cleared <group>`, `hpBelow <group> <pct>`, `players <n>`, `after <ms>`;
+  modifiers `after` (delay) and `every` (re-fire); actions are the enemies
+  block's own spawn grammars, which moved out of the parser into two
+  functions so both blocks speak the same language; enemies carry a group
+  name. Evaluated once per tick after the timeline as pure functions of the
+  clock and the enemy list — lockstep holds. The grammar is in
+  [`docs/level-pack.md`](docs/level-pack.md) §5.
+- **The bench** (`data/levels/test_rules`, scene 12, CI only, `smoke-rules.yml`):
+  three waves of act 1's opening FHT chained by rules, autofire on. Its
+  first three runs each found something:
+  1. *w2 fired 50 ms into w1.* The first ship died the tick it spawned,
+     before its sisters existed: "cleared" now also waits for the group's
+     spawns still to come, in the timeline or from a rule.
+  2. *w2 fired, no w2 ship ever spawned.* A 2009 latent bug in the event
+     list: insertion only ever looked past the head, fine for a timeline read
+     in order, but a rule firing mid-level while the camera's detach waited
+     at 140 s filed its spawns behind that detach. Dormant for seventeen
+     years because nothing ever added an earlier event at runtime. An event
+     earlier than the head now goes in front of it.
+  3. *No ship ever died.* The bench's first waves flew outside the bullet
+     column (no input in CI, so the ship's own column is the only one);
+     act 1's opening FHT geometry, which sweeps it, fixed the bench itself.
+- **Green**: w2 at 12.5 s after three explosions, w3 at 16.1 s, the clock
+  rule at 60 s; the three regression smokes stay green on the event-list
+  change — the timeline is parsed in order, so the new branch never runs
+  for the shipped scenes.
 
 ### 2026-09-06 — round 42 (v4 opens: scripting — the inventory)
 

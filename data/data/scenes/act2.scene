@@ -350,19 +350,10 @@ enemies
 	at 1800 spawnEnemy mouvement 2   xOffset 0 xWidth 1 enemyType 1 startPos 1 1.2     endPos 1 -1.2 controlPoint    1 0   zAxisRot 0 xAxisRot 0 yAxisRot 0	 subType 1		
 	at 2400 spawnEnemy mouvement 2   xOffset 0 xWidth 1 enemyType 1 startPos 1 1.2     endPos 1 -1.2 controlPoint   1 0   zAxisRot 0 xAxisRot 0 yAxisRot 0	 subType 1						
 
-	# IMPOSSIBLE DUAL X_SIN FHT
-	addtime 8000
-	setttl 4000
-	at -300 spawnEnemy   mouvement 2 xOffset 0 xWidth 1 enemyType 1 startPos -1 1.2	 endPos -1 -1.2 controlPoint  -1 0   zAxisRot 0 xAxisRot 0 yAxisRot 0  subType 2					
-	at 300 spawnEnemy mouvement 2    xOffset 0 xWidth 1 enemyType 1 startPos -1 1.2   endPos -1 -1.2 controlPoint  -1 0   zAxisRot 0 xAxisRot 0 yAxisRot 0	 subType 2				
-	at 900 spawnEnemy mouvement 2    xOffset 0 xWidth 1 enemyType 1 startPos -1 1.2   endPos -1 -1.2 controlPoint  -1 0   zAxisRot 0 xAxisRot 0 yAxisRot 0		 subType 2				
-	at 1500 spawnEnemy mouvement 2   xOffset 0 xWidth 1 enemyType 1 startPos -1 1.2   endPos -1 -1.2 controlPoint  -1 0   zAxisRot 0 xAxisRot 0 yAxisRot 0	 subType 2			
-	at 2100 spawnEnemy mouvement 2   xOffset 0 xWidth 1 enemyType 1 startPos -1 1.2   endPos -1 -1.2 controlPoint  -1 0   zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
-	at 0  spawnEnemy mouvement 2     xOffset 0 xWidth 1 enemyType 1 startPos 1 1.2	  endPos  1 -1.2 controlPoint   1 0   zAxisRot 0 xAxisRot 0 yAxisRot 0	 subType 2				
-	at 600 spawnEnemy mouvement 2    xOffset 0 xWidth 1 enemyType 1 startPos 1 1.2    endPos 1 -1.2 controlPoint    1 0   zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
-	at 1200 spawnEnemy mouvement 2   xOffset 0 xWidth 1 enemyType 1 startPos 1 1.2     endPos 1 -1.2 controlPoint	1 0   zAxisRot 0 xAxisRot 0 yAxisRot 0		 subType 2
-	at 1800 spawnEnemy mouvement 2   xOffset 0 xWidth 1 enemyType 1 startPos 1 1.2     endPos 1 -1.2 controlPoint    1 0   zAxisRot 0 xAxisRot 0 yAxisRot 0	 subType 2			
-	at 2400 spawnEnemy mouvement 2   xOffset 0 xWidth 1 enemyType 1 startPos 1 1.2     endPos 1 -1.2 controlPoint   1 0   zAxisRot 0 xAxisRot 0 yAxisRot 0	 subType 2						
+	# (4.0.5: the second IMPOSSIBLE DUAL X_SIN FHT wave that sat here, 133-136 s,
+	# was CUT -- user call. The act's ending moved up by 7.5 s so the stats card
+	# plays while the camera rail still flies forward: the rail runs out at
+	# ~141.5 s, and every end-of-rail patrol read wrong under the card.)
 
 }
 

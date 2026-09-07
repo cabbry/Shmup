@@ -26,6 +26,7 @@
 #include "lexer.h"
 #include "log.h"
 #include "player.h"
+#include "lofb.h"	// stage 2b: the boss ladder as rule actions
 #include <string.h>
 #include <stdlib.h>
 
@@ -34,26 +35,28 @@
 #define GROUPS_MAX			32
 #define RULE_DEFAULT_TTL	6000
 
-typedef enum { RT_NONE = 0, RT_CLEARED, RT_HPBELOW, RT_PLAYERS, RT_AFTER } rule_trigger_t;
+typedef enum { RT_NONE = 0, RT_CLEARED, RT_HPBELOW, RT_PLAYERS, RT_AFTER, RT_HPATMOST } rule_trigger_t;
 
 typedef struct rule_t
 {
 	char name[16];
 	rule_trigger_t trigger;
 	char group[16];			// the group the trigger watches
-	int  value;				// pct for hpBelow, seats for players, ms for after
+	int  value;				// pct for hpBelow/hpAtMost, seats for players, ms for after
 	int  delay;				// after <ms>: the spawns land that long after the trigger
 	int  period;			// every <ms>: re-fires while the condition holds; 0 = once
 	int  lastFire;			// simulation time of the last fire, -1 = never
 	int  numSpawns;
 	event_spawnEnemy_payload_t spawns[RULE_MAX_SPAWNS];
+	char bossAttack[LOFB_NUM_ATTACKS];	// stage 2b: -1 untouched, 0 off, 1 on (applied at fire, no delay)
 } rule_t;
 
 typedef struct group_t
 {
 	char name[16];
 	int  seen;				// at least one enemy of the group has spawned
-	int  energyMax;			// sum of the energies the group's enemies spawned with
+	int  energyMax;			// the most alive energy the group ever held (spawn sums, raised
+							// each tick: the boss sets its real HP pool after it spawns)
 } group_t;
 
 static rule_t  gRules[RULES_MAX];
@@ -61,7 +64,7 @@ static int     gNumRules;
 static group_t gGroups[GROUPS_MAX];
 static int     gNumGroups;
 
-static const char* triggerNames[] = { "none", "cleared", "hpBelow", "players", "after" };
+static const char* triggerNames[] = { "none", "cleared", "hpBelow", "players", "after", "hpAtMost" };
 
 // ---------------------------------------------------------------------------
 
@@ -71,6 +74,7 @@ void RULES_InitForScene(void)
 	memset(gGroups, 0, sizeof(gGroups));
 	gNumRules = 0;
 	gNumGroups = 0;
+	LOFB_ResetLadder();		// stage 2b: thresholds again until a rule says otherwise
 }
 
 static group_t* RULES_FindGroup(const char* name, int create)
@@ -111,17 +115,37 @@ int RULES_GroupAlive(const char* group)
 	return n;
 }
 
-int RULES_GroupHpPct(const char* group)
+static int RULES_GroupEnergy(const char* group)
 {
 	int energy = 0;
 	enemy_t* e;
+	for (e = ENE_GetFirstEnemy(); e != NULL; e = e->next)
+		if (!strcmp(e->group, group) && e->energy > 0)
+			energy += LOFB_EffectiveEnergy(e);
+	return energy;
+}
+
+int RULES_GroupHpPct(const char* group)
+{
 	group_t* g = RULES_FindGroup(group, 0);
 	if (!g || !g->seen || g->energyMax <= 0)
 		return 0;
-	for (e = ENE_GetFirstEnemy(); e != NULL; e = e->next)
-		if (!strcmp(e->group, group) && e->energy > 0)
-			energy += e->energy;
-	return (100 * energy) / g->energyMax;
+	// the same integer arithmetic as lofb.c's own hpPct, so a threshold written
+	// as a rule fires on the very frame the C ladder used to
+	return (100 * RULES_GroupEnergy(group)) / g->energyMax;
+}
+
+// The energy budget follows the most a group ever held: the boss spawns with
+// its type's base energy and sets the fight's pool while arriving.
+static void RULES_TrackEnergy(void)
+{
+	int i;
+	for (i = 0; i < gNumGroups; i++)
+	{
+		int e = RULES_GroupEnergy(gGroups[i].name);
+		if (e > gGroups[i].energyMax)
+			gGroups[i].energyMax = e;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +162,9 @@ static int RULES_Holds(const rule_t* r)
 		case RT_HPBELOW:
 			g = RULES_FindGroup(r->group, 0);
 			return g && g->seen && RULES_GroupHpPct(r->group) < r->value;
+		case RT_HPATMOST:
+			g = RULES_FindGroup(r->group, 0);
+			return g && g->seen && RULES_GroupHpPct(r->group) <= r->value;
 		case RT_PLAYERS:
 			return numPlayers >= r->value;
 		case RT_AFTER:
@@ -154,6 +181,9 @@ static void RULES_Fire(rule_t* r)
 	if (Log_ProbesEnabled())
 		Log_Printf("[rule] t=%d fire %s (%s %s %d) spawns=%d delay=%d\n",
 			simulationTime, r->name, triggerNames[r->trigger], r->group, r->value, r->numSpawns, r->delay);
+	for (i = 0; i < LOFB_NUM_ATTACKS; i++)
+		if (r->bossAttack[i] >= 0)
+			LOFB_SetAttack(i, r->bossAttack[i]);
 	for (i = 0; i < r->numSpawns; i++)
 	{
 		event_t* event = calloc(1, sizeof(event_t));
@@ -169,6 +199,7 @@ static void RULES_Fire(rule_t* r)
 void RULES_Update(void)
 {
 	int i;
+	RULES_TrackEnergy();
 	for (i = 0; i < gNumRules; i++)
 	{
 		rule_t* r = &gRules[i];
@@ -228,6 +259,7 @@ void RULES_Read(void)
 			rule_t* r = &gRules[gNumRules++];
 			memset(r, 0, sizeof(*r));
 			r->lastFire = -1;
+			memset(r->bossAttack, -1, sizeof(r->bossAttack));
 			LE_readToken();
 			strncpy(r->name, LE_getCurrentToken(), sizeof(r->name) - 1);
 			LE_readToken();
@@ -245,12 +277,28 @@ void RULES_Read(void)
 					strncpy(r->group, LE_getCurrentToken(), sizeof(r->group) - 1);
 					r->trigger = RT_CLEARED;
 				}
-				else if (!strcmp("hpBelow", tok))
+				else if (!strcmp("hpBelow", tok) || !strcmp("hpAtMost", tok))
 				{
+					rule_trigger_t t = strcmp(tok, "hpBelow") ? RT_HPATMOST : RT_HPBELOW;
 					LE_readToken();
 					strncpy(r->group, LE_getCurrentToken(), sizeof(r->group) - 1);
 					r->value = (int)LE_readReal();
-					r->trigger = RT_HPBELOW;
+					r->trigger = t;
+				}
+				else if (!strcmp("bossAttack", tok))
+				{
+					// stage 2b: bossAttack <spray|minions|bigshot|missiles|frenzy> <on|off>
+					int which;
+					LE_readToken();
+					which = LOFB_AttackIdByName(LE_getCurrentToken());
+					LE_readToken();
+					if (which >= 0)
+					{
+						r->bossAttack[which] = (char)(!strcmp("on", LE_getCurrentToken()) ? 1 : 0);
+						LOFB_UseScriptedLadder();	// from now on only the rules move the attacks
+					}
+					else
+						Log_Printf("[rule] %s: unknown boss attack\n", r->name);
 				}
 				else if (!strcmp("players", tok))
 				{

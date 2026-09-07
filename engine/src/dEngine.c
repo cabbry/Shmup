@@ -885,7 +885,6 @@ void dEngine_HostFrame(void)
 
 	
 	EV_Update();
-	RULES_Update();	// v4 stage 2: conditional events, after the timeline
 	TITLE_Update();
 	CAM_Update();
 	DYN_TEXT_Update();
@@ -894,6 +893,8 @@ void dEngine_HostFrame(void)
 	//Check collisions.
     COLL_CheckEnemies();
     COLL_CheckPlayers();
+	RULES_Update();	// v4 stage 2: conditional events -- after the collisions, so a rule and the
+					// boss read the same energy on the same frame (the ladder parity, stage 2b)
 	
 	//Update world
     World_Update();

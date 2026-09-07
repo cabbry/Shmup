@@ -48,6 +48,24 @@ void updateLOFBMissile(enemy_t* enemy);
 // choreography (autopilot + epilog; the epilog's end advances the scene).
 void LOFB_OnBossDeath(enemy_t* enemy);
 
+// v4 stage 2b: the attack LADDER as data. By default lofb.c turns its attacks on
+// at HP thresholds (85/75/50/25 %, 2009+ tuning). A scene's rules may take that
+// over: the first bossAttack action parsed makes the ladder SCRIPTED, and from
+// then on only the rules turn attacks on or off. The probe "[boss] t=<sim>
+// attack <name> on" prints on every transition, in both modes -- the parity
+// contract between the C thresholds and the rules that replace them.
+#define LOFB_ATTACK_SPRAY		0	// twin rotating spray (was: HP <= 85 %)
+#define LOFB_ATTACK_MINIONS		1	// FHT escort waves      (was: HP <= 75 %)
+#define LOFB_ATTACK_BIGSHOT		2	// big energy shots from the arms (was: HP <= 50 %)
+#define LOFB_ATTACK_MISSILES	3	// homing seekers        (was: HP <= 25 %)
+#define LOFB_ATTACK_FRENZY		4	// wider fan, faster cadences (was: HP <= 25 %)
+#define LOFB_NUM_ATTACKS		5
+int  LOFB_AttackIdByName(const char* name);		// -1 if unknown
+void LOFB_UseScriptedLadder(void);				// at parse: a rule carries a bossAttack action
+void LOFB_SetAttack(int which, int on);			// from a rule; makes the ladder scripted
+int  LOFB_EffectiveEnergy(const enemy_t* enemy);	// energy after the arm chunk it still owes (rules parity)
+void LOFB_ResetLadder(void);					// at scene load: thresholds again, all off
+
 // Boss health for the HUD: returns 1 (and fills energy/maxEnergy) while a boss
 // fight is live on-screen, 0 otherwise. The HUD draws it as a real graphical
 // bar (colored quads) -- the old text-glyph bar proved unreliable on device.

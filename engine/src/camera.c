@@ -534,34 +534,41 @@ void CAM_Update(void)
 						forward[k] = gCamEndFrozen[2][k] + (forward[k] - gCamEndFrozen[2][k]) * f;
 					}
 					normalize(right); normalize(up); normalize(forward);
-					// 4.0.4, "driftAtEnd: 2" -- the LEVEL patrol. A rail that ends pitched
-					// (act2.cp looks down and sideways at its last keyframe) hands the
-					// settle an "up" with a world-Y part; flying along it climbed the
-					// camera 300 units in two seconds, past the fog's end -- act 2's
-					// black card. Mode 2 flies the settle along the horizontal part of
-					// that direction: same swing of the pose, same altitude. Mode 1 (the
-					// boss act, whose deep-blue haze IS its look up there) is untouched.
+					// 4.0.4, "driftAtEnd: 2" -- the LEVEL patrol, for a rail that ends
+					// PITCHED at the edge of its map (act 2). Mode 1 flies along the
+					// blended "up", whose world-Y part climbed the camera 300 units in
+					// two seconds, past the fog's end, then turned on the spot where
+					// the city stops: a black card twice over. Mode 2 keeps the rail's
+					// altitude, never turns, and shuttles back over the city already
+					// flown. Mode 1 (the boss act, whose deep-blue haze up there IS its
+					// look) is untouched.
 					step = gCamEndSpeed * timediff;
 					if (gCameraDriftAtEnd == 2)
 					{
-						vec3_t level;
-						float  len;
-						level[0] = up[0]; level[1] = 0; level[2] = up[2];
-						len = sqrtf(level[0]*level[0] + level[2]*level[2]);
-						if (len > 0.001f)
-						{
-							level[0] /= len; level[2] /= len;
-							camera.position[0] += level[0] * step;
-							camera.position[2] += level[2] * step;
-							step = 0;		// the shared move below adds nothing more
-						}
+						// The LEVEL patrol flies BACK over the city already flown, at
+						// the rail's altitude, from the first settle frame: the outro
+						// pose looks back anyway, and at the rail's end the map is about
+						// to run out ahead (the classic turn there showed a black card).
+						vec3_t r0, u0, f0;
+						CAM_EndBasis(gCamEndTheta, r0, u0, f0);
+						camera.position[0] -= u0[0] * step;
+						camera.position[2] -= u0[2] * step;
+						step = 0;		// the shared move below adds nothing more
 					}
 					if (gCamEndPhase >= CAM_END_SETTLE_MS)
 					{
-						gCamEndState    = 1;
-						gCamEndPhase    = 0;
-						gCamEndTurnFrom = gCamEndTheta;
-						gCamEndTurnTo   = gCamEndTheta + (float)M_PI;
+						gCamEndPhase = 0;
+						if (gCameraDriftAtEnd == 2)
+						{
+							gCamEndState  = 2;		// level patrol: no turn, shuttle back first
+							gCamEndLegDir = -1;
+						}
+						else
+						{
+							gCamEndState    = 1;
+							gCamEndTurnFrom = gCamEndTheta;
+							gCamEndTurnTo   = gCamEndTheta + (float)M_PI;
+						}
 					}
 				}
 				break;
@@ -587,6 +594,8 @@ void CAM_Update(void)
 			default:	// CRUISE -- a long leg over the city, then turn again
 				CAM_EndBasis(gCamEndTheta, right, up, forward);
 				step = gCamEndSpeed * timediff;
+				if (gCameraDriftAtEnd == 2)
+					step *= gCamEndLegDir;		// level patrol: the leg's direction, no turn between legs
 				break;
 			}
 
@@ -610,10 +619,15 @@ void CAM_Update(void)
 				if ((gCamEndLegDir > 0 && along >= CAM_END_FWD_MARGIN) ||
 					(gCamEndLegDir < 0 && along <= -gCamEndLeg))
 				{
-					gCamEndState    = 1;
-					gCamEndPhase    = 0;
-					gCamEndTurnFrom = gCamEndTheta;
-					gCamEndTurnTo   = gCamEndTheta + (float)M_PI;
+					if (gCameraDriftAtEnd == 2)
+						gCamEndLegDir = -gCamEndLegDir;	// level patrol: bounce, keep the pose
+					else
+					{
+						gCamEndState    = 1;
+						gCamEndPhase    = 0;
+						gCamEndTurnFrom = gCamEndTheta;
+						gCamEndTurnTo   = gCamEndTheta + (float)M_PI;
+					}
 				}
 			}
 		}

@@ -57,15 +57,12 @@ camera
 	zNear:	10
 	zFar:	22000
 
-	# detach AFTER movePlayersToDefautlSSLocation (106000), matching act 1's
-	# ordering (movePlayers at 139000, detach at 140000). The detach IS the
-	# outro: the ship freezes in world space and the still-flying camera
-	# sweeps past it -- the classic "fonce tout droit" exit. Act 1 gives that
-	# rush 2s of clear stage before the epilog card (140 -> 142); at 108 the
-	# rush played UNDER the 109s card fade and read as the ship vanishing
-	# (device verdict on 205), so: 107.
+	# No detachAt since 4.0.2 (user call): the ships park at
+	# movePlayersToDefautlSSLocation (106 s) and stay in formation under the
+	# epilog card, as in the boss act. (Until 4.0.1 a detach at 107 s played
+	# the "fonce tout droit" outro rush: the ship froze in world space and the
+	# camera swept past it -- it read as the ship vanishing before the card.)
 	attachAt: 10000
-	detachAt: 107000
 }
 
 # Dusk: the act sits between act 2's night city and the boss's deep-blue haze.

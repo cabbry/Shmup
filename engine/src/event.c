@@ -322,6 +322,7 @@ void EV_AutoPilotPls(event_t* event)
 		players[i].autopilot.enabled = 1;
 		players[i].autopilot.timeCounter  = PLAYER_ENDLEVEL_REPLACMENT;
 		players[i].autopilot.originalTime = PLAYER_ENDLEVEL_REPLACMENT;
+		players[i].autopilot.holdAtEnd    = 1;	// 4.0.2: and stay there under the card (every act, like the boss act)
 		// v2 P3: the end-of-level rest formation. 0.6*P_FormationX(i) is
 		// bit-exact with the 2010 (i-0.5)*2*0.3 for seats 0/1, and pulls
 		// seats 2/3 into the inner staggered pair instead of off-screen.

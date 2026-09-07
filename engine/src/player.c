@@ -242,6 +242,7 @@ void P_ResetPlayer(int i)
 	
 	player->showPointer = 0;
 	player->autopilot.enabled = 0;
+	player->autopilot.holdAtEnd = 0;	// 4.0.2: a fresh hull is not parked
 	player->deathPending = 0;		// v2.0.9: no ruling outstanding on a fresh hull
 	player->deathPendingSince = 0;
 	
@@ -752,6 +753,18 @@ void P_Update(void)
 				player->autopilot.timeCounter -= timediff;
 				//printf("player->autopilot.timeCounter=%d.\n",player->autopilot.timeCounter);
 				player->autopilot.enabled = (player->autopilot.timeCounter > 0) ;
+				// 4.0.2 (user call): the end-of-level regroup PARKS the ships for good.
+				// The rest formation holds under the epilog card in every act -- no
+				// outro rush, no control handed back -- until the scene changes. A
+				// held autopilot is a zero-length one: position = end, forever.
+				if (!player->autopilot.enabled && player->autopilot.holdAtEnd)
+				{
+					player->autopilot.enabled = 1;
+					player->autopilot.diff_ss_position[X] = 0;
+					player->autopilot.diff_ss_position[Y] = 0;
+					player->autopilot.timeCounter  = 2000000;
+					player->autopilot.originalTime = 2000000;
+				}
 				
 				
 			}

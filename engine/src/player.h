@@ -180,6 +180,7 @@ typedef struct bezierCtrl_t
 typedef struct autopilot_t
 {
 	uchar enabled;
+	uchar holdAtEnd;	// 4.0.2: once this run ends, stay parked at end_ss_position (end of level)
 	int timeCounter;
 	float originalTime;
 	vec2_t diff_ss_position;

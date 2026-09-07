@@ -320,6 +320,38 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-07 — round 47 (4.0.3 on device: acts I, III, IV end right; act II froze — the level patrol)
+
+- **Device verdicts on 4.0.3**: the end of act I ("nickel"), act III and
+  act IV all good. Act II: "l'écran se fige mais la caméra et l'orientation
+  du vaisseau semblent ok".
+- **Why act II froze.** Its camera rail (`act2.cp.cp2b`) runs out right as
+  the epilog card comes up, and a scene without `driftAtEnd` freezes the
+  decor when its rail ends — an old behaviour, invisible while the ship had
+  rushed away and the card lasted 4 s, plain with a parked ship for 6 s.
+- **The classic patrol was wrong for it.** The boss act flies this very
+  rail with `driftAtEnd: 1`, so the first try was that. The camera on act
+  II showed a black card twice over: the rail ends *pitched* (looking back
+  and down at the city's edge), the settle phase flies along the blended
+  "up" whose world-Y part climbed the camera 300 units in two seconds —
+  past the fog's end (405) — and the 180° turn then happens at the edge of
+  the map, over nothing. The boss act has the same climb, but its
+  deep-blue haze up there *is* its validated look; untouched.
+- **`driftAtEnd: 2`, the level patrol**: same swing of the pose, but the
+  camera flies back over the city already flown at the rail's altitude from
+  the first settle frame, and shuttles without turning. Probe: altitude
+  123 throughout, city cells drawn; camera: the stats card over the lit
+  city, the ship parked under it.
+- **The camera grew a simulation clock**, and taught three lessons on the
+  way. `simSeconds` keys frames on the engine's own `t=` instead of the
+  wall clock (the Simulator runs 3 to 30 s behind it, differently every
+  run). It has to read the app's log file, flushed per line — the console
+  relayed by `simctl` arrives in blocks, ten seconds late. It has to filter
+  on the scene — the next act restarts at 0 and the first attempt
+  photographed the boss. And `simctl io screenshot` itself can take ten
+  seconds on a loaded runner, so a six-second card is still a narrow
+  target: eight camera runs for act II's ending in all.
+
 ### 2026-09-07 — round 46 (4.0.2 on device: the billboard under the card, and online play was dead since v3)
 
 - **"La caméra tourne mais le vaisseau reste vu de dessus"** (end of act I).

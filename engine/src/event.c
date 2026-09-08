@@ -308,7 +308,8 @@ void EV_RequestScene(event_t* event)
 	// always torn down here; game over never did. Both sims reach this on the
 	// same simulation tick, so each side tears down deterministically -- and it
 	// runs from EV_Update, never from inside NET_Receive's drain loop.
-	if (SCENE_KIND(payload->sceneId) == SCENE_KIND_INTRO && engine.mode == DE_MODE_MULTIPLAYER)
+	if (payload->sceneId >= 0 && payload->sceneId < MAX_NUM_SCENES &&
+	    SCENE_KIND(payload->sceneId) == SCENE_KIND_INTRO && engine.mode == DE_MODE_MULTIPLAYER)
 	{
 		Log_Printf("[EV_RequestScene] back to the menu stage: ending the multiplayer session.\n");
 		NET_Free();

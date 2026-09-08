@@ -320,6 +320,55 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-08 — round 49 (the online report: a death the peer never heard, and a match that outlived its game over)
+
+Four symptoms from one online session on 4.0.5. Three had a cause; the
+fourth is honest guesswork, and stays open.
+
+- **"Je ne mourais pas sur mon écran, mais sur l'autre device je mourais"**,
+  and the shared pool read 5 on one phone and 4 on the other. GKMatch has
+  **two channels with no order between them**: the death protocol goes
+  reliable, the per-frame runtime stream goes unreliable — and both shared
+  ONE sequence counter. A runtime packet overtaking a death packet made the
+  receiver's `seq <= lastRxSeq → already applied` filter eat the death: the
+  host ruled it and applied it, the client never heard it. Exactly one life
+  of divergence per swallowed order. It cut the other way too — a death
+  packet arriving early advanced the counter past runtime commands still in
+  flight and dropped the peer's inputs, a hitch on every death. Death
+  packets are now dispatched on their own, off that counter; they carry
+  their own idempotence (an order is keyed on its own sequence, a repeated
+  request finds the hull already invulnerable).
+- **"La partie a redémarré toute seule en partie à 2 alors que nous étions
+  dans les menus."** GAME OVER in multiplayer never tore the session down:
+  both devices dropped back to the menu with the match still `NET_RUNNING`,
+  the mode still MULTIPLAYER and `numPlayers` still 2, the peers streaming
+  at each other behind the menu. Whatever started a scene next started a
+  two-player game. The end-of-GAME path had always torn down; game over
+  never did. Returning to the menu stage now ends the session, on both
+  sims at the same tick, and from `EV_Update` rather than from inside the
+  receive loop.
+- **Matchmaking needed a cancel and a retry on each phone.** Starting
+  depended entirely on GameKit calling back: `didFindMatch` once, then one
+  connection-state change per peer. Nothing ever re-checked a match that
+  was already fully connected, so a party that completed in a quiet window
+  sat at "Starting match…" for good. A half-second poll now re-checks, and
+  gives up after 45 s.
+- **"Le jeu est assez fluide, ça pourrait être mieux"** — the input loss
+  above was part of it and is gone. The rest is real online latency, which
+  I have not measured; the de-jitter queue already catches up when it runs
+  deep. Open, and it needs a measurement before a change.
+
+**The rig had been red since v4, unrun.** `tools/netrig` runs four copies of
+the real `netchannel.c` in one process. The v4 pack refactor keyed the
+match-start life pool on a scene's *kind*, which the rig's engine stub never
+stamped: 23 checks had been failing since, with nobody looking. The stub now
+models the pack table; the GameKit mock models the two channels (a reliable
+send is overtaken by the peer's next unreliable one); scenario 15 stages the
+death race. Without the fix it fails with pools (5,6) — the tester's bug, on
+a laptop, in one second. **It runs in CI on every push now** (`netrig.yml`,
+ubuntu, no Simulator, under a minute): 238 checks. That is the real lesson —
+a harness nobody runs is a harness that lies.
+
 ### 2026-09-07 — round 48 (4.0.4 on device: "lol, le vaisseau repart en marche arrière")
 
 - **The level patrol read wrong.** Flying the camera back over the city

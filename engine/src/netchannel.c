@@ -2098,6 +2098,35 @@ void NET_Receive(void)
 		if (rcv_packet.type == SETUP_PACKET)
 			continue;
 
+		// v4.0.6 -- the death protocol is NOT part of the runtime input stream,
+		// and must not be filtered by its sequence counter. GKMatch has two
+		// channels with no order between them: the per-frame runtime packets
+		// (unreliable) routinely overtake a death packet (reliable), and the
+		// "seq <= lastRxSeq -> already applied" filter below then ATE the death.
+		// One device ruled it and applied it, the other never heard it: the
+		// tester died on his peer's screen and not on his own, with the shared
+		// pool one life apart (5 and 4). It cut both ways -- a death packet
+		// arriving early also advanced lastRxSeq past runtime commands still in
+		// flight, silently dropping the peer's inputs.
+		// These events carry their own idempotence: an order is keyed on
+		// gLastDeathOrderSeq, and a repeated request finds the hull already
+		// invulnerable (or parked) and is ignored.
+		if (rcv_packet.type == DEATH_PACKET)
+		{
+			command_t* dc = &rcv_packet.command;
+			if (dc->type == NET_RTM_DIE_REQ)
+			{
+				if (NET_IsHost() && dc->playerId == senderSeat)
+					NET_HostRuleDeath(senderSeat);
+			}
+			else if (dc->type == NET_RTM_DIE_ORDER)
+			{
+				if (senderSeat == NET_HostSeat())
+					NET_ApplyDeathOrder(dc->playerId, (int)dc->delta[0], (int)dc->delta[1]);
+			}
+			continue;
+		}
+
 		// The host's party view rules: a client parks a seat when the HOST says
 		// it is gone, not when its own stopwatch runs out. Four independent
 		// timeouts fire hundreds of milliseconds apart (seconds apart, on
@@ -2130,21 +2159,9 @@ void NET_Receive(void)
 			net.numDropedPackets += (seq - (1 + gPeers[senderSeat].lastRxSeq));
 			gPeers[senderSeat].lastRxSeq = seq;
 
-			// v2.0.9 host authority on deaths: protocol events, handled here, never
-			// through the input buffers. A request must be about the SENDER's own
-			// hull and is only the host's business; an order is only ever the host's.
-			if (c->type == NET_RTM_DIE_REQ)
-			{
-				if (NET_IsHost() && c->playerId == senderSeat)
-					NET_HostRuleDeath(senderSeat);
-				continue;
-			}
-			if (c->type == NET_RTM_DIE_ORDER)
-			{
-				if (senderSeat == NET_HostSeat())
-					NET_ApplyDeathOrder(c->playerId, (int)c->delta[0], (int)c->delta[1]);
-				continue;
-			}
+			// (Deaths never reach here: DEATH_PACKET is dispatched above, off
+			// the runtime sequence counter. A DIE_* type in a runtime packet is
+			// not input and falls through the type check below.)
 
 			// The in-packet playerId must agree with the transport identity:
 			// a command may only ever drive its sender's own ship.

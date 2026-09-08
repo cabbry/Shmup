@@ -125,18 +125,51 @@ void rig_vlog(int peer, const char* fmt, va_list ap)
 	vprintf(fmt, ap);
 }
 
-/* GameKit mock: a broadcast to every other LIVE peer, tagged with our seat. */
-void rig_gk_send(int peer, const void* data, int len, int reliable)
+/* GameKit mock: a broadcast to every other LIVE peer, tagged with our seat.
+   GKMatch has TWO channels and no ordering between them: a later UNRELIABLE
+   datagram routinely overtakes an earlier RELIABLE one (the reliable channel
+   pays for its ordering with a round of buffering). gGkReorder models exactly
+   that -- a reliable send is held and delivered right AFTER the peer's next
+   send. It always arrives; it just arrives late. */
+int gGkReorder = 0;
+
+typedef struct gk_held_t { int used, len; unsigned char data[2048]; } gk_held_t;
+static gk_held_t gGkHeld[NPEERS];
+
+static void gk_deliver(int peer, const void* data, int len)
 {
 	int i;
-	(void)reliable;
-	if (!gAlive[peer]) return;
 	for (i = 0; i < NPEERS; i++)
 	{
 		if (i == peer || !gAlive[i]) continue;
 		if (gSeatOf[i] < 0) continue;
 		P[i].deliver_gk(gSeatOf[peer], data, len);
 	}
+}
+
+static void gk_flush_held(int peer)
+{
+	if (!gGkHeld[peer].used) return;
+	gGkHeld[peer].used = 0;
+	gk_deliver(peer, gGkHeld[peer].data, gGkHeld[peer].len);
+}
+
+void rig_gk_send(int peer, const void* data, int len, int reliable)
+{
+	if (!gAlive[peer]) return;
+
+	if (gGkReorder && reliable && len <= (int)sizeof(gGkHeld[0].data))
+	{
+		gk_flush_held(peer);			/* never hold two: the channel is ordered within itself */
+		gGkHeld[peer].used = 1;
+		gGkHeld[peer].len  = len;
+		memcpy(gGkHeld[peer].data, data, len);
+		return;
+	}
+
+	gk_deliver(peer, data, len);
+	if (gGkReorder)
+		gk_flush_held(peer);			/* the unreliable one just overtook it */
 }
 
 /* --- assertions --- */
@@ -167,6 +200,7 @@ static void reset_rig(int nPeers, int online)
 	int i;
 	rig_bus_reset();
 	gOnline = online;
+	gGkReorder = 0;
 	for (i = 0; i < NPEERS; i++)
 	{
 		gPaused[i] = 0;
@@ -177,6 +211,7 @@ static void reset_rig(int nPeers, int online)
 		gSeatOf[i] = -1;
 		gNotice[i][0] = 0;
 		gDeaths[i] = 0;
+		gGkHeld[i].used = 0;
 		gLastDeathSeat[i] = -1;
 	}
 }
@@ -734,6 +769,59 @@ static void scenario_death_authority(void)
 	      gDeaths[0], gDeaths[1]);
 }
 
+
+/* 15. ONLINE DEATHS WHEN THE CHANNELS RACE -- the device report of 2026-09-08:
+      "je ne mourais pas sur mon ecran, mais sur l'autre device je mourais", and
+      the pool read 5 on one phone and 4 on the other. GKMatch's reliable and
+      unreliable channels have no order between them, and the death protocol
+      (reliable) shares ONE sequence counter with the per-frame runtime stream
+      (unreliable). Let a runtime packet overtake a death packet and the
+      receiver's "seq <= lastRxSeq -> already applied" filter eats the death:
+      one device rules and applies it, the other never hears it. */
+static void scenario_online_death_reorder(void)
+{
+	int i;
+	printf("[15] Online pair: an unreliable packet overtakes the death packet\n");
+	reset_rig(2, 1);
+	for (i = 0; i < 2; i++) { gSeatOf[i] = i; P[i].init_lan(); P[i].set_loadout(0, 0); }
+	P[0].start_online(0, 2);
+	P[1].start_online(1, 2);
+	run_frames(600);
+	for (i = 0; i < 2; i++)
+		check(P[i].state() == STATE_RUNNING, "reorder: peer %d never started", i);
+	check(P[0].lives() == 6 && P[1].lives() == 6, "reorder: pools (%d,%d) at kickoff, expected (6,6)",
+	      P[0].lives(), P[1].lives());
+
+	gGkReorder = 1;			/* from here on, every reliable packet is overtaken */
+
+	/* The CLIENT's hull is hit. The host rules; both devices must apply it. */
+	P[1].hit();
+	run_frames(120);
+
+	check(gDeaths[0] == 1 && gDeaths[1] == 1,
+	      "reorder: the death was applied (%d,%d) times, expected once on each device",
+	      gDeaths[0], gDeaths[1]);
+	check(P[0].lives() == P[1].lives(),
+	      "reorder: the pools disagree -- %d on the host, %d on the client",
+	      P[0].lives(), P[1].lives());
+	check(P[0].lives() == 5, "reorder: pool %d after one death from 6, expected 5", P[0].lives());
+	check(P[0].drawn(1) == P[1].drawn(1),
+	      "reorder: seat 1 is drawn %d on the host and %d on the client",
+	      P[0].drawn(1), P[1].drawn(1));
+
+	run_frames(400);		/* the invulnerability window closes */
+
+	/* And the other way round: the HOST's own hull, whose order is the one that
+	   gets overtaken on its way out. */
+	P[0].hit();
+	run_frames(120);
+	check(gDeaths[0] == 2 && gDeaths[1] == 2,
+	      "reorder: host death applied (%d,%d) times, expected twice on each device",
+	      gDeaths[0], gDeaths[1]);
+	check(P[0].lives() == P[1].lives() && P[0].lives() == 4,
+	      "reorder: pools (%d,%d) after two deaths from 6, expected (4,4)",
+	      P[0].lives(), P[1].lives());
+}
 int main(int argc, char** argv)
 {
 	if (argc > 1 && !strcmp(argv[1], "-v")) gVerbose = 1;
@@ -754,6 +842,7 @@ int main(int argc, char** argv)
 	scenario_online_staggered_start();
 	scenario_lan_host_migration();
 	scenario_death_authority();
+	scenario_online_death_reorder();
 
 	printf("=== %d checks, %d failures ===\n", gChecks, gFailures);
 	return gFailures ? 1 : 0;

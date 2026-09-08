@@ -169,6 +169,21 @@ void PS(rig_init_lan)(void)
 	engine.numScenes = 5;
 	engine.sceneId = 0;
 	engine.requiredSceneId = 0;
+	// v4: the engine keys on a scene's KIND, not on its id (the pack manifest
+	// carries it). The rig has no config.cfg, so it stamps the same table a
+	// pack load would: scene 0 the menu stage, 1..4 the acts. Without this the
+	// match-start life pool never fills -- which is exactly how the v4 refactor
+	// broke this harness silently (23 checks, found 2026-09-08).
+	{
+		int s;
+		engine.scenes[0].kind = SCENE_KIND_INTRO;
+		for (s = 1; s < engine.numScenes; s++)
+		{
+			engine.scenes[s].kind = SCENE_KIND_ACT;
+			engine.scenes[s].actIndex = (char)s;
+		}
+		engine.numActs = engine.numScenes - 1;
+	}
 	NET_Init();
 }
 

@@ -35,6 +35,7 @@
 #include "text.h"
 #include "menu.h"
 #include "camera.h"
+#include "netchannel.h"	// v4.0.6: the menu stage ends a multiplayer session
 #include "rules.h"	// v4 stage 2: RULES_NoteSpawn
 #include <string.h>
 #include "lee.h"
@@ -296,6 +297,25 @@ void EV_RequestScene(event_t* event)
 	
 	
 	dEngine_RequireSceneId(payload->sceneId);
+
+	// v4.0.6 -- leaving for the MENU STAGE ends a multiplayer session. GAME OVER
+	// used to drop both devices back to the menu with the match still live:
+	// NET_RUNNING, mode still MULTIPLAYER, numPlayers still 2. The peers kept
+	// streaming at each other behind the menu, and the next thing that started a
+	// scene started it as a two-player game with nobody having asked -- the
+	// tester's "la partie a redemarre toute seule en partie a 2 alors que nous
+	// etions dans les menus". The end-of-GAME path (dEngine_GoToNextScene) has
+	// always torn down here; game over never did. Both sims reach this on the
+	// same simulation tick, so each side tears down deterministically -- and it
+	// runs from EV_Update, never from inside NET_Receive's drain loop.
+	if (SCENE_KIND(payload->sceneId) == SCENE_KIND_INTRO && engine.mode == DE_MODE_MULTIPLAYER)
+	{
+		Log_Printf("[EV_RequestScene] back to the menu stage: ending the multiplayer session.\n");
+		NET_Free();
+		numPlayers = 1;
+		controlledPlayer = 0;
+		engine.mode = DE_MODE_SINGLEPLAYER;
+	}
 	
 	Log_Printf("[EV_RequestScene] engine.requiredSceneId =%d.\n",engine.requiredSceneId );
 }

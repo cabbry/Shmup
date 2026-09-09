@@ -320,6 +320,44 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-09 — round 54 (the corpse that came back, and the game over that asked the wrong question)
+
+A screenshot settled it: his ship intact, untouched, and GAME OVER on screen.
+Two defects, one standing behind the other.
+
+- **A parked hull came back to life.** When a hull runs out of lives it is
+  parked off-screen with `shouldDraw = 0` — but its death also gave it the
+  usual invulnerability, and when that window expired the flicker code ran
+  `shouldDraw = 1` on it. The wreck was back on screen *and* back in the
+  collision tests, where an enemy reaching the bottom of the screen could kill
+  it a second time and spend the last of the shared pool. `shouldDraw` was
+  never a statement about being in the match — **it flickers**, 128 ms on,
+  128 ms off — and four separate guards had been reading it as one. There is
+  an explicit `isOut` now, set when a hull is parked or its seat is dropped,
+  cleared when a level resurrects everybody, and it is what those guards read.
+- **GAME OVER asked the pool instead of the hulls.** The life counter is
+  mirrored onto every player, so "all the counters are below zero" was really
+  just "the pool went negative" — which ends the match on the death that
+  empties it, even with somebody still flying. The party rule has always been
+  that one player falling does not end the game; only the last hull does. It
+  asks the hulls now.
+
+  Together these are the screenshot exactly: the teammate's corpse was
+  resurrected by its own invulnerability, killed again off-screen, the pool
+  went to -1, and the game ended for a player whose ship had never been hit.
+
+- **"L'iPad qui se connectait en 2ème décidait l'acte."** Working as designed,
+  and the design was invisible. Nobody chooses to be the host: seat 0 is the
+  lowest address on the LAN and the lowest Game Center id online, which has
+  nothing to do with who started first. The lobby now says so — "you are P1
+  (HOST — your act plays)" — on both transports. Choosing to host is still the
+  v4.1 job.
+
+Neither engine fix is bench-proven: both live in `player.c`, which the rig
+mocks. They are reasoned from the code, the strict build is green, the rig's
+253 checks still pass with the flag threaded through its own death mock, and
+act 1's sound trace is unchanged (2453, `5b0182b35b1e304f`).
+
 ### 2026-09-09 — round 53 (the host chooses the act, and what happens when the two of you disagree)
 
 "On ne pourrait pas choisir le niveau en multi ?" — and then the question that

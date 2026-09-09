@@ -186,6 +186,7 @@ char NET_IsInMatch(void);	// v2: RUNNING *or* between levels (see the .c)
 // the LAN the roster stops waiting as soon as it reaches this, so a duo starts
 // instantly; below it, a few seconds of network silence start the game anyway.
 void NET_SetPartyTarget(int n);
+void NET_SetStartAct(int act);	// v4.0.9: the act this device asks the party to start on
 
 uint NET_GetDropedPackets(void);
 

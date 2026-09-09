@@ -42,6 +42,7 @@
 	char NET_IsRunning(void){return 0;}
 	char NET_IsInMatch(void){return 0;}
 	void NET_SetPartyTarget(int n){}
+	void NET_SetStartAct(int act){}
 	uint NET_GetDropedPackets(void){return 0;}
 	void NET_StartOnlineMatch(int mySeat, int numSeats){}
 	void NET_AbortOnlineMatch(void){}
@@ -447,6 +448,7 @@ static int			gLanCount = 0;
 static int			gLanChangedAt = 0;				// simulationTime of the last roster change
 static int			gLanLocked = 0;					// match started: roster frozen for good
 static int			gPartyTarget = 2;				// how many players this party is for
+static int			gAnnouncedScene = 0;			// v4.0.9: what the host last told the party to load
 static struct sockaddr_in gSeatAddr[MAX_NUM_PLAYERS];	// LAN: seat -> udp address
 
 // The party size the player asked for (the menu's 2/3/4 pick). The roster stops
@@ -1327,6 +1329,11 @@ static void NET_SendSetupCmd(char cmdType)
 	memset(&p, 0, sizeof(p));	// no uninitialized bytes on the wire
 	p.type = SETUP_PACKET;
 	p.command.type = cmdType;
+	// v4.0.9: the host's preload order carries WHERE it is sending the party.
+	// A client would otherwise have to guess, and its guess is only right when
+	// the party starts on act 1.
+	if (cmdType == NET_CMD_LOAD_NEXT_LEVEL && NET_IsHost())
+		p.command.delta[0] = (float)gAnnouncedScene;
 	p.numRedundant = 0;
 	p.senderSeat   = net.ownSeat;	// v2 P2: identity + protocol on every packet
 	p.protoVersion = NET_PROTO;
@@ -1552,6 +1559,33 @@ static void NET_FillLifePoolIfMatchStart(void)
 }
 
 // HOST barrier, gate 1: everyone who is still in the party has asked in ->
+
+// v4.0.9 -- the act the party starts on. Every device asks for one; the HOST's
+// is the one that happens, because the scene has to be identical everywhere or
+// the two sims load different levels. It travels in the host's preload order
+// (command.delta[0] of the LOAD_NEXT_LEVEL echo), so a client never has to
+// guess. It applies at MATCH START only: between acts the destination is the
+// next scene, as it has always been.
+static int gMPStartAct = 0;			// 0 = wherever the timeline goes next
+
+void NET_SetStartAct(int act)
+{
+	gMPStartAct = (act > 0) ? act : 0;
+}
+
+// The scene the next load should go to, as the HOST sees it.
+static int NET_TargetScene(void)
+{
+	if (SCENE_IS(SCENE_KIND_INTRO) && gMPStartAct > 0)
+	{
+		int s;
+		for (s = 0; s < MAX_NUM_SCENES; s++)
+			if (engine.scenes[s].kind == SCENE_KIND_ACT &&
+			    engine.scenes[s].actIndex == gMPStartAct)
+				return s;
+	}
+	return (engine.sceneId + 1) % engine.numScenes;
+}
 // preload here and order the same preload everywhere. Called both when a JOIN
 // arrives and when the watchdog drops the seat that was holding this up.
 static void NET_HostTryPreload(void)
@@ -1563,7 +1597,8 @@ static void NET_HostTryPreload(void)
 	if (NET_ActiveRemotes() < 1)
 		return;					// nobody to play with (NET_OnSeatLost handles the exit)
 
-	dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);
+	gAnnouncedScene = NET_TargetScene();	// v4.0.9: the host picks, and says so in the echo below
+	dEngine_RequireSceneId(gAnnouncedScene);
 	numPlayers = net.numSeats;
 	controlledPlayer = net.ownSeat;
 	NET_FillLifePoolIfMatchStart();
@@ -1779,7 +1814,14 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 		packetConsumed = 1;
 
 		NET_ApplyActiveMask(packet->activeMask);	// the host's party view is the truth
-		dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);
+		{
+			// v4.0.9: the host said where to go, so go there. The old guess is
+			// kept only as a fallback for a peer that does not say.
+			int want = (int)packet->command.delta[0];
+			if (want <= 0 || want >= MAX_NUM_SCENES)
+				want = (engine.sceneId + 1) % engine.numScenes;
+			dEngine_RequireSceneId(want);
+		}
 		numPlayers = net.numSeats;
 		controlledPlayer = net.ownSeat;
 		NET_FillLifePoolIfMatchStart();		// same rule, same data, as the host

@@ -56,6 +56,7 @@
 #define NET_GetDropedPackets                PS(NET_GetDropedPackets)
 #define NET_IsInMatch                       PS(NET_IsInMatch)
 #define NET_SetPartyTarget                  PS(NET_SetPartyTarget)
+#define NET_SetStartAct                     PS(NET_SetStartAct)
 
 /* --- engine state this peer owns --- */
 #define players            PS(players)
@@ -224,6 +225,7 @@ int  PS(rig_ship)(int s)     { return gMPShipChoice[s]; }
 void PS(rig_set_loadout)(int ship, int color) { gShipChoice = ship; gBulletColor = color; }
 void PS(rig_set_lives)(int n) { int i; for (i=0;i<MAX_NUM_PLAYERS;i++) players[i].respawnCounter = n; }
 void PS(rig_set_party)(int n) { NET_SetPartyTarget(n); }
+void PS(rig_set_act)(int a)   { NET_SetStartAct(a); }
 int  PS(rig_is_host)(void)   { return NET_IsHost(); }		/* v2.0.9 host migration */
 
 /* v2.0.9 host authority: the death itself, as player.c applies it -- the pool

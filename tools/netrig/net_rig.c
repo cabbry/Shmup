@@ -41,6 +41,7 @@
 	void rig_set_loadout_##id(int ship, int color); \
 	void rig_set_lives_##id(int n); \
 	void rig_set_party_##id(int n); \
+	void rig_set_act_##id(int a); \
 	int  rig_is_host_##id(void); \
 	void rig_hit_##id(void); \
 	int  rig_invul_##id(int s);
@@ -66,6 +67,7 @@ typedef struct peer_api_t {
 	void (*set_loadout)(int,int);
 	void (*set_lives)(int);
 	void (*set_party)(int);
+	void (*set_act)(int);
 	int  (*is_host)(void);
 	void (*hit)(void);
 	int  (*invul)(int);
@@ -75,7 +77,7 @@ typedef struct peer_api_t {
                   rig_resolve_peer_##id, rig_next_level_##id, rig_state_##id, rig_seat_##id, \
                   rig_numseats_##id, rig_numplayers_##id, rig_controlled_##id, rig_lives_##id, \
                   rig_scene_##id, rig_drawn_##id, rig_color_##id, rig_ship_##id, \
-                  rig_set_loadout_##id, rig_set_lives_##id, rig_set_party_##id, rig_is_host_##id, rig_hit_##id, rig_invul_##id }
+                  rig_set_loadout_##id, rig_set_lives_##id, rig_set_party_##id, rig_set_act_##id, rig_is_host_##id, rig_hit_##id, rig_invul_##id }
 static peer_api_t P[NPEERS] = { API(0), API(1), API(2), API(3) };
 
 /* --- rig state --- */
@@ -879,6 +881,47 @@ static void scenario_endgame_untouched(void)
 	      P[0].lives(), P[1].lives());
 	check(P[0].drawn(0) == 0 && P[1].drawn(0) == 0, "endgame: the last hull is still flying at game over");
 }
+
+/* 17. THE TWO PLAYERS ASK FOR DIFFERENT ACTS -- the tester's question of
+      2026-09-09: "si le joueur 1 dit act 1 et le joueur 2 dit act 2, il se
+      passe quoi ?". The scene MUST be the same on both devices or the two
+      sims are playing different levels, so it has one owner: the host. Seat 0
+      wins, and the other device follows it -- never its own wish, and never a
+      guess of its own. */
+static void scenario_act_choice(void)
+{
+	int i;
+	printf("[17] LAN pair: seat 0 asks for act 3, seat 1 asks for act 2\n");
+	reset_rig(2, 0);
+
+	for (i = 0; i < 2; i++) { P[i].init_lan(); P[i].set_party(2); P[i].set_loadout(0, 0); }
+	/* with two peers alive, peer 0 is seat 0 (the host) and peer 1 is seat 1 */
+	P[0].set_act(3);
+	P[1].set_act(2);
+	run_frames(10);
+	P[0].resolve_peer(gIps[1]);
+	P[1].resolve_peer(gIps[0]);
+	run_frames(500);
+
+	check(P[0].state() == STATE_RUNNING && P[1].state() == STATE_RUNNING, "act choice: the pair did not start");
+	check(P[0].scene() == P[1].scene(), "act choice: the two devices loaded DIFFERENT scenes (%d vs %d)",
+	      P[0].scene(), P[1].scene());
+	check(P[0].scene() == 3, "act choice: the host asked for act 3 and the party went to scene %d", P[0].scene());
+
+	/* And the other way round, so it is the HOST that decides and not the
+	   higher number, the lower number, or whoever spoke first. */
+	printf("     ... and again with the host asking for act 1\n");
+	reset_rig(2, 0);
+	for (i = 0; i < 2; i++) { P[i].init_lan(); P[i].set_party(2); P[i].set_loadout(0, 0); }
+	P[0].set_act(1);
+	P[1].set_act(4);
+	run_frames(10);
+	P[0].resolve_peer(gIps[1]);
+	P[1].resolve_peer(gIps[0]);
+	run_frames(500);
+	check(P[0].scene() == P[1].scene(), "act choice: devices disagree (%d vs %d)", P[0].scene(), P[1].scene());
+	check(P[0].scene() == 1, "act choice: the host asked for act 1 and the party went to scene %d", P[0].scene());
+}
 int main(int argc, char** argv)
 {
 	if (argc > 1 && !strcmp(argv[1], "-v")) gVerbose = 1;
@@ -901,6 +944,7 @@ int main(int argc, char** argv)
 	scenario_death_authority();
 	scenario_online_death_reorder();
 	scenario_endgame_untouched();
+	scenario_act_choice();
 
 	printf("=== %d checks, %d failures ===\n", gChecks, gFailures);
 	return gFailures ? 1 : 0;

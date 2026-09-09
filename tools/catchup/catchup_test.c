@@ -21,6 +21,7 @@
 #include <stdio.h>
 
 #include "catchup_arithmetic.inc"
+#include "partyhp_arithmetic.inc"
 
 /* CATCHUP_MAX_STEPS bounds the BURST, because every step beyond the first is
    simulation the player never sees drawn. Two extra steps carry three steps per
@@ -112,6 +113,32 @@ int main(void)
 		check(dEngine_CatchUpSteps(&debt, 17) == 0, "nor must the 17 ms one that follows it");
 	}
 
+
+	/* --- the party's grip on enemy health (player.c, same extraction trick) --- */
+	printf("enemy health against the hulls still flying:\n");
+	{
+		struct { int alive, seats, want; const char* what; } cases[] = {
+			{ 1, 1, 100, "solo, untouched" },
+			{ 2, 2, 200, "a full pair" },
+			{ 1, 2, 120, "a pair with one left: solo + 20 %, not solo" },
+			{ 4, 4, 400, "a full four" },
+			{ 3, 4, 300, "four minus one" },
+			{ 2, 4, 200, "four minus two" },
+			{ 1, 4, 120, "the last of four" },
+			{ 0, 2, 120, "nobody flying (the tick the match ends)" },
+		};
+		int k;
+		for (k = 0; k < 8; k++)
+		{
+			int got = P_EnemyHealthPctFor(cases[k].alive, cases[k].seats);
+			printf("  %d of %d flying -> %3d %%   (%s)\n", cases[k].alive, cases[k].seats, got, cases[k].what);
+			check(got == cases[k].want, "enemy health for that party should be the wanted percent");
+		}
+		/* the floor is a floor, and solo never moves */
+		check(P_EnemyHealthPctFor(1, 2) > 100, "a lone survivor must still fight harder than solo");
+		check(P_EnemyHealthPctFor(1, 2) < 200, "...and easier than a full pair");
+		check(P_EnemyHealthPctFor(1, 1) == 100, "solo must be untouched to the bit");
+	}
 	printf("=== %d checks, %d failures ===\n", gChecks, gFailures);
 	return gFailures ? 1 : 0;
 }

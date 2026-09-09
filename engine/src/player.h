@@ -275,6 +275,9 @@ void P_PrepareGhostSprites(void);
 void P_FireGhosts(player_t* player);
 
 int  P_LivesLeftForHud(void);	// the HUD label: hits left after the current hull (0 = the next one ends it)
+int  P_EnemyHealthPct(void);	// v4.1.1: enemy health scaled to the hulls still flying, in percent
+extern int gPartyChangeStamp;	// the HOST's clock for the death being applied (0 = use ours)
+void P_NotePartyChange(int atSimTime, int immediate);	// a hull was lost or given back
 void P_Die(uchar playerId);			// a hull was hit: routes to the host authority in MP
 void P_ApplyDeath(uchar playerId);	// the death itself (FX, pool, respawn/RIP, game over) -- no network
 void P_UpdateSSBoundaries(uchar pId);

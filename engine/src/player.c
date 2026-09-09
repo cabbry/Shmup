@@ -451,6 +451,9 @@ void P_ResetPlayers(void)
 				players[i2].respawnCounter = 1;	// v2 P3: same rule, N-way mirror
 	}
 
+	// v4.1.1: everyone is back (P_ResetPlayer cleared isOut), so the enemies go
+	// back to full party strength -- at a level boundary, with no grace needed.
+	P_NotePartyChange(simulationTime, 1);
 	entitiesAttachedToCamera = 0;
 	playersWereAttached = 0;	// the next detached stretch is a PROLOG again
 	engine.playerStats.numEnemies = 0;
@@ -1836,6 +1839,85 @@ void P_PrepareGhostSprites(void)
 }
 
 
+
+// ---------------------------------------------------------------------------
+// v4.1.1 -- ENEMY HEALTH FOLLOWS THE PARTY THAT IS STILL FLYING.
+//
+// N ships fire about N times the damage, so multiplayer scales enemy energy by
+// the seat count. When a player runs out for good, that scaling stopped making
+// sense: the survivor was left alone against enemies built for two. Their
+// health now follows the hulls STILL IN THE MATCH -- and never all the way
+// back down to solo, because a lone survivor with the team's shared pool
+// should still be fighting harder than a solo run (tester's call: "rebaisser
+// la vie des ennemis mais laisser plus dur que le jeu solo de 20 %"). When the
+// next act resurrects the fallen player, it goes straight back up.
+//
+// Integer percent, never a float: the two devices must compute the same
+// number, not nearly the same one.
+/* --- PARTY-HP-ARITHMETIC-BEGIN --- */
+#define PARTY_HP_FLOOR_PCT	120		/* the last one flying: solo + 20 %, not solo */
+
+static int P_EnemyHealthPctFor(int alive, int seats)
+{
+	if (seats < 2)
+		return 100;						/* solo is untouched, to the bit */
+	if (alive >= 2)
+		return alive * 100;				/* N ships firing, N times the health */
+	return PARTY_HP_FLOOR_PCT;			/* one left, but not a solo run */
+}
+/* --- PARTY-HP-ARITHMETIC-END --- */
+
+// The change does not take effect the instant a hull is lost. A death lands on
+// the host and on the client one latency apart, and an enemy spawning in
+// between would be born with different health on the two devices -- the exact
+// shape of a desync. So the new value is scheduled from a timestamp BOTH
+// devices take from the same place: the host's clock, carried by the death
+// order. Every spawn before it uses the old number, every spawn after it the
+// new one, and the two sims never disagree about a single enemy.
+#define PARTY_HP_GRACE_MS	1000
+
+// The host's clock for the death being applied, so every device schedules the
+// change from the same number. 0 = ours is the clock that counts (solo, or the
+// host ruling its own hit).
+int gPartyChangeStamp = 0;
+
+static int gPartyHpPct     = 100;	// in force now
+static int gPartyHpNextPct = 100;	// what the last party change decided
+static int gPartyHpFrom    = 0;		// ...and the simulation time it starts at
+
+// Recompute from the hulls. `atSimTime` is the HOST's clock for a death (the
+// order carries it) or simply now for a level boundary, where both devices are
+// already in step and there is nothing to hide.
+void P_NotePartyChange(int atSimTime, int immediate)
+{
+	int i, alive = 0;
+
+	for (i = 0; i < numPlayers && i < MAX_NUM_PLAYERS; i++)
+		if (!players[i].isOut)
+			alive++;
+
+	gPartyHpNextPct = P_EnemyHealthPctFor(alive, numPlayers);
+	if (immediate)
+	{
+		gPartyHpPct  = gPartyHpNextPct;
+		gPartyHpFrom = atSimTime;
+	}
+	else
+		gPartyHpFrom = atSimTime + PARTY_HP_GRACE_MS;
+
+	Log_Printf("[party] %d of %d flying -> enemy health %d%% from t=%d\n",
+	           alive, numPlayers, gPartyHpNextPct, gPartyHpFrom);
+}
+
+// What a spawning enemy's health should be scaled by, in percent.
+int P_EnemyHealthPct(void)
+{
+	if (engine.mode != DE_MODE_MULTIPLAYER || numPlayers < 2)
+		return 100;
+	if (simulationTime >= gPartyHpFrom)
+		gPartyHpPct = gPartyHpNextPct;
+	return gPartyHpPct;
+}
 // The life counter, as the player reads it: how many more deaths still leave
 // somebody flying. The stored respawnCounter is a bank of RESPAWNS, and the
 // last one in the bank is the death you do NOT come back from -- so the label
@@ -1970,6 +2052,9 @@ void P_ApplyDeath(uchar playerId)
 		players[playerId].autopilot.timeCounter = 2000000;
 		players[playerId].shouldDraw = 0;
 		players[playerId].isOut = 1;	// v4.1.0: and it STAYS out -- see player.h
+		// v4.1.1: one hull fewer firing -- the enemies get easier, from a moment
+		// the whole party agrees on (the host's clock; see P_NotePartyChange).
+		P_NotePartyChange(gPartyChangeStamp ? gPartyChangeStamp : simulationTime, 0);
 		
 		
 		// v4.1.0 -- GAME OVER is "every hull is down", and it now asks the HULLS.

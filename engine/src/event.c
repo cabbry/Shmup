@@ -228,12 +228,18 @@ void EV_SpawnEnemy(event_t* event)
 	}
 
 	// In multiplayer N ships fire (~N times the DPS), so enemies felt too easy
-	// with solo HP. Scale their energy by the ship count to keep the challenge
-	// comparable (v2 P3: was a flat x2 for the 2-player mode -- identical at 2).
-	// Applied identically on every device (same events, same mode/numPlayers)
-	// so it stays deterministic. One-shot WEAK enemies (energy 1) are left alone.
+	// with solo HP. Their health follows the hulls STILL FLYING (v4.1.1): when a
+	// player is out for good it comes back down, though never all the way to
+	// solo -- the last survivor keeps a 20 % surcharge. One-shot WEAK enemies
+	// (energy 1) are left alone. Integer percent, and the change takes effect at
+	// a simulation time both devices took from the host's clock, so every device
+	// gives the same enemy the same health.
 	if (engine.mode == DE_MODE_MULTIPLAYER && enemy->energy > 1 && numPlayers >= 2)
-		enemy->energy *= numPlayers;
+	{
+		int pct = P_EnemyHealthPct();
+		int e   = (enemy->energy * pct) / 100;
+		enemy->energy = (short)(e < 1 ? 1 : e);
+	}
 
 	// v4 stage 2: the enemy joins its group and the rules take note (energy
 	// budget for hpBelow, "seen" for cleared).

@@ -67,6 +67,7 @@
 #define toSend             PS(toSend)
 #define commandsBuffers    PS(commandsBuffers)
 #define numPlayerRespawn   PS(numPlayerRespawn)
+#define gPartyChangeStamp  PS(gPartyChangeStamp)
 #define gShipChoice        PS(gShipChoice)
 #define gBulletColor       PS(gBulletColor)
 #define gMPShipChoice      PS(gMPShipChoice)
@@ -103,6 +104,7 @@ int               simulationTime = 0;
 command_t         toSend;
 command_buffer_t  commandsBuffers[MAX_NUM_PLAYERS];
 unsigned char     numPlayerRespawn[] = {6,3,1};
+int               gPartyChangeStamp = 0;	/* v4.1.1: the host clock a death schedules the party change from */
 int               gShipChoice = 0;
 int               gBulletColor = 0;
 int               gMPShipChoice[MAX_NUM_PLAYERS]  = {0,1,2,3};

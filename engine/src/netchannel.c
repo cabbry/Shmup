@@ -344,7 +344,7 @@ static void NET_HostRuleDeath(int seat)
 }
 
 // Every device on receiving the host's order (the host never receives its own).
-static void NET_ApplyDeathOrder(int seat, int poolBefore, int seq)
+static void NET_ApplyDeathOrder(int seat, int poolBefore, int seq, int atHostTime)
 {
 	int p;
 	if (seq <= gLastDeathOrderSeq)
@@ -357,7 +357,13 @@ static void NET_ApplyDeathOrder(int seat, int poolBefore, int seq)
 	for (p = 0; p < numPlayers && p < MAX_NUM_PLAYERS; p++)
 		players[p].respawnCounter = (char)poolBefore;
 	players[seat].deathPending = 0;
+	// v4.1.1: the enemy-health change this death causes must be scheduled from
+	// the SAME instant on every device, or an enemy spawning around it is born
+	// with different health on the two screens. The host's clock rode along in
+	// the order; hand it to P_ApplyDeath and put it back afterwards.
+	gPartyChangeStamp = atHostTime;
 	P_ApplyDeath((uchar)seat);
+	gPartyChangeStamp = 0;
 }
 
 // P_Die's multiplayer entry (player.c).
@@ -2166,7 +2172,7 @@ void NET_Receive(void)
 			else if (dc->type == NET_RTM_DIE_ORDER)
 			{
 				if (senderSeat == NET_HostSeat())
-					NET_ApplyDeathOrder(dc->playerId, (int)dc->delta[0], (int)dc->delta[1]);
+					NET_ApplyDeathOrder(dc->playerId, (int)dc->delta[0], (int)dc->delta[1], (int)dc->time);
 			}
 			continue;
 		}

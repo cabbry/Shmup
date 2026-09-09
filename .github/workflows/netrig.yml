@@ -54,13 +54,16 @@ jobs:
       # that drops frames runs SLOW, and two phones end a level in different
       # moments of it. The decision is a pure function in dEngine.c between two
       # markers; this extracts that block verbatim and tests the shipped lines.
-      - name: The catch-up arithmetic
+      - name: The engine arithmetic (catch-up, party health)
         working-directory: tools/catchup
         run: |
           set -o pipefail
           awk '/CATCHUP-ARITHMETIC-BEGIN/{f=1;next} /CATCHUP-ARITHMETIC-END/{f=0} f' \
               ../../engine/src/dEngine.c > catchup_arithmetic.inc
           [ -s catchup_arithmetic.inc ] || { echo "::error::the markers in dEngine.c are gone: nothing extracted."; exit 1; }
+          awk '/PARTY-HP-ARITHMETIC-BEGIN/{f=1;next} /PARTY-HP-ARITHMETIC-END/{f=0} f' \
+              ../../engine/src/player.c > partyhp_arithmetic.inc
+          [ -s partyhp_arithmetic.inc ] || { echo "::error::the markers in player.c are gone: nothing extracted."; exit 1; }
           zig cc -std=gnu99 -Wall catchup_test.c -o catchup_test
           ./catchup_test
       - name: Upload the log

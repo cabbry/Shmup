@@ -825,8 +825,126 @@ void dEngine_CheckState(void)
 	}
 }
 
+// ---------------------------------------------------------------------------
+// v4.0.7 -- THE CATCH-UP LOOP (multiplayer only).
+//
+// Timer_tick advances the simulation by a FIXED ~16.67 ms per RENDERED FRAME.
+// That is what makes the sim deterministic, and it is right for solo. In a
+// match it is the disease behind "la synchro marche mais finit par se
+// desynchroniser en fin de niveau": a device that drops frames does not fall
+// behind, it runs SLOW. Two phones at 60 and 50 fps part by one second of game
+// time every six seconds of play, and the gap is widest at the end of a level
+// because it integrates. Nothing re-converges it -- the level's own timeline
+// fires off simulationTime, so the two devices are simply in different moments
+// of the same act.
+//
+// So in multiplayer the clock follows the WALL, not the frame: whatever whole
+// steps wall time is owed are simulated here, with the renderer off, and only
+// the last one is drawn. Under load the match now stutters instead of slowing
+// down -- which is the trade a networked game has to make. The engine already
+// runs nested host frames this way for scene loads (dEngine_JumpInTime), so
+// the mechanism is the one that has been shipping since 2010.
+//
+// Solo never enters here: its timing, and every act tuned against it, is
+// untouched to the bit.
+// The decision, kept pure and marked: how many EXTRA simulation steps this
+// frame owes, given the debt carried so far and the whole milliseconds of wall
+// clock since the previous frame. tools/catchup EXTRACTS the block between the
+// markers verbatim and tests these very lines -- so the proof cannot drift away
+// from the code the way a copy would.
+/* --- CATCHUP-ARITHMETIC-BEGIN --- */
+#define CATCHUP_STEP_MS		(50.0f / 3.0f)	// 16.666..., the step Timer_tick adds
+#define CATCHUP_MAX_STEPS	4				// a rendered frame may carry 5 steps at most
+#define CATCHUP_STALL_MS	250				// longer than this is not lag: it is a scene load,
+											// a breakpoint or a return from the background
+
+static int dEngine_CatchUpSteps(float* debt, int delta)
+{
+	int steps;
+
+	if (delta < 0 || delta > CATCHUP_STALL_MS)
+	{
+		*debt = 0.0f;					// not a dropped frame; do not stampede through it
+		return 0;
+	}
+
+	// This rendered frame runs one step of its own, so only the excess is owed.
+	*debt += (float)delta - CATCHUP_STEP_MS;
+	if (*debt < 0.0f)
+		*debt = 0.0f;					// ahead of the wall (a fast frame): nothing to pay
+	if (*debt < CATCHUP_STEP_MS)
+		return 0;
+
+	steps = (int)(*debt / CATCHUP_STEP_MS);
+	if (steps > CATCHUP_MAX_STEPS)
+	{
+		steps = CATCHUP_MAX_STEPS;
+		*debt = 0.0f;					// too far gone to repay: take the loss once
+	}
+	else
+		*debt -= steps * CATCHUP_STEP_MS;
+
+	return steps;
+}
+/* --- CATCHUP-ARITHMETIC-END --- */
+
+static int   gCatchupBusy = 0;		// re-entrancy: the nested frames must not recurse
+static int   gCatchupLastWall = 0;	// 0 = not armed (fresh match, or solo)
+static float gCatchupDebt = 0.0f;	// wall milliseconds owed to the simulation
+
+static void dEngine_CatchUp(void)
+{
+	int now, delta, steps, wasEnabled;
+
+	// A time jump is already driving nested frames of its own (scene load): stay out.
+	if (engine.mode != DE_MODE_MULTIPLAYER || !NET_IsRunning() || timeJumpCounter > 0)
+	{
+		gCatchupLastWall = 0;			// re-arm for the next match
+		gCatchupDebt = 0.0f;
+		return;
+	}
+
+	now = E_Sys_Milliseconds();
+	if (gCatchupLastWall == 0)
+	{
+		gCatchupLastWall = now;			// first frame of the match: no history to owe
+		return;
+	}
+	delta = now - gCatchupLastWall;
+	gCatchupLastWall = now;
+
+	steps = dEngine_CatchUpSteps(&gCatchupDebt, delta);
+	if (steps <= 0)
+		return;
+
+	// Each nested frame is a NORMAL frame with the drawing switched off: it ticks
+	// the same clock, reads and sends on the wire, and moves the same world -- so
+	// a stuttering device still feeds its peer sixty commands a second.
+	// The renderer flag is SAVED, not assumed: a scene change inside one of the
+	// nested frames runs dEngine_JumpInTime, which switches drawing back on when
+	// it is done -- and this loop must not inherit that and paint a second time
+	// into a Metal frame already in flight. Re-asserted before every step, and
+	// put back exactly as it was found.
+	wasEnabled = renderer.enabled;
+	gCatchupBusy = 1;
+	if (Log_ProbesEnabled())
+		Log_Printf("[catchup] t=%d wall=%d steps=%d\n", simulationTime, delta, steps);
+	while (steps-- > 0)
+	{
+		renderer.enabled = 0;
+		dEngine_HostFrame();
+	}
+	renderer.enabled = wasEnabled;
+	gCatchupBusy = 0;
+}
+
 void dEngine_HostFrame(void)
 {
+	// v4.0.7: in a match, pay the simulation whatever wall time it is owed before
+	// drawing this frame (see dEngine_CatchUp). Solo and the nested steps skip it.
+	if (!gCatchupBusy)
+		dEngine_CatchUp();
+
 	// Load a new scene/menu if needed
 	dEngine_CheckState();
 

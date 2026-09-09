@@ -1,4 +1,4 @@
-name: netrig (four peers, the real netchannel)
+name: netcode benches (netrig + the catch-up arithmetic)
 
 # tools/netrig runs FOUR instances of engine/src/netchannel.c, compiled verbatim,
 # in one process on a fake network. It needs no device, no Simulator and no Game
@@ -49,6 +49,20 @@ jobs:
           echo "checks run: $CHECKS"
           [ "${CHECKS:-0}" -ge 230 ] || { echo "::error::only $CHECKS checks ran; scenarios went missing."; exit 1; }
 
+
+      # The multiplayer catch-up: a fixed step per RENDERED frame means a device
+      # that drops frames runs SLOW, and two phones end a level in different
+      # moments of it. The decision is a pure function in dEngine.c between two
+      # markers; this extracts that block verbatim and tests the shipped lines.
+      - name: The catch-up arithmetic
+        working-directory: tools/catchup
+        run: |
+          set -o pipefail
+          awk '/CATCHUP-ARITHMETIC-BEGIN/{f=1;next} /CATCHUP-ARITHMETIC-END/{f=0} f' \
+              ../../engine/src/dEngine.c > catchup_arithmetic.inc
+          [ -s catchup_arithmetic.inc ] || { echo "::error::the markers in dEngine.c are gone: nothing extracted."; exit 1; }
+          zig cc -std=gnu99 -Wall catchup_test.c -o catchup_test
+          ./catchup_test
       - name: Upload the log
         if: always()
         uses: actions/upload-artifact@v4

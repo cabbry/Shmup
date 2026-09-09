@@ -320,6 +320,34 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-09 — round 56 (two themes, handed back and forth)
+
+"Si j'enchaîne acte 3 puis 4, j'arrive à un moment où il n'y a pas de musique.
+Comme on a 2 musiques, peut-être enchaîner la 2ème puis la 1ère ?"
+
+The cause was two good decisions meeting. The four acts share one track, and
+since v2 a same-track scene change deliberately lets it **play on** instead of
+re-cueing — which is why the music no longer restarts between acts. But the
+player was set to one pass. The track is four to seven minutes depending on its
+bitrate, an act runs a good two, so a run of three or four acts simply reaches
+the end of the file, and everything after it is silent. Each act's
+`startMusicAt 122` never even applies in a chain: the track is not re-cued.
+
+A scene now names an `alternate` theme. When its track ends, that one takes
+over, and later hands back — the acts point at the title theme and the title
+scenes point at the acts', so the pair alternates for as long as you play. With
+no alternate declared the track loops instead, so an act can no longer outlast
+its music either way.
+
+Both players are opened and prepared at scene load and kept there, so the
+hand-over costs the game thread one `-[play]` and nothing else. Opening an
+audio file inside a frame is exactly what round 51 was about, and this is not
+the place to forget it.
+
+The bench agrees: act 1's effects trace is unchanged (2453,
+`5b0182b35b1e304f`), the soundtrack still advances at wall-clock rate with
+zero off-rate intervals, and the log now says `init … (+alternate)`.
+
 ### 2026-09-09 — round 55 (enemy health follows the hulls still flying)
 
 "Quand le joueur 2 meurt, tu peux rebaisser la vie des ennemis mais laisser

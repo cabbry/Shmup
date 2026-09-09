@@ -1335,7 +1335,7 @@ void PL_RenderPlayerPointers(void)
 		// SCR_ConvertTextToVertices, so it holds if the size changes.
 		{
 			char livesStr[8];
-			int pool = players[controlledPlayer].respawnCounter;
+			int pool = P_LivesLeftForHud();	// v4.0.7: 0 means the next hit ends the run
 			short glyphHalf = (short)(MP_LIVES_FONT_SIZE * SS_W / 40);
 			short livesTextX = (short)(MP_LIVES_ICON_RIGHT_X * SS_W) + glyphHalf + 6;
 			if (pool < 0) pool = 0;
@@ -1826,6 +1826,23 @@ void P_PrepareGhostSprites(void)
 	
 }
 
+
+// The life counter, as the player reads it: how many more hits the run can
+// take AFTER the one flying now. It reaches 0 while you are still alive, and
+// the next hit ends the run -- "2, 1, 0 puis on meurt si on se refait
+// toucher" (tester, 2026-09-09). The stored respawnCounter is a bank of
+// RESPAWNS, and the two modes spend it differently: solo ends the moment the
+// bank cannot pay (deaths left = bank), while the shared pool lets the last
+// hull fly on at an empty bank and ends one death later (deaths left =
+// bank + 1). Deriving the label from that rule keeps both modes honest --
+// the number of hits has not changed, only what is printed.
+int P_LivesLeftForHud(void)
+{
+	int bank = players[controlledPlayer].respawnCounter;
+	int deathsLeft = (engine.mode == DE_MODE_MULTIPLAYER && numPlayers >= 2) ? bank + 1 : bank;
+	int shown = deathsLeft - 1;
+	return (shown < 0) ? 0 : shown;
+}
 
 
 // A hull was hit. Solo: the death happens here and now. Multiplayer: nobody

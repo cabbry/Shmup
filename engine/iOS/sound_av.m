@@ -39,6 +39,9 @@ static AVAudioEngine*     gEngine;
 static AVAudioPlayerNode* gNodes[NUM_SOURCES];
 static AVAudioPCMBuffer*  gBuffers[NUM_SOURCES];
 static int                gReady;
+// v4.0.7: the sim time each effect was last scheduled at -- one per frame is
+// all that can be heard (see SND_BACKEND_Play). -1 = never.
+static int                gLastScheduled[NUM_SOURCES];
 
 // One audio session for the effects and the soundtrack: playback category,
 // as the 2009 AudioSession code set (kAudioSessionCategory_MediaPlayback),
@@ -84,6 +87,8 @@ void SND_BACKEND_Init(void)
 		[gEngine attachNode:gNodes[i]];
 		gNodes[i].volume = 0.5f;	// AL_GAIN 0.5 in the OpenAL backend
 	}
+	for (i = 0; i < NUM_SOURCES; i++)
+		gLastScheduled[i] = -1;
 	gReady = 1;
 	Log_Printf("[snd] backend AVAudioEngine, %d player nodes.\n", NUM_SOURCES);
 }
@@ -153,9 +158,25 @@ void SND_BACKEND_Play(int sndId)
 	// 83 ms -- stalled the game loop until the render thread answered ("act 2
 	// lags as if the sounds slowed the game") and clicked at every restart.
 	node = gNodes[sndId];
-	if (!node.isPlaying)
-		[node play];
-	[node scheduleBuffer:gBuffers[sndId] atTime:nil options:AVAudioPlayerNodeBufferInterrupts completionHandler:nil];
+
+	// v4.0.7 -- ONE schedule per effect per frame. Retriggering INTERRUPTS the
+	// buffer in flight, so when the same effect is asked for several times in
+	// one tick only the LAST one is ever heard: the others are pure cost on the
+	// game thread, and -[AVAudioPlayerNode scheduleBuffer:] has to meet the
+	// render thread to swap the buffer. On the act-1 bench 545 of 2453 plays
+	// (22 %) are same-effect-same-tick, peaking at 13 audio calls in a single
+	// frame when a wave dies together -- which is exactly the end-of-level
+	// storm the tester heard as "quand on monte le son cela fait ramer le jeu"
+	// (2026-09-09). Skipping them cannot change what comes out of the speaker.
+	// The probe below still prints EVERY request: the bench's signature is the
+	// sequence the GAME asked for, and that contract does not move.
+	if (gLastScheduled[sndId] != simulationTime || !node.isPlaying)
+	{
+		gLastScheduled[sndId] = simulationTime;
+		if (!node.isPlaying)
+			[node play];
+		[node scheduleBuffer:gBuffers[sndId] atTime:nil options:AVAudioPlayerNodeBufferInterrupts completionHandler:nil];
+	}
 
 	// Audio bench: the same line the OpenAL backend printed -- the smoke's
 	// signature of the sequence is the parity contract.

@@ -320,6 +320,56 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-09 — round 50 (the life counter reads true, the sound stops doing invisible work, and why a slow frame desyncs a match)
+
+Five reports off 4.0.6. Two fixed, one named, one explained, one not ours.
+
+- **The life counter never showed a last life.** The HUD printed the respawn
+  BANK, so solo read 3, 2, 1 and the run ended on a number the player never
+  saw as final. It now prints the hits left *after* the hull you are flying:
+  2, 1, 0, and the next one ends it — the tester's own wording. The two modes
+  spend the bank differently (solo ends the moment it cannot pay; the shared
+  pool lets the last hull fly on at zero and ends one death later), so the
+  label is derived from that rule rather than from the raw counter, and both
+  modes now mean the same thing by "0". **The number of hits is unchanged** —
+  only the label moved.
+- **The sound was doing work nobody could hear.** Retriggering an effect
+  INTERRUPTS the buffer in flight, so when the same effect is asked for
+  several times in one tick, only the last is ever audible. The act-1 bench
+  says **545 of 2453 plays (22 %) are exactly that**, peaking at **13 audio
+  calls in one frame** when a wave dies together — the end-of-level storm the
+  tester heard as "quand on monte le son cela fait ramer le jeu". Each of
+  those calls has to meet the render thread to swap a buffer. One schedule per
+  effect per frame now; the probe still prints every request, so the bench's
+  signature is unchanged (2453, `5b0182b35b1e304f`) — proof that not one
+  requested sound moved.
+- **Why a slow frame desyncs a match, named at last.** `Timer_tick` adds a
+  FIXED ~16.67 ms of simulation time *per rendered frame*. That is what makes
+  the sim deterministic — and it also means a device that drops frames does
+  not run late, it runs **slow**. Two phones at 60 and 50 fps drift apart by
+  one second of game time every six seconds of play, so the gap is widest at
+  the end of a level: "la synchro marche mais finit par se désynchroniser en
+  fin de niveau". The tester's own hypothesis — the sound makes it lag, the
+  lag makes it desync — is the mechanism, exactly. In CI the Simulator holds
+  60 fps and the ratio of sim to wall time is 0.998 over 140 s, so this can
+  never reproduce there. The audio fix above removes one source of dropped
+  frames. **The disease itself is untreated**: any hitch still costs game
+  time. The cure is a catch-up loop — run the extra simulation steps wall
+  time is owed, render once — which the engine already does for scene loads
+  (`dEngine_JumpInTime` runs nested host frames with the renderer off). It is
+  a main-loop change, so it wants a build of its own where it is the only
+  variable, and the tester's go.
+- **2 lives to 0, then 1 at the next level** is the second-chance rule from
+  round 31, working: a pool that is exactly empty at a level load is given one
+  life back, once. Not a bug.
+- **The iMessage invitation** ("aucun de vos comptes Messages n'a été détecté
+  dans l'invitation") is raised by iOS before any of our code runs, and it is
+  about addressing: the invite was sent to a handle the receiving device's
+  Messages is not signed in with. We register the invite listener and accept
+  through the standard path. Worth trying: invite from the Game Center friend
+  list rather than by message, with both devices signed into Game Center under
+  the Apple ID their Messages uses.
+
 ### 2026-09-08 — round 49 (the online report: a death the peer never heard, and a match that outlived its game over)
 
 Four symptoms from one online session on 4.0.5. Three had a cause; the

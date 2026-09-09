@@ -335,7 +335,7 @@ static void NET_HostRuleDeath(int seat)
 		return;
 	if (players[seat].invulnerableFor > 0)
 		return;						// just ruled (or respawning): a repeat, not a new death
-	if (players[seat].respawnCounter <= 0 && players[seat].shouldDraw == 0)
+	if (players[seat].isOut)		// v4.1.0: an explicit flag, not a flickering one
 		return;						// parked: the corpse cannot die again
 	poolBefore = players[seat].respawnCounter;
 	gDeathSeq++;
@@ -365,7 +365,7 @@ void NET_PlayerHit(int seat)
 {
 	if (seat < 0 || seat >= MAX_NUM_PLAYERS)
 		return;
-	if (players[seat].respawnCounter <= 0 && players[seat].shouldDraw == 0)
+	if (players[seat].isOut)		// v4.1.0: an explicit flag, not a flickering one
 		return;						// parked hull: nothing to rule on
 	if (NET_IsHost())
 	{
@@ -559,8 +559,8 @@ static void LAN_AddRosterIp(unsigned int ip)
 		net.serverAddResolved = 1;
 	}
 
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Players found: %d -> you are P%d",
-	        gLanCount, net.ownSeat + 1);
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Players found: %d -> you are P%d%s",
+			gLanCount, net.ownSeat + 1, (net.ownSeat == 0 && gLanCount >= 2) ? " (HOST - your act plays)" : "");
 }
 
 // Deterministic N-way colour dedupe, ascending seats: a seat whose colour
@@ -739,7 +739,8 @@ void NET_StartOnlineMatch(int mySeat, int numSeats)
 	net.lastReceivedSequenceNumber = 0;
 	net.lastSentSequenceNumber     = 1;
 
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Online - you are Player %d of %d", mySeat + 1, numSeats);
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Online - you are Player %d of %d%s", mySeat + 1, numSeats,
+		(mySeat == 0) ? " (HOST - your act plays)" : "");
 	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
 	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Starting match...");
 }
@@ -1497,6 +1498,7 @@ void NET_OnSeatLost(int seat)
 		p->autopilot.timeCounter  = 2000000;	// effectively forever
 		p->autopilot.originalTime = 2000000;
 		p->shouldDraw = 0;
+		p->isOut = 1;						// v4.1.0: a dropped seat is out of the match
 	}
 
 	// Say it ON SCREEN: the multiplayer text lines only show in the lobby, so

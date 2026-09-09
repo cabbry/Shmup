@@ -164,6 +164,7 @@ void PS(rig_init_lan)(void)
 	for (i = 0; i < MAX_NUM_PLAYERS; i++)
 	{
 		players[i].shouldDraw = 1;		/* as P_ResetPlayer does on the device */
+		players[i].isOut = 0;
 		players[i].playerId = i;
 	}
 	engine.mode = DE_MODE_MULTIPLAYER;
@@ -231,10 +232,14 @@ int  PS(rig_is_host)(void)   { return NET_IsHost(); }		/* v2.0.9 host migration 
 /* v2.0.9 host authority: the death itself, as player.c applies it -- the pool
    decrements and mirrors, the hull respawns (counter > 0) or parks (RIP), and
    the invulnerability window opens (the host's idempotence relies on it). */
+/* Mirrors the shape of the real P_ApplyDeath (player.c) closely enough for the
+   protocol: the shared pool, the mirror, the park, and -- v4.1.0 -- the isOut
+   flag the corpse guards key on. The real one also runs the FX, the autopilot
+   and the game-over check, none of which the wire cares about. */
 void P_ApplyDeath(uchar id)
 {
 	int p;
-	if (players[id].respawnCounter <= 0 && players[id].shouldDraw == 0)
+	if (players[id].isOut)
 		return;
 	players[id].respawnCounter--;
 	for (p = 0; p < numPlayers && p < MAX_NUM_PLAYERS; p++)
@@ -242,7 +247,10 @@ void P_ApplyDeath(uchar id)
 	players[id].deathPending = 0;
 	players[id].invulnerableFor = 3700;
 	if (players[id].respawnCounter <= 0)
+	{
 		players[id].shouldDraw = 0;			/* RIP: parked */
+		players[id].isOut = 1;
+	}
 	rig_note_death(PEER_ID, id);
 }
 

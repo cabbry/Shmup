@@ -431,7 +431,7 @@ void COLL_CheckPlayers(void)
 	// Out of lives (RIP, parked off-screen): the corpse can't collide anymore --
 	// stray bullets used to "kill" it again and end the multiplayer match while
 	// the other player was still alive.
-	if (players[controlledPlayer].respawnCounter <= 0 && players[controlledPlayer].shouldDraw == 0)
+	if (players[controlledPlayer].isOut)	// v4.1.0: an explicit flag, not a flickering one
 		return;
 
 	// The game is WON: no stray escort bullet gets to turn the ending card into a
@@ -771,7 +771,7 @@ void COLL_CheckEnemies(void)
 		return;
 
 	// Out of lives (RIP): same guard as COLL_CheckPlayers -- no corpse collisions.
-	if (players[controlledPlayer].respawnCounter <= 0 && players[controlledPlayer].shouldDraw == 0)
+	if (players[controlledPlayer].isOut)	// v4.1.0: an explicit flag, not a flickering one
 		return;
 
 	enemy = ENE_GetFirstEnemy();

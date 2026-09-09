@@ -218,6 +218,13 @@ typedef struct player_t
 	ushort invulFlickering;
 	char respawnCounter;
 	uchar shouldDraw;
+	// v4.1.0: this hull is OUT of the match -- parked off-screen with the pool
+	// spent, or a seat the host dropped. Not the same as shouldDraw, which
+	// FLICKERS during invulnerability and is therefore useless as "is this ship
+	// still in the game": when the flicker ended it set shouldDraw back to 1 on
+	// a corpse, which put it back in the collision tests and let it die a second
+	// time -- ending the match while the other player was flying untouched.
+	uchar isOut;
 
 	// v2.0.9 host authority on deaths: this hull was hit and its death is
 	// awaiting the host's ruling. Collisions are suspended meanwhile (the

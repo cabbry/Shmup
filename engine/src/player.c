@@ -231,6 +231,7 @@ void P_ResetPlayer(int i)
 	player->invulFlickering = 0;
 	player->invulnerableFor = 0;
 	player->shouldDraw = 1;
+	player->isOut = 0;			// v4.1.0: a fresh hull is back in the match
 	
 	
 	player->nextBulletFireTime = 0 ;
@@ -775,10 +776,18 @@ void P_Update(void)
 			if (players[i].invulnerableFor > 0)
 			{
 				players[i].invulFlickering += timediff;
-				players[i].shouldDraw =players[i].invulFlickering & 128 ; //Fickering every 128ms
-				
+				// v4.1.0: never flicker a hull that is OUT. A parked corpse still
+				// carries the invulnerability its death gave it, and when that ran
+				// out this set shouldDraw back to 1 -- which put the wreck back on
+				// screen AND back into the collision tests, where it could be
+				// "killed" a second time and spend the last of the shared pool.
+				// The other player then got GAME OVER with an untouched ship
+				// (device screenshot, 2026-09-09).
+				if (!players[i].isOut)
+					players[i].shouldDraw = players[i].invulFlickering & 128;	//Fickering every 128ms
+
 				players[i].invulnerableFor -= timediff;
-				if (players[i].invulnerableFor <= 0)
+				if (players[i].invulnerableFor <= 0 && !players[i].isOut)
 						players[i].shouldDraw = 1;
 			}
 			
@@ -1872,7 +1881,7 @@ void P_ApplyDeath(uchar playerId)
 	// "deaths". Stray bullets could hit the parked corpse, push the shared life
 	// counter below zero and end the multiplayer match while the OTHER player was
 	// still alive. Both lockstep sims skip these the same way, so MP stays in sync.
-	if (players[playerId].respawnCounter <= 0 && players[playerId].shouldDraw == 0)
+	if (players[playerId].isOut)	// v4.1.0: an explicit flag, not a flickering one
 		return;
 
 	// Player collided with the enemy
@@ -1960,16 +1969,21 @@ void P_ApplyDeath(uchar playerId)
 		
 		players[playerId].autopilot.timeCounter = 2000000;
 		players[playerId].shouldDraw = 0;
+		players[playerId].isOut = 1;	// v4.1.0: and it STAYS out -- see player.h
 		
 		
-		// v2 P3: the pool is mirrored, so in MP "everyone is out" is simply "the
-		// pool is below zero" -- checked on all seats for belt-and-braces (a
-		// parked seat's counter is mirrored like any other).
+		// v4.1.0 -- GAME OVER is "every hull is down", and it now asks the HULLS.
+		// It used to ask the shared POOL: the counter is mirrored onto everyone,
+		// so "all counters below zero" was really just "the pool went negative",
+		// which ends the match on the death that empties it -- even when the
+		// other player is flying, untouched, with nothing wrong (device
+		// screenshot, 2026-09-09). The party rule has always been that a player
+		// falling does not end it; only the last hull standing does.
 		{
 		int everyoneOut = 1;
 		int p;
 		for (p = 0; p < numPlayers && p < MAX_NUM_PLAYERS; p++)
-			if (players[p].respawnCounter >= 0)
+			if (!players[p].isOut)
 				everyoneOut = 0;
 
 		if (((numPlayers == 1) && (playerId == controlledPlayer))     ||

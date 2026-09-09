@@ -618,6 +618,20 @@ void World_OpenScene(char* filename)
 					strcat(engine.musicFilename, LE_getCurrentToken());
 				}
 				else
+				if (!strcmp("alternate", LE_getCurrentToken()))
+				{
+					// v4.1.1: the other theme. Acts all share one track and it
+					// simply plays on from act to act, so it used to RUN OUT
+					// somewhere in act 3 or 4 and leave the rest of the run in
+					// silence. When this one ends, the alternate takes over, and
+					// then hands back.
+					LE_readToken();
+					engine.musicAlternate[0] = '\0';
+					strcat(engine.musicAlternate, FS_Gamedir());
+					strcat(engine.musicAlternate, "/");
+					strcat(engine.musicAlternate, LE_getCurrentToken());
+				}
+				else
 				if (!strcmp("startMusicAt", LE_getCurrentToken()))
 				{
 					engine.musicStartAt = LE_readReal();

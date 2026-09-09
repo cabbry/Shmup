@@ -474,6 +474,7 @@ bool dEngine_Init(void)
 	//engine.recordVideo = 0;
 	
 	engine.musicFilename[0] = '\0';
+	engine.musicAlternate[0] = 0;	// v4.1.1: a scene declares its own hand-over, or none
 	engine.musicStartAt = 0;
 	engine.playback.filename[0] = '\0';
 	

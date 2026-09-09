@@ -89,6 +89,9 @@ music
 {
 	startMusicAt 0
 	trackname data/music/UNREALPM.mp3
+	# v4.1.1: when this one runs out (the acts share it and it plays ON from act
+	# to act), hand over to the other theme rather than fall silent.
+	alternate data/music/UNREALTH.mp3
 }
 
 title

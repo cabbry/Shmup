@@ -83,6 +83,7 @@ music
 {
 	startMusicAt 0
 	trackname data/music/UNREALTH.mp3
+	alternate data/music/UNREALPM.mp3
 }
 
 title

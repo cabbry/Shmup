@@ -117,6 +117,9 @@ typedef struct engine_info_t
 	playback_t playback;
 	
 	char musicFilename[256];
+	// v4.1.1: the theme to hand over to when this one runs out, so a long run of
+	// acts never falls silent. Empty = loop the track instead.
+	char musicAlternate[256];
 	uint musicStartAt;
 	
 	player_stats_t playerStats;

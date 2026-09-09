@@ -320,6 +320,48 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-09 — round 51 (the volume buttons, and the lock nobody saw)
+
+"Monter ou descendre le son fait toujours un peu ramer le jeu… ça ne peut pas
+être transparent ?" — and the emphasis on *changing* the volume rather than on
+its level is what named the bug. It was never about how loud the game was.
+
+**Every AVAudioEngine property takes the engine's lock**, and CoreAudio holds
+that lock while it reconfigures itself — which is exactly what pressing the
+volume buttons makes it do. The per-shot path asked three questions inside
+that lock: `isRunning` through `SND_AV_Start`, then `isPlaying` twice. With
+plasma firing every 83 ms and explosions on top, the game thread queued up
+behind the audio system for as long as it was busy. Round 50's frame de-dup
+cut the *number* of those calls; it could not stop them contending.
+
+So the game thread stops asking:
+
+- `isRunning` and `isPlaying` are mirrored in plain C, kept true by the
+  AVAudioEngine configuration-change, session-interruption and route-change
+  notifications — the three ways CoreAudio can pull the graph out from under
+  a running game, none of which we had been listening to at all.
+- The only engine call left in the hot path is the `scheduleBuffer` that IS
+  the work, at most once per effect per frame.
+- **Nothing calls `startAndReturnError:` from a frame any more.** The engine
+  starts at load time on the first upload, and rebuilds itself on its own
+  serial queue after a change, throttled to once a second. While the graph is
+  down a shot is simply dropped: a sound missed inside a hundred-millisecond
+  glitch is invisible, where waiting for CoreAudio in a frame is a hitch you
+  can see.
+- A configuration change also destroys the graph's connections, so the rebuild
+  reconnects every loaded effect from its buffer's own format before starting.
+  Without that the game would have come back from a route change silent.
+
+The `[snd]` probe moved above the runtime checks: the bench's contract is the
+sequence the GAME asked for, and it must not depend on the mood of the audio
+device. Proof that nothing else moved — the act-1 trace is identical to the
+bit (2453, `5b0182b35b1e304f`), and the log now shows the engine starting at
+load time rather than on the first gunshot.
+
+What this cannot fix: the volume HUD itself is drawn by the system over our
+frames, and that cost is not ours to remove. What is ours is the stall, and
+there is no longer a path for one.
+
 ### 2026-09-09 — round 50 (the life counter reads true, the sound stops doing invisible work, and why a slow frame desyncs a match)
 
 Five reports off 4.0.6. Two fixed, one named, one explained, one not ours.

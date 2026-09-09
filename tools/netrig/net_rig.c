@@ -822,6 +822,63 @@ static void scenario_online_death_reorder(void)
 	      "reorder: pools (%d,%d) after two deaths from 6, expected (4,4)",
 	      P[0].lives(), P[1].lives());
 }
+
+/* 16. THE ENDGAME, AND THE SURVIVOR NOBODY TOUCHED -- device report of
+      2026-09-09 on a LAN pair: "le 0 est mal gere, le dernier player est mort
+      tout seul sans etre touche". Spend the pool down to empty with real hits,
+      then hit NOBODY for several seconds and watch. A death that appears with
+      no hit behind it is the bug; the two devices disagreeing about who is
+      still flying is the other one. */
+static void scenario_endgame_untouched(void)
+{
+	int i, deathsAfter[2], drawn0, drawn1;
+	printf("[16] LAN pair: the pool runs dry, then nobody is hit for five seconds\n");
+	reset_rig(2, 0);
+
+	for (i = 0; i < 2; i++) { P[i].init_lan(); P[i].set_party(2); P[i].set_loadout(0, 0); }
+	run_frames(10);
+	P[0].resolve_peer(gIps[1]);
+	P[1].resolve_peer(gIps[0]);
+	run_frames(500);
+	check(P[0].state() == STATE_RUNNING && P[1].state() == STATE_RUNNING, "endgame: the pair did not start");
+
+	/* A pool of 2, spent by two real hits: the first respawns, the second
+	   empties the pool and parks that hull. The other must still be flying. */
+	for (i = 0; i < 2; i++) P[i].set_lives(2);
+	P[1].hit();						/* the client's hull */
+	run_frames(200);				/* let the invulnerability window close */
+	P[1].hit();
+	run_frames(120);
+
+	check(P[0].lives() == P[1].lives(), "endgame: pools disagree (%d vs %d)", P[0].lives(), P[1].lives());
+	check(P[0].lives() == 0, "endgame: pool %d after two deaths from 2, expected 0", P[0].lives());
+	check(P[0].drawn(0) == P[1].drawn(0) && P[0].drawn(1) == P[1].drawn(1),
+	      "endgame: the two screens disagree on who is flying (peer0 %d/%d, peer1 %d/%d)",
+	      P[0].drawn(0), P[0].drawn(1), P[1].drawn(0), P[1].drawn(1));
+	check(P[0].drawn(0) == 1, "endgame: seat 0 was parked without ever being hit");
+
+	/* Now the part that matters: NOBODY is hit. Five seconds of it. */
+	deathsAfter[0] = gDeaths[0];
+	deathsAfter[1] = gDeaths[1];
+	drawn0 = P[0].drawn(0);
+	drawn1 = P[0].drawn(1);
+	run_frames(300);				/* ~5 s at 16 ms */
+
+	check(gDeaths[0] == deathsAfter[0] && gDeaths[1] == deathsAfter[1],
+	      "endgame: %d/%d deaths appeared with nobody hit (the survivor died alone)",
+	      gDeaths[0] - deathsAfter[0], gDeaths[1] - deathsAfter[1]);
+	check(P[0].drawn(0) == drawn0 && P[0].drawn(1) == drawn1,
+	      "endgame: a hull was parked with nobody hit");
+	check(P[0].lives() == 0 && P[1].lives() == 0,
+	      "endgame: the pool moved with nobody hit (%d, %d)", P[0].lives(), P[1].lives());
+
+	/* And the real last death still ends it, once, for both. */
+	P[0].hit();
+	run_frames(120);
+	check(P[0].lives() == P[1].lives(), "endgame: pools disagree after the last death (%d vs %d)",
+	      P[0].lives(), P[1].lives());
+	check(P[0].drawn(0) == 0 && P[1].drawn(0) == 0, "endgame: the last hull is still flying at game over");
+}
 int main(int argc, char** argv)
 {
 	if (argc > 1 && !strcmp(argv[1], "-v")) gVerbose = 1;
@@ -843,6 +900,7 @@ int main(int argc, char** argv)
 	scenario_lan_host_migration();
 	scenario_death_authority();
 	scenario_online_death_reorder();
+	scenario_endgame_untouched();
 
 	printf("=== %d checks, %d failures ===\n", gChecks, gFailures);
 	return gFailures ? 1 : 0;

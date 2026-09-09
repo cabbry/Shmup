@@ -22,6 +22,12 @@
 
 #include "catchup_arithmetic.inc"
 
+/* CATCHUP_MAX_STEPS bounds the BURST, because every step beyond the first is
+   simulation the player never sees drawn. Two extra steps carry three steps per
+   frame, which tracks the wall clock down to this rate; below it the game slows
+   again, on purpose -- a phone at 15 fps has lost the argument anyway. */
+#define CATCHUP_FLOOR_FPS	20
+
 static int gFailures = 0, gChecks = 0;
 
 static void check(int cond, const char* what, ...)
@@ -70,12 +76,16 @@ int main(void)
 		       rates[i], r, (r - 1.0) * LEVEL / 1000.0);
 	}
 
-	printf("the same, with the catch-up:\n");
+	printf("the same, with the catch-up (the cap covers down to %d fps):\n", CATCHUP_FLOOR_FPS);
 	for (i = 0; i < 8; i++)
 	{
 		double r = run(rates[i], 1, LEVEL);
-		printf("  %3d fps -> %.3f of real time  (%+.1fs)\n", rates[i], r, (r - 1.0) * LEVEL / 1000.0);
-		check(r > 0.99 && r < 1.01, "a frame rate must not change how fast the game runs");
+		printf("  %3d fps -> %.3f of real time  (%+.1fs)%s\n", rates[i], r, (r - 1.0) * LEVEL / 1000.0,
+		       rates[i] < CATCHUP_FLOOR_FPS ? "   (below the cap: still slows, on purpose)" : "");
+		if (rates[i] >= CATCHUP_FLOOR_FPS)
+			check(r > 0.99 && r < 1.01, "a frame rate at or above the floor must not change how fast the game runs");
+		else
+			check(r > 0.5, "below the floor the game must degrade gently, not stop");
 	}
 
 	/* The pair that matters: the tester's two phones. */

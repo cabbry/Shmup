@@ -1827,20 +1827,17 @@ void P_PrepareGhostSprites(void)
 }
 
 
-// The life counter, as the player reads it: how many more hits the run can
-// take AFTER the one flying now. It reaches 0 while you are still alive, and
-// the next hit ends the run -- "2, 1, 0 puis on meurt si on se refait
-// toucher" (tester, 2026-09-09). The stored respawnCounter is a bank of
-// RESPAWNS, and the two modes spend it differently: solo ends the moment the
-// bank cannot pay (deaths left = bank), while the shared pool lets the last
-// hull fly on at an empty bank and ends one death later (deaths left =
-// bank + 1). Deriving the label from that rule keeps both modes honest --
-// the number of hits has not changed, only what is printed.
+// The life counter, as the player reads it: how many more deaths still leave
+// somebody flying. The stored respawnCounter is a bank of RESPAWNS, and the
+// last one in the bank is the death you do NOT come back from -- so the label
+// is one less than the bank, in both modes: 3 respawns solo reads 2, 1, 0, and
+// a two-player pot of 6 reads 5. Zero means the next death is somebody's last.
+// The tester named both numbers (2026-09-09: "en solo normal 2,1,0", "en multi
+// local ca commence a 6 au lieu de 5"). The number of hits has not changed --
+// only what is printed.
 int P_LivesLeftForHud(void)
 {
-	int bank = players[controlledPlayer].respawnCounter;
-	int deathsLeft = (engine.mode == DE_MODE_MULTIPLAYER && numPlayers >= 2) ? bank + 1 : bank;
-	int shown = deathsLeft - 1;
+	int shown = players[controlledPlayer].respawnCounter - 1;
 	return (shown < 0) ? 0 : shown;
 }
 

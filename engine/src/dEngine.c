@@ -854,7 +854,13 @@ void dEngine_CheckState(void)
 // from the code the way a copy would.
 /* --- CATCHUP-ARITHMETIC-BEGIN --- */
 #define CATCHUP_STEP_MS		(50.0f / 3.0f)	// 16.666..., the step Timer_tick adds
-#define CATCHUP_MAX_STEPS	4				// a rendered frame may carry 5 steps at most
+#define CATCHUP_MAX_STEPS	2				// a rendered frame may carry 3 steps at most. Every step
+											// beyond the first is simulation the player never SEES:
+											// a bullet can cross the ship between two drawn frames
+											// and kill in a state that was never on screen ("mort
+											// tout seul sans etre touche", 2026-09-09). Two extra
+											// steps still tracks the wall clock down to 20 fps,
+											// and bounds the unseen stretch to about 33 ms.
 #define CATCHUP_STALL_MS	250				// longer than this is not lag: it is a scene load,
 											// a breakpoint or a return from the background
 

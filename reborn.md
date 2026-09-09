@@ -320,6 +320,41 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-09 — round 53 (the host chooses the act, and what happens when the two of you disagree)
+
+"On ne pourrait pas choisir le niveau en multi ?" — and then the question that
+actually matters: what if one picks act 1 and the other act 2, or one picks two
+players and the other three?
+
+**The two are not the same kind of setting, and only one of them needs an
+owner.** Party size is a *stop waiting* hint: `LAN_RosterSettled` gives up on
+latecomers as soon as the number you asked for is on the network, so a device
+asking for three simply waits a few seconds longer than one asking for two,
+and then both play with whoever showed up. Two different answers already
+converge, because the truth is the roster, not the number.
+
+The act cannot work that way: it has to be identical everywhere or the two
+sims load different levels. So it takes the owner the party already has —
+**seat 0, the same device that rules deaths and drives the barrier.** The
+host's act travels in its preload order; before this, the client computed
+"the next scene" for itself, which was only ever right because every party
+started on act 1. Both devices pick, through the solo act screen and its lock
+rule, and the lobby says out loud that the host's choice is the one that plays.
+
+`netrig` scenario 17 answers the question as an assertion rather than a
+promise: seat 0 asks for act 3 while seat 1 asks for act 2, and both land on
+act 3; then the host asks for act 1 against a client's act 4, and both land on
+act 1. So it is the host that decides — not the higher number, not the lower
+one, not whoever spoke first. 253 checks.
+
+What this does **not** give him is the Héberger / Rejoindre pair he described.
+Nobody chooses to be the host today: seat 0 is elected by sorted address on the
+LAN and by sorted Game Center id online, and no player is told which one they
+are. Making it a button means a device *declares* itself seat 0 and the others
+adopt it, with a tie-break when two people press it — which reaches into the
+one rule the four-player work is built on, that every device computes the same
+table without negotiating. That is a v4.1 job, not a patch.
+
 ### 2026-09-09 — round 52 (the counter, both modes this time; and the frames nobody saw)
 
 - **"En multi local ça commence à 6 au lieu de 5."** Round 50 gave solo its

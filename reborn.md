@@ -320,6 +320,49 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-09 — round 55 (enemy health follows the hulls still flying)
+
+"Quand le joueur 2 meurt, tu peux rebaisser la vie des ennemis mais laisser
+plus dur que le jeu solo de 20 % ? Et la réaugmenter s'il ressuscite au début
+de l'acte suivant ?"
+
+Multiplayer scaled enemy energy by the SEAT count, and kept scaling it after a
+player was out for good — so the survivor was left alone against enemies built
+for two. It follows the hulls still in the match now, and never falls all the
+way back to solo:
+
+| party | enemy health |
+|---|---|
+| solo | 100 % (untouched, to the bit) |
+| 2 of 2 | 200 % |
+| 1 of 2 | 120 % |
+| 4 of 4 | 400 % |
+| 3 of 4 | 300 % |
+| 2 of 4 | 200 % |
+| 1 of 4 | 120 % |
+
+Every step down is just the ships that are firing; the floor is his number.
+The next act resurrects the fallen player and it goes straight back up, at a
+level boundary where both devices are already in step.
+
+**The trap this had to avoid.** A death lands on the host and on its peer one
+latency apart. An enemy spawning in between would be born with different
+health on the two screens — a desync of exactly the kind the last four rounds
+were about. So the new value is scheduled from a timestamp both devices read
+from the *same* place: the host's clock, which already rides inside the death
+order, plus a second of grace. Every spawn before that instant uses the old
+number and every spawn after it the new one, on both devices. Integer percent
+throughout, never a float.
+
+The decision is a pure function between markers in `player.c`, and
+`tools/catchup` extracts it verbatim the way it already does the catch-up
+arithmetic — eight party shapes asserted, plus the floor checked to sit above
+solo and below a full pair. 25 checks there, 253 in the netrig, and act 1's
+sound trace unchanged.
+
+Not touched: the boss's arms, which take their own doubling at the start of the
+fight. That fight is tuned and stays that way until somebody asks.
+
 ### 2026-09-09 — round 54 (the corpse that came back, and the game over that asked the wrong question)
 
 A screenshot settled it: his ship intact, untouched, and GAME OVER on screen.

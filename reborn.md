@@ -320,6 +320,35 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-09 — round 52 (the counter, both modes this time; and the frames nobody saw)
+
+- **"En multi local ça commence à 6 au lieu de 5."** Round 50 gave solo its
+  rule and left multiplayer on another one, which is exactly the sort of thing
+  a tester spots in four seconds. There is one rule now, and it is the reading
+  that makes both his numbers right: **the counter is the deaths that still
+  leave somebody flying.** The last respawn in the bank is the one you do not
+  come back from, so the label is the bank minus one everywhere — 3 respawns
+  solo reads 2, 1, 0; a two-player pot of 6 reads 5. Zero means the next death
+  is somebody's last.
+- **"Le dernier player est mort tout seul sans être touché."** Staged in the
+  rig as scenario 16: spend the pool to empty with real hits, then five seconds
+  with nobody hit at all. No death appears, the two devices agree on who is
+  still flying, and the last death still ends it once for both. **248 checks —
+  so the netcode is not what killed him**, and the death protocol at zero is
+  sound.
+
+  What is left points at round 50's own catch-up loop. Every step past the
+  first is simulation the player never sees drawn: at four extra steps a bullet
+  could cross the ship inside 83 ms of undrawn game and kill in a state that
+  was never on screen — which is the shape of the report. The burst is halved
+  to two, bounding the unseen stretch to about 33 ms. That still holds the wall
+  clock down to 20 fps, and the test now **states that floor** rather than
+  pretending there is none: below it the game slows again, on purpose.
+- Not proven, and said as such: the rig clears the netcode, the cap is a
+  mitigation of a mechanism I can argue for but cannot photograph. If a hull
+  dies untouched again on this build, the next thing to add is a probe naming
+  what hit it.
+
 ### 2026-09-09 — round 51 (the volume buttons, and the lock nobody saw)
 
 "Monter ou descendre le son fait toujours un peu ramer le jeu… ça ne peut pas

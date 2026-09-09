@@ -343,22 +343,38 @@ Five reports off 4.0.6. Two fixed, one named, one explained, one not ours.
   effect per frame now; the probe still prints every request, so the bench's
   signature is unchanged (2453, `5b0182b35b1e304f`) — proof that not one
   requested sound moved.
-- **Why a slow frame desyncs a match, named at last.** `Timer_tick` adds a
-  FIXED ~16.67 ms of simulation time *per rendered frame*. That is what makes
-  the sim deterministic — and it also means a device that drops frames does
-  not run late, it runs **slow**. Two phones at 60 and 50 fps drift apart by
-  one second of game time every six seconds of play, so the gap is widest at
-  the end of a level: "la synchro marche mais finit par se désynchroniser en
-  fin de niveau". The tester's own hypothesis — the sound makes it lag, the
-  lag makes it desync — is the mechanism, exactly. In CI the Simulator holds
-  60 fps and the ratio of sim to wall time is 0.998 over 140 s, so this can
-  never reproduce there. The audio fix above removes one source of dropped
-  frames. **The disease itself is untreated**: any hitch still costs game
-  time. The cure is a catch-up loop — run the extra simulation steps wall
-  time is owed, render once — which the engine already does for scene loads
-  (`dEngine_JumpInTime` runs nested host frames with the renderer off). It is
-  a main-loop change, so it wants a build of its own where it is the only
-  variable, and the tester's go.
+- **Why a slow frame desynced a match — found, and fixed.** `Timer_tick` adds
+  a FIXED ~16.67 ms of simulation time *per rendered frame*. That is what makes
+  the sim deterministic, and it is right for solo — but it means a device that
+  drops frames does not run late, it runs **slow**. The size of it, measured:
+
+  | frame rate | game time produced in a 140 s level | vs a 60 fps peer |
+  |---|---|---|
+  | 60 fps | 140.0 s | — |
+  | 50 fps | 116.7 s | 23.3 s apart |
+  | 30 fps | 70.0 s | 70.0 s apart |
+
+  Twenty-three seconds of game time apart by the end of an act, from a ten
+  frame-per-second difference. That is "la synchro marche mais finit par se
+  désynchroniser en fin de niveau", and it dwarfs anything the network does.
+  The tester also guessed the trigger exactly right: the sound made it lag, the
+  lag made it desync. In CI it can never show — the Simulator holds 60 fps and
+  the ratio of sim to wall time is 0.998 over 140 s.
+
+  **In multiplayer the clock now follows the wall.** Whatever whole steps wall
+  time is owed are simulated with the renderer off, and only the last is drawn
+  — the way `dEngine_JumpInTime` has run nested host frames since 2010. Under
+  load a match stutters instead of slowing down, which is the trade a networked
+  game has to make. Capped at four extra steps per frame; a frame longer than
+  250 ms is a stall (scene load, background, breakpoint) and is not repaid at
+  all. Solo never enters it, and the act-1 trace is unchanged to the bit
+  (2453, `5b0182b35b1e304f`) — which is the proof that it does not.
+
+  The decision is a pure function between two markers in `dEngine.c`, and
+  `tools/catchup` **extracts that block verbatim** rather than copying it, so
+  the proof cannot drift from the code: 60 down to 15 fps all land at 1.000 of
+  real time, the two phones end the level together, a 3 s frame buys no
+  catch-up. It runs in CI beside the netrig.
 - **2 lives to 0, then 1 at the next level** is the second-chance rule from
   round 31, working: a pool that is exactly empty at a level load is given one
   life back, once. Not a bug.

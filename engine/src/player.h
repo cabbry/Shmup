@@ -180,6 +180,8 @@ typedef struct bezierCtrl_t
 typedef struct autopilot_t
 {
 	uchar enabled;
+	uchar holdAtEnd;	// 4.0.2: once this run ends, stay parked at end_ss_position (end of level)
+	uchar parked;		// 4.0.3: the hold engaged -- the ship keeps its WORLD orientation from here on
 	int timeCounter;
 	float originalTime;
 	vec2_t diff_ss_position;
@@ -216,6 +218,13 @@ typedef struct player_t
 	ushort invulFlickering;
 	char respawnCounter;
 	uchar shouldDraw;
+	// v4.1.0: this hull is OUT of the match -- parked off-screen with the pool
+	// spent, or a seat the host dropped. Not the same as shouldDraw, which
+	// FLICKERS during invulnerability and is therefore useless as "is this ship
+	// still in the game": when the flicker ended it set shouldDraw back to 1 on
+	// a corpse, which put it back in the collision tests and let it die a second
+	// time -- ending the match while the other player was flying untouched.
+	uchar isOut;
 
 	// v2.0.9 host authority on deaths: this hull was hit and its death is
 	// awaiting the host's ruling. Collisions are suspended meanwhile (the
@@ -265,6 +274,10 @@ void P_UpdateGhosts(player_t* player);
 void P_PrepareGhostSprites(void);
 void P_FireGhosts(player_t* player);
 
+int  P_LivesLeftForHud(void);	// the HUD label: hits left after the current hull (0 = the next one ends it)
+int  P_EnemyHealthPct(void);	// v4.1.1: enemy health scaled to the hulls still flying, in percent
+extern int gPartyChangeStamp;	// the HOST's clock for the death being applied (0 = use ours)
+void P_NotePartyChange(int atSimTime, int immediate);	// a hull was lost or given back
 void P_Die(uchar playerId);			// a hull was hit: routes to the host authority in MP
 void P_ApplyDeath(uchar playerId);	// the death itself (FX, pool, respawn/RIP, game over) -- no network
 void P_UpdateSSBoundaries(uchar pId);

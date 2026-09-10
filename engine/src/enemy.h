@@ -108,8 +108,10 @@ typedef struct enemy_t
 	uchar state;
 	
 	float parameters[NUM_ENEMY_PARAMETERS];
-	
+
 	uchar score;
+
+	char group[16];		// v4 stage 2: the rules watch enemies by group ("" = none)
 } enemy_t ;
 
 typedef void (*stateFunction)(enemy_t* enemy);

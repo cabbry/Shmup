@@ -59,6 +59,46 @@ xf_textureless_sprite_t controlVertices[NUM_CONTROL_VERTICES];
 
 
 
+
+// ---------------------------------------------------------------------------
+// v4.1.2 -- HOW HARD THE PERIODIC RESYNC PULLS.
+//
+// Each device streams its own ship's ABSOLUTE position every 300 ms so the
+// peers can correct the drift the delta stream leaves behind. The correction
+// used to close a flat TENTH of the error, which is far too gentle: the error
+// decays by 0.9 every 300 ms, so a ship a fifth of the screen out of place
+// needs six seconds to come back -- and if drift builds faster than that, it
+// never does. It just sits there, wrong, which is what the tester saw on the
+// second iPhone.
+//
+// The pull now depends on how wrong the position is, which is the thing the
+// flat tenth ignored:
+//   - a hair out         leave it alone; correcting jitter only makes jitter
+//   - plainly out        close a third of it, so it is back within a second
+//   - somewhere else     put it where it belongs, and take the jump
+//
+// Positions are screen-normalised: X and Y run -1..1 across the view, so the
+// dead zone is about a hundredth of the screen and the snap about an eighth.
+// This only ever moves a REMOTE ship, whose position is network-driven and
+// never simulated -- each device tests collisions against its OWN hull only,
+// so pulling harder here cannot change what happens to anyone.
+/* --- RESYNC-ARITHMETIC-BEGIN --- */
+#define RESYNC_DEADZONE	0.02f	/* under this, the ship is where it should be */
+#define RESYNC_SNAP		0.25f	/* over this, it is not drift: it is wrong */
+#define RESYNC_GAIN		0.35f	/* how much of the rest to close per correction */
+
+static float COM_ResyncStep(float current, float target)
+{
+	float err = target - current;
+	float mag = (err < 0) ? -err : err;
+
+	if (mag <= RESYNC_DEADZONE)
+		return current;
+	if (mag >= RESYNC_SNAP)
+		return target;
+	return current + err * RESYNC_GAIN;
+}
+/* --- RESYNC-ARITHMETIC-END --- */
 void COM_Init(void)
 {
 	xf_textureless_sprite_t* controlVertice;
@@ -534,8 +574,8 @@ void COM_ExecCommand(command_t* command)
 			if (player->autopilot.enabled)
 				return;
 			
-			player->ss_position[X] += (command->delta[X] - player->ss_position[X])/10.0f; 
-			player->ss_position[Y] += (command->delta[Y] - player->ss_position[Y])/10.0f;  
+			player->ss_position[X] = COM_ResyncStep(player->ss_position[X], command->delta[X]);
+			player->ss_position[Y] = COM_ResyncStep(player->ss_position[Y], command->delta[Y]);
 			P_UpdateSSBoundaries(pId);
 			
 			break;

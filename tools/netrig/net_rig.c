@@ -41,6 +41,7 @@
 	void rig_set_loadout_##id(int ship, int color); \
 	void rig_set_lives_##id(int n); \
 	void rig_set_party_##id(int n); \
+	void rig_set_act_##id(int a); \
 	int  rig_is_host_##id(void); \
 	void rig_hit_##id(void); \
 	int  rig_invul_##id(int s);
@@ -66,6 +67,7 @@ typedef struct peer_api_t {
 	void (*set_loadout)(int,int);
 	void (*set_lives)(int);
 	void (*set_party)(int);
+	void (*set_act)(int);
 	int  (*is_host)(void);
 	void (*hit)(void);
 	int  (*invul)(int);
@@ -75,7 +77,7 @@ typedef struct peer_api_t {
                   rig_resolve_peer_##id, rig_next_level_##id, rig_state_##id, rig_seat_##id, \
                   rig_numseats_##id, rig_numplayers_##id, rig_controlled_##id, rig_lives_##id, \
                   rig_scene_##id, rig_drawn_##id, rig_color_##id, rig_ship_##id, \
-                  rig_set_loadout_##id, rig_set_lives_##id, rig_set_party_##id, rig_is_host_##id, rig_hit_##id, rig_invul_##id }
+                  rig_set_loadout_##id, rig_set_lives_##id, rig_set_party_##id, rig_set_act_##id, rig_is_host_##id, rig_hit_##id, rig_invul_##id }
 static peer_api_t P[NPEERS] = { API(0), API(1), API(2), API(3) };
 
 /* --- rig state --- */
@@ -125,18 +127,51 @@ void rig_vlog(int peer, const char* fmt, va_list ap)
 	vprintf(fmt, ap);
 }
 
-/* GameKit mock: a broadcast to every other LIVE peer, tagged with our seat. */
-void rig_gk_send(int peer, const void* data, int len, int reliable)
+/* GameKit mock: a broadcast to every other LIVE peer, tagged with our seat.
+   GKMatch has TWO channels and no ordering between them: a later UNRELIABLE
+   datagram routinely overtakes an earlier RELIABLE one (the reliable channel
+   pays for its ordering with a round of buffering). gGkReorder models exactly
+   that -- a reliable send is held and delivered right AFTER the peer's next
+   send. It always arrives; it just arrives late. */
+int gGkReorder = 0;
+
+typedef struct gk_held_t { int used, len; unsigned char data[2048]; } gk_held_t;
+static gk_held_t gGkHeld[NPEERS];
+
+static void gk_deliver(int peer, const void* data, int len)
 {
 	int i;
-	(void)reliable;
-	if (!gAlive[peer]) return;
 	for (i = 0; i < NPEERS; i++)
 	{
 		if (i == peer || !gAlive[i]) continue;
 		if (gSeatOf[i] < 0) continue;
 		P[i].deliver_gk(gSeatOf[peer], data, len);
 	}
+}
+
+static void gk_flush_held(int peer)
+{
+	if (!gGkHeld[peer].used) return;
+	gGkHeld[peer].used = 0;
+	gk_deliver(peer, gGkHeld[peer].data, gGkHeld[peer].len);
+}
+
+void rig_gk_send(int peer, const void* data, int len, int reliable)
+{
+	if (!gAlive[peer]) return;
+
+	if (gGkReorder && reliable && len <= (int)sizeof(gGkHeld[0].data))
+	{
+		gk_flush_held(peer);			/* never hold two: the channel is ordered within itself */
+		gGkHeld[peer].used = 1;
+		gGkHeld[peer].len  = len;
+		memcpy(gGkHeld[peer].data, data, len);
+		return;
+	}
+
+	gk_deliver(peer, data, len);
+	if (gGkReorder)
+		gk_flush_held(peer);			/* the unreliable one just overtook it */
 }
 
 /* --- assertions --- */
@@ -167,6 +202,7 @@ static void reset_rig(int nPeers, int online)
 	int i;
 	rig_bus_reset();
 	gOnline = online;
+	gGkReorder = 0;
 	for (i = 0; i < NPEERS; i++)
 	{
 		gPaused[i] = 0;
@@ -177,6 +213,7 @@ static void reset_rig(int nPeers, int online)
 		gSeatOf[i] = -1;
 		gNotice[i][0] = 0;
 		gDeaths[i] = 0;
+		gGkHeld[i].used = 0;
 		gLastDeathSeat[i] = -1;
 	}
 }
@@ -734,6 +771,157 @@ static void scenario_death_authority(void)
 	      gDeaths[0], gDeaths[1]);
 }
 
+
+/* 15. ONLINE DEATHS WHEN THE CHANNELS RACE -- the device report of 2026-09-08:
+      "je ne mourais pas sur mon ecran, mais sur l'autre device je mourais", and
+      the pool read 5 on one phone and 4 on the other. GKMatch's reliable and
+      unreliable channels have no order between them, and the death protocol
+      (reliable) shares ONE sequence counter with the per-frame runtime stream
+      (unreliable). Let a runtime packet overtake a death packet and the
+      receiver's "seq <= lastRxSeq -> already applied" filter eats the death:
+      one device rules and applies it, the other never hears it. */
+static void scenario_online_death_reorder(void)
+{
+	int i;
+	printf("[15] Online pair: an unreliable packet overtakes the death packet\n");
+	reset_rig(2, 1);
+	for (i = 0; i < 2; i++) { gSeatOf[i] = i; P[i].init_lan(); P[i].set_loadout(0, 0); }
+	P[0].start_online(0, 2);
+	P[1].start_online(1, 2);
+	run_frames(600);
+	for (i = 0; i < 2; i++)
+		check(P[i].state() == STATE_RUNNING, "reorder: peer %d never started", i);
+	check(P[0].lives() == 6 && P[1].lives() == 6, "reorder: pools (%d,%d) at kickoff, expected (6,6)",
+	      P[0].lives(), P[1].lives());
+
+	gGkReorder = 1;			/* from here on, every reliable packet is overtaken */
+
+	/* The CLIENT's hull is hit. The host rules; both devices must apply it. */
+	P[1].hit();
+	run_frames(120);
+
+	check(gDeaths[0] == 1 && gDeaths[1] == 1,
+	      "reorder: the death was applied (%d,%d) times, expected once on each device",
+	      gDeaths[0], gDeaths[1]);
+	check(P[0].lives() == P[1].lives(),
+	      "reorder: the pools disagree -- %d on the host, %d on the client",
+	      P[0].lives(), P[1].lives());
+	check(P[0].lives() == 5, "reorder: pool %d after one death from 6, expected 5", P[0].lives());
+	check(P[0].drawn(1) == P[1].drawn(1),
+	      "reorder: seat 1 is drawn %d on the host and %d on the client",
+	      P[0].drawn(1), P[1].drawn(1));
+
+	run_frames(400);		/* the invulnerability window closes */
+
+	/* And the other way round: the HOST's own hull, whose order is the one that
+	   gets overtaken on its way out. */
+	P[0].hit();
+	run_frames(120);
+	check(gDeaths[0] == 2 && gDeaths[1] == 2,
+	      "reorder: host death applied (%d,%d) times, expected twice on each device",
+	      gDeaths[0], gDeaths[1]);
+	check(P[0].lives() == P[1].lives() && P[0].lives() == 4,
+	      "reorder: pools (%d,%d) after two deaths from 6, expected (4,4)",
+	      P[0].lives(), P[1].lives());
+}
+
+/* 16. THE ENDGAME, AND THE SURVIVOR NOBODY TOUCHED -- device report of
+      2026-09-09 on a LAN pair: "le 0 est mal gere, le dernier player est mort
+      tout seul sans etre touche". Spend the pool down to empty with real hits,
+      then hit NOBODY for several seconds and watch. A death that appears with
+      no hit behind it is the bug; the two devices disagreeing about who is
+      still flying is the other one. */
+static void scenario_endgame_untouched(void)
+{
+	int i, deathsAfter[2], drawn0, drawn1;
+	printf("[16] LAN pair: the pool runs dry, then nobody is hit for five seconds\n");
+	reset_rig(2, 0);
+
+	for (i = 0; i < 2; i++) { P[i].init_lan(); P[i].set_party(2); P[i].set_loadout(0, 0); }
+	run_frames(10);
+	P[0].resolve_peer(gIps[1]);
+	P[1].resolve_peer(gIps[0]);
+	run_frames(500);
+	check(P[0].state() == STATE_RUNNING && P[1].state() == STATE_RUNNING, "endgame: the pair did not start");
+
+	/* A pool of 2, spent by two real hits: the first respawns, the second
+	   empties the pool and parks that hull. The other must still be flying. */
+	for (i = 0; i < 2; i++) P[i].set_lives(2);
+	P[1].hit();						/* the client's hull */
+	run_frames(200);				/* let the invulnerability window close */
+	P[1].hit();
+	run_frames(120);
+
+	check(P[0].lives() == P[1].lives(), "endgame: pools disagree (%d vs %d)", P[0].lives(), P[1].lives());
+	check(P[0].lives() == 0, "endgame: pool %d after two deaths from 2, expected 0", P[0].lives());
+	check(P[0].drawn(0) == P[1].drawn(0) && P[0].drawn(1) == P[1].drawn(1),
+	      "endgame: the two screens disagree on who is flying (peer0 %d/%d, peer1 %d/%d)",
+	      P[0].drawn(0), P[0].drawn(1), P[1].drawn(0), P[1].drawn(1));
+	check(P[0].drawn(0) == 1, "endgame: seat 0 was parked without ever being hit");
+
+	/* Now the part that matters: NOBODY is hit. Five seconds of it. */
+	deathsAfter[0] = gDeaths[0];
+	deathsAfter[1] = gDeaths[1];
+	drawn0 = P[0].drawn(0);
+	drawn1 = P[0].drawn(1);
+	run_frames(300);				/* ~5 s at 16 ms */
+
+	check(gDeaths[0] == deathsAfter[0] && gDeaths[1] == deathsAfter[1],
+	      "endgame: %d/%d deaths appeared with nobody hit (the survivor died alone)",
+	      gDeaths[0] - deathsAfter[0], gDeaths[1] - deathsAfter[1]);
+	check(P[0].drawn(0) == drawn0 && P[0].drawn(1) == drawn1,
+	      "endgame: a hull was parked with nobody hit");
+	check(P[0].lives() == 0 && P[1].lives() == 0,
+	      "endgame: the pool moved with nobody hit (%d, %d)", P[0].lives(), P[1].lives());
+
+	/* And the real last death still ends it, once, for both. */
+	P[0].hit();
+	run_frames(120);
+	check(P[0].lives() == P[1].lives(), "endgame: pools disagree after the last death (%d vs %d)",
+	      P[0].lives(), P[1].lives());
+	check(P[0].drawn(0) == 0 && P[1].drawn(0) == 0, "endgame: the last hull is still flying at game over");
+}
+
+/* 17. THE TWO PLAYERS ASK FOR DIFFERENT ACTS -- the tester's question of
+      2026-09-09: "si le joueur 1 dit act 1 et le joueur 2 dit act 2, il se
+      passe quoi ?". The scene MUST be the same on both devices or the two
+      sims are playing different levels, so it has one owner: the host. Seat 0
+      wins, and the other device follows it -- never its own wish, and never a
+      guess of its own. */
+static void scenario_act_choice(void)
+{
+	int i;
+	printf("[17] LAN pair: seat 0 asks for act 3, seat 1 asks for act 2\n");
+	reset_rig(2, 0);
+
+	for (i = 0; i < 2; i++) { P[i].init_lan(); P[i].set_party(2); P[i].set_loadout(0, 0); }
+	/* with two peers alive, peer 0 is seat 0 (the host) and peer 1 is seat 1 */
+	P[0].set_act(3);
+	P[1].set_act(2);
+	run_frames(10);
+	P[0].resolve_peer(gIps[1]);
+	P[1].resolve_peer(gIps[0]);
+	run_frames(500);
+
+	check(P[0].state() == STATE_RUNNING && P[1].state() == STATE_RUNNING, "act choice: the pair did not start");
+	check(P[0].scene() == P[1].scene(), "act choice: the two devices loaded DIFFERENT scenes (%d vs %d)",
+	      P[0].scene(), P[1].scene());
+	check(P[0].scene() == 3, "act choice: the host asked for act 3 and the party went to scene %d", P[0].scene());
+
+	/* And the other way round, so it is the HOST that decides and not the
+	   higher number, the lower number, or whoever spoke first. */
+	printf("     ... and again with the host asking for act 1\n");
+	reset_rig(2, 0);
+	for (i = 0; i < 2; i++) { P[i].init_lan(); P[i].set_party(2); P[i].set_loadout(0, 0); }
+	P[0].set_act(1);
+	P[1].set_act(4);
+	run_frames(10);
+	P[0].resolve_peer(gIps[1]);
+	P[1].resolve_peer(gIps[0]);
+	run_frames(500);
+	check(P[0].scene() == P[1].scene(), "act choice: devices disagree (%d vs %d)", P[0].scene(), P[1].scene());
+	check(P[0].scene() == 1, "act choice: the host asked for act 1 and the party went to scene %d", P[0].scene());
+}
 int main(int argc, char** argv)
 {
 	if (argc > 1 && !strcmp(argv[1], "-v")) gVerbose = 1;
@@ -754,6 +942,9 @@ int main(int argc, char** argv)
 	scenario_online_staggered_start();
 	scenario_lan_host_migration();
 	scenario_death_authority();
+	scenario_online_death_reorder();
+	scenario_endgame_untouched();
+	scenario_act_choice();
 
 	printf("=== %d checks, %d failures ===\n", gChecks, gFailures);
 	return gFailures ? 1 : 0;

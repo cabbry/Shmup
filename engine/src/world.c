@@ -33,6 +33,7 @@
 #include "lexer.h"
 #include "player.h"
 #include "event.h"
+#include "rules.h"	// v4 stage 2
 #include "titles.h"
 #include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
@@ -59,7 +60,7 @@ void World_SetIntroShipPreview(int shipChoice)
 	float s = 1.0f;
 	int i;
 
-	if (engine.sceneId != 0 || num_map_entities < 1)
+	if (!SCENE_IS(SCENE_KIND_INTRO) || num_map_entities < 1)	// v4: the menu stage, by kind
 		return;
 
 	if (shipChoice >= 0 && shipChoice < NUM_SHIP_CHOICES)
@@ -496,7 +497,7 @@ void World_OpenScene(char* filename)
 				// hardcoded to the boss act's scene id.
 				if (!strcmp("driftAtEnd", LE_getCurrentToken()))
 				{
-					gCameraDriftAtEnd = (LE_readReal() != 0);
+					gCameraDriftAtEnd = (int)LE_readReal();	// 4.0.4: 1 classic patrol, 2 level patrol (see camera.c)
 				}
 
 				LE_readToken();
@@ -510,6 +511,11 @@ void World_OpenScene(char* filename)
 			camera.fov = 2.0f * atanf( tanf(camera.fov * DEG_TO_RAD / 2.0f) * renderer.vScale ) / DEG_TO_RAD;
 		}
 		else 
+		if (!strcmp("rules", LE_getCurrentToken()))	// v4 stage 2: conditional events
+		{
+			RULES_Read();
+		}
+		else
 		if (!strcmp("enemies", LE_getCurrentToken()))
 		{
 			EV_ReadEnemiesEvents();
@@ -610,6 +616,20 @@ void World_OpenScene(char* filename)
 					strcat(engine.musicFilename, FS_Gamedir());
 					strcat(engine.musicFilename,"/");
 					strcat(engine.musicFilename, LE_getCurrentToken());
+				}
+				else
+				if (!strcmp("alternate", LE_getCurrentToken()))
+				{
+					// v4.1.1: the other theme. Acts all share one track and it
+					// simply plays on from act to act, so it used to RUN OUT
+					// somewhere in act 3 or 4 and leave the rest of the run in
+					// silence. When this one ends, the alternate takes over, and
+					// then hands back.
+					LE_readToken();
+					engine.musicAlternate[0] = '\0';
+					strcat(engine.musicAlternate, FS_Gamedir());
+					strcat(engine.musicAlternate, "/");
+					strcat(engine.musicAlternate, LE_getCurrentToken());
 				}
 				else
 				if (!strcmp("startMusicAt", LE_getCurrentToken()))

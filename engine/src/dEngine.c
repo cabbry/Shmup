@@ -43,6 +43,7 @@
 #include "world.h"
 #include "lexer.h"
 #include "event.h"
+#include "rules.h"	// v4 stage 2
 #include "native_services.h"
 #include "fx.h"
 #include "vis.h"
@@ -65,6 +66,8 @@ engine_info_t engine;
 
 char* screenShotDirectory = "./";//"/Users/fabiensanglard/Pictures/dEngine/";
 
+
+static void dEngine_ReadPack(int sceneId, const char* packPath);	// v4 stage 1, defined below dEngine_ReadConfig
 
 bool dEngine_ReadConfig(void)
 {
@@ -103,21 +106,42 @@ bool dEngine_ReadConfig(void)
 				{
 					engine.numScenes = LE_readReal();
 				}
-				else 
+				else
 				if (!strcmp("scene", LE_getCurrentToken()))
 				{
 					currentSceneId = LE_readReal();
-					
+
 					LE_readToken(); //The name of the scene, here only to help developer to keep track of config.cfg
 					strReplace(LE_getCurrentToken(), '_', ' ');
 					strcpy(engine.scenes[currentSceneId].name, LE_getCurrentToken());
-					
+
 					LE_readToken();
 					strcpy(engine.scenes[currentSceneId].path, LE_getCurrentToken());
-					
+
+					// v4: a legacy entry gets its kind from the 2009 id convention
+					// (0 the intro, 1..numScenes-1 the acts, 13 demo, 14-15 tutorials).
+					engine.scenes[currentSceneId].kind =
+						(currentSceneId == 0) ? SCENE_KIND_INTRO :
+						(currentSceneId == 13) ? SCENE_KIND_DEMO :
+						(currentSceneId == 14 || currentSceneId == 15) ? SCENE_KIND_TUTORIAL : SCENE_KIND_ACT;
+
 					Log_Printf("Read scene %d, name %s, path %s\n",currentSceneId,engine.scenes[currentSceneId].name,engine.scenes[currentSceneId].path);
-					
-					
+
+
+				}
+				else
+				if (!strcmp("pack", LE_getCurrentToken()))
+				{
+					// v4 stage 1: "pack <sceneId> <path/to/pack.cfg>" -- the manifest
+					// says what the scene is (kind, name, author, version, players).
+					currentSceneId = (int)LE_readReal();
+					LE_readToken();
+					{
+						char packPath[256];	// the lexer's token buffer moves on while the pack is read: copy the path first
+						strncpy(packPath, LE_getCurrentToken(), sizeof(packPath) - 1);
+						packPath[sizeof(packPath) - 1] = 0;
+						dEngine_ReadPack(currentSceneId, packPath);
+					}
 				}
 				
 				LE_readToken();
@@ -256,8 +280,22 @@ bool dEngine_ReadConfig(void)
 	
 	LE_popLexer();
 	FS_CloseFile(config);
+
+	// v4: number the acts in id order; the progression, the licence check and
+	// the end-of-game card key on actIndex / numActs, not on scene ids.
+	{
+		int i, n = 0;
+		for (i = 0; i < MAX_NUM_SCENES; i++)
+		{
+			engine.scenes[i].actIndex = 0;
+			if (engine.scenes[i].kind == SCENE_KIND_ACT)
+				engine.scenes[i].actIndex = (char)++n;
+		}
+		engine.numActs = n;
+		Log_Printf("[pack] %d scenes, %d acts.\n", engine.numScenes, engine.numActs);
+	}
 	return true;
-	
+
 }
 
 uchar* screenShotBuffer;
@@ -351,6 +389,72 @@ static void dEngine_ApplyFakePlayers(void)
 	}
 }
 
+// v4 stage 1: read a level pack's manifest into scenes[sceneId]. The block:
+//   pack { format 1  id act1  name Act_I  kind act  author Fabien_Sanglard
+//          version 1  scene data/scenes/act1.scene  minPlayers 1  maxPlayers 4 }
+// Paths are from the data root, like every other file the engine opens. Keys it
+// does not know are skipped (one value each), so a newer manifest still loads.
+static void dEngine_ReadPack(int sceneId, const char* packPath)
+{
+	filehandle_t* f;
+	scene_t* s;
+	if (sceneId < 0 || sceneId >= MAX_NUM_SCENES)
+	{
+		Log_Printf("[pack] scene id %d out of range for %s\n", sceneId, packPath);
+		return;
+	}
+	f = FS_OpenFile(packPath, "rt");
+	if (!f)
+	{
+		Log_Printf("[pack] manifest not found: %s\n", packPath);
+		return;
+	}
+	FS_UploadToRAM(f);
+	s = &engine.scenes[sceneId];
+	s->kind = SCENE_KIND_UNKNOWN;
+	s->minPlayers = 1;
+	s->maxPlayers = MAX_NUM_PLAYERS;
+	s->version = 1;
+	LE_pushLexer();
+	LE_init(f);
+	while (LE_hasMoreData())
+	{
+		LE_readToken();
+		if (!strcmp("pack", LE_getCurrentToken()))
+		{
+			LE_readToken();	// {
+			LE_readToken();
+			while (LE_hasMoreData() && strcmp("}", LE_getCurrentToken()))
+			{
+				const char* key = LE_getCurrentToken();
+				if (!strcmp("format", key))          { (void)LE_readReal(); }
+				else if (!strcmp("id", key))         { LE_readToken(); strncpy(s->packId, LE_getCurrentToken(), sizeof(s->packId) - 1); }
+				else if (!strcmp("name", key))       { LE_readToken(); strReplace(LE_getCurrentToken(), '_', ' '); strncpy(s->name, LE_getCurrentToken(), sizeof(s->name) - 1); }
+				else if (!strcmp("author", key))     { LE_readToken(); strReplace(LE_getCurrentToken(), '_', ' '); strncpy(s->author, LE_getCurrentToken(), sizeof(s->author) - 1); }
+				else if (!strcmp("version", key))    { s->version = (short)LE_readReal(); }
+				else if (!strcmp("scene", key))      { LE_readToken(); strncpy(s->path, LE_getCurrentToken(), sizeof(s->path) - 1); }
+				else if (!strcmp("minPlayers", key)) { s->minPlayers = (char)LE_readReal(); }
+				else if (!strcmp("maxPlayers", key)) { s->maxPlayers = (char)LE_readReal(); }
+				else if (!strcmp("kind", key))
+				{
+					LE_readToken();
+					if      (!strcmp("intro", LE_getCurrentToken()))    s->kind = SCENE_KIND_INTRO;
+					else if (!strcmp("act", LE_getCurrentToken()))      s->kind = SCENE_KIND_ACT;
+					else if (!strcmp("demo", LE_getCurrentToken()))     s->kind = SCENE_KIND_DEMO;
+					else if (!strcmp("tutorial", LE_getCurrentToken())) s->kind = SCENE_KIND_TUTORIAL;
+					else Log_Printf("[pack] %s: unknown kind '%s'\n", packPath, LE_getCurrentToken());
+				}
+				else { LE_readToken(); }	// unknown key: skip its value
+				LE_readToken();
+			}
+		}
+	}
+	LE_popLexer();
+	FS_CloseFile(f);
+	Log_Printf("[pack] scene %d <- %s: id=%s kind=%d name=%s scene=%s players=%d-%d\n",
+		sceneId, packPath, s->packId, s->kind, s->name, s->path, s->minPlayers, s->maxPlayers);
+}
+
 bool dEngine_Init(void)
 {
 	FS_InitFilesystem();
@@ -370,6 +474,7 @@ bool dEngine_Init(void)
 	//engine.recordVideo = 0;
 	
 	engine.musicFilename[0] = '\0';
+	engine.musicAlternate[0] = 0;	// v4.1.1: a scene declares its own hand-over, or none
 	engine.musicStartAt = 0;
 	engine.playback.filename[0] = '\0';
 	
@@ -486,10 +591,10 @@ void dEngine_LoadScene(int sceneId)
 	gRuntimeCullMap = 0;
 
 	// Progression: remember the furthest act ever reached (solo or multiplayer).
-	// Acts are scenes 1..numScenes-1 (the demo/tutorial live at 13..15).
-	if (sceneId >= 1 && sceneId < engine.numScenes && sceneId > gHighestActReached)
+	// v4: an act is a scene of kind ACT; its 1-based actIndex is the progression unit.
+	if (SCENE_KIND(sceneId) == SCENE_KIND_ACT && engine.scenes[sceneId].actIndex > gHighestActReached)
 	{
-		gHighestActReached = sceneId;
+		gHighestActReached = engine.scenes[sceneId].actIndex;
 #ifdef __APPLE__
 		Native_SaveProgress(gHighestActReached);
 #endif
@@ -498,6 +603,7 @@ void dEngine_LoadScene(int sceneId)
 	engine.musicStartAt= 0;
 
 	// Now actually start loading things
+	RULES_InitForScene();	// v4 stage 2: the scene file may carry a rules block
 	World_OpenScene(engine.scenes[engine.sceneId].path);
 
 	// Apply the chosen ship to player 0 now that the level config has set modelPath
@@ -555,7 +661,7 @@ void dEngine_LoadScene(int sceneId)
 		
 	VIS_Update();
 	
-	if (engine.sceneId == 1 && engine.licenseType == LICENSE_LIMITED)
+	if (SCENE_IS(SCENE_KIND_ACT) && engine.scenes[engine.sceneId].actIndex == 1 && engine.licenseType == LICENSE_LIMITED)
 	{
 		ev = calloc(1, sizeof(event_t));
 		ev->time = 130000;
@@ -564,7 +670,7 @@ void dEngine_LoadScene(int sceneId)
 	}
     
     //We are back to main menu, init a few things
-    if (sceneId == 0 )
+    if (SCENE_KIND(sceneId) == SCENE_KIND_INTRO)
     {
         numPlayers = 1;
         PL_ResetPlayersScore();
@@ -720,8 +826,132 @@ void dEngine_CheckState(void)
 	}
 }
 
+// ---------------------------------------------------------------------------
+// v4.0.7 -- THE CATCH-UP LOOP (multiplayer only).
+//
+// Timer_tick advances the simulation by a FIXED ~16.67 ms per RENDERED FRAME.
+// That is what makes the sim deterministic, and it is right for solo. In a
+// match it is the disease behind "la synchro marche mais finit par se
+// desynchroniser en fin de niveau": a device that drops frames does not fall
+// behind, it runs SLOW. Two phones at 60 and 50 fps part by one second of game
+// time every six seconds of play, and the gap is widest at the end of a level
+// because it integrates. Nothing re-converges it -- the level's own timeline
+// fires off simulationTime, so the two devices are simply in different moments
+// of the same act.
+//
+// So in multiplayer the clock follows the WALL, not the frame: whatever whole
+// steps wall time is owed are simulated here, with the renderer off, and only
+// the last one is drawn. Under load the match now stutters instead of slowing
+// down -- which is the trade a networked game has to make. The engine already
+// runs nested host frames this way for scene loads (dEngine_JumpInTime), so
+// the mechanism is the one that has been shipping since 2010.
+//
+// Solo never enters here: its timing, and every act tuned against it, is
+// untouched to the bit.
+// The decision, kept pure and marked: how many EXTRA simulation steps this
+// frame owes, given the debt carried so far and the whole milliseconds of wall
+// clock since the previous frame. tools/catchup EXTRACTS the block between the
+// markers verbatim and tests these very lines -- so the proof cannot drift away
+// from the code the way a copy would.
+/* --- CATCHUP-ARITHMETIC-BEGIN --- */
+#define CATCHUP_STEP_MS		(50.0f / 3.0f)	// 16.666..., the step Timer_tick adds
+#define CATCHUP_MAX_STEPS	2				// a rendered frame may carry 3 steps at most. Every step
+											// beyond the first is simulation the player never SEES:
+											// a bullet can cross the ship between two drawn frames
+											// and kill in a state that was never on screen ("mort
+											// tout seul sans etre touche", 2026-09-09). Two extra
+											// steps still tracks the wall clock down to 20 fps,
+											// and bounds the unseen stretch to about 33 ms.
+#define CATCHUP_STALL_MS	250				// longer than this is not lag: it is a scene load,
+											// a breakpoint or a return from the background
+
+static int dEngine_CatchUpSteps(float* debt, int delta)
+{
+	int steps;
+
+	if (delta < 0 || delta > CATCHUP_STALL_MS)
+	{
+		*debt = 0.0f;					// not a dropped frame; do not stampede through it
+		return 0;
+	}
+
+	// This rendered frame runs one step of its own, so only the excess is owed.
+	*debt += (float)delta - CATCHUP_STEP_MS;
+	if (*debt < 0.0f)
+		*debt = 0.0f;					// ahead of the wall (a fast frame): nothing to pay
+	if (*debt < CATCHUP_STEP_MS)
+		return 0;
+
+	steps = (int)(*debt / CATCHUP_STEP_MS);
+	if (steps > CATCHUP_MAX_STEPS)
+	{
+		steps = CATCHUP_MAX_STEPS;
+		*debt = 0.0f;					// too far gone to repay: take the loss once
+	}
+	else
+		*debt -= steps * CATCHUP_STEP_MS;
+
+	return steps;
+}
+/* --- CATCHUP-ARITHMETIC-END --- */
+
+static int   gCatchupBusy = 0;		// re-entrancy: the nested frames must not recurse
+static int   gCatchupLastWall = 0;	// 0 = not armed (fresh match, or solo)
+static float gCatchupDebt = 0.0f;	// wall milliseconds owed to the simulation
+
+static void dEngine_CatchUp(void)
+{
+	int now, delta, steps, wasEnabled;
+
+	// A time jump is already driving nested frames of its own (scene load): stay out.
+	if (engine.mode != DE_MODE_MULTIPLAYER || !NET_IsRunning() || timeJumpCounter > 0)
+	{
+		gCatchupLastWall = 0;			// re-arm for the next match
+		gCatchupDebt = 0.0f;
+		return;
+	}
+
+	now = E_Sys_Milliseconds();
+	if (gCatchupLastWall == 0)
+	{
+		gCatchupLastWall = now;			// first frame of the match: no history to owe
+		return;
+	}
+	delta = now - gCatchupLastWall;
+	gCatchupLastWall = now;
+
+	steps = dEngine_CatchUpSteps(&gCatchupDebt, delta);
+	if (steps <= 0)
+		return;
+
+	// Each nested frame is a NORMAL frame with the drawing switched off: it ticks
+	// the same clock, reads and sends on the wire, and moves the same world -- so
+	// a stuttering device still feeds its peer sixty commands a second.
+	// The renderer flag is SAVED, not assumed: a scene change inside one of the
+	// nested frames runs dEngine_JumpInTime, which switches drawing back on when
+	// it is done -- and this loop must not inherit that and paint a second time
+	// into a Metal frame already in flight. Re-asserted before every step, and
+	// put back exactly as it was found.
+	wasEnabled = renderer.enabled;
+	gCatchupBusy = 1;
+	if (Log_ProbesEnabled())
+		Log_Printf("[catchup] t=%d wall=%d steps=%d\n", simulationTime, delta, steps);
+	while (steps-- > 0)
+	{
+		renderer.enabled = 0;
+		dEngine_HostFrame();
+	}
+	renderer.enabled = wasEnabled;
+	gCatchupBusy = 0;
+}
+
 void dEngine_HostFrame(void)
 {
+	// v4.0.7: in a match, pay the simulation whatever wall time it is owed before
+	// drawing this frame (see dEngine_CatchUp). Solo and the nested steps skip it.
+	if (!gCatchupBusy)
+		dEngine_CatchUp();
+
 	// Load a new scene/menu if needed
 	dEngine_CheckState();
 
@@ -788,6 +1018,8 @@ void dEngine_HostFrame(void)
 	//Check collisions.
     COLL_CheckEnemies();
     COLL_CheckPlayers();
+	RULES_Update();	// v4 stage 2: conditional events -- after the collisions, so a rule and the
+					// boss read the same energy on the same frame (the ladder parity, stage 2b)
 	
 	//Update world
     World_Update();
@@ -879,7 +1111,10 @@ void dEngine_ResumeGame(void)
 	// Single-player only: the freeze + countdown holds the world still locally,
 	// which would DESYNC a lockstep multiplayer game (the peer keeps simulating).
 	// In multiplayer we never pause/freeze.
-	if (entitiesAttachedToCamera && engine.mode == DE_MODE_SINGLEPLAYER)
+	// ... and only when the game is actually being played: on the GAME OVER
+	// screen the ships are still attached but a menu is up, and the countdown
+	// used to print over it (a Known issue since round 8, closed in round 42).
+	if (entitiesAttachedToCamera && engine.mode == DE_MODE_SINGLEPLAYER && !engine.menuVisible)
 		gCountdownMs = RESUME_COUNTDOWN_MS;
 }
 

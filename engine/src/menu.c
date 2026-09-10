@@ -434,6 +434,21 @@ void Action_startNewGame(void* tag)
 // either way). Act select makes practicing an act -- and reaching the act-4
 // boss -- possible without clearing the whole game in one run. Acts are only
 // selectable once they have been REACHED in play (gHighestActReached).
+
+// v4.0.9 -- the act a MULTIPLAYER party starts on. Both devices pick one, and
+// the HOST's pick is the one that happens: the act must be identical on every
+// device or the two sims load different scenes, so it needs a single owner,
+// and the party already has one (seat 0, the same device that rules deaths and
+// drives the barrier). The lobby says so out loud, so the player whose choice
+// loses sees why. Party SIZE needs no owner -- it is only "stop waiting once
+// this many are here", so two devices asking for different numbers already
+// agree on whoever actually showed up.
+static int gPartyPickIsOnline = 0;	// which transport the size picker is choosing for
+static int gMPPickedAct = 1;		// 1..4, this device's wish
+static int gPickingActForMP = 0;	// the act screen is serving the multiplayer flow
+static int gPendingPartySize = 2;	// remembered while the act is chosen
+static void MENU_ActPickedForParty(int act);
+
 static const char* actRoman[] = { "", "I", "II", "III", "IV" };
 
 // One button per playable act (scenes 1..numScenes-1), laid out as a 2x2 grid.
@@ -473,10 +488,17 @@ void Action_startNewGameAtAct(void* tag)
 	int sceneId = *(char*)tag;	// 1..4 = Act I..IV
 
 	// Progression gate: the act must have been reached in play at least once.
+	// (Multiplayer comes through here too -- see MENU_ActPickedForParty.)
 	if (sceneId > gHighestActReached)
 	{
 		MENU_UpdateActLockStatus(sceneId);
 		MENU_ClearButtonStates();
+		return;
+	}
+
+	if (gPickingActForMP)
+	{
+		MENU_ActPickedForParty(sceneId);
 		return;
 	}
 
@@ -516,8 +538,6 @@ void Action_PreGoToGameCenter(void* tag)
 
 }
 
-// v2 P4: which transport the party-size picker is choosing for.
-static int gPartyPickIsOnline = 0;
 
 void Action_ConfigureMultiplayer(void* tag)
 {
@@ -531,6 +551,7 @@ void Action_ConfigureMultiplayer(void* tag)
 	engine.mode = DE_MODE_MULTIPLAYER;
 	NET_Init();
 	NET_SetPartyTarget(partySize);	// the roster stops waiting once this many are found
+	sprintf(MENU_GetMultiplayerTextLine(0), "Act %s -- the host's act is the one that plays", actRoman[gMPPickedAct]);
 	PL_ResetPlayersScore();
 
 	// Shared life pool in multiplayer, mirrored on each death in P_Die. This is
@@ -581,22 +602,41 @@ void Action_ConfigureOnlineMultiplayer(void* tag)
 
 	engine.difficultyLevel = DIFFICULTY_NORMAL;
 
-	sprintf(MENU_GetMultiplayerTextLine(0), "Finding %d players...", partySize);
+	sprintf(MENU_GetMultiplayerTextLine(0), "Finding %d players for Act %s...", partySize, actRoman[gMPPickedAct]);
+	sprintf(MENU_GetMultiplayerTextLine(1), "(the host's act is the one that plays)");
 	Native_StartOnlineMatchmaking(partySize);	// presents the Game Center matchmaker UI
 }
 #endif
 
-// The picker's buttons land here: same screen, two destinations.
-void Action_PickPartySize(void* tag)
+
+
+
+
+// The act screen, when the multiplayer flow sent us there: remember the wish
+// and go on to the lobby (or Apple's matchmaker). The lock rule is the solo
+// one -- you cannot start a party on an act nobody has reached.
+static void MENU_ActPickedForParty(int act)
 {
+	int tagSize = gPendingPartySize;
+
+	gMPPickedAct = act;
+	gPickingActForMP = 0;
+	NET_SetStartAct(act);
 #ifdef __APPLE__
 	if (gPartyPickIsOnline)
 	{
-		Action_ConfigureOnlineMultiplayer(tag);
+		Action_ConfigureOnlineMultiplayer(&tagSize);
 		return;
 	}
 #endif
-	Action_ConfigureMultiplayer(tag);
+	Action_ConfigureMultiplayer(&tagSize);
+}
+void Action_PickPartySize(void* tag)
+{
+	gPendingPartySize = tag ? *(int*)tag : 2;
+	gPickingActForMP = 1;
+	MENU_UpdateActLockStatus(0);
+	MENU_Set(MENU_SELECT_ACT);
 }
 
 #ifdef SHMUP_TARGET_ANDROID  
@@ -833,7 +873,7 @@ void MENU_Init(void)
 
 	// TITLE IMAGE
 	pos[X] = 0 ; 
-	pos[Y] = SS_COO_SYST_HEIGHT - 120 - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]) - 55;
+	pos[Y] = SS_COO_SYST_HEIGHT - 120 - 55;	// round 42: the title cards sit on FIXED margins that clear today's notches; the safe-inset term that used to be here was always 0 (the inset is not known when the menus are built)
 	dimensions[WIDTH]  =  261 *2.2;
 	dimensions[HEIGHT] =  102 *2.2;
 	textPos[X] =  0/(float)512;
@@ -883,7 +923,7 @@ void MENU_Init(void)
 	
 	// CREDIT TITLE IMAGE
 	pos[X] = 0 ; 
-	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]) - 55 ;
+	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) - 55 ;
 	dimensions[WIDTH] = 261*2.1; 
 	dimensions[HEIGHT] = 104*2.1;
 	textPos[X] = 251/(float)512 ; 
@@ -942,7 +982,7 @@ void MENU_Init(void)
 	MENU_CreateText(currentMenu,0,-50,2,TEXT_CENTERED,"");
 	
 	pos[X] = 0 ; 
-	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]) - 55 ;
+	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) - 55 ;
 	dimensions[WIDTH] = 261*2.1; 
 	dimensions[HEIGHT] = 104*2.1;
 	textPos[X] = 321/(float)512 ; 
@@ -982,7 +1022,7 @@ void MENU_Init(void)
 	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_BackToHomeAfterGameOver,NULL, buttonPos, buttonDim);
 	
 	pos[X] = 0 ; 
-	pos[Y] = (SS_COO_SYST_HEIGHT - 180) - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]) - 55 ;
+	pos[Y] = (SS_COO_SYST_HEIGHT - 180) - 55 ;
 	dimensions[WIDTH] = 261*2.2 ; 
 	dimensions[HEIGHT] = 154*2.2;
 	textPos[X] = 176/(float)512 ; 
@@ -1019,7 +1059,7 @@ void MENU_Init(void)
 	
 	
 	pos[X] = 0 ; 
-	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]) - 55 ;
+	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) - 55 ;
 	dimensions[WIDTH] = 261*2.1; 
 	dimensions[HEIGHT] = 104*2.1;
 	textPos[X] = 421/(float)512 ; 
@@ -1094,7 +1134,7 @@ void MENU_Init(void)
 	currentMenu = &menuScreens[MENU_SELECT_DIFFICULTY];
 	// CREDIT TITLE IMAGE
 	pos[X] = 0 ; 
-	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) - renderer.safeInsetTopPx * (2.0f * SS_H / (float)renderer.glBuffersDimensions[HEIGHT]) - 55 ;
+	pos[Y] = ((SS_COO_SYST_HEIGHT - 140)) - 55 ;
 	dimensions[WIDTH] = 261*2.1; 
 	dimensions[HEIGHT] = 104*2.1;
 	textPos[X] = 271/(float)512 ; 
@@ -1579,7 +1619,7 @@ void MENU_ApplyEnvHooks(void)
 {
 	char* mid = getenv("SHMUP_MENU");
 	char* sc  = getenv("SHMUP_MENU_SCROLL");
-	if (mid && engine.sceneId == 0)
+	if (mid && SCENE_IS(SCENE_KIND_INTRO))
 	{
 		int id = atoi(mid);
 		if (id >= 0 && id < (int)(sizeof(menuScreens) / sizeof(menuScreens[0])))

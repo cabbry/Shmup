@@ -212,7 +212,8 @@ void TITLE_Show_epilog(int tr)
 // stats strip, and it holds much longer so the run's numbers can be read.
 static int TITLE_IsLastAct(void)
 {
-	return (engine.sceneId == engine.numScenes - 1);
+	// v4: the last act by kind and order, not the last scene id
+	return SCENE_IS(SCENE_KIND_ACT) && engine.scenes[engine.sceneId].actIndex == engine.numActs;
 }
 
 int TITLE_IsEndOfGameScreen(void)

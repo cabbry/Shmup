@@ -187,9 +187,13 @@ static BOOL     gMatchStarted = NO;
 - (void)matchmakerViewController:(GKMatchmakerViewController *)viewController didFindMatch:(GKMatch *)match {
 	[viewController dismissViewControllerAnimated:YES completion:nil];
 	if (gMatch != match) {
-		// (ARC: the assignment below releases the old match)		gMatch = match;
+		// ARC: the assignment releases the old match. (v3 stage 2 had glued this
+		// statement onto the comment line -- online play found its peer and never
+		// started, gMatch staying nil; caught on device in 4.0.2.)
+		gMatch = match;
 	}
 	gMatch.delegate = this;
+	[self armMatchPoll];		// v4.0.6: do not rely on a callback that may never come
 	[self tryStartMatch];
 }
 
@@ -282,6 +286,46 @@ static void GKSeats_Clear(void) {
 	NET_OnNetworkDataFrom(seat, data.bytes, (int)data.length);
 }
 
+
+// v4.0.6 -- the match-start POLL. Starting used to depend entirely on GameKit
+// calling us back: didFindMatch once, then a connection-state change per peer.
+// If the party completed in a window where no further callback came, both
+// devices sat at "Starting match..." until the player cancelled and retried on
+// each phone (device report, 2026-09-08). Nothing re-checked a match that was
+// already fully connected. This does, twice a second, and stops as soon as the
+// match starts (or after 45 s, when the matchmaker is not coming back).
+static NSTimer* gMatchPoll = nil;
+static int      gMatchPollTicks = 0;
+#define MATCH_POLL_MAX_TICKS 90		// 90 x 0.5 s
+
+static void MatchPollStop(void) {
+	[gMatchPoll invalidate];
+	gMatchPoll = nil;
+	gMatchPollTicks = 0;
+}
+
+// Arm the poll above: called when a match arrives, harmless if already armed.
+- (void)armMatchPoll {
+	if (gMatchPoll != nil) return;
+	gMatchPollTicks = 0;
+	gMatchPoll = [NSTimer scheduledTimerWithTimeInterval:0.5
+	                                              target:self
+	                                            selector:@selector(matchPollTick:)
+	                                            userInfo:nil
+	                                             repeats:YES];
+}
+
+- (void)matchPollTick:(NSTimer*)t {
+	(void)t;
+	if (gMatchStarted || gMatch == nil) { MatchPollStop(); return; }
+	if (++gMatchPollTicks > MATCH_POLL_MAX_TICKS) {
+		NSLog(@"[GKMatch] still %lu player(s) short after %d s: giving up on this match",
+		      (unsigned long)gMatch.expectedPlayerCount, MATCH_POLL_MAX_TICKS / 2);
+		MatchPollStop();
+		return;
+	}
+	[self tryStartMatch];
+}
 // Build the seat table and start exactly once, after every expected player is
 // connected (expectedPlayerCount == 0 is already N-safe).
 - (void)tryStartMatch {
@@ -303,6 +347,7 @@ static void GKSeats_Clear(void) {
 	gSeatByPlayer = [bySeat copy];			// MRC: owned
 
 	gMatchStarted = YES;
+	MatchPollStop();			// v4.0.6: the poll's job is done
 	NET_StartOnlineMatch((int)[ids indexOfObject:myId], (int)ids.count);
 }
 
@@ -423,6 +468,7 @@ void Native_CancelOnlineMatchmaking(void) {
 	gMatch = nil;				// nil first so re-entrant delegate callbacks bail out
 	gMatchStarted = NO;
 	GKSeats_Clear();			// v2 P1: the seat table dies with the match
+	MatchPollStop();			// v4.0.6: and so does the start poll
 	m.delegate = nil;
 	[m disconnect];
 }

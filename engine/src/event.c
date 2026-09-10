@@ -35,6 +35,9 @@
 #include "text.h"
 #include "menu.h"
 #include "camera.h"
+#include "netchannel.h"	// v4.0.6: the menu stage ends a multiplayer session
+#include "rules.h"	// v4 stage 2: RULES_NoteSpawn
+#include <string.h>
 #include "lee.h"
 #include "fht.h"
 #include "shab.h"
@@ -225,12 +228,27 @@ void EV_SpawnEnemy(event_t* event)
 	}
 
 	// In multiplayer N ships fire (~N times the DPS), so enemies felt too easy
-	// with solo HP. Scale their energy by the ship count to keep the challenge
-	// comparable (v2 P3: was a flat x2 for the 2-player mode -- identical at 2).
-	// Applied identically on every device (same events, same mode/numPlayers)
-	// so it stays deterministic. One-shot WEAK enemies (energy 1) are left alone.
+	// with solo HP. Their health follows the hulls STILL FLYING (v4.1.1): when a
+	// player is out for good it comes back down, though never all the way to
+	// solo -- the last survivor keeps a 20 % surcharge. One-shot WEAK enemies
+	// (energy 1) are left alone. Integer percent, and the change takes effect at
+	// a simulation time both devices took from the host's clock, so every device
+	// gives the same enemy the same health.
 	if (engine.mode == DE_MODE_MULTIPLAYER && enemy->energy > 1 && numPlayers >= 2)
-		enemy->energy *= numPlayers;
+	{
+		int pct = P_EnemyHealthPct();
+		int e   = (enemy->energy * pct) / 100;
+		enemy->energy = (short)(e < 1 ? 1 : e);
+	}
+
+	// v4 stage 2: the enemy joins its group and the rules take note (energy
+	// budget for hpBelow, "seen" for cleared).
+	strncpy(enemy->group, eventPayload->group, sizeof(enemy->group) - 1);
+	enemy->group[sizeof(enemy->group) - 1] = 0;
+	RULES_NoteSpawn(enemy);
+	if (Log_ProbesEnabled() && enemy->group[0])
+		Log_Printf("[spawn] t=%d type=%d sub=%d group=%s energy=%d ttl=%d\n",
+			simulationTime, enemy->type, eventPayload->subType, enemy->group, enemy->energy, enemy->ttl);
 	
 
 	
@@ -285,6 +303,26 @@ void EV_RequestScene(event_t* event)
 	
 	
 	dEngine_RequireSceneId(payload->sceneId);
+
+	// v4.0.6 -- leaving for the MENU STAGE ends a multiplayer session. GAME OVER
+	// used to drop both devices back to the menu with the match still live:
+	// NET_RUNNING, mode still MULTIPLAYER, numPlayers still 2. The peers kept
+	// streaming at each other behind the menu, and the next thing that started a
+	// scene started it as a two-player game with nobody having asked -- the
+	// tester's "la partie a redemarre toute seule en partie a 2 alors que nous
+	// etions dans les menus". The end-of-GAME path (dEngine_GoToNextScene) has
+	// always torn down here; game over never did. Both sims reach this on the
+	// same simulation tick, so each side tears down deterministically -- and it
+	// runs from EV_Update, never from inside NET_Receive's drain loop.
+	if (payload->sceneId >= 0 && payload->sceneId < MAX_NUM_SCENES &&
+	    SCENE_KIND(payload->sceneId) == SCENE_KIND_INTRO && engine.mode == DE_MODE_MULTIPLAYER)
+	{
+		Log_Printf("[EV_RequestScene] back to the menu stage: ending the multiplayer session.\n");
+		NET_Free();
+		numPlayers = 1;
+		controlledPlayer = 0;
+		engine.mode = DE_MODE_SINGLEPLAYER;
+	}
 	
 	Log_Printf("[EV_RequestScene] engine.requiredSceneId =%d.\n",engine.requiredSceneId );
 }
@@ -311,6 +349,7 @@ void EV_AutoPilotPls(event_t* event)
 		players[i].autopilot.enabled = 1;
 		players[i].autopilot.timeCounter  = PLAYER_ENDLEVEL_REPLACMENT;
 		players[i].autopilot.originalTime = PLAYER_ENDLEVEL_REPLACMENT;
+		players[i].autopilot.holdAtEnd    = 1;	// 4.0.2: and stay there under the card (every act, like the boss act)
 		// v2 P3: the end-of-level rest formation. 0.6*P_FormationX(i) is
 		// bit-exact with the 2010 (i-0.5)*2*0.3 for seats 0/1, and pulls
 		// seats 2/3 into the inner staggered pair instead of off-screen.
@@ -502,7 +541,28 @@ void EV_AddEvent(event_t* event)
 {
 	event_t* cEvent;
 	event_t* tmp;
-	
+
+	// v4 stage 2: a rule may fire after the timeline is exhausted (nextEvent
+	// NULL); the event becomes the new head instead of dereferencing NULL.
+	if (nextEvent == NULL)
+	{
+		event->next = NULL;
+		nextEvent = event;
+		return;
+	}
+
+	// ... and an event EARLIER than the head goes in front of it. The 2009
+	// insertion only ever looked past the head, which was fine for a timeline
+	// read in order; a rule firing mid-level while the camera's detach waits
+	// at 140 s had its spawns filed BEHIND that detach -- never to fire (the
+	// bench: "fire w2" printed, no w2 ship ever spawned).
+	if (event->time < nextEvent->time)
+	{
+		event->next = nextEvent;
+		nextEvent = event;
+		return;
+	}
+
 	cEvent = nextEvent;
 	
 	//Search
@@ -521,6 +581,28 @@ void EV_AddEvent(event_t* event)
 		event->next = tmp;
 	}
 
+}
+
+// v4 stage 2: spawns of that group still waiting in the timeline (or scheduled
+// by a rule). "cleared" must wait for them: the first ship of a wave can die
+// the tick it spawns, before its sisters exist -- the bench caught exactly
+// that (w2 fired 50 ms into w1).
+int EV_PendingSpawnsInGroup(const char* group)
+{
+	event_t* e;
+	int n = 0;
+	if (!group || !group[0])
+		return 0;
+	for (e = nextEvent; e != NULL; e = e->next)
+	{
+		if (e->type == EV_SPAWN_ENEMY && e->payload)
+		{
+			event_spawnEnemy_payload_t* p = (event_spawnEnemy_payload_t*)e->payload;
+			if (!strcmp(p->group, group))
+				n++;
+		}
+	}
+	return n;
 }
 
 void EV_Update(void)
@@ -570,120 +652,56 @@ void EV_CleanAllRemainingEvents(void)
 	
 }
 
-void EV_ReadEnemiesEvents(void)
+// v4 stage 2: the two spawn grammars as functions, so the rules block speaks
+// the same language as the enemies block. The lexer sits just after
+// "spawnEnemyWave circle": read the wave and fill up to maxOut payloads.
+//   circle enemyNum <n> enemyType <t> percentageInvulnerable <p> angleOffset <deg> subType <s>
+int EV_ParseCircleWave(event_spawnEnemy_payload_t* out, int maxOut, float ttl)
 {
-	event_t*                     event;
-	event_spawnEnemy_payload_t*  eventPayload;
-	int                          at;
-	int                          numEnemies;
-	int                          enemyType;
-	int                          i;
-	int                          time=0;
-	float                        ttl;
-	float                        percentageInvulnerable;
-	float                        angleoffset;
-	uchar                        defaultSubType;
-	
-	nextEvent = &events;
+	int   numEnemies, enemyType, i, n = 0;
+	float percentageInvulnerable, angleoffset;
+	uchar defaultSubType;
 
-	LE_readToken() ; //{
+	//enemyNum
+	LE_readToken();
+	numEnemies = LE_readReal();
 
-	LE_readToken(); 	//at or }
-	while (LE_hasMoreData() && strcmp(LE_getCurrentToken(), "}")) 
+	//enemyType
+	LE_readToken();
+	enemyType = LE_readReal();
+
+	//percentageInvulnerable
+	LE_readToken();
+	percentageInvulnerable = LE_readReal()/100.0f;
+
+	LE_readToken();
+	angleoffset  = LE_readReal() * 2*M_PI/360 ;
+
+	LE_readToken();
+	defaultSubType = LE_readReal();
+
+	for (i = 0; i < numEnemies && n < maxOut; i++, n++)
 	{
-		if (!strcmp("settime", LE_getCurrentToken()))
-		{
-			time = LE_readReal();
-			//Log_Printf("settime=%d.\n",time);
-		}
-		else
-		if (!strcmp("addtime", LE_getCurrentToken())) 
-		{
-			time += LE_readReal();
-		}
-		if (!strcmp("setttl", LE_getCurrentToken()))
-		{
-			ttl = LE_readReal();
-			//Log_Printf("ttl=%.2f.\n",ttl);
-		}		
-		else if (!strcmp("at", LE_getCurrentToken()))
-		{
-			at = time + LE_readReal();
-		
-			//Log_Printf("Fount enemy at %d.\n",at);
-		
-			LE_readToken();
-		
+		event_spawnEnemy_payload_t* eventPayload = &out[n];
+		memset(eventPayload, 0, sizeof(*eventPayload));
+		eventPayload->type = enemyType;
+		eventPayload->xAxisRot = 0;
+		eventPayload->yAxisRot = 0;
+		eventPayload->zAxisRot = 0;
+		//This is ugly
+		eventPayload->startPosition[X] = (angleoffset+2*M_PI)/numEnemies*i;
+		eventPayload->mouvementPatternType = MVMT_CIRCLE;
+		eventPayload->ttl = ttl;
+		eventPayload->subType = (i/(float)numEnemies < percentageInvulnerable)? ENEMY_SUBTYPE_IMPOSSIBLE : defaultSubType ;
+	}
+	return n;
+}
 
-			//at  50000 spawnEnemyWave circle enemyNum 16 enemyType 1
-			if (!strcmp("spawnEnemyWave", LE_getCurrentToken()))
-			{
-				LE_readToken();
-			
-				if (!strcmp("circle", LE_getCurrentToken()))
-				{
-					//enemyNum
-					LE_readToken();
-					numEnemies= LE_readReal();
-					//Log_Printf("Fount %d enemies.\n",numEnemies);
-				
-					//enemyType
-					LE_readToken();
-					enemyType = LE_readReal();
-					//Log_Printf("Fount enemyType %d.\n",enemyType);
-				
-					//percentageInvulnerable
-					LE_readToken();
-					percentageInvulnerable = LE_readReal()/100.0f;
-					
-					LE_readToken();
-					angleoffset  = LE_readReal() * 2*M_PI/360 ;
-					
-					LE_readToken();
-					defaultSubType = LE_readReal();
-					
-					for(i=0 ; i < numEnemies ; i++)
-					{
-						event = calloc(1, sizeof(event_t));
-						event->time = at;
-						event->type = EV_SPAWN_ENEMY;
-						eventPayload = calloc(1, sizeof(event_spawnEnemy_payload_t));
-						event->payload = eventPayload;
-						eventPayload->type = enemyType;
-						//eventPayload->zAxisRot = 2*3.1415/numEnemies * i;
-						
-						eventPayload->xAxisRot=0;
-						eventPayload->yAxisRot=0;
-						eventPayload->zAxisRot=0;
-						
-						//This is ugly
-						eventPayload->startPosition[X] = (angleoffset+2*M_PI)/numEnemies*i;
-						//eventPayload->startPosition[X] = 1.3 * cosf(2*M_PI/numEnemies*i);//*SS_H/(float)SS_W;
-						//eventPayload->startPosition[Y] = 1.3 * sinf(2*M_PI/numEnemies*i); 
-						
-						eventPayload->mouvementPatternType = MVMT_CIRCLE;
-						
-						eventPayload->ttl = ttl;
-						
-						
-						eventPayload->subType = (i/(float)numEnemies < percentageInvulnerable)? ENEMY_SUBTYPE_IMPOSSIBLE : defaultSubType ;
-						
-						EV_AddEvent(event);
-					}
-				}
-			}	
-			else
-			//at 0 spawnEnemy enemyType 3 startPos -1 -1 endPos -0.5 0.5 controlPoint -1 1 initialRoll 90
-			if (!strcmp("spawnEnemy", LE_getCurrentToken()))
-			{
-				event = calloc(1, sizeof(event_t));
-				event->time = at;
-				event->type = EV_SPAWN_ENEMY;
-				eventPayload = calloc(1, sizeof(event_spawnEnemy_payload_t));
-				event->payload = eventPayload;
-				
-				eventPayload->ttl =  ttl;
-				
+// The lexer sits just after "spawnEnemy": mouvement, its parameters, enemyType,
+// startPos, endPos, controlPoint, the three rotations, subType, and the
+// per-type parameters. Verbatim the 2009 reading order.
+void EV_ParseSpawnParams(event_spawnEnemy_payload_t* eventPayload)
+{
 				//mouvement
 				LE_readToken();
 				eventPayload->mouvementPatternType = LE_readReal();
@@ -786,6 +804,94 @@ void EV_ReadEnemiesEvents(void)
 					default:
 						break;
 				}
+}
+
+void EV_ReadEnemiesEvents(void)
+{
+	event_t*                     event;
+	event_spawnEnemy_payload_t*  eventPayload;
+	int                          at = 0;
+	int                          i;
+	int                          time=0;
+	float                        ttl = 0;
+	// v4 stage 2: a circle wave is parsed into this scratch, then turned into events;
+	// "group <name>" after a spawn line tags what that line created.
+	event_spawnEnemy_payload_t   waveTmp[64];
+	int                          numWave;
+	event_spawnEnemy_payload_t*  lastPayloads[64];
+	int                          numLast = 0;
+	
+	nextEvent = &events;
+
+	LE_readToken() ; //{
+
+	LE_readToken(); 	//at or }
+	while (LE_hasMoreData() && strcmp(LE_getCurrentToken(), "}")) 
+	{
+		if (!strcmp("settime", LE_getCurrentToken()))
+		{
+			time = LE_readReal();
+			//Log_Printf("settime=%d.\n",time);
+		}
+		else
+		if (!strcmp("addtime", LE_getCurrentToken())) 
+		{
+			time += LE_readReal();
+		}
+		if (!strcmp("setttl", LE_getCurrentToken()))
+		{
+			ttl = LE_readReal();
+			//Log_Printf("ttl=%.2f.\n",ttl);
+		}		
+		else if (!strcmp("at", LE_getCurrentToken()))
+		{
+			at = time + LE_readReal();
+		
+			//Log_Printf("Fount enemy at %d.\n",at);
+		
+			LE_readToken();
+		
+
+			//at  50000 spawnEnemyWave circle enemyNum 16 enemyType 1
+			if (!strcmp("spawnEnemyWave", LE_getCurrentToken()))
+			{
+				LE_readToken();
+			
+				if (!strcmp("circle", LE_getCurrentToken()))
+				{
+					// v4 stage 2: the wave grammar lives in EV_ParseCircleWave (shared with the rules)
+					numWave = EV_ParseCircleWave(waveTmp, 64, ttl);
+					numLast = 0;
+					for (i = 0; i < numWave; i++)
+					{
+						event = calloc(1, sizeof(event_t));
+						event->time = at;
+						event->type = EV_SPAWN_ENEMY;
+						eventPayload = calloc(1, sizeof(event_spawnEnemy_payload_t));
+						memcpy(eventPayload, &waveTmp[i], sizeof(event_spawnEnemy_payload_t));
+						event->payload = eventPayload;
+						if (numLast < 64)
+							lastPayloads[numLast++] = eventPayload;
+						EV_AddEvent(event);
+					}
+				}
+			}	
+			else
+			//at 0 spawnEnemy enemyType 3 startPos -1 -1 endPos -0.5 0.5 controlPoint -1 1 initialRoll 90
+			if (!strcmp("spawnEnemy", LE_getCurrentToken()))
+			{
+				event = calloc(1, sizeof(event_t));
+				event->time = at;
+				event->type = EV_SPAWN_ENEMY;
+				eventPayload = calloc(1, sizeof(event_spawnEnemy_payload_t));
+				event->payload = eventPayload;
+				
+				eventPayload->ttl =  ttl;
+				
+				// v4 stage 2: the spawn grammar lives in EV_ParseSpawnParams (shared with the rules)
+				EV_ParseSpawnParams(eventPayload);
+				numLast = 0;
+				lastPayloads[numLast++] = eventPayload;
 				
 				
 				
@@ -795,6 +901,17 @@ void EV_ReadEnemiesEvents(void)
 			}
 			//Log_Printf("t=%d enemyType=%d\n",event->time,eventPayload->type);
 		}
+		else if (!strcmp("group", LE_getCurrentToken()))
+		{
+			// v4 stage 2: "group <name>" after a spawn line tags what that line spawned
+			LE_readToken();
+			for (i = 0; i < numLast; i++)
+			{
+				strncpy(lastPayloads[i]->group, LE_getCurrentToken(), sizeof(lastPayloads[i]->group) - 1);
+				lastPayloads[i]->group[sizeof(lastPayloads[i]->group) - 1] = 0;
+			}
+		}
+
 		LE_readToken(); 
 	}
 	

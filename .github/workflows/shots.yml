@@ -24,6 +24,10 @@ on:
         description: "extra SIMCTL_CHILD_* env, space-separated (e.g. SHMUP_AUTOFIRE=1)"
         required: false
         default: ""
+      simSeconds:
+        description: "SIMULATION seconds at which to take a frame (comma-separated). Overrides 'seconds': the Simulator runs the game 3-20 s behind the clock, differently every run; this reads the engine's own t= from the log (needs SHMUP_CULL_DEBUG=1 in env, which prints it every second)."
+        default: ""
+        required: false
 
 jobs:
   shots:
@@ -85,16 +89,41 @@ jobs:
           ENVS=""
           if [ "$SCENE" != "0" ]; then ENVS="SIMCTL_CHILD_SHMUP_BAKE_SCENE=$SCENE"; fi
           for kv in $EXTRA; do ENVS="$ENVS SIMCTL_CHILD_$kv"; done
+          # the sim-timed mode reads the engine's own log file: force it on, with the t= probe
+          if [ -n "${{ inputs.simSeconds }}" ]; then ENVS="$ENVS SIMCTL_CHILD_SHMUP_LOG_FILE=1 SIMCTL_CHILD_SHMUP_CULL_DEBUG=1"; fi
           echo "launching scene $SCENE with: $ENVS"
           # shellcheck disable=SC2086
           nohup env $ENVS xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$RUNNER_TEMP/app.log" 2>&1 &
-          T0=$(perl -MTime::HiRes=time -e 'printf "%.1f", time')
-          for s in $(echo "$SECONDS_LIST" | tr ',' ' '); do
-            # decimals allowed ("0.8,1.1,1.4"): a title card lasts about a second
-            while perl -MTime::HiRes=time -e "exit(time - $T0 < $s ? 0 : 1)"; do sleep 0.05; done
-            xcrun simctl io "$UDID" screenshot "shots/scene${SCENE}_t$(printf %05.1f "$s")s.png" || true
-            echo "frame at ${s}s"
-          done
+          SIM_LIST="${{ inputs.simSeconds }}"
+          if [ -n "$SIM_LIST" ]; then
+            # sim-timed frames: wait for the ENGINE's clock. Read the app's own log file
+            # (flushed per line -- the relayed console arrives in blocks, 10 s late), and
+            # only this scene's [cull] lines (the next act restarts t at 0).
+            CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
+            T0=$(perl -MTime::HiRes=time -e 'printf "%.1f", time')
+            for s in $(echo "$SIM_LIST" | tr ',' ' '); do
+              TARGET=$(awk -v s="$s" 'BEGIN{printf "%d", s*1000}')
+              while :; do
+                LOG=$(ls -t "$CONTAINER"/Documents/*.log "$CONTAINER"/Documents/*.txt 2>/dev/null | head -1)
+                NOW=""
+                [ -n "$LOG" ] && NOW=$(grep -o "^\[cull\] scene=$SCENE .* t=[0-9]*" "$LOG" 2>/dev/null | tail -1 | grep -o "t=[0-9]*" | tr -d 't=')
+                [ -n "$NOW" ] && [ "$NOW" -ge "$TARGET" ] && break
+                if [ -n "$LOG" ] && grep -q "^\[scene\] $SCENE -> " "$LOG" 2>/dev/null; then echo "::error::scene $SCENE ended before ${s}s (last t=$NOW)"; break 2; fi
+                if perl -MTime::HiRes=time -e "exit(time - $T0 < 900 ? 1 : 0)"; then echo "::error::sim clock never reached ${s}s (last t=$NOW)"; break 2; fi
+                sleep 0.1
+              done
+              xcrun simctl io "$UDID" screenshot "shots/scene${SCENE}_sim$(printf %05.1f "$s")s.png" || true
+              echo "frame at sim ${s}s (engine t=$NOW ms, wall $(perl -MTime::HiRes=time -e "printf \"%.1f\", time - $T0")s)"
+            done
+          else
+            T0=$(perl -MTime::HiRes=time -e 'printf "%.1f", time')
+            for s in $(echo "$SECONDS_LIST" | tr ',' ' '); do
+              # decimals allowed ("0.8,1.1,1.4"): a title card lasts about a second
+              while perl -MTime::HiRes=time -e "exit(time - $T0 < $s ? 0 : 1)"; do sleep 0.05; done
+              xcrun simctl io "$UDID" screenshot "shots/scene${SCENE}_t$(printf %05.1f "$s")s.png" || true
+              echo "frame at ${s}s"
+            done
+          fi
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
           # a crash on launch leaves the home screen in every frame and a report here
           if ls ~/Library/Logs/DiagnosticReports/Shmup* >/dev/null 2>&1; then

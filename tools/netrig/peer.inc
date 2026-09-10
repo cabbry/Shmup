@@ -56,6 +56,7 @@
 #define NET_GetDropedPackets                PS(NET_GetDropedPackets)
 #define NET_IsInMatch                       PS(NET_IsInMatch)
 #define NET_SetPartyTarget                  PS(NET_SetPartyTarget)
+#define NET_SetStartAct                     PS(NET_SetStartAct)
 
 /* --- engine state this peer owns --- */
 #define players            PS(players)
@@ -66,6 +67,7 @@
 #define toSend             PS(toSend)
 #define commandsBuffers    PS(commandsBuffers)
 #define numPlayerRespawn   PS(numPlayerRespawn)
+#define gPartyChangeStamp  PS(gPartyChangeStamp)
 #define gShipChoice        PS(gShipChoice)
 #define gBulletColor       PS(gBulletColor)
 #define gMPShipChoice      PS(gMPShipChoice)
@@ -102,6 +104,7 @@ int               simulationTime = 0;
 command_t         toSend;
 command_buffer_t  commandsBuffers[MAX_NUM_PLAYERS];
 unsigned char     numPlayerRespawn[] = {6,3,1};
+int               gPartyChangeStamp = 0;	/* v4.1.1: the host clock a death schedules the party change from */
 int               gShipChoice = 0;
 int               gBulletColor = 0;
 int               gMPShipChoice[MAX_NUM_PLAYERS]  = {0,1,2,3};
@@ -163,12 +166,28 @@ void PS(rig_init_lan)(void)
 	for (i = 0; i < MAX_NUM_PLAYERS; i++)
 	{
 		players[i].shouldDraw = 1;		/* as P_ResetPlayer does on the device */
+		players[i].isOut = 0;
 		players[i].playerId = i;
 	}
 	engine.mode = DE_MODE_MULTIPLAYER;
 	engine.numScenes = 5;
 	engine.sceneId = 0;
 	engine.requiredSceneId = 0;
+	// v4: the engine keys on a scene's KIND, not on its id (the pack manifest
+	// carries it). The rig has no config.cfg, so it stamps the same table a
+	// pack load would: scene 0 the menu stage, 1..4 the acts. Without this the
+	// match-start life pool never fills -- which is exactly how the v4 refactor
+	// broke this harness silently (23 checks, found 2026-09-08).
+	{
+		int s;
+		engine.scenes[0].kind = SCENE_KIND_INTRO;
+		for (s = 1; s < engine.numScenes; s++)
+		{
+			engine.scenes[s].kind = SCENE_KIND_ACT;
+			engine.scenes[s].actIndex = (char)s;
+		}
+		engine.numActs = engine.numScenes - 1;
+	}
 	NET_Init();
 }
 
@@ -209,15 +228,20 @@ int  PS(rig_ship)(int s)     { return gMPShipChoice[s]; }
 void PS(rig_set_loadout)(int ship, int color) { gShipChoice = ship; gBulletColor = color; }
 void PS(rig_set_lives)(int n) { int i; for (i=0;i<MAX_NUM_PLAYERS;i++) players[i].respawnCounter = n; }
 void PS(rig_set_party)(int n) { NET_SetPartyTarget(n); }
+void PS(rig_set_act)(int a)   { NET_SetStartAct(a); }
 int  PS(rig_is_host)(void)   { return NET_IsHost(); }		/* v2.0.9 host migration */
 
 /* v2.0.9 host authority: the death itself, as player.c applies it -- the pool
    decrements and mirrors, the hull respawns (counter > 0) or parks (RIP), and
    the invulnerability window opens (the host's idempotence relies on it). */
+/* Mirrors the shape of the real P_ApplyDeath (player.c) closely enough for the
+   protocol: the shared pool, the mirror, the park, and -- v4.1.0 -- the isOut
+   flag the corpse guards key on. The real one also runs the FX, the autopilot
+   and the game-over check, none of which the wire cares about. */
 void P_ApplyDeath(uchar id)
 {
 	int p;
-	if (players[id].respawnCounter <= 0 && players[id].shouldDraw == 0)
+	if (players[id].isOut)
 		return;
 	players[id].respawnCounter--;
 	for (p = 0; p < numPlayers && p < MAX_NUM_PLAYERS; p++)
@@ -225,7 +249,10 @@ void P_ApplyDeath(uchar id)
 	players[id].deathPending = 0;
 	players[id].invulnerableFor = 3700;
 	if (players[id].respawnCounter <= 0)
+	{
 		players[id].shouldDraw = 0;			/* RIP: parked */
+		players[id].isOut = 1;
+	}
 	rig_note_death(PEER_ID, id);
 }
 

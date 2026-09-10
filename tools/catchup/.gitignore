@@ -1,0 +1,7 @@
+catchup_arithmetic.inc
+catchup_test
+catchup_test.exe
+*.pdb
+*.ilk
+partyhp_arithmetic.inc
+resync_arithmetic.inc

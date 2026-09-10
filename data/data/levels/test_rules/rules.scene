@@ -1,0 +1,117 @@
+# The rules bench (v4 stage 2). Not a level: a CI scene that exercises the
+# conditional events on act 1's city with autofire on and no player input --
+# so every wave is act 1's own opening FHT (mouvement 2, xOffset 0, xWidth 0.25:
+# it sweeps the bullet column and dies). Three waves chained by RULES, not by the clock:
+#   w1   a timeline spawn at 9 s: three weak FHT tagged "w1"
+#   w2   RULE: when w1 is cleared, 1.5 s later, three weak FHT tagged "w2"
+#   w3   RULE: when w2 is cleared, three more, tagged "w3"
+#   late RULE: after 60 s, one hard FHT -- proves the clock trigger too
+# The smoke reads the "[rule] t=... fire" lines: w2 after the last w1 death,
+# w3 after the last w2 death, in that order, deterministic run to run.
+
+defaultMenu -1
+
+map
+{
+	filename: data/map/act1.map
+}
+
+light
+{
+	enabled 0
+	position : 5000 200 -5000 1
+   lookAt   : 0 -200 -5000
+   upVector : 1 0 0
+   fov      : 70
+
+   ambientColor  : 0.0 0.0 0.0
+   diffuseColor  : 1.0 1.0 1.0
+   speculaColor  : 1 1 1
+
+   constantAttenuation: 1
+   linearAttenuation: 0
+   attachedToCamera: 0
+}
+
+camera
+{
+	path:  data/cameraPath/act1.cp.cp2b
+	fov:	55
+	zNear:	10
+	zFar:	22000
+	attachAt: 8000
+	detachAt: 140000
+}
+
+fog
+{
+	enabled 1
+	density 0.1
+	startAt 70
+	endAt   405.0
+	color:  0.0  0.0  0.05
+}
+
+player
+{
+	id 0
+	matrix 1 0 0 -7
+	       0 1 0 110
+		   0 0 1 -396
+		   0 0 0 1
+}
+
+player
+{
+	id 1
+	matrix 1 0 0 7
+	       0 1 0 110
+		   0 0 1 -396
+		   0 0 0 1
+}
+
+playback
+{
+	play 0
+	record 0
+	filename rules.scene.io
+}
+
+music
+{
+	startMusicAt 0
+	trackname data/music/UNREALPM.mp3
+}
+
+title
+{
+	titleName  data/titles/dawnTitle.png
+	prolog start 2000 duration 4000
+}
+
+enemies
+{
+	settime 9000
+	setttl 8000
+	at 0000 spawnEnemy mouvement 2 xOffset 0 xWidth 0.25 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3 group w1
+	at 0700 spawnEnemy mouvement 2 xOffset 0 xWidth 0.25 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3 group w1
+	at 1400 spawnEnemy mouvement 2 xOffset 0 xWidth 0.25 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3 group w1
+}
+
+rules
+{
+	setttl 8000
+	rule w2   when cleared w1  after 1500
+	          spawnEnemy mouvement 2 xOffset 0 xWidth 0.25 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
+	          spawnEnemy mouvement 2 xOffset 0 xWidth 0.25 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
+	          spawnEnemy mouvement 2 xOffset 0 xWidth 0.25 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
+	          group w2
+	rule w3   when cleared w2
+	          spawnEnemy mouvement 2 xOffset 0 xWidth 0.25 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
+	          spawnEnemy mouvement 2 xOffset 0 xWidth 0.25 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
+	          spawnEnemy mouvement 2 xOffset 0 xWidth 0.25 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 3
+	          group w3
+	rule late when after 60000
+	          spawnEnemy mouvement 2 xOffset 0 xWidth 0.25 enemyType 1 startPos -0.5 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	          group late
+}

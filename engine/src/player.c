@@ -231,6 +231,7 @@ void P_ResetPlayer(int i)
 	player->invulFlickering = 0;
 	player->invulnerableFor = 0;
 	player->shouldDraw = 1;
+	player->isOut = 0;			// v4.1.0: a fresh hull is back in the match
 	
 	
 	player->nextBulletFireTime = 0 ;
@@ -242,6 +243,8 @@ void P_ResetPlayer(int i)
 	
 	player->showPointer = 0;
 	player->autopilot.enabled = 0;
+	player->autopilot.holdAtEnd = 0;	// 4.0.2: a fresh hull is not parked
+	player->autopilot.parked = 0;
 	player->deathPending = 0;		// v2.0.9: no ruling outstanding on a fresh hull
 	player->deathPendingSince = 0;
 	
@@ -448,6 +451,9 @@ void P_ResetPlayers(void)
 				players[i2].respawnCounter = 1;	// v2 P3: same rule, N-way mirror
 	}
 
+	// v4.1.1: everyone is back (P_ResetPlayer cleared isOut), so the enemies go
+	// back to full party strength -- at a level boundary, with no grace needed.
+	P_NotePartyChange(simulationTime, 1);
 	entitiesAttachedToCamera = 0;
 	playersWereAttached = 0;	// the next detached stretch is a PROLOG again
 	engine.playerStats.numEnemies = 0;
@@ -752,6 +758,19 @@ void P_Update(void)
 				player->autopilot.timeCounter -= timediff;
 				//printf("player->autopilot.timeCounter=%d.\n",player->autopilot.timeCounter);
 				player->autopilot.enabled = (player->autopilot.timeCounter > 0) ;
+				// 4.0.2 (user call): the end-of-level regroup PARKS the ships for good.
+				// The rest formation holds under the epilog card in every act -- no
+				// outro rush, no control handed back -- until the scene changes. A
+				// held autopilot is a zero-length one: position = end, forever.
+				if (!player->autopilot.enabled && player->autopilot.holdAtEnd)
+				{
+					player->autopilot.enabled = 1;
+					player->autopilot.diff_ss_position[X] = 0;
+					player->autopilot.diff_ss_position[Y] = 0;
+					player->autopilot.timeCounter  = 2000000;
+					player->autopilot.originalTime = 2000000;
+					player->autopilot.parked = 1;
+				}
 				
 				
 			}
@@ -760,10 +779,18 @@ void P_Update(void)
 			if (players[i].invulnerableFor > 0)
 			{
 				players[i].invulFlickering += timediff;
-				players[i].shouldDraw =players[i].invulFlickering & 128 ; //Fickering every 128ms
-				
+				// v4.1.0: never flicker a hull that is OUT. A parked corpse still
+				// carries the invulnerability its death gave it, and when that ran
+				// out this set shouldDraw back to 1 -- which put the wreck back on
+				// screen AND back into the collision tests, where it could be
+				// "killed" a second time and spend the last of the shared pool.
+				// The other player then got GAME OVER with an untouched ship
+				// (device screenshot, 2026-09-09).
+				if (!players[i].isOut)
+					players[i].shouldDraw = players[i].invulFlickering & 128;	//Fickering every 128ms
+
 				players[i].invulnerableFor -= timediff;
-				if (players[i].invulnerableFor <= 0)
+				if (players[i].invulnerableFor <= 0 && !players[i].isOut)
 						players[i].shouldDraw = 1;
 			}
 			
@@ -778,6 +805,15 @@ void P_Update(void)
 			// a side camera. The blend follows the camera's own swing fraction
 			// (camera.ttbAngle), so both moves land together; f stays 0 on every
 			// act without a ttbRoll and this is the original matrix product.
+			// 4.0.3: a PARKED ship is no longer a billboard. Attached, the pose is
+			// rebuilt every frame so the ship always shows its top to the camera --
+			// invisible while the rail flies flat, wrong once the end of a rail
+			// pitches or banks under the epilog card (act 1 climbs into the sky:
+			// "la camera tourne mais le vaisseau reste vu de dessus"). Until 4.0.1
+			// the detach froze the ship in world space; the park now keeps the
+			// orientation it had when the hold engaged, and only the translation
+			// below still follows the camera.
+			if (!player->autopilot.parked)
 			{
 				float f = fabsf(camera.ttbAngle) / ((float)M_PI * 0.5f);
 
@@ -1311,7 +1347,7 @@ void PL_RenderPlayerPointers(void)
 		// SCR_ConvertTextToVertices, so it holds if the size changes.
 		{
 			char livesStr[8];
-			int pool = players[controlledPlayer].respawnCounter;
+			int pool = P_LivesLeftForHud();	// v4.0.7: 0 means the next hit ends the run
 			short glyphHalf = (short)(MP_LIVES_FONT_SIZE * SS_W / 40);
 			short livesTextX = (short)(MP_LIVES_ICON_RIGHT_X * SS_W) + glyphHalf + 6;
 			if (pool < 0) pool = 0;
@@ -1322,7 +1358,7 @@ void PL_RenderPlayerPointers(void)
 		// BACK button at the top-centre to leave. Hit-tested in EAGLView.
 		// Not while the act title card is up: the card's band covers this
 		// very zone and the two used to print over each other (round 38).
-		if ((engine.sceneId == 13 || engine.sceneId == 14 || engine.sceneId == 15) && !TITLE_IsShowing())
+		if ((SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) && !TITLE_IsShowing())	// v4: by kind
 			SCR_ConvertTextToVertices("[ BACK ]",SCORE_FONT_SIZE,0,(short)(scoreY - 100),TEXT_CENTERED);
 		// Boss health bar (act 3), just under the score line while the fight is
 		// on. Only the "BOSS" label is font text (letters are proven on-screen);
@@ -1804,6 +1840,99 @@ void P_PrepareGhostSprites(void)
 
 
 
+// ---------------------------------------------------------------------------
+// v4.1.1 -- ENEMY HEALTH FOLLOWS THE PARTY THAT IS STILL FLYING.
+//
+// N ships fire about N times the damage, so multiplayer scales enemy energy by
+// the seat count. When a player runs out for good, that scaling stopped making
+// sense: the survivor was left alone against enemies built for two. Their
+// health now follows the hulls STILL IN THE MATCH -- and never all the way
+// back down to solo, because a lone survivor with the team's shared pool
+// should still be fighting harder than a solo run (tester's call: "rebaisser
+// la vie des ennemis mais laisser plus dur que le jeu solo de 20 %"). When the
+// next act resurrects the fallen player, it goes straight back up.
+//
+// Integer percent, never a float: the two devices must compute the same
+// number, not nearly the same one.
+/* --- PARTY-HP-ARITHMETIC-BEGIN --- */
+#define PARTY_HP_FLOOR_PCT	120		/* the last one flying: solo + 20 %, not solo */
+
+static int P_EnemyHealthPctFor(int alive, int seats)
+{
+	if (seats < 2)
+		return 100;						/* solo is untouched, to the bit */
+	if (alive >= 2)
+		return alive * 100;				/* N ships firing, N times the health */
+	return PARTY_HP_FLOOR_PCT;			/* one left, but not a solo run */
+}
+/* --- PARTY-HP-ARITHMETIC-END --- */
+
+// The change does not take effect the instant a hull is lost. A death lands on
+// the host and on the client one latency apart, and an enemy spawning in
+// between would be born with different health on the two devices -- the exact
+// shape of a desync. So the new value is scheduled from a timestamp BOTH
+// devices take from the same place: the host's clock, carried by the death
+// order. Every spawn before it uses the old number, every spawn after it the
+// new one, and the two sims never disagree about a single enemy.
+#define PARTY_HP_GRACE_MS	1000
+
+// The host's clock for the death being applied, so every device schedules the
+// change from the same number. 0 = ours is the clock that counts (solo, or the
+// host ruling its own hit).
+int gPartyChangeStamp = 0;
+
+static int gPartyHpPct     = 100;	// in force now
+static int gPartyHpNextPct = 100;	// what the last party change decided
+static int gPartyHpFrom    = 0;		// ...and the simulation time it starts at
+
+// Recompute from the hulls. `atSimTime` is the HOST's clock for a death (the
+// order carries it) or simply now for a level boundary, where both devices are
+// already in step and there is nothing to hide.
+void P_NotePartyChange(int atSimTime, int immediate)
+{
+	int i, alive = 0;
+
+	for (i = 0; i < numPlayers && i < MAX_NUM_PLAYERS; i++)
+		if (!players[i].isOut)
+			alive++;
+
+	gPartyHpNextPct = P_EnemyHealthPctFor(alive, numPlayers);
+	if (immediate)
+	{
+		gPartyHpPct  = gPartyHpNextPct;
+		gPartyHpFrom = atSimTime;
+	}
+	else
+		gPartyHpFrom = atSimTime + PARTY_HP_GRACE_MS;
+
+	Log_Printf("[party] %d of %d flying -> enemy health %d%% from t=%d\n",
+	           alive, numPlayers, gPartyHpNextPct, gPartyHpFrom);
+}
+
+// What a spawning enemy's health should be scaled by, in percent.
+int P_EnemyHealthPct(void)
+{
+	if (engine.mode != DE_MODE_MULTIPLAYER || numPlayers < 2)
+		return 100;
+	if (simulationTime >= gPartyHpFrom)
+		gPartyHpPct = gPartyHpNextPct;
+	return gPartyHpPct;
+}
+// The life counter, as the player reads it: how many more deaths still leave
+// somebody flying. The stored respawnCounter is a bank of RESPAWNS, and the
+// last one in the bank is the death you do NOT come back from -- so the label
+// is one less than the bank, in both modes: 3 respawns solo reads 2, 1, 0, and
+// a two-player pot of 6 reads 5. Zero means the next death is somebody's last.
+// The tester named both numbers (2026-09-09: "en solo normal 2,1,0", "en multi
+// local ca commence a 6 au lieu de 5"). The number of hits has not changed --
+// only what is printed.
+int P_LivesLeftForHud(void)
+{
+	int shown = players[controlledPlayer].respawnCounter - 1;
+	return (shown < 0) ? 0 : shown;
+}
+
+
 // A hull was hit. Solo: the death happens here and now. Multiplayer: nobody
 // rules on a death alone anymore -- see NET_PlayerHit (netchannel.c): the host
 // applies it and broadcasts the order, everyone else applies the order. Before
@@ -1834,7 +1963,7 @@ void P_ApplyDeath(uchar playerId)
 	// "deaths". Stray bullets could hit the parked corpse, push the shared life
 	// counter below zero and end the multiplayer match while the OTHER player was
 	// still alive. Both lockstep sims skip these the same way, so MP stays in sync.
-	if (players[playerId].respawnCounter <= 0 && players[playerId].shouldDraw == 0)
+	if (players[playerId].isOut)	// v4.1.0: an explicit flag, not a flickering one
 		return;
 
 	// Player collided with the enemy
@@ -1922,16 +2051,24 @@ void P_ApplyDeath(uchar playerId)
 		
 		players[playerId].autopilot.timeCounter = 2000000;
 		players[playerId].shouldDraw = 0;
+		players[playerId].isOut = 1;	// v4.1.0: and it STAYS out -- see player.h
+		// v4.1.1: one hull fewer firing -- the enemies get easier, from a moment
+		// the whole party agrees on (the host's clock; see P_NotePartyChange).
+		P_NotePartyChange(gPartyChangeStamp ? gPartyChangeStamp : simulationTime, 0);
 		
 		
-		// v2 P3: the pool is mirrored, so in MP "everyone is out" is simply "the
-		// pool is below zero" -- checked on all seats for belt-and-braces (a
-		// parked seat's counter is mirrored like any other).
+		// v4.1.0 -- GAME OVER is "every hull is down", and it now asks the HULLS.
+		// It used to ask the shared POOL: the counter is mirrored onto everyone,
+		// so "all counters below zero" was really just "the pool went negative",
+		// which ends the match on the death that empties it -- even when the
+		// other player is flying, untouched, with nothing wrong (device
+		// screenshot, 2026-09-09). The party rule has always been that a player
+		// falling does not end it; only the last hull standing does.
 		{
 		int everyoneOut = 1;
 		int p;
 		for (p = 0; p < numPlayers && p < MAX_NUM_PLAYERS; p++)
-			if (players[p].respawnCounter >= 0)
+			if (!players[p].isOut)
 				everyoneOut = 0;
 
 		if (((numPlayers == 1) && (playerId == controlledPlayer))     ||

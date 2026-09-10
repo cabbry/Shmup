@@ -105,9 +105,11 @@ jobs:
 
           LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
           [ -z "$LOG" ] && LOG="$RUNNER_TEMP/rules.log"
-          grep -E "^\[(rule|snd|devil|scene|pack)\] " "$LOG" > rules-trace.log || true
+          grep -E "^\[(rule|snd|devil|scene|pack|spawn)\] " "$LOG" > rules-trace.log || true
           echo "=== the rules as parsed ==="
           grep "^\[rule\] [a-z0-9]*: " rules-trace.log || true
+          echo "=== the spawns ==="
+          grep "^[spawn] " rules-trace.log || true
           echo "=== the fires ==="
           grep "^\[rule\] t=" rules-trace.log || true
 

@@ -38,7 +38,8 @@ camera
 	zFar:	22000
 	
 	attachAt: 8000
-	detachAt: 140000
+	# no detachAt (4.0.2): the ships park at movePlayersToDefautlSSLocation (139 s)
+	# and stay in formation under the epilog card, as in the boss act
 }
 
 fog
@@ -88,6 +89,9 @@ music
 {
 	startMusicAt 0
 	trackname data/music/UNREALPM.mp3
+	# v4.1.1: when this one runs out (the acts share it and it plays ON from act
+	# to act), hand over to the other theme rather than fall silent.
+	alternate data/music/UNREALTH.mp3
 }
 
 title
@@ -96,7 +100,7 @@ title
 	prolog start 2000 duration 4000
 	
 	at 139000 movePlayersToDefautlSSLocation
-	epilog start 142000 duration 7000
+	epilog start 142000 duration 6000
 
 	#at 13900 movePlayersToDefautlSSLocation
 	#epilog start 14200 duration 7000

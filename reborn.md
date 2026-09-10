@@ -116,9 +116,10 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 3.1.x** — Metal renderer at native
+- ✅ Live on **TestFlight** as **SHMUP Reborn 4.0.x** — Metal renderer at native
   resolution, AVFoundation audio, full speed on device, iPhone and iPad.
-- ✅ Four acts, a boss, an ending; 2-4 player co-op over LAN and online
+- ✅ Four acts, a boss, an ending; 2-4 player co-op over LAN and online (online
+  broken from 3.0.0 to 4.0.2 by an ARC-pass typo, fixed in 4.0.3)
   (device-confirmed at two); leaderboards.
 - ✅ Full-screen: fills tall iPhones with no black edge gaps, HUD anchored to the
   safe area, 2D sprites de-stretched (round sprites are round again).
@@ -145,11 +146,10 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Known issues
 
-- Minor: backgrounding the app on the GAME OVER screen still shows the
-  3-2-1-SHMUP overlay (cosmetic).
-- Minor/latent: the menu titles' safe-area offset is computed once at init,
-  before the inset is known, so it stays inactive — the titles clear the notch
-  via fixed margins today but wouldn't auto-adapt to a larger inset.
+- The menu title cards sit on fixed margins that clear today's notches. A
+  device with a much larger top inset would need those margins revisited
+  (the safe-inset term that used to be in the formula was dead code — the
+  inset is not known when the menus are built — and was removed in round 42).
 - Accepted (v3, Metal): a transparent-to-black fade shows under the act title
   card where OpenGL drew none — a fixed-pipeline emulation gap the tester
   judged "not shocking, keep it". Left as is on purpose.
@@ -230,7 +230,33 @@ game finished (four acts, a boss, an ending); **v2** — four-player multiplayer
   the title card; a black launch screen; the credits with brush separators, a
   third tester and a **scrolling roll** with a position thumb.
 
-### Open
+### Open — v4, scripting (opened 2026-09-06 on the `v4` branch)
+
+Fabien's second suggestion, finally: the `.scene` format is declarative and
+every reactive behaviour lives in C. The plan, four stages, each with its
+proof in CI; the format and the inventory are in
+[`docs/level-pack.md`](docs/level-pack.md).
+
+1. **Inventory and the level pack** — a manifest per level, the eight
+   existing scenes become packs that reference their assets, the code keys
+   on a pack's *kind* rather than on scene ids. Proof: the four acts from
+   packs produce today's traces.
+2. **Conditional events — ✅ (rounds 43-44)** — conditions, groups and phases in the events
+   block, and the boss ladder written as rules (2b, same act-IV trace).
+   Proof: the rules bench (scene 12), and act IV's ladder from rules with
+   the same sound trace as the C thresholds.
+3. **Lua** — only if a need appears that rules cannot say: sandboxed, one
+   state per scene, a small API.
+   Proof: the act IV traces, and the netrig at four for
+   determinism. Lua stays in bundled levels only (App Store 2.5.2).
+4. **Tools** — a pack validator, the CI camera pointed at a pack, the
+   format document. Exit test: a level written by the tester without C.
+
+Decided with the tester, and parked: a community level list (after stage
+4, declarative content only), first-party cosmetics through Apple's
+in-app purchase if ever, nothing Sorare-like for a long while.
+
+### Open — carried over
 
 - **A four-device session** for v2: everything is rig-proven at four,
   device-proven at two. Needs hardware and four hands.
@@ -293,6 +319,588 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-10 — round 57 (the resync that pulled too gently)
+
+"J'ai eu une désynchro de positionnement sur le 2ème iPhone. On ne peut pas se
+recaler aux bonnes coordonnées de temps en temps ?"
+
+We already did, every 300 ms — each device streams its own ship's absolute
+position so the peers can correct what the delta stream leaves behind. The
+mechanism was not missing; its **strength** was. The correction closed a flat
+tenth of the error:
+
+| error | old, at one correction per 300 ms | new |
+|---|---|---|
+| a fifth of the screen | ~22 corrections, 6.6 s — and only if no new drift arrives | 6 corrections, 1.8 s |
+| a hundredth | chased forever, jitter chasing jitter | left alone |
+| more than a quarter | 6.6 s of a ship in the wrong place | snapped |
+
+Closing a tenth means the error decays by 0.9 per step, so drift that builds
+faster than that is never caught up: the ship simply sits somewhere wrong and
+stays there. That is what he saw.
+
+The pull now depends on how wrong the position is, which is exactly what a
+flat fraction cannot express. Under a hundredth of the screen the ship is left
+alone — correcting jitter only produces jitter. A plain error closes a third
+per correction. A gross one snaps, because a ship in the wrong place is worse
+than a ship that jumps.
+
+This only ever moves a **remote** hull, whose position is network-driven and
+never simulated. Each device tests collisions against its own hull only, so
+pulling harder here cannot change what happens to anybody — it is a display
+correction, not a gameplay one.
+
+`tools/catchup` now extracts three pure functions from three shipped files —
+the catch-up step, the party's grip on enemy health, and this — and asserts
+them: the convergence measured correction by correction, the three behaviours
+by error size, and both directions. 31 checks, beside the netrig's 253.
+
+### 2026-09-09 — round 56 (two themes, handed back and forth)
+
+"Si j'enchaîne acte 3 puis 4, j'arrive à un moment où il n'y a pas de musique.
+Comme on a 2 musiques, peut-être enchaîner la 2ème puis la 1ère ?"
+
+The cause was two good decisions meeting. The four acts share one track, and
+since v2 a same-track scene change deliberately lets it **play on** instead of
+re-cueing — which is why the music no longer restarts between acts. But the
+player was set to one pass. The track is four to seven minutes depending on its
+bitrate, an act runs a good two, so a run of three or four acts simply reaches
+the end of the file, and everything after it is silent. Each act's
+`startMusicAt 122` never even applies in a chain: the track is not re-cued.
+
+A scene now names an `alternate` theme. When its track ends, that one takes
+over, and later hands back — the acts point at the title theme and the title
+scenes point at the acts', so the pair alternates for as long as you play. With
+no alternate declared the track loops instead, so an act can no longer outlast
+its music either way.
+
+Both players are opened and prepared at scene load and kept there, so the
+hand-over costs the game thread one `-[play]` and nothing else. Opening an
+audio file inside a frame is exactly what round 51 was about, and this is not
+the place to forget it.
+
+The bench agrees: act 1's effects trace is unchanged (2453,
+`5b0182b35b1e304f`), the soundtrack still advances at wall-clock rate with
+zero off-rate intervals, and the log now says `init … (+alternate)`.
+
+### 2026-09-09 — round 55 (enemy health follows the hulls still flying)
+
+"Quand le joueur 2 meurt, tu peux rebaisser la vie des ennemis mais laisser
+plus dur que le jeu solo de 20 % ? Et la réaugmenter s'il ressuscite au début
+de l'acte suivant ?"
+
+Multiplayer scaled enemy energy by the SEAT count, and kept scaling it after a
+player was out for good — so the survivor was left alone against enemies built
+for two. It follows the hulls still in the match now, and never falls all the
+way back to solo:
+
+| party | enemy health |
+|---|---|
+| solo | 100 % (untouched, to the bit) |
+| 2 of 2 | 200 % |
+| 1 of 2 | 120 % |
+| 4 of 4 | 400 % |
+| 3 of 4 | 300 % |
+| 2 of 4 | 200 % |
+| 1 of 4 | 120 % |
+
+Every step down is just the ships that are firing; the floor is his number.
+The next act resurrects the fallen player and it goes straight back up, at a
+level boundary where both devices are already in step.
+
+**The trap this had to avoid.** A death lands on the host and on its peer one
+latency apart. An enemy spawning in between would be born with different
+health on the two screens — a desync of exactly the kind the last four rounds
+were about. So the new value is scheduled from a timestamp both devices read
+from the *same* place: the host's clock, which already rides inside the death
+order, plus a second of grace. Every spawn before that instant uses the old
+number and every spawn after it the new one, on both devices. Integer percent
+throughout, never a float.
+
+The decision is a pure function between markers in `player.c`, and
+`tools/catchup` extracts it verbatim the way it already does the catch-up
+arithmetic — eight party shapes asserted, plus the floor checked to sit above
+solo and below a full pair. 25 checks there, 253 in the netrig, and act 1's
+sound trace unchanged.
+
+Not touched: the boss's arms, which take their own doubling at the start of the
+fight. That fight is tuned and stays that way until somebody asks.
+
+### 2026-09-09 — round 54 (the corpse that came back, and the game over that asked the wrong question)
+
+A screenshot settled it: his ship intact, untouched, and GAME OVER on screen.
+Two defects, one standing behind the other.
+
+- **A parked hull came back to life.** When a hull runs out of lives it is
+  parked off-screen with `shouldDraw = 0` — but its death also gave it the
+  usual invulnerability, and when that window expired the flicker code ran
+  `shouldDraw = 1` on it. The wreck was back on screen *and* back in the
+  collision tests, where an enemy reaching the bottom of the screen could kill
+  it a second time and spend the last of the shared pool. `shouldDraw` was
+  never a statement about being in the match — **it flickers**, 128 ms on,
+  128 ms off — and four separate guards had been reading it as one. There is
+  an explicit `isOut` now, set when a hull is parked or its seat is dropped,
+  cleared when a level resurrects everybody, and it is what those guards read.
+- **GAME OVER asked the pool instead of the hulls.** The life counter is
+  mirrored onto every player, so "all the counters are below zero" was really
+  just "the pool went negative" — which ends the match on the death that
+  empties it, even with somebody still flying. The party rule has always been
+  that one player falling does not end the game; only the last hull does. It
+  asks the hulls now.
+
+  Together these are the screenshot exactly: the teammate's corpse was
+  resurrected by its own invulnerability, killed again off-screen, the pool
+  went to -1, and the game ended for a player whose ship had never been hit.
+
+- **"L'iPad qui se connectait en 2ème décidait l'acte."** Working as designed,
+  and the design was invisible. Nobody chooses to be the host: seat 0 is the
+  lowest address on the LAN and the lowest Game Center id online, which has
+  nothing to do with who started first. The lobby now says so — "you are P1
+  (HOST — your act plays)" — on both transports. Choosing to host is still the
+  v4.1 job.
+
+Neither engine fix is bench-proven: both live in `player.c`, which the rig
+mocks. They are reasoned from the code, the strict build is green, the rig's
+253 checks still pass with the flag threaded through its own death mock, and
+act 1's sound trace is unchanged (2453, `5b0182b35b1e304f`).
+
+### 2026-09-09 — round 53 (the host chooses the act, and what happens when the two of you disagree)
+
+"On ne pourrait pas choisir le niveau en multi ?" — and then the question that
+actually matters: what if one picks act 1 and the other act 2, or one picks two
+players and the other three?
+
+**The two are not the same kind of setting, and only one of them needs an
+owner.** Party size is a *stop waiting* hint: `LAN_RosterSettled` gives up on
+latecomers as soon as the number you asked for is on the network, so a device
+asking for three simply waits a few seconds longer than one asking for two,
+and then both play with whoever showed up. Two different answers already
+converge, because the truth is the roster, not the number.
+
+The act cannot work that way: it has to be identical everywhere or the two
+sims load different levels. So it takes the owner the party already has —
+**seat 0, the same device that rules deaths and drives the barrier.** The
+host's act travels in its preload order; before this, the client computed
+"the next scene" for itself, which was only ever right because every party
+started on act 1. Both devices pick, through the solo act screen and its lock
+rule, and the lobby says out loud that the host's choice is the one that plays.
+
+`netrig` scenario 17 answers the question as an assertion rather than a
+promise: seat 0 asks for act 3 while seat 1 asks for act 2, and both land on
+act 3; then the host asks for act 1 against a client's act 4, and both land on
+act 1. So it is the host that decides — not the higher number, not the lower
+one, not whoever spoke first. 253 checks.
+
+What this does **not** give him is the Héberger / Rejoindre pair he described.
+Nobody chooses to be the host today: seat 0 is elected by sorted address on the
+LAN and by sorted Game Center id online, and no player is told which one they
+are. Making it a button means a device *declares* itself seat 0 and the others
+adopt it, with a tie-break when two people press it — which reaches into the
+one rule the four-player work is built on, that every device computes the same
+table without negotiating. That is a v4.1 job, not a patch.
+
+### 2026-09-09 — round 52 (the counter, both modes this time; and the frames nobody saw)
+
+- **"En multi local ça commence à 6 au lieu de 5."** Round 50 gave solo its
+  rule and left multiplayer on another one, which is exactly the sort of thing
+  a tester spots in four seconds. There is one rule now, and it is the reading
+  that makes both his numbers right: **the counter is the deaths that still
+  leave somebody flying.** The last respawn in the bank is the one you do not
+  come back from, so the label is the bank minus one everywhere — 3 respawns
+  solo reads 2, 1, 0; a two-player pot of 6 reads 5. Zero means the next death
+  is somebody's last.
+- **"Le dernier player est mort tout seul sans être touché."** Staged in the
+  rig as scenario 16: spend the pool to empty with real hits, then five seconds
+  with nobody hit at all. No death appears, the two devices agree on who is
+  still flying, and the last death still ends it once for both. **248 checks —
+  so the netcode is not what killed him**, and the death protocol at zero is
+  sound.
+
+  What is left points at round 50's own catch-up loop. Every step past the
+  first is simulation the player never sees drawn: at four extra steps a bullet
+  could cross the ship inside 83 ms of undrawn game and kill in a state that
+  was never on screen — which is the shape of the report. The burst is halved
+  to two, bounding the unseen stretch to about 33 ms. That still holds the wall
+  clock down to 20 fps, and the test now **states that floor** rather than
+  pretending there is none: below it the game slows again, on purpose.
+- Not proven, and said as such: the rig clears the netcode, the cap is a
+  mitigation of a mechanism I can argue for but cannot photograph. If a hull
+  dies untouched again on this build, the next thing to add is a probe naming
+  what hit it.
+
+### 2026-09-09 — round 51 (the volume buttons, and the lock nobody saw)
+
+"Monter ou descendre le son fait toujours un peu ramer le jeu… ça ne peut pas
+être transparent ?" — and the emphasis on *changing* the volume rather than on
+its level is what named the bug. It was never about how loud the game was.
+
+**Every AVAudioEngine property takes the engine's lock**, and CoreAudio holds
+that lock while it reconfigures itself — which is exactly what pressing the
+volume buttons makes it do. The per-shot path asked three questions inside
+that lock: `isRunning` through `SND_AV_Start`, then `isPlaying` twice. With
+plasma firing every 83 ms and explosions on top, the game thread queued up
+behind the audio system for as long as it was busy. Round 50's frame de-dup
+cut the *number* of those calls; it could not stop them contending.
+
+So the game thread stops asking:
+
+- `isRunning` and `isPlaying` are mirrored in plain C, kept true by the
+  AVAudioEngine configuration-change, session-interruption and route-change
+  notifications — the three ways CoreAudio can pull the graph out from under
+  a running game, none of which we had been listening to at all.
+- The only engine call left in the hot path is the `scheduleBuffer` that IS
+  the work, at most once per effect per frame.
+- **Nothing calls `startAndReturnError:` from a frame any more.** The engine
+  starts at load time on the first upload, and rebuilds itself on its own
+  serial queue after a change, throttled to once a second. While the graph is
+  down a shot is simply dropped: a sound missed inside a hundred-millisecond
+  glitch is invisible, where waiting for CoreAudio in a frame is a hitch you
+  can see.
+- A configuration change also destroys the graph's connections, so the rebuild
+  reconnects every loaded effect from its buffer's own format before starting.
+  Without that the game would have come back from a route change silent.
+
+The `[snd]` probe moved above the runtime checks: the bench's contract is the
+sequence the GAME asked for, and it must not depend on the mood of the audio
+device. Proof that nothing else moved — the act-1 trace is identical to the
+bit (2453, `5b0182b35b1e304f`), and the log now shows the engine starting at
+load time rather than on the first gunshot.
+
+What this cannot fix: the volume HUD itself is drawn by the system over our
+frames, and that cost is not ours to remove. What is ours is the stall, and
+there is no longer a path for one.
+
+### 2026-09-09 — round 50 (the life counter reads true, the sound stops doing invisible work, and why a slow frame desyncs a match)
+
+Five reports off 4.0.6. Two fixed, one named, one explained, one not ours.
+
+- **The life counter never showed a last life.** The HUD printed the respawn
+  BANK, so solo read 3, 2, 1 and the run ended on a number the player never
+  saw as final. It now prints the hits left *after* the hull you are flying:
+  2, 1, 0, and the next one ends it — the tester's own wording. The two modes
+  spend the bank differently (solo ends the moment it cannot pay; the shared
+  pool lets the last hull fly on at zero and ends one death later), so the
+  label is derived from that rule rather than from the raw counter, and both
+  modes now mean the same thing by "0". **The number of hits is unchanged** —
+  only the label moved.
+- **The sound was doing work nobody could hear.** Retriggering an effect
+  INTERRUPTS the buffer in flight, so when the same effect is asked for
+  several times in one tick, only the last is ever audible. The act-1 bench
+  says **545 of 2453 plays (22 %) are exactly that**, peaking at **13 audio
+  calls in one frame** when a wave dies together — the end-of-level storm the
+  tester heard as "quand on monte le son cela fait ramer le jeu". Each of
+  those calls has to meet the render thread to swap a buffer. One schedule per
+  effect per frame now; the probe still prints every request, so the bench's
+  signature is unchanged (2453, `5b0182b35b1e304f`) — proof that not one
+  requested sound moved.
+- **Why a slow frame desynced a match — found, and fixed.** `Timer_tick` adds
+  a FIXED ~16.67 ms of simulation time *per rendered frame*. That is what makes
+  the sim deterministic, and it is right for solo — but it means a device that
+  drops frames does not run late, it runs **slow**. The size of it, measured:
+
+  | frame rate | game time produced in a 140 s level | vs a 60 fps peer |
+  |---|---|---|
+  | 60 fps | 140.0 s | — |
+  | 50 fps | 116.7 s | 23.3 s apart |
+  | 30 fps | 70.0 s | 70.0 s apart |
+
+  Twenty-three seconds of game time apart by the end of an act, from a ten
+  frame-per-second difference. That is "la synchro marche mais finit par se
+  désynchroniser en fin de niveau", and it dwarfs anything the network does.
+  The tester also guessed the trigger exactly right: the sound made it lag, the
+  lag made it desync. In CI it can never show — the Simulator holds 60 fps and
+  the ratio of sim to wall time is 0.998 over 140 s.
+
+  **In multiplayer the clock now follows the wall.** Whatever whole steps wall
+  time is owed are simulated with the renderer off, and only the last is drawn
+  — the way `dEngine_JumpInTime` has run nested host frames since 2010. Under
+  load a match stutters instead of slowing down, which is the trade a networked
+  game has to make. Capped at four extra steps per frame; a frame longer than
+  250 ms is a stall (scene load, background, breakpoint) and is not repaid at
+  all. Solo never enters it, and the act-1 trace is unchanged to the bit
+  (2453, `5b0182b35b1e304f`) — which is the proof that it does not.
+
+  The decision is a pure function between two markers in `dEngine.c`, and
+  `tools/catchup` **extracts that block verbatim** rather than copying it, so
+  the proof cannot drift from the code: 60 down to 15 fps all land at 1.000 of
+  real time, the two phones end the level together, a 3 s frame buys no
+  catch-up. It runs in CI beside the netrig.
+- **2 lives to 0, then 1 at the next level** is the second-chance rule from
+  round 31, working: a pool that is exactly empty at a level load is given one
+  life back, once. Not a bug.
+- **The iMessage invitation** ("aucun de vos comptes Messages n'a été détecté
+  dans l'invitation") is raised by iOS before any of our code runs, and it is
+  about addressing: the invite was sent to a handle the receiving device's
+  Messages is not signed in with. We register the invite listener and accept
+  through the standard path. Worth trying: invite from the Game Center friend
+  list rather than by message, with both devices signed into Game Center under
+  the Apple ID their Messages uses.
+
+### 2026-09-08 — round 49 (the online report: a death the peer never heard, and a match that outlived its game over)
+
+Four symptoms from one online session on 4.0.5. Three had a cause; the
+fourth is honest guesswork, and stays open.
+
+- **"Je ne mourais pas sur mon écran, mais sur l'autre device je mourais"**,
+  and the shared pool read 5 on one phone and 4 on the other. GKMatch has
+  **two channels with no order between them**: the death protocol goes
+  reliable, the per-frame runtime stream goes unreliable — and both shared
+  ONE sequence counter. A runtime packet overtaking a death packet made the
+  receiver's `seq <= lastRxSeq → already applied` filter eat the death: the
+  host ruled it and applied it, the client never heard it. Exactly one life
+  of divergence per swallowed order. It cut the other way too — a death
+  packet arriving early advanced the counter past runtime commands still in
+  flight and dropped the peer's inputs, a hitch on every death. Death
+  packets are now dispatched on their own, off that counter; they carry
+  their own idempotence (an order is keyed on its own sequence, a repeated
+  request finds the hull already invulnerable).
+- **"La partie a redémarré toute seule en partie à 2 alors que nous étions
+  dans les menus."** GAME OVER in multiplayer never tore the session down:
+  both devices dropped back to the menu with the match still `NET_RUNNING`,
+  the mode still MULTIPLAYER and `numPlayers` still 2, the peers streaming
+  at each other behind the menu. Whatever started a scene next started a
+  two-player game. The end-of-GAME path had always torn down; game over
+  never did. Returning to the menu stage now ends the session, on both
+  sims at the same tick, and from `EV_Update` rather than from inside the
+  receive loop.
+- **Matchmaking needed a cancel and a retry on each phone.** Starting
+  depended entirely on GameKit calling back: `didFindMatch` once, then one
+  connection-state change per peer. Nothing ever re-checked a match that
+  was already fully connected, so a party that completed in a quiet window
+  sat at "Starting match…" for good. A half-second poll now re-checks, and
+  gives up after 45 s.
+- **"Le jeu est assez fluide, ça pourrait être mieux"** — the input loss
+  above was part of it and is gone. The rest is real online latency, which
+  I have not measured; the de-jitter queue already catches up when it runs
+  deep. Open, and it needs a measurement before a change.
+
+**The rig had been red since v4, unrun.** `tools/netrig` runs four copies of
+the real `netchannel.c` in one process. The v4 pack refactor keyed the
+match-start life pool on a scene's *kind*, which the rig's engine stub never
+stamped: 23 checks had been failing since, with nobody looking. The stub now
+models the pack table; the GameKit mock models the two channels (a reliable
+send is overtaken by the peer's next unreliable one); scenario 15 stages the
+death race. Without the fix it fails with pools (5,6) — the tester's bug, on
+a laptop, in one second. **It runs in CI on every push now** (`netrig.yml`,
+ubuntu, no Simulator, under a minute): 238 checks. That is the real lesson —
+a harness nobody runs is a harness that lies.
+
+### 2026-09-07 — round 48 (4.0.4 on device: "lol, le vaisseau repart en marche arrière")
+
+- **The level patrol read wrong.** Flying the camera back over the city
+  kept the decor alive under act II's card, but a camera flying backwards
+  is a ship reversing: the tester laughed. His call: cut the last wave and
+  end the act while the rail still flies forward — simpler, and no patrol.
+- **Act II ends 7.5 s earlier.** The second "impossible dual X-sin FHT"
+  wave (133-136 s) is gone; the regroup is at 131.5 s, the card at
+  134.5-140.5 s, the rail runs out at ~141.5 s. `driftAtEnd` is off again
+  for act II; the level patrol stays in `camera.c`, selectable, unused.
+- **Proof**: the probe shows the rail live through 140 s (position
+  advancing at the rail's pace, no patrol), the card from 134516 to 140500
+  and the scene change on that tick; the camera shows the stats card over
+  the moving night city, the ship parked.
+- **A chained edit that lied.** The first cut commit only moved the ending:
+  a `grep -q` on a mis-numbered line short-circuited the `&&` chain that
+  deleted the wave, and the rest of the script ran anyway. The awk that
+  lists the last spawn time caught it before the build. Verify the effect,
+  not the command.
+
+### 2026-09-07 — round 47 (4.0.3 on device: acts I, III, IV end right; act II froze — the level patrol)
+
+- **Device verdicts on 4.0.3**: the end of act I ("nickel"), act III and
+  act IV all good. Act II: "l'écran se fige mais la caméra et l'orientation
+  du vaisseau semblent ok".
+- **Why act II froze.** Its camera rail (`act2.cp.cp2b`) runs out right as
+  the epilog card comes up, and a scene without `driftAtEnd` freezes the
+  decor when its rail ends — an old behaviour, invisible while the ship had
+  rushed away and the card lasted 4 s, plain with a parked ship for 6 s.
+- **The classic patrol was wrong for it.** The boss act flies this very
+  rail with `driftAtEnd: 1`, so the first try was that. The camera on act
+  II showed a black card twice over: the rail ends *pitched* (looking back
+  and down at the city's edge), the settle phase flies along the blended
+  "up" whose world-Y part climbed the camera 300 units in two seconds —
+  past the fog's end (405) — and the 180° turn then happens at the edge of
+  the map, over nothing. The boss act has the same climb, but its
+  deep-blue haze up there *is* its validated look; untouched.
+- **`driftAtEnd: 2`, the level patrol**: same swing of the pose, but the
+  camera flies back over the city already flown at the rail's altitude from
+  the first settle frame, and shuttles without turning. Probe: altitude
+  123 throughout, city cells drawn; camera: the stats card over the lit
+  city, the ship parked under it.
+- **The camera grew a simulation clock**, and taught three lessons on the
+  way. `simSeconds` keys frames on the engine's own `t=` instead of the
+  wall clock (the Simulator runs 3 to 30 s behind it, differently every
+  run). It has to read the app's log file, flushed per line — the console
+  relayed by `simctl` arrives in blocks, ten seconds late. It has to filter
+  on the scene — the next act restarts at 0 and the first attempt
+  photographed the boss. And `simctl io screenshot` itself can take ten
+  seconds on a loaded runner, so a six-second card is still a narrow
+  target: eight camera runs for act II's ending in all.
+
+### 2026-09-07 — round 46 (4.0.2 on device: the billboard under the card, and online play was dead since v3)
+
+- **"La caméra tourne mais le vaisseau reste vu de dessus"** (end of act I).
+  An attached ship is a billboard: its pose is rebuilt every frame from the
+  camera so it always shows its top. Invisible while a rail flies flat; at
+  the end of act I the rail pitches and swings over the city under the card,
+  and the parked ship of round 45 stayed glued face-on. Until 4.0.1 the
+  detach had frozen the ship in world space. Now the park does the same for
+  the orientation only (`autopilot.parked`): the rotation stops updating
+  when the hold engages, the translation keeps following the camera. The
+  camera on act I: the ship under the stats card, banking with the
+  camera's swing from 142 to 148 s, then act II.
+- **Online play never started since v3.** The tester: "il trouve l'autre
+  joueur mais la game ne se lance pas". In the ARC pass (round 35) the
+  statement that keeps the found match had been glued onto the end of its
+  own comment line — `gMatch = match;` commented out, the match found and
+  dropped, the start bailing on a nil match. LAN was untouched (the "multi
+  à 2" of 4.0.0 was LAN). One line back on its own line; a scan of the ARC
+  diff finds no other swallowed statement. Lesson for any sed/awk that
+  inserts a comment: grep the diff for `^\+\s*//.*;\s*$`.
+- **Not reproduced, then explained**: the CI camera on act III's side view
+  showed the ship in profile on every frame — the report was about a
+  different moment, and the tester's location (end of act I) pointed at the
+  mechanism above. Ask where before hunting.
+
+### 2026-09-07 — round 45 (the ships stay; three Devils for the finale)
+
+- **End of level, unified** (user call after 4.0.1: "les fins de niveaux ne
+  sont pas toutes les mêmes, des fois le vaisseau disparaît"). The four
+  acts ended two ways. Acts I-III regrouped the ships, then *detached* them
+  a second later: the 2010 "fonce tout droit" rush, the ship receding into
+  the distance and off the screen while the camera flew on, the epilog card
+  then playing over an empty stage for 7, 4 and 6 s. Act IV parked the
+  ships in their rest formation under its ending card. The CI camera on act
+  II showed the rush plainly: the ship a speck at 142.8 s, nothing at
+  143.5-145, the card at 147. Now every act ends like the boss act: the
+  regroup autopilot **holds** (`autopilot.holdAtEnd`, a zero-length
+  autopilot once the flight is done — no control handed back, no firing,
+  no survival score), the three `detachAt` are gone, the three cards last
+  6 s. The prolog keeps the 2010 look untouched; the outro compensation in
+  `player.c` stays for any pack that still detaches.
+- **Act III finale** (user call): the hard spinner of combo 5 became the
+  anthracite Devil, whose lasso now whips from the centre while the hedgehog
+  circles ring it; the twin aimed-fan SHABs of combo 6 became two ghost
+  Devils side by side with the LEE columns between them. A Devil's life is
+  fixed in `enemy.c` (0.7 s roll in, 4 s of guns, 0.7 s roll out), so their
+  ttl is 5600 whatever the combo's. Camera: the anthracite rolling in at
+  78 s and its THA stream at ~83 s; probe: both spawns on their ticks.
+- **Proof so far**: strict build green; act I's sound trace identical
+  (2453 effects, `5b0182b35b1e304f` — the ending is after the last shot);
+  act II runs through its card and into act III with the parked ship --
+  the camera has it, small and still, under the stats card at 142-145 s
+  (`[title] epilog done -> next scene (t=148000)`). Not built yet.
+- **A tool lesson for stage 4**: the camera's seconds are wall-clock and the
+  Simulator runs the game 3 to 19 s behind it, differently every run —
+  three runs missed the same two seconds of act II. The camera should key
+  on simulation time (poll the log for `t=`), not on `sleep`.
+
+### 2026-09-07 — round 44 (v4 stage 2b: the boss ladder becomes data — same trace)
+
+- **The ladder as flags** (`v4`: three commits). The boss's five attacks
+  (`spray`, `minions`, `bigshot`, `missiles`, `frenzy`) are on/off flags in
+  `lofb.c`. The built-in thresholds (HP ≤ 85/75/50/25 %) set them every
+  frame, as since round 15; a scene whose rules carry a `bossAttack` action
+  takes the ladder over. New trigger `hpAtMost <group> <pct>` — `≤`, integer
+  arithmetic, the boss's own formula — and a per-group energy budget that
+  follows the most the group ever held (the boss sets its real pool while
+  arriving, after it spawned). Act IV now carries its ladder as four rules
+  on `group boss`; the patterns, cadences, laser clock and arms stay in C.
+  Grammar in [`docs/level-pack.md`](docs/level-pack.md) §5b.
+- **The proof, before touching the scene**: `smoke-audio.yml` takes the
+  scene as an input; act IV with autofire and the C thresholds gave a
+  baseline (3012 effects, signature `2cffa0a19c6f0a10`, attacks on at
+  70100 / 89100 / 129533 / 172700 ms). With the rules block: the same
+  signature, the same four frames, the `[rule] fire` lines on the very
+  ticks. Two details made it exact rather than close: rules are evaluated
+  after the collisions (a rule and the boss read the same energy the same
+  frame — the bench's `cleared` fires moved one tick earlier, w2 12483 →
+  12466, and stayed green), and a rule sees the damage a destroyed arm
+  still owes before the boss applies it (`LOFB_EffectiveEnergy`).
+- **Two things the bench caught in its own script.** The scene-4 ladder
+  assertion read nothing on a trace that plainly had the lines: `on$"` in a
+  double-quoted grep is bash's `$"…"` locale quoting. And the boss has no
+  `enemy_shot` effect, so the act-1 floor on it is act-1 only.
+- Boss fight untouched by construction: no cadence, pattern or number
+  changed; the trace is the witness. Not built on device yet — the next
+  build (4.0.1) is where the tester meets it.
+
+### 2026-09-07 — round 43 (v4 stage 2: rules — and the two bugs the bench caught)
+
+- **Conditional events landed** (`v4`: [f6b3392] → [47ee04f]). A scene may
+  carry a `rules` block; where the timelines schedule, a rule *reacts*:
+  `rule w2 when cleared w1 after 1500 spawnEnemy … group w2`. Triggers:
+  `cleared <group>`, `hpBelow <group> <pct>`, `players <n>`, `after <ms>`;
+  modifiers `after` (delay) and `every` (re-fire); actions are the enemies
+  block's own spawn grammars, which moved out of the parser into two
+  functions so both blocks speak the same language; enemies carry a group
+  name. Evaluated once per tick after the timeline as pure functions of the
+  clock and the enemy list — lockstep holds. The grammar is in
+  [`docs/level-pack.md`](docs/level-pack.md) §5.
+- **The bench** (`data/levels/test_rules`, scene 12, CI only, `smoke-rules.yml`):
+  three waves of act 1's opening FHT chained by rules, autofire on. Its
+  first three runs each found something:
+  1. *w2 fired 50 ms into w1.* The first ship died the tick it spawned,
+     before its sisters existed: "cleared" now also waits for the group's
+     spawns still to come, in the timeline or from a rule.
+  2. *w2 fired, no w2 ship ever spawned.* A 2009 latent bug in the event
+     list: insertion only ever looked past the head, fine for a timeline read
+     in order, but a rule firing mid-level while the camera's detach waited
+     at 140 s filed its spawns behind that detach. Dormant for seventeen
+     years because nothing ever added an earlier event at runtime. An event
+     earlier than the head now goes in front of it.
+  3. *No ship ever died.* The bench's first waves flew outside the bullet
+     column (no input in CI, so the ship's own column is the only one);
+     act 1's opening FHT geometry, which sweeps it, fixed the bench itself.
+- **Green**: w2 at 12.5 s after three explosions, w3 at 16.1 s, the clock
+  rule at 60 s; the three regression smokes stay green on the event-list
+  change — the timeline is parsed in order, so the new branch never runs
+  for the shipped scenes.
+- **A false alarm worth keeping.** The audio smoke on the event-list fix
+  reported 2475 events instead of 2453 and a new signature. The first 2453
+  were identical; the 22 extra were act 2's opening shots, logged while the
+  runner copied the file — how many slip in varies with the copy's timing.
+  The contract is act 1: the trace is now cut at the scene change. Three
+  earlier runs had matched only because the copy came sooner.
+
+### 2026-09-06 — round 42 (v4 opens: scripting — the inventory)
+
+- **Build 230: "tout est ok."** The credits scroll, round 41 closed.
+- **The roadmap rewritten as a record** of v1.x, v2, v3 and the 3.1 polish,
+  and **v4 opened on Fabien's second suggestion, scripting.** The tester also
+  asked about a community level store and a crypto currency for levels and
+  skins; the answer, argued in this session and kept for the record: the
+  store after the format has been used by someone else, declarative content
+  only; cosmetics first-party through in-app purchase if ever, with Fabien's
+  and Future Crew's agreement first; nothing Sorare-like — App Store 3.1.1
+  and 3.1.5, MiCA, and the French JONUM law it took Sorare to exist.
+- **The inventory** ([`docs/level-pack.md`](docs/level-pack.md)): what a
+  level is today (ten scene blocks, all declarative), what is hardcoded in C
+  (the boss ladder and its thresholds, the Devil's costumes and weapons, the
+  per-type enemy behaviours, the side-view geometry, the scene-id gates, and
+  `rand()` in four files), the lockstep constraint that any script must be a
+  pure function of the simulation, and the first draft of the pack format
+  with the four stages and their proofs.
+- **Stage 1 landed** (`v4` branch): every scene comes from a **level pack** —
+  `data/levels/<dir>/pack.cfg`, a manifest with kind, name, author, version,
+  the scene path and the player range; `config.cfg` lists the eight packs;
+  the code keys on the pack's *kind* (intro, act, demo, tutorial) and on the
+  act's rank, not on scene ids — the progression, the licence check, the
+  end-of-game card, the menu stage, the BACK button, the life pool. Legacy
+  `scene` entries still load with their kind inferred. Proof: the CI traces
+  unchanged (below).
+- **Two old Known issues answered** while the tester re-read the document:
+  the resume countdown no longer arms over the GAME OVER screen (one
+  condition: no menu up), and the menu titles' dead safe-inset term is gone
+  — they sit on fixed margins, said plainly now. The README's broken splash
+  image points at a current home-screen capture.
+- **Stage 1 proven.** On the pack build the three smokes reproduce their
+  traces to the number: the Metal smoke's parity contract (26 side-view
+  samples, no black sky or city, the cameo's dip at 57 s), four ships
+  through act 1 (134 of 134 probes), and the audio trace's signature
+  `5b0182b35b1e304f` — the same 2453 events as the OpenAL baseline of
+  round 40. The log now opens with the eight packs and "5 scenes, 4 acts".
 
 ### 2026-09-06 — round 41 (the credits: brush rules, a second tester, and a roll that scrolls)
 

@@ -68,12 +68,29 @@ typedef struct playback_t
 #define DE_MODE_SINGLEPLAYER 0
 #define DE_MODE_MULTIPLAYER 1
 
+// v4 stage 1: a scene comes from a LEVEL PACK (data/levels/<dir>/pack.cfg) and
+// declares what it is, so the code keys on the KIND, not on a scene id.
+#define SCENE_KIND_UNKNOWN	0
+#define SCENE_KIND_INTRO	1	// the menu stage
+#define SCENE_KIND_ACT		2	// a playable act; actIndex is 1-based in id order
+#define SCENE_KIND_DEMO		3
+#define SCENE_KIND_TUTORIAL	4
+
 typedef struct scene_t
 {
 	char path[256];
 	char name[64];
 	short defaultMenuId;
+	char kind;			// SCENE_KIND_*
+	char actIndex;		// 1..numActs for acts, 0 otherwise
+	char packId[32];	// the pack's id ("act1"); empty for a legacy "scene" entry
+	char author[64];
+	short version;
+	char minPlayers, maxPlayers;
 } scene_t;
+
+#define SCENE_KIND(sceneId)	(engine.scenes[(sceneId)].kind)
+#define SCENE_IS(kindValue)	(engine.scenes[engine.sceneId].kind == (kindValue))
 
 typedef struct player_stats_t
 {
@@ -94,11 +111,15 @@ typedef struct engine_info_t
 	uchar gameCenterPossible;
 	
 	int numScenes;
+	int numActs;		// v4: how many scenes are of kind ACT
 	scene_t scenes[MAX_NUM_SCENES];
 	
 	playback_t playback;
 	
 	char musicFilename[256];
+	// v4.1.1: the theme to hand over to when this one runs out, so a long run of
+	// acts never falls silent. Empty = loop the track instead.
+	char musicAlternate[256];
 	uint musicStartAt;
 	
 	player_stats_t playerStats;

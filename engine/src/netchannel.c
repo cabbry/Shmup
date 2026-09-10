@@ -42,6 +42,7 @@
 	char NET_IsRunning(void){return 0;}
 	char NET_IsInMatch(void){return 0;}
 	void NET_SetPartyTarget(int n){}
+	void NET_SetStartAct(int act){}
 	uint NET_GetDropedPackets(void){return 0;}
 	void NET_StartOnlineMatch(int mySeat, int numSeats){}
 	void NET_AbortOnlineMatch(void){}
@@ -334,7 +335,7 @@ static void NET_HostRuleDeath(int seat)
 		return;
 	if (players[seat].invulnerableFor > 0)
 		return;						// just ruled (or respawning): a repeat, not a new death
-	if (players[seat].respawnCounter <= 0 && players[seat].shouldDraw == 0)
+	if (players[seat].isOut)		// v4.1.0: an explicit flag, not a flickering one
 		return;						// parked: the corpse cannot die again
 	poolBefore = players[seat].respawnCounter;
 	gDeathSeq++;
@@ -343,7 +344,7 @@ static void NET_HostRuleDeath(int seat)
 }
 
 // Every device on receiving the host's order (the host never receives its own).
-static void NET_ApplyDeathOrder(int seat, int poolBefore, int seq)
+static void NET_ApplyDeathOrder(int seat, int poolBefore, int seq, int atHostTime)
 {
 	int p;
 	if (seq <= gLastDeathOrderSeq)
@@ -356,7 +357,13 @@ static void NET_ApplyDeathOrder(int seat, int poolBefore, int seq)
 	for (p = 0; p < numPlayers && p < MAX_NUM_PLAYERS; p++)
 		players[p].respawnCounter = (char)poolBefore;
 	players[seat].deathPending = 0;
+	// v4.1.1: the enemy-health change this death causes must be scheduled from
+	// the SAME instant on every device, or an enemy spawning around it is born
+	// with different health on the two screens. The host's clock rode along in
+	// the order; hand it to P_ApplyDeath and put it back afterwards.
+	gPartyChangeStamp = atHostTime;
 	P_ApplyDeath((uchar)seat);
+	gPartyChangeStamp = 0;
 }
 
 // P_Die's multiplayer entry (player.c).
@@ -364,7 +371,7 @@ void NET_PlayerHit(int seat)
 {
 	if (seat < 0 || seat >= MAX_NUM_PLAYERS)
 		return;
-	if (players[seat].respawnCounter <= 0 && players[seat].shouldDraw == 0)
+	if (players[seat].isOut)		// v4.1.0: an explicit flag, not a flickering one
 		return;						// parked hull: nothing to rule on
 	if (NET_IsHost())
 	{
@@ -447,6 +454,7 @@ static int			gLanCount = 0;
 static int			gLanChangedAt = 0;				// simulationTime of the last roster change
 static int			gLanLocked = 0;					// match started: roster frozen for good
 static int			gPartyTarget = 2;				// how many players this party is for
+static int			gAnnouncedScene = 0;			// v4.0.9: what the host last told the party to load
 static struct sockaddr_in gSeatAddr[MAX_NUM_PLAYERS];	// LAN: seat -> udp address
 
 // The party size the player asked for (the menu's 2/3/4 pick). The roster stops
@@ -557,8 +565,8 @@ static void LAN_AddRosterIp(unsigned int ip)
 		net.serverAddResolved = 1;
 	}
 
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Players found: %d -> you are P%d",
-	        gLanCount, net.ownSeat + 1);
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Players found: %d -> you are P%d%s",
+			gLanCount, net.ownSeat + 1, (net.ownSeat == 0 && gLanCount >= 2) ? " (HOST - your act plays)" : "");
 }
 
 // Deterministic N-way colour dedupe, ascending seats: a seat whose colour
@@ -737,7 +745,8 @@ void NET_StartOnlineMatch(int mySeat, int numSeats)
 	net.lastReceivedSequenceNumber = 0;
 	net.lastSentSequenceNumber     = 1;
 
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Online - you are Player %d of %d", mySeat + 1, numSeats);
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Online - you are Player %d of %d%s", mySeat + 1, numSeats,
+		(mySeat == 0) ? " (HOST - your act plays)" : "");
 	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
 	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Starting match...");
 }
@@ -1327,6 +1336,11 @@ static void NET_SendSetupCmd(char cmdType)
 	memset(&p, 0, sizeof(p));	// no uninitialized bytes on the wire
 	p.type = SETUP_PACKET;
 	p.command.type = cmdType;
+	// v4.0.9: the host's preload order carries WHERE it is sending the party.
+	// A client would otherwise have to guess, and its guess is only right when
+	// the party starts on act 1.
+	if (cmdType == NET_CMD_LOAD_NEXT_LEVEL && NET_IsHost())
+		p.command.delta[0] = (float)gAnnouncedScene;
 	p.numRedundant = 0;
 	p.senderSeat   = net.ownSeat;	// v2 P2: identity + protocol on every packet
 	p.protoVersion = NET_PROTO;
@@ -1490,6 +1504,7 @@ void NET_OnSeatLost(int seat)
 		p->autopilot.timeCounter  = 2000000;	// effectively forever
 		p->autopilot.originalTime = 2000000;
 		p->shouldDraw = 0;
+		p->isOut = 1;						// v4.1.0: a dropped seat is out of the match
 	}
 
 	// Say it ON SCREEN: the multiplayer text lines only show in the lobby, so
@@ -1539,7 +1554,7 @@ static void NET_ArmSetupFrames(void)
 // carries over. Deterministic -- every peer runs this on its own preload.
 static void NET_FillLifePoolIfMatchStart(void)
 {
-	if (engine.sceneId == 0)
+	if (SCENE_IS(SCENE_KIND_INTRO))	// v4: the menu stage, by kind
 	{
 		// Sized by the seats actually PRESENT, not by the seats booked: a
 		// player who never made it through the handshake shouldn't leave his
@@ -1552,6 +1567,33 @@ static void NET_FillLifePoolIfMatchStart(void)
 }
 
 // HOST barrier, gate 1: everyone who is still in the party has asked in ->
+
+// v4.0.9 -- the act the party starts on. Every device asks for one; the HOST's
+// is the one that happens, because the scene has to be identical everywhere or
+// the two sims load different levels. It travels in the host's preload order
+// (command.delta[0] of the LOAD_NEXT_LEVEL echo), so a client never has to
+// guess. It applies at MATCH START only: between acts the destination is the
+// next scene, as it has always been.
+static int gMPStartAct = 0;			// 0 = wherever the timeline goes next
+
+void NET_SetStartAct(int act)
+{
+	gMPStartAct = (act > 0) ? act : 0;
+}
+
+// The scene the next load should go to, as the HOST sees it.
+static int NET_TargetScene(void)
+{
+	if (SCENE_IS(SCENE_KIND_INTRO) && gMPStartAct > 0)
+	{
+		int s;
+		for (s = 0; s < MAX_NUM_SCENES; s++)
+			if (engine.scenes[s].kind == SCENE_KIND_ACT &&
+			    engine.scenes[s].actIndex == gMPStartAct)
+				return s;
+	}
+	return (engine.sceneId + 1) % engine.numScenes;
+}
 // preload here and order the same preload everywhere. Called both when a JOIN
 // arrives and when the watchdog drops the seat that was holding this up.
 static void NET_HostTryPreload(void)
@@ -1563,7 +1605,8 @@ static void NET_HostTryPreload(void)
 	if (NET_ActiveRemotes() < 1)
 		return;					// nobody to play with (NET_OnSeatLost handles the exit)
 
-	dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);
+	gAnnouncedScene = NET_TargetScene();	// v4.0.9: the host picks, and says so in the echo below
+	dEngine_RequireSceneId(gAnnouncedScene);
 	numPlayers = net.numSeats;
 	controlledPlayer = net.ownSeat;
 	NET_FillLifePoolIfMatchStart();
@@ -1779,7 +1822,14 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 		packetConsumed = 1;
 
 		NET_ApplyActiveMask(packet->activeMask);	// the host's party view is the truth
-		dEngine_RequireSceneId((engine.sceneId + 1) % engine.numScenes);
+		{
+			// v4.0.9: the host said where to go, so go there. The old guess is
+			// kept only as a fallback for a peer that does not say.
+			int want = (int)packet->command.delta[0];
+			if (want <= 0 || want >= MAX_NUM_SCENES)
+				want = (engine.sceneId + 1) % engine.numScenes;
+			dEngine_RequireSceneId(want);
+		}
 		numPlayers = net.numSeats;
 		controlledPlayer = net.ownSeat;
 		NET_FillLifePoolIfMatchStart();		// same rule, same data, as the host
@@ -2098,6 +2148,35 @@ void NET_Receive(void)
 		if (rcv_packet.type == SETUP_PACKET)
 			continue;
 
+		// v4.0.6 -- the death protocol is NOT part of the runtime input stream,
+		// and must not be filtered by its sequence counter. GKMatch has two
+		// channels with no order between them: the per-frame runtime packets
+		// (unreliable) routinely overtake a death packet (reliable), and the
+		// "seq <= lastRxSeq -> already applied" filter below then ATE the death.
+		// One device ruled it and applied it, the other never heard it: the
+		// tester died on his peer's screen and not on his own, with the shared
+		// pool one life apart (5 and 4). It cut both ways -- a death packet
+		// arriving early also advanced lastRxSeq past runtime commands still in
+		// flight, silently dropping the peer's inputs.
+		// These events carry their own idempotence: an order is keyed on
+		// gLastDeathOrderSeq, and a repeated request finds the hull already
+		// invulnerable (or parked) and is ignored.
+		if (rcv_packet.type == DEATH_PACKET)
+		{
+			command_t* dc = &rcv_packet.command;
+			if (dc->type == NET_RTM_DIE_REQ)
+			{
+				if (NET_IsHost() && dc->playerId == senderSeat)
+					NET_HostRuleDeath(senderSeat);
+			}
+			else if (dc->type == NET_RTM_DIE_ORDER)
+			{
+				if (senderSeat == NET_HostSeat())
+					NET_ApplyDeathOrder(dc->playerId, (int)dc->delta[0], (int)dc->delta[1], (int)dc->time);
+			}
+			continue;
+		}
+
 		// The host's party view rules: a client parks a seat when the HOST says
 		// it is gone, not when its own stopwatch runs out. Four independent
 		// timeouts fire hundreds of milliseconds apart (seconds apart, on
@@ -2130,21 +2209,9 @@ void NET_Receive(void)
 			net.numDropedPackets += (seq - (1 + gPeers[senderSeat].lastRxSeq));
 			gPeers[senderSeat].lastRxSeq = seq;
 
-			// v2.0.9 host authority on deaths: protocol events, handled here, never
-			// through the input buffers. A request must be about the SENDER's own
-			// hull and is only the host's business; an order is only ever the host's.
-			if (c->type == NET_RTM_DIE_REQ)
-			{
-				if (NET_IsHost() && c->playerId == senderSeat)
-					NET_HostRuleDeath(senderSeat);
-				continue;
-			}
-			if (c->type == NET_RTM_DIE_ORDER)
-			{
-				if (senderSeat == NET_HostSeat())
-					NET_ApplyDeathOrder(c->playerId, (int)c->delta[0], (int)c->delta[1]);
-				continue;
-			}
+			// (Deaths never reach here: DEATH_PACKET is dispatched above, off
+			// the runtime sequence counter. A DIE_* type in a runtime packet is
+			// not input and falls through the type check below.)
 
 			// The in-packet playerId must agree with the transport identity:
 			// a command may only ever drive its sender's own ship.

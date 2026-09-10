@@ -39,6 +39,7 @@
 #include "fx.h"
 #include "sounds.h"
 #include "titles.h"
+#include "log.h"	// stage 2b: the [boss] probe
 #include "event.h"
 #include "native_services.h"
 #include "enemy_particules.h"
@@ -99,6 +100,23 @@ extern void EV_AutoPilotPls(event_t* event);				// event.c: fly players to rest 
 static int gBossEnergy = 0;
 static int gBossMaxEnergy = 0;
 static int gBossHudStamp = -100000;	// simulationTime of the last boss update
+
+// v4 stage 2b: the attack ladder as FLAGS. The built-in thresholds set them
+// from hpPct every frame (2009+ behaviour, bit for bit); a scene whose rules
+// carry bossAttack actions takes the ladder over and only the rules move them.
+static int  gLadderScripted = 0;
+static char gAttackOn[LOFB_NUM_ATTACKS];
+static const char* gAttackNames[LOFB_NUM_ATTACKS] = { "spray", "minions", "bigshot", "missiles", "frenzy" };
+
+static void LOFB_SetAttackFlag(int which, int on)
+{
+	on = on ? 1 : 0;
+	if (which < 0 || which >= LOFB_NUM_ATTACKS || gAttackOn[which] == on)
+		return;
+	gAttackOn[which] = (char)on;
+	if (Log_ProbesEnabled())
+		Log_Printf("[boss] t=%d attack %s %s\n", simulationTime, gAttackNames[which], on ? "on" : "off");
+}
 
 // Mega-laser state (single boss -> file statics; all advanced from updateLOFB so
 // both lockstep sims evolve them identically). The beam is drawn from the FX
@@ -760,7 +778,17 @@ void updateLOFB(enemy_t* enemy)
 	hpPct = 100;
 	if (gBossMaxEnergy > 0)
 		hpPct = (100 * enemy->energy) / gBossMaxEnergy;
-	frenzy = (hpPct <= 25);
+	// stage 2b: the built-in ladder sets the flags from hpPct -- unless the
+	// scene's rules drive them (then the flags only move when a rule fires).
+	if (!gLadderScripted)
+	{
+		LOFB_SetAttackFlag(LOFB_ATTACK_SPRAY,    hpPct <= 85);
+		LOFB_SetAttackFlag(LOFB_ATTACK_MINIONS,  hpPct <= 75);
+		LOFB_SetAttackFlag(LOFB_ATTACK_BIGSHOT,  hpPct <= 50);
+		LOFB_SetAttackFlag(LOFB_ATTACK_MISSILES, hpPct <= 25);
+		LOFB_SetAttackFlag(LOFB_ATTACK_FRENZY,   hpPct <= 25);
+	}
+	frenzy = gAttackOn[LOFB_ATTACK_FRENZY];
 
 	// The mega-laser runs on its own clock, independent of HP phases, so a beam
 	// shows up every ~30-45s whatever the boss's health.
@@ -823,7 +851,7 @@ void updateLOFB(enemy_t* enemy)
 		}
 
 		// Attack 2 (-15%): twin rotating spray, SHAB-style.
-		if (hpPct <= 85)
+		if (gAttackOn[LOFB_ATTACK_SPRAY])
 		{
 			enemy->parameters[P_SPIRAL_CD] -= timediff;
 			if (enemy->parameters[P_SPIRAL_CD] <= 0)
@@ -838,7 +866,7 @@ void updateLOFB(enemy_t* enemy)
 
 		// Attack 3 (-25%): FHT escort waves -- three per side (Fabien wanted
 		// twice as many gêneurs).
-		if (hpPct <= 75)
+		if (gAttackOn[LOFB_ATTACK_MINIONS])
 		{
 			enemy->parameters[P_MINION_CD] -= timediff;
 			if (enemy->parameters[P_MINION_CD] <= 0)
@@ -856,7 +884,7 @@ void updateLOFB(enemy_t* enemy)
 		// Attack 4 (-50%): THE BIG ENERGY SHOT -- fired from the ARMS, alternating
 		// sides. Destroying an arm silences that side; destroying both cancels the
 		// attack entirely -- that is the strategic reward for focusing the arms.
-		if (hpPct <= 50 && (gArmAlive[0] || gArmAlive[1]))
+		if (gAttackOn[LOFB_ATTACK_BIGSHOT] && (gArmAlive[0] || gArmAlive[1]))
 		{
 			enemy->parameters[P_BIGSHOT_CD] -= timediff;
 			if (enemy->parameters[P_BIGSHOT_CD] <= 0)
@@ -874,7 +902,7 @@ void updateLOFB(enemy_t* enemy)
 		// Attack 5 (-75%): the BODY launches the destructible homing seekers, one
 		// per volley from alternating launch ports -- the finale always shows up,
 		// arms or no arms.
-		if (hpPct <= 25)
+		if (gAttackOn[LOFB_ATTACK_MISSILES])
 		{
 			gMissileCooldown -= timediff;
 			if (gMissileCooldown <= 0)
@@ -941,4 +969,50 @@ int LOFB_GetBossHealth(int* energy, int* maxEnergy)
 	*energy    = (gBossEnergy < 0) ? 0 : gBossEnergy;
 	*maxEnergy = gBossMaxEnergy;
 	return 1;
+}
+
+// ---------------------------------------------------------------------------
+// v4 stage 2b: the ladder's public face (rules.c).
+
+int LOFB_AttackIdByName(const char* name)
+{
+	int i;
+	if (!name)
+		return -1;
+	for (i = 0; i < LOFB_NUM_ATTACKS; i++)
+		if (!strcmp(gAttackNames[i], name))
+			return i;
+	return -1;
+}
+
+void LOFB_UseScriptedLadder(void)
+{
+	gLadderScripted = 1;
+}
+
+void LOFB_SetAttack(int which, int on)
+{
+	gLadderScripted = 1;
+	LOFB_SetAttackFlag(which, on);
+}
+
+void LOFB_ResetLadder(void)
+{
+	gLadderScripted = 0;
+	memset(gAttackOn, 0, sizeof(gAttackOn));
+}
+
+// The energy the boss will show once its own update has carved off the damage
+// owed by a destroyed arm (updateLOFB, top). A rule evaluated between the
+// collisions and that update reads this, so a threshold crosses on the same
+// frame in both ladders.
+int LOFB_EffectiveEnergy(const enemy_t* enemy)
+{
+	int e = enemy->energy;
+	if (enemy->type == ENEMY_LOFB && enemy->state == LOFB_STATE_FIGHTING && gArmChunkDmg > 0)
+	{
+		e -= gArmChunkDmg;
+		if (e < 1) e = 1;
+	}
+	return e;
 }

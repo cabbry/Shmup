@@ -1,0 +1,78 @@
+name: netcode benches (netrig + the catch-up arithmetic)
+
+# tools/netrig runs FOUR instances of engine/src/netchannel.c, compiled verbatim,
+# in one process on a fake network. It needs no device, no Simulator and no Game
+# Center account, and it finishes in about a second -- so it runs on every push.
+#
+# It exists because a party of four cannot be tested by hand, and it earns its
+# keep: it found ten defects during v2, three of them bugs from 2010. It then
+# sat unrun through v3 and v4 and quietly went red -- the v4 pack refactor keyed
+# the match-start life pool on a scene's KIND, which the rig's engine stub did
+# not stamp, and twenty-three checks had been failing unnoticed. Hence this file.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  rig:
+    name: Run the four-peer netcode rig
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.13.0
+
+      # -UWIN32 matters: without it netchannel.c compiles its WIN32 stub branch
+      # and the rig would test nothing while reporting success.
+      - name: Build the rig
+        working-directory: tools/netrig
+        run: |
+          zig cc -UWIN32 -U__WIN32__ -I shim -I ../../engine/src -I . -std=gnu99 \
+            net_rig.c net_bus.c peer0.c peer1.c peer2.c peer3.c -o net_rig
+
+      - name: Run it
+        working-directory: tools/netrig
+        run: |
+          set -o pipefail
+          ./net_rig | tee rig.log
+          # belt and braces: the exit code is the contract, but a scenario that
+          # silently stopped running would still print "0 failures"
+          CHECKS=$(grep -oE "^=== [0-9]+ checks" rig.log | grep -oE "[0-9]+")
+          echo "checks run: $CHECKS"
+          [ "${CHECKS:-0}" -ge 230 ] || { echo "::error::only $CHECKS checks ran; scenarios went missing."; exit 1; }
+
+
+      # The multiplayer catch-up: a fixed step per RENDERED frame means a device
+      # that drops frames runs SLOW, and two phones end a level in different
+      # moments of it. The decision is a pure function in dEngine.c between two
+      # markers; this extracts that block verbatim and tests the shipped lines.
+      - name: The engine arithmetic (catch-up, party health, resync)
+        working-directory: tools/catchup
+        run: |
+          set -o pipefail
+          awk '/CATCHUP-ARITHMETIC-BEGIN/{f=1;next} /CATCHUP-ARITHMETIC-END/{f=0} f' \
+              ../../engine/src/dEngine.c > catchup_arithmetic.inc
+          [ -s catchup_arithmetic.inc ] || { echo "::error::the markers in dEngine.c are gone: nothing extracted."; exit 1; }
+          awk '/PARTY-HP-ARITHMETIC-BEGIN/{f=1;next} /PARTY-HP-ARITHMETIC-END/{f=0} f' \
+              ../../engine/src/player.c > partyhp_arithmetic.inc
+          [ -s partyhp_arithmetic.inc ] || { echo "::error::the markers in player.c are gone: nothing extracted."; exit 1; }
+          awk '/RESYNC-ARITHMETIC-BEGIN/{f=1;next} /RESYNC-ARITHMETIC-END/{f=0} f' \
+              ../../engine/src/commands.c > resync_arithmetic.inc
+          [ -s resync_arithmetic.inc ] || { echo "::error::the markers in commands.c are gone: nothing extracted."; exit 1; }
+          zig cc -std=gnu99 -Wall catchup_test.c -o catchup_test
+          ./catchup_test
+      - name: Upload the log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: netrig-log
+          path: tools/netrig/rig.log
+          if-no-files-found: ignore

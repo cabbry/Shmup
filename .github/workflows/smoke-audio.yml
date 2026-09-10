@@ -1,11 +1,13 @@
-name: Smoke test the audio (act 1, sound trace)
+name: Smoke test the audio (sound trace of one act)
 
 # Round 40 -- the audio bench. Sound cannot be photographed, so the engine
 # says what it plays: the OpenAL backend prints one "[snd] t=<sim> play <id>
 # <name>" line per sound it starts, and the soundtrack glue prints
 # "[music] t=<sim> wall=<ms> init|start|stop|pause|resume|pos=" lines, with
 # a position sample every ~5 s of game. Act 1 with autofire exercises all
-# four effects and the UNREALPM track cued at 0.
+# four effects and the UNREALPM track cued at 0. Stage 2b: the act is an input
+# (scene 4 = the boss), and the "[boss] attack" + "[rule] fire" lines ride along
+# in the trace -- the boss ladder parity contract.
 #
 # The trace is the parity contract for the audio port: the game is
 # deterministic, so the [snd] sequence (times and ids) must be identical
@@ -14,6 +16,15 @@ name: Smoke test the audio (act 1, sound trace)
 
 on:
   workflow_dispatch:
+    inputs:
+      scene:
+        description: "Scene id to bake (1..4 = acts I..IV). The trace is cut at that scene's end."
+        default: "1"
+        required: false
+      maxMin:
+        description: "Minutes to wait for the act to finish before failing"
+        default: "35"
+        required: false
 
 jobs:
   smoke:
@@ -57,7 +68,7 @@ jobs:
           xcrun simctl bootstatus "$UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
 
-      - name: Launch act 1 with the probes on
+      - name: Launch the act with the probes on
         id: run
         run: |
           APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
@@ -68,7 +79,7 @@ jobs:
             --terminate-running-process "$UDID" "$BUNDLE_ID" || true
           xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
           nohup env \
-            SIMCTL_CHILD_SHMUP_BAKE_SCENE=1 \
+            SIMCTL_CHILD_SHMUP_BAKE_SCENE="${{ inputs.scene || 1 }}" \
             SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
             SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
             SIMCTL_CHILD_SHMUP_INVULN=1 \
@@ -77,12 +88,17 @@ jobs:
             > "$RUNNER_TEMP/audio.log" 2>&1 &
           echo "bundle=$BUNDLE_ID" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for act 1, then read the sound trace
+      - name: Wait for the act to end, then read the sound trace
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
           BUNDLE_ID="${{ steps.run.outputs.bundle }}"
           CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
           START=$(date +%s)
+          SCENE="${{ inputs.scene || 1 }}"
+          MAXMIN="${{ inputs.maxMin || 35 }}"
+          case "$SCENE" in 0) TRACK=UNREALTH; SCN=data/data/scenes/intro.scene;; *) TRACK=UNREALPM; SCN="data/data/scenes/act$SCENE.scene";; esac
+          CUE=$(awk '/startMusicAt/{print $2}' "$SCN" 2>/dev/null); CUE="${CUE:-0}"
+          echo "scene $SCENE, track $TRACK cued at $CUE, up to $MAXMIN min"
 
           sleep 45
           echo "=== console head ==="
@@ -91,17 +107,17 @@ jobs:
           for i in $(seq 1 140); do
             LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
             [ -z "$LOG" ] && LOG="$RUNNER_TEMP/audio.log"
-            DONE=$(grep -c "scene] 1 -> 2" "$LOG" 2>/dev/null || true)
+            DONE=$(grep -c "scene] $SCENE -> " "$LOG" 2>/dev/null || true)
             N=$(grep -c "^\[snd\] " "$LOG" 2>/dev/null || true)
             M=$(grep -c "^\[music\] " "$LOG" 2>/dev/null || true)
             MIN=$((($(date +%s)-START)/60))
             echo "[$MIN min] sounds so far: ${N:-0}, music lines: ${M:-0}"
             if [ "${DONE:-0}" -ge 1 ]; then
-              echo "act 1 completed"
+              echo "scene $SCENE completed"
               break
             fi
-            if [ "$MIN" -ge 35 ]; then
-              echo "::error::Timed out before act 1 finished. Log tail:"
+            if [ "$MIN" -ge "$MAXMIN" ]; then
+              echo "::error::Timed out before the act finished. Log tail:"
               tail -40 "$LOG" || true
               exit 1
             fi
@@ -110,9 +126,13 @@ jobs:
 
           LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
           [ -z "$LOG" ] && LOG="$RUNNER_TEMP/audio.log"
-          grep -E "^\[(snd|music|scene)\] " "$LOG" > audio-trace.log || true
+          # the contract is ONE act: cut the trace at its scene change -- the app plays on into
+          # the next scene while the log is copied, and how many of its shots slip in varies run to run
+          grep -E "^\[(snd|music|scene|boss|rule)\] " "$LOG" | awk -v s="$SCENE" '{print} index($0, "[scene] " s " -> ") == 1 {exit}' > audio-trace.log || true
           echo "=== music lines ==="
           grep "^\[music\] " audio-trace.log || true
+          echo "=== boss / rule lines ==="
+          grep -E "^\[(boss|rule)\] " audio-trace.log || true
 
           # --- the effects: all four heard, and a signature of the whole sequence
           PLASMA=$(grep -c "play 0 plasma" audio-trace.log || true)
@@ -126,11 +146,23 @@ jobs:
           echo "SFX SIGNATURE: $TOTAL events, sha256[0:16]=$SIG"
           [ "${PLASMA:-0}" -ge 100 ] || { echo "::error::Autofire should have fired far more than $PLASMA plasma shots."; exit 1; }
           [ "${EXPLO:-0}"  -ge 5 ]   || { echo "::error::Too few explosions ($EXPLO)."; exit 1; }
-          [ "${ENEMY:-0}"  -ge 5 ]   || { echo "::error::Too few enemy shots ($ENEMY)."; exit 1; }
+          # the boss speaks through explosions and its own bullets, not the enemy_shot effect
+          [ "$SCENE" = "4" ] || [ "${ENEMY:-0}" -ge 5 ] || { echo "::error::Too few enemy shots ($ENEMY)."; exit 1; }
 
-          # --- the soundtrack: UNREALPM cued at 0, started, and advancing at wall rate
+          # --- scene 4: the boss ladder, in order, each attack once
+          if [ "$SCENE" = "4" ]; then
+            ON=$(tr -d "\r" < audio-trace.log | grep -E "^\[boss\] t=[0-9]+ attack [a-z]+ on" | awk '{print $2, $4}' | sed "s/t=//")
+            echo "ladder: $(echo "$ON" | tr '\n' ' ')"
+            [ "$(echo "$ON" | grep -c .)" -eq 5 ] || { echo "::error::Expected 5 attack-on transitions, got: $ON"; exit 1; }
+            echo "$ON" | awk '{t[$2]=$1} END{ if (!("spray" in t && "minions" in t && "bigshot" in t && "missiles" in t && "frenzy" in t)) {print "::error::an attack is missing"; exit 1}
+              if (!(t["spray"] < t["minions"] && t["minions"] < t["bigshot"] && t["bigshot"] < t["missiles"] && t["missiles"] == t["frenzy"])) {print "::error::ladder out of order"; exit 1}
+              print "ladder order ok: spray", t["spray"], "< minions", t["minions"], "< bigshot", t["bigshot"], "< missiles = frenzy", t["missiles"] }' || exit 1
+            [ "$(grep -c "^\[rule\] t=.* fire " audio-trace.log || true)" -ge 0 ]
+          fi
+
+          # --- the soundtrack: the scene's track cued where the scene says, started, and advancing at wall rate
           # the init probe prints the bundle's absolute path: match the file name
-          grep -q "^\[music\] .* init .*UNREALPM.mp3 at=0" audio-trace.log || { echo "::error::UNREALPM was not cued at 0 for act 1."; exit 1; }
+          grep -q "^\[music\] .* init .*$TRACK.mp3 at=$CUE" audio-trace.log || { echo "::error::$TRACK was not cued at $CUE for scene $SCENE."; exit 1; }
           grep -q "^\[music\] .* start pos=" audio-trace.log || { echo "::error::The soundtrack never started."; exit 1; }
           POS=$(grep "^\[music\] .* pos=" audio-trace.log | grep -v "start\|stop\|pause\|resume" | awk '{w=0;p=-1;for(f=1;f<=NF;f++){if($f~/^wall=/){sub("wall=","",$f);w=$f+0};if($f~/^pos=/){sub("pos=","",$f);p=$f+0}};print w, p}')
           SAMPLES=$(echo "$POS" | grep -c . || true)

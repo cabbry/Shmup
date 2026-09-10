@@ -243,6 +243,14 @@ static void RULES_Fire(rule_t* r)
 		event->type = EV_SPAWN_ENEMY;
 		event->payload = payload;
 		EV_AddEvent(event);
+
+		// The act's enemy TOTAL, for the end-of-act "Enemy cleared" stat.
+		// ENE_Precache counts the spawn events that exist AT SCENE LOAD, which
+		// for a reactive act is only the seed wave -- so Rain reported four
+		// enemies and the tester finished it at 1700 %. A rule's spawns are
+		// added to the timeline while the act runs, so they have to count
+		// themselves, exactly as the boss's minions and seekers already do.
+		engine.playerStats.numEnemies++;
 	}
 }
 

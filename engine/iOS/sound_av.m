@@ -95,9 +95,18 @@ static void SND_AV_RebuildNow(const char* why)
 {
 	NSError* err = nil;
 	int i;
+	int startedAt;
 
 	if (!gEngine)
 		return;
+
+	// Timed, and printed unconditionally: this is the one operation that holds
+	// the engine lock, and how long it holds it is the difference between a
+	// glitch nobody hears and a frame the player sees drop. A device log now
+	// says whether pressing the volume buttons provokes one at all, and what
+	// it costs -- which is the measurement that was missing when this came
+	// back as "monter le son fait ramer le jeu".
+	startedAt = E_Sys_Milliseconds();
 
 	[[AVAudioSession sharedInstance] setActive:YES error:NULL];
 
@@ -113,7 +122,7 @@ static void SND_AV_RebuildNow(const char* why)
 			gLastScheduled[i] = -1;
 		}
 		gEngineRunning = 1;
-		Log_Printf("[snd] engine running again (%s).\n", why);
+		Log_Printf("[snd] engine running again (%s) in %d ms.\n", why, E_Sys_Milliseconds() - startedAt);
 	}
 	else
 	{
@@ -272,6 +281,20 @@ void SND_BACKEND_Play(int sndId)
 		SND_AV_RequestRebuild("silent engine");
 		return;
 	}
+
+	// ...AND DROP IT WHILE A REBUILD IS IN FLIGHT. This is the half round 51
+	// missed. It took the engine's QUESTIONS off the game thread -- isRunning,
+	// isPlaying -- but scheduleBuffer takes the very same engine lock, and
+	// SND_AV_RebuildNow holds that lock on the audio queue for the whole of
+	// setActive + N connects + start. A route change (which is what pressing
+	// the volume buttons can provoke) therefore still stalled the next shot
+	// for the length of a rebuild: "monter le son fait a nouveau ramer le
+	// jeu" (2026-09-10). gEngineRunning does not cover it -- a route-change
+	// rebuild never clears it, so the game thread walked straight into the
+	// held lock. One integer read closes it: while the queue is rebuilding,
+	// the game thread does not touch the engine at all.
+	if (gRebuildPending)
+		return;
 
 	// ONE schedule per effect per frame. Retriggering INTERRUPTS the buffer in
 	// flight, so when the same effect is asked for several times in one tick

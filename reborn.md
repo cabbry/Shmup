@@ -237,7 +237,7 @@ every reactive behaviour lives in C. The plan, four stages, each with its
 proof in CI; the format and the inventory are in
 [`docs/level-pack.md`](docs/level-pack.md).
 
-1. **Inventory and the level pack** — a manifest per level, the eight
+1. **Inventory and the level pack — ✅ (round 42)** — a manifest per level, the eight
    existing scenes become packs that reference their assets, the code keys
    on a pack's *kind* rather than on scene ids. Proof: the four acts from
    packs produce today's traces.
@@ -249,8 +249,11 @@ proof in CI; the format and the inventory are in
    state per scene, a small API.
    Proof: the act IV traces, and the netrig at four for
    determinism. Lua stays in bundled levels only (App Store 2.5.2).
-4. **Tools** — a pack validator, the CI camera pointed at a pack, the
-   format document. Exit test: a level written by the tester without C.
+4. **Tools — ✅ (round 58)** — `tools/packlint` reads every pack with the
+   engine's own lexer and refuses what would only fail on a device (the
+   shipped packs pass, a fixture with eight planted faults must not); the CI
+   camera takes a pack id. Exit test, still open and not mine: a level
+   written by the tester without touching the C.
 
 Decided with the tester, and parked: a community level list (after stage
 4, declarative content only), first-party cosmetics through Apple's
@@ -319,6 +322,42 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-10 — round 58 (v4 stage 4: the tools, so the format can leave its author)
+
+The pack format exists so a level can be written without touching the C.
+Stage 4 is what makes that true for somebody who is not me.
+
+**`tools/packlint` reads every pack the way the game reads it.** It compiles
+`engine/src/lexer.c` **verbatim** — the trick `netrig` plays with
+`netchannel.c`, for the same reason: the tool cannot disagree with the engine
+about what a token is. Then it checks what actually goes wrong. Pack ids in
+range and not declared twice. The manifest's required keys, a kind it
+recognises, a player range that makes sense. Every file a scene names present
+on disk, because a typo there is a black screen or a silent act. And the one
+that pays for the whole tool: **every group a rule watches is a group
+something spawns** — a typo there is a rule that simply never fires, and
+until now nothing anywhere said so.
+
+It knows which block it is reading, because the same keyword means different
+things in different ones: a `filename` under `map` is an asset the act cannot
+start without, one under `playback` is a recorded demo allowed to be absent.
+That distinction was the difference between nine false alarms and none.
+
+**It is proven both ways, on every push.** The shipped packs must pass — 102
+checks, no errors and, since the rules bench got the `alternate` theme it was
+missing, no warnings either. And `fixtures/broken`, a pack set with eight
+planted faults, must **fail**, with the group typo named in the output. A
+linter nobody has seen say "no" is not a linter.
+
+**The camera takes a pack id.** `shots.yml` accepts `pack: act3` rather than a
+scene number, resolved through `config.cfg`. The scene number is an engine
+detail, and nobody writing a level should have to count it.
+
+That is stage 4 built. What remains of it is the exit test, and it was never
+mine to run: a level written by the tester from scratch, without touching the
+C. The tools are there for it now — write the pack, push it, and CI tells you
+what is wrong before a phone has to.
 
 ### 2026-09-10 — round 57 (the resync that pulled too gently)
 

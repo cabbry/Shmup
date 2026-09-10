@@ -1,4 +1,4 @@
-# Level packs — the v4 format (stages 1-2b landed)
+# Level packs — the v4 format (stages 1, 2, 2b and 4 landed)
 
 *Round 42. This is the inventory the v4 scripting work starts from, and the
 first draft of the format a level will ship in. It will change as the stages
@@ -214,12 +214,40 @@ scripts in downloaded levels would be exactly that. Lua is for the levels
 we ship in the bundle. This decision is what makes a community level list
 possible later without a store-review fight.
 
-## 7. Stage 4 — tools
+## 7. Stage 4 — tools (landed, round 58)
 
-A command-line validator for packs (structure, references, the numbers'
-ranges), the CI camera pointed at a pack (`SHMUP_LEVEL=<id>`), and this
-document kept true. The exit test of v4's first half: a level written by the
-tester from scratch, without touching the C.
+**`tools/packlint`** reads every pack the way the game reads it and says what
+is wrong before a device has to. It compiles `engine/src/lexer.c` **verbatim**
+— the trick `tools/netrig` plays with `netchannel.c`, for the same reason: the
+tool cannot disagree with the engine about what a token is.
+
+```bash
+cd tools/packlint
+zig cc -std=gnu99 -I ../../engine/src packlint.c ../../engine/src/lexer.c -o packlint
+./packlint ../../data
+```
+
+What it checks, which is what actually goes wrong:
+
+| | |
+|---|---|
+| `config.cfg` | pack ids in range, none declared twice, `numScenes` sane |
+| the manifest | `format`, `id`, a `kind` it recognises, a `scene` that exists, `minPlayers`/`maxPlayers` that make sense |
+| the scene | every file it names is on disk — map, camera path, music, titles, textures. A typo here is a black screen or a silent act. It knows which block it is in, so a `filename` under `playback` (a recorded demo, allowed to be absent) is not confused with one under `map`. |
+| the rules | **every group a rule watches is a group something spawns.** A typo there is a rule that simply never fires, and nothing else anywhere says so. |
+| the acts | at least one, since the progression and the ending card count them |
+
+It runs on every push, twice: the shipped packs must pass (102 checks, no
+errors, no warnings), and `fixtures/broken` — a pack set with eight planted
+faults — must fail *with the group typo named*. A linter nobody has seen say
+"no" is not a linter.
+
+**The camera takes a pack id.** `shots.yml` accepts `pack: act3` instead of a
+scene number, resolving it through `config.cfg`; the scene number is an engine
+detail nobody writing a level should have to count.
+
+**What is left of stage 4** is the exit test, and it is not mine to run: a
+level written by the tester from scratch, without touching the C.
 
 ## 8. Deferred, on purpose
 

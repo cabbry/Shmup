@@ -669,29 +669,36 @@ void dEngine_LoadScene(int sceneId)
 	
 	ENE_Precache();
 	
-	// EVERY scene cues its own music, from the top (round 60).
+	// THE CUE BELONGS TO THE START OF A GAME, NOT TO A LEVEL CHANGE.
 	//
-	// It used to play ON across the acts: they all named the same file, the
-	// filename was compared with what was already playing, and a match meant
-	// "leave it alone" (a v2 request -- one long track, no restart at every
-	// level). Two things broke that. The hand-over added in v4.1.1 swaps to
-	// the alternate theme when a track ends, BEHIND this comparison: what is
-	// playing stops being what gPlayingTrack says, so from act 2 on you heard
-	// whatever the previous act happened to end on -- not a decision, a
-	// residue. And the two themes are 6:44 and 1:40, so where the swaps fall
-	// depends on how long the player took. "L'act 1 commence avec une musique
-	// differente que l'act 2" (2026-09-10), and no music left at the boss.
+	// The whole game plays one track (UNREALPM, 6:44); the home screen plays
+	// the other and nothing else. So entering the game from the menu is a
+	// track change and re-cues -- where depends on the act you START at, which
+	// is what each scene's startMusicAt says: the top for the odd acts, 2:02
+	// for the even ones, far enough into the piece to be another section.
+	// After that the acts all name the same file, this comparison matches, and
+	// the music simply PLAYS ON across the level changes. Finish act I and act
+	// II does not rewind it. (Tester's spec, round 60.)
 	//
-	// So: a scene declares its theme and gets it, cued where it asks. The acts
-	// alternate by parity -- odd on one theme, even on the other -- which is
-	// deterministic by construction and needs no state at all.
+	// This is the 2009 behaviour, and what broke it was never the comparison:
+	// it was the v4.1.1 hand-over, which swapped to the alternate theme when a
+	// track ended -- BEHIND this test. gPlayingTrack went on saying UNREALPM
+	// while UNREALTH played, so from then on an act opened on a residue rather
+	// than a decision, and the same act sounded different depending on how you
+	// reached it. There is no hand-over now: one game track, and no alternate
+	// declared anywhere, which makes the player LOOP (music_av.m) instead of
+	// running out. Nothing can change the track behind this comparison any
+	// more, so it cannot go stale.
 	if (engine.musicFilename[0] != '\0')
 	{
-		SND_StopSoundTrack();
-		SND_InitSoundTrack(engine.musicFilename, engine.musicStartAt);
-		SND_StartSoundTrack();
-		strncpy(gPlayingTrack, engine.musicFilename, sizeof(gPlayingTrack)-1);
-		gPlayingTrack[sizeof(gPlayingTrack)-1] = '\0';
+		if (strcmp(gPlayingTrack, engine.musicFilename) != 0)
+		{
+			SND_StopSoundTrack();
+			SND_InitSoundTrack(engine.musicFilename, engine.musicStartAt);
+			SND_StartSoundTrack();
+			strncpy(gPlayingTrack, engine.musicFilename, sizeof(gPlayingTrack)-1);
+			gPlayingTrack[sizeof(gPlayingTrack)-1] = '\0';
+		}
 	}
 	else
 	{

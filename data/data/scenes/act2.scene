@@ -88,13 +88,20 @@ playback
 
 music
 {
-	# EVEN ACT -> the short theme (1:40), from the top. The acts alternate by
-	# parity (round 60), so act II and act IV always open the same way. This
-	# one is short enough that a long act will run past it: `alternate` hands
-	# over to the other theme rather than leave the run silent.
-	startMusicAt 0
-	trackname data/music/UNREALTH.mp3
-	alternate data/music/UNREALPM.mp3
+	# EVEN ACT -- the same track, cued at 2:02. Far enough into a 6:44 piece to
+	# be another section entirely, so starting a game at act II does not open
+	# on the same bars as act I.
+	#
+	# This cue only applies WHEN THE GAME TRACK STARTS -- coming in from the
+	# home screen, which plays the other theme. Reaching act II by finishing
+	# act I changes no track, so the music plays on and this number is not
+	# consulted. That is deliberate (tester's spec, round 60): the cue belongs
+	# to the start of a run, not to a level change.
+	#
+	# No `alternate`: with none declared the player LOOPS, so a long run cannot
+	# run the music out -- which is what used to leave the boss in silence.
+	startMusicAt 122
+	trackname data/music/UNREALPM.mp3
 }
 
 title

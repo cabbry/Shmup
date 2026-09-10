@@ -324,11 +324,10 @@ static void PL_CheckScene(const char* scenePath, const char* packId, const char*
 		warn("%s: the scene names no camera path", packId);
 	if (!sawMap)
 		warn("%s: the scene names no map", packId);
-	/* Only an ACT wants a hand-over. A menu or a tutorial is a place you sit
-	   in, and looping its own theme is the right answer there -- the home
-	   screen must never start playing a level's music at you. */
-	if (track[0] && !alternate[0] && kind && !strcmp(kind, "act"))
-		warn("%s: an act with no 'alternate' theme -- the track will loop when it runs out", packId);
+	/* No hand-over check any more. Round 60: the game plays ONE track, cued
+	   per act and looping, and the home screen loops its own. `alternate`
+	   stays a valid pack option, but demanding it would be warning about the
+	   shipped design. */
 
 	/* The check that pays for this whole tool. */
 	for (i = 0; i < gNumWatched; i++)

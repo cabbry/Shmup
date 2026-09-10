@@ -320,6 +320,42 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-10 — round 57 (the resync that pulled too gently)
+
+"J'ai eu une désynchro de positionnement sur le 2ème iPhone. On ne peut pas se
+recaler aux bonnes coordonnées de temps en temps ?"
+
+We already did, every 300 ms — each device streams its own ship's absolute
+position so the peers can correct what the delta stream leaves behind. The
+mechanism was not missing; its **strength** was. The correction closed a flat
+tenth of the error:
+
+| error | old, at one correction per 300 ms | new |
+|---|---|---|
+| a fifth of the screen | ~22 corrections, 6.6 s — and only if no new drift arrives | 6 corrections, 1.8 s |
+| a hundredth | chased forever, jitter chasing jitter | left alone |
+| more than a quarter | 6.6 s of a ship in the wrong place | snapped |
+
+Closing a tenth means the error decays by 0.9 per step, so drift that builds
+faster than that is never caught up: the ship simply sits somewhere wrong and
+stays there. That is what he saw.
+
+The pull now depends on how wrong the position is, which is exactly what a
+flat fraction cannot express. Under a hundredth of the screen the ship is left
+alone — correcting jitter only produces jitter. A plain error closes a third
+per correction. A gross one snaps, because a ship in the wrong place is worse
+than a ship that jumps.
+
+This only ever moves a **remote** hull, whose position is network-driven and
+never simulated. Each device tests collisions against its own hull only, so
+pulling harder here cannot change what happens to anybody — it is a display
+correction, not a gameplay one.
+
+`tools/catchup` now extracts three pure functions from three shipped files —
+the catch-up step, the party's grip on enemy health, and this — and asserts
+them: the convergence measured correction by correction, the three behaviours
+by error size, and both directions. 31 checks, beside the netrig's 253.
+
 ### 2026-09-09 — round 56 (two themes, handed back and forth)
 
 "Si j'enchaîne acte 3 puis 4, j'arrive à un moment où il n'y a pas de musique.

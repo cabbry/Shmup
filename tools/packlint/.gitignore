@@ -1,0 +1,5 @@
+packlint
+packlint.exe
+*.pdb
+*.ilk
+*.o

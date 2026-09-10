@@ -8,6 +8,10 @@ name: Screenshots of a scene (Simulator, Metal)
 on:
   workflow_dispatch:
     inputs:
+      pack:
+        description: "level PACK id to photograph (act1, act3, tutorial_pad...). Resolved to its scene through config.cfg; overrides 'scene'."
+        default: ""
+        required: false
       scene:
         description: "scene id to jump to at boot (SHMUP_BAKE_SCENE); 0 = the menu"
         required: false
@@ -83,6 +87,16 @@ jobs:
           UDID="${{ steps.sim.outputs.udid }}"
           SCENE="${{ inputs.scene || '13' }}"
           SECONDS_LIST="${{ inputs.seconds || '2,4,7,10,15,25' }}"
+          # v4 stage 4: a pack id is the name a level author knows; the scene
+          # number is an engine detail. config.cfg maps one to the other, so
+          # resolve it here rather than asking anybody to count.
+          PACK="${{ inputs.pack }}"
+          if [ -n "$PACK" ]; then
+            LINE=$(grep -E "^[[:space:]]*pack[[:space:]]+[0-9]+[[:space:]]+.*/$PACK/pack.cfg" data/data/config.cfg | head -1)
+            [ -n "$LINE" ] || { echo "::error::no pack '$PACK' in config.cfg. Declared packs:"; grep -oE "levels/[a-z0-9_]+/pack.cfg" data/data/config.cfg; exit 1; }
+            SCENE=$(echo "$LINE" | awk '{print $2}')
+            echo "pack '$PACK' is scene $SCENE"
+          fi
           EXTRA="${{ inputs.env }}"
           xcrun simctl install "$UDID" "$APP"
           mkdir -p shots

@@ -37,6 +37,13 @@
  *    - the rules block: every group a rule WATCHES is a group something
  *      actually spawns. A typo there is a rule that simply never fires, and
  *      nothing anywhere says so.
+ *    - the rules CHAIN, for an act written as reactions rather than as a
+ *      timeline: from the groups the enemies block seeds, which rules can
+ *      ever run? A chain cut in the middle leaves later rules looking
+ *      perfectly well-formed -- their groups ARE spawned, by rules that will
+ *      never fire -- and only the fixpoint sees it.
+ *    - an act that ends with endAct also declares a timed epilog, so a wave
+ *      that never clears cannot leave the level without an exit
  *    - the acts: numbered from 1 with no hole, since the progression and the
  *      end-of-game card count on it
  *
@@ -153,6 +160,24 @@ static int  gNumSpawned;
 static char gWatched[MAX_GROUPS][32];	/* groups a rule waits on */
 static int  gNumWatched;
 
+/* ...and the CHAIN. A reactive act is a graph: each rule waits on a group and
+   spawns another, so a break anywhere past the seed leaves everything
+   downstream stranded -- and the flat check above cannot see it, because the
+   stranded groups ARE spawned, by rules that will never run. One rule per
+   entry, then a fixpoint from the groups the enemies block seeds. */
+typedef struct
+{
+	char watches[32];	/* empty: the rule has no group trigger (after/players) */
+	char spawns[32];
+	char name[32];
+	int  reachable;
+} pl_rule_t;
+
+static pl_rule_t gRules[MAX_GROUPS];
+static int       gNumRules;
+static char      gSeeded[MAX_GROUPS][32];	/* groups the enemies block spawns */
+static int       gNumSeeded;
+
 static void PL_NoteGroup(char list[][32], int* n, const char* name)
 {
 	int i;
@@ -174,6 +199,8 @@ static void PL_CheckScene(const char* scenePath, const char* packId)
 	char track[MAX_NAME] = "", alternate[MAX_NAME] = "";
 	char block[64] = "", lastWord[64] = "";
 	int sawCamera = 0, sawMap = 0;
+	int sawEndAct = 0, sawEpilog = 0;
+	int curRule = -1;
 	int i;
 
 	if (!f)
@@ -182,7 +209,7 @@ static void PL_CheckScene(const char* scenePath, const char* packId)
 		return;
 	}
 
-	gNumSpawned = gNumWatched = 0;
+	gNumSpawned = gNumWatched = gNumRules = gNumSeeded = 0;
 	LE_init(f);
 
 	while (LE_hasMoreData())
@@ -206,6 +233,7 @@ static void PL_CheckScene(const char* scenePath, const char* packId)
 		if (!strcmp(tok, "}"))
 		{
 			block[0] = 0;
+			curRule = -1;		/* out of the rules block: a 'group' is a seed again */
 			continue;
 		}
 
@@ -235,6 +263,41 @@ static void PL_CheckScene(const char* scenePath, const char* packId)
 		{
 			LE_readToken();
 			PL_NoteGroup(gSpawned, &gNumSpawned, LE_getCurrentToken());
+			if (curRule >= 0)
+			{
+				strncpy(gRules[curRule].spawns, LE_getCurrentToken(), 31);
+				gRules[curRule].spawns[31] = 0;
+			}
+			else
+				PL_NoteGroup(gSeeded, &gNumSeeded, LE_getCurrentToken());
+			lastWord[0] = 0;
+			continue;
+		}
+
+		/* a new rule in the rules block: the graph's next node */
+		if (!strcmp(tok, "rule") && !strcmp(block, "rules"))
+		{
+			LE_readToken();
+			if (gNumRules < MAX_GROUPS)
+			{
+				curRule = gNumRules++;
+				memset(&gRules[curRule], 0, sizeof(gRules[curRule]));
+				strncpy(gRules[curRule].name, LE_getCurrentToken(), 31);
+			}
+			lastWord[0] = 0;
+			continue;
+		}
+
+		if (!strcmp(tok, "endAct"))
+		{
+			sawEndAct = 1;
+			lastWord[0] = 0;
+			continue;
+		}
+
+		if (!strcmp(tok, "epilog") && !strcmp(block, "title"))
+		{
+			sawEpilog = 1;
 			lastWord[0] = 0;
 			continue;
 		}
@@ -244,6 +307,11 @@ static void PL_CheckScene(const char* scenePath, const char* packId)
 		{
 			LE_readToken();
 			PL_NoteGroup(gWatched, &gNumWatched, LE_getCurrentToken());
+			if (curRule >= 0)
+			{
+				strncpy(gRules[curRule].watches, LE_getCurrentToken(), 31);
+				gRules[curRule].watches[31] = 0;
+			}
 			lastWord[0] = 0;
 			continue;
 		}
@@ -271,6 +339,53 @@ static void PL_CheckScene(const char* scenePath, const char* packId)
 			err("%s: a rule waits on group '%s', which nothing spawns -- that rule can never fire",
 			    packId, gWatched[i]);
 	}
+
+	/* The chain, by fixpoint. A rule with no group trigger (after / players)
+	   always runs; one that waits on a group runs only if some rule that can
+	   itself run spawns that group, or the enemies block seeds it. Anything
+	   left unreached after the graph stops growing is a dead branch: spawned
+	   on paper, unreachable in play. This is the failure the flat check above
+	   cannot see -- a chain cut in the MIDDLE leaves every later rule looking
+	   perfectly well-formed. */
+	if (gNumRules > 0)
+	{
+		int changed = 1, pass;
+		for (i = 0; i < gNumRules; i++)
+			gRules[i].reachable = (gRules[i].watches[0] == 0);
+		for (pass = 0; changed && pass <= gNumRules; pass++)
+		{
+			changed = 0;
+			for (i = 0; i < gNumRules; i++)
+			{
+				int j;
+				if (gRules[i].reachable)
+					continue;
+				for (j = 0; j < gNumSeeded; j++)
+					if (!strcmp(gRules[i].watches, gSeeded[j]))
+						{ gRules[i].reachable = 1; changed = 1; }
+				for (j = 0; j < gNumRules; j++)
+					if (gRules[j].reachable && gRules[j].spawns[0] &&
+					    !strcmp(gRules[i].watches, gRules[j].spawns))
+						{ gRules[i].reachable = 1; changed = 1; }
+			}
+		}
+		for (i = 0; i < gNumRules; i++)
+		{
+			gChecked++;
+			if (!gRules[i].reachable)
+				err("%s: rule '%s' waits on group '%s', and nothing that can ever run spawns it -- the chain is cut before this rule",
+				    packId, gRules[i].name, gRules[i].watches);
+		}
+	}
+
+	/* An act that ends on a rule must still be finishable when the rule does
+	   not fire: one enemy stuck off-screen would otherwise mean a level with
+	   no exit. The timed epilog is the backstop, and endAct refuses to start
+	   a second ending on top of it, so keeping both is free. */
+	gChecked++;
+	if (sawEndAct && !sawEpilog)
+		err("%s: the act ends with endAct but declares no timed epilog -- a wave that never clears would leave the level with no way out",
+		    packId);
 }
 
 /* ------------------------------------------------------------------ */

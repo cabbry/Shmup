@@ -124,9 +124,26 @@ EAGLView *eaglview;
 	if ([standardUserDefaults objectForKey:@"HighestAct"] != nil)
 		gHighestActReached = (int)[standardUserDefaults integerForKey:@"HighestAct"];
 	if (gHighestActReached < 1) gHighestActReached = 1;
-	// 4 playable acts (scenes 1..4). engine.numScenes is not parsed yet at this
+
+	// v4: an act was INSERTED before the boss, which moved from act 4 to act 5.
+	// A saved 4 meant "reached the boss"; left alone it would now mean "reached
+	// the new act 4" and would take the finale AWAY from a player who had
+	// already got there. Carry the old top over, once, and stamp the layout so
+	// this never runs twice (a player who legitimately stops at act 4 in the
+	// new layout must keep act 5 locked).
+	if ([standardUserDefaults objectForKey:@"ActLayout"] == nil)
+	{
+		if (gHighestActReached >= 4)
+			gHighestActReached = 5;
+		[standardUserDefaults setInteger:2 forKey:@"ActLayout"];
+		[standardUserDefaults setInteger:gHighestActReached forKey:@"HighestAct"];
+		[standardUserDefaults synchronize];
+		NSLog(@"progress migrated to the 5-act layout: highestAct=%d", gHighestActReached);
+	}
+
+	// 5 playable acts (scenes 1..5). engine.numScenes is not parsed yet at this
 	// point, hence the literal -- keep it in step with config.cfg.
-	if (gHighestActReached > 4) gHighestActReached = 4;
+	if (gHighestActReached > 5) gHighestActReached = 5;
 	NSLog(@"highestAct=%d", gHighestActReached);
 
 

@@ -1,4 +1,4 @@
-# Level packs — the v4 format (stages 1, 2, 2b and 4 landed)
+# Level packs — the v4 format (stages 1, 2, 2b and 4 landed; an act now written in it)
 
 *Round 42. This is the inventory the v4 scripting work starts from, and the
 first draft of the format a level will ship in. It will change as the stages
@@ -238,7 +238,7 @@ What it checks, which is what actually goes wrong:
 | the acts | at least one, since the progression and the ending card count them |
 
 It runs on every push, twice: the shipped packs must pass (102 checks, no
-errors, no warnings), and `fixtures/broken` — a pack set with eight planted
+errors, no warnings; 146 and ten faults since round 59), and `fixtures/broken` — a pack set with planted
 faults — must fail *with the group typo named*. A linter nobody has seen say
 "no" is not a linter.
 
@@ -246,10 +246,69 @@ faults — must fail *with the group typo named*. A linter nobody has seen say
 scene number, resolving it through `config.cfg`; the scene number is an engine
 detail nobody writing a level should have to count.
 
-**What is left of stage 4** is the exit test, and it is not mine to run: a
-level written by the tester from scratch, without touching the C.
+**What was left of stage 4** was the exit test. It has been run -- see §8: an
+act written in data, which cost the format two additions and no scene-id churn.
 
-## 8. Deferred, on purpose
+
+## 8. The exit test — an act written in data (landed, round 59)
+
+**Act IV, "Rain", is the first act of the game that is not on a clock.** Acts I
+to III are timelines: every wave has an hour, and the level lasts exactly what
+its author decided. Act IV is a chain of reactions — one seed wave in the
+`enemies` block, and after that each wave waits for the one before it to be
+gone. It exists to answer the only question stage 4 could not answer from the
+inside: **can a whole act be written without touching the C?**
+
+Almost. It cost two additions, both of which any pack now inherits:
+
+- **`endAct`, a rule action.** The hand-authored acts declare their ending as
+  two timed events (park the ships at 139 s, epilog at 142 s). A reactive act
+  cannot know *when* that is — only *that* the last wave is down — so a rule
+  says `endAct` and the same two events are scheduled from wherever the act
+  actually got to. It takes no argument, fires at most once per scene, and
+  refuses to start on top of an epilog already running.
+- **The menu reads the pack's `name`.** The act-select screen had its labels in
+  C (`"Act I"`, …, `"Act IV"`) and a fixed grid of four. It now draws one
+  button per act declared by the packs and takes each label from its manifest.
+  That is what the `name` field was always for; until now nothing read it.
+  Renaming the boss act to **Final** is, as a result, one word in one file.
+
+The act also had to be renumbered around, and that part cost nothing: **no
+scene id is hardcoded anywhere in the engine.** The progression, the
+end-of-game card and the multiplayer act pick all key on `actIndex` /
+`numActs`, which is exactly what the v4 refactor was for. Inserting an act is
+`config.cfg` plus a pack directory. The one place that quietly assumed
+"act *n* = scene *n*" was the act-select button, and it now asks.
+
+**What the reactive form buys, beyond the test:** the act adapts to the party
+without being tuned. The next wave waits for the previous one to fall, so four
+guns clear it faster and the act stays dense instead of becoming a waiting
+room. None of the four hand-authored acts can do that; all four run on a clock
+that does not know how many players are shooting.
+
+**What it needs to be safe.** A chain of `cleared` conditions has one failure
+mode — a wave that never clears — and a level with no exit is worse than one
+that ends early. Two things answer it. Every wave carries a `ttl`, so a wave
+flown past unshot expires on its own and the chain advances anyway. And the
+act keeps a **timed epilog as a backstop**, far past any honest run; whichever
+ending arrives first wins. `packlint` now refuses an act that uses `endAct`
+without one.
+
+**And the chain is checked statically.** `packlint` walks the rule graph from
+the groups the `enemies` block seeds and reports any rule nothing reachable can
+trigger. This catches what the older per-group check cannot: a chain cut in the
+*middle* leaves every later rule looking perfectly well-formed — their groups
+*are* spawned, by rules that will never run.
+
+**Decor, with no new asset**: act 2's city on act 2's shipped baked rail, under
+a fog that closes 100 units earlier. The rail and the map are a **pair** — a
+`.cp2b` stores per-frame face indices into that map's entities — so the pairing
+is not free choice: act 3's map (act 1's city, re-skied) with act 3's rail
+(baked in 2009 for act 2's city, and 35 s long) would have culled the wrong
+faces off the wrong geometry, which is the exact failure that once made act 3
+black on device.
+
+## 9. Deferred, on purpose
 
 - **A community level list / store** — after stage 4, once the format has
   been used by someone other than its author. Needs a server, moderation,

@@ -247,13 +247,17 @@ proof in CI; the format and the inventory are in
    the same sound trace as the C thresholds.
 3. **Lua** — only if a need appears that rules cannot say: sandboxed, one
    state per scene, a small API.
-   Proof: the act IV traces, and the netrig at four for
+   Proof: the finale's traces, and the netrig at four for
    determinism. Lua stays in bundled levels only (App Store 2.5.2).
 4. **Tools — ✅ (round 58)** — `tools/packlint` reads every pack with the
    engine's own lexer and refuses what would only fail on a device (the
-   shipped packs pass, a fixture with eight planted faults must not); the CI
-   camera takes a pack id. Exit test, still open and not mine: a level
-   written by the tester without touching the C.
+   shipped packs pass, a fixture with planted faults must not); the CI
+   camera takes a pack id.
+5. **The exit test — ✅ (round 59)** — a whole act written in data: **Act IV
+   "Rain"**, a chain of reactions rather than a timeline, ending on a rule.
+   It cost the format two additions (`endAct`, and a menu that reads the
+   pack's name) and no scene-id churn anywhere in the engine. The boss act is
+   now the **Final Act**. What is still open is the tester's own turn at it.
 
 Decided with the tester, and parked: a community level list (after stage
 4, declarative content only), first-party cosmetics through Apple's
@@ -322,6 +326,81 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-10 — round 59 (an act written in data: Act IV "Rain", and the boss act becomes the Final Act)
+
+- **🆕 A FIFTH ACT, AND IT IS THE FIRST ONE THAT IS NOT ON A CLOCK.** Acts I to
+  III are timelines: every wave has an hour, and the level lasts what its
+  author decided. **Act IV, 雨 -Rain**, is a chain of reactions — one seed wave
+  in `enemies`, then seven rules that each wait for the previous group to be
+  *gone* (shot down, or expired off the bottom), and an ending that is itself
+  a rule. It is the exit test of the v4 format, asked by the tester, and it
+  answers the question stage 4 could not answer from the inside: **can a whole
+  act be written without touching the C?** Almost — it cost exactly two
+  additions, and both of them any future pack inherits for free.
+- **🆕 `endAct`, a rule action.** A hand-authored act declares its ending as two
+  timed events (park the ships, epilog three seconds later, six seconds long).
+  A reactive act cannot know *when* that is, only *that* the last wave is
+  down. `endAct` schedules those same two events from wherever play actually
+  got to. No argument, at most once per scene, and it refuses to start on top
+  of an epilog already running — so an act may keep a **timed epilog as a
+  backstop** (Act IV's sits at 240 s, far past any honest run) and whichever
+  ending arrives first wins. A chain of `cleared` conditions has exactly one
+  failure mode, a wave that never clears; every wave carrying a `ttl` handles
+  the ordinary case, the backstop handles the rest. **`packlint` now refuses
+  an act that uses `endAct` without one.**
+- **🆕 The menu reads the pack's name.** The act-select screen kept its labels
+  in C — `"Act I"` … `"Act IV"`, and a grid sized for exactly four. It now
+  draws one button per act the packs declare and takes each label from the
+  manifest, which is what the `name` field was for since stage 1; nothing had
+  ever read it. So **renaming the boss act to "Final" is one word in one
+  file**, and the fifth button appeared on its own.
+- **🔑 Inserting an act cost nothing in the engine.** Not one scene id is
+  hardcoded: the progression, the end-of-game card and the multiplayer act
+  pick all key on `actIndex` / `numActs` — exactly what the v4 pack refactor
+  was for, used in anger for the first time. The single place that quietly
+  assumed "act *n* = scene *n*" was the act-select button's tag; it asks now.
+  Saved progress is migrated once (a player who had reached the old act 4 —
+  the boss — keeps the finale unlocked rather than having it taken away).
+- **🔑 The decor pairing is not free choice, and checking it saved a repeat of
+  an old failure.** The plan was act 3's map with act 3's rail — the one rail
+  in the repo no act flies. Reading the format first: a `.cp2b` stores
+  per-frame **face indices into that map's entities**, so a rail belongs to a
+  map. `act3.cp` was baked in 2009 for the boss act over **act 2's** city
+  (there was no act3.map before 2026) and is **35 s long**. Paired with act
+  3's map it would have culled the wrong faces off the wrong geometry — the
+  exact failure that once made act 3 black on device. Act IV therefore flies
+  **act 2's city on act 2's shipped baked rail**, with the fog closing 100
+  units earlier for weather; no new asset, and the only act that shows that
+  city in full is act 2 (the finale spends nine seconds of it, then hovers).
+- **🆕 `packlint` checks the CHAIN, not just the groups.** The old check —
+  "every group a rule watches is a group something spawns" — cannot see a
+  chain cut in the *middle*: the stranded rules' groups **are** spawned, by
+  rules that will never run. The new one walks the graph from the seeds by
+  fixpoint and names every rule nothing reachable can trigger. Proven both
+  ways on every push, as always: the shipped packs pass (146 checks, 0
+  errors), and the fixture's ten planted faults must fail *with the cut chain
+  and the missing backstop named*.
+- **🆕 The rules smoke plays the act to its end.** Scene 12 proves three rules
+  chain; phase B now plays **Act IV whole**, unattended with autofire, and
+  asserts that all seven links fire in order and that the act reaches the
+  finale **on `endAct` before 200 s** — not on its 240 s backstop. The chain
+  breaking would still let the level finish, just four minutes late, so the
+  *deadline* is the test.
+- **🎨 The act cards, as one family again.** New **雨 -Rain / Act IV**; the
+  finale's card keeps its hand-painted 2009 水 -Water and rule, with only the
+  line beneath redrawn from "Act IV" to **"Final"** (the same surgery it had
+  in round 19 when it read "Act iii"). And **`duskTitle.png` was rebuilt**: its
+  kanji 夕 was right all along — I had claimed otherwise from a thumbnail and
+  was wrong — but its *weight* was not. It was the one card drawn in Brush
+  Script MT, thinner and greyer than the four painted ones, and it stood out.
+  The Latin hand is now Viner Hand ITC Bold, picked against the shipped cards
+  in a candidate sheet; the kanji is a Song face widened by a round pen, whose
+  wedge stroke endings read closer to a brush than Yu Gothic's uniform slab.
+- **No build.** Nothing here has been on a device yet: the act is proven by the
+  validator (statically, on the real files, through the engine's own lexer)
+  and by the arithmetic and netcode benches staying green. The Simulator proof
+  is one dispatch of `smoke-rules` away, and the tag waits for a go, as always.
 
 ### 2026-09-10 — round 58 (v4 stage 4: the tools, so the format can leave its author)
 

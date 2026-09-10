@@ -2,6 +2,27 @@
 
 defaultMenu -1
 
+# Act IV -- "Rain". THE FIRST ACT OF THE GAME THAT IS NOT ON A CLOCK.
+#
+# Acts I to III are timelines: every wave has an hour, and the level lasts what
+# the author decided. This one is a CHAIN OF REACTIONS -- one seed wave in the
+# enemies block, and after that each wave waits for the one before it to be
+# gone. The consequence is the point: a party of four kills a wave faster than
+# a lone player, so the act does not become a waiting room when there are more
+# guns; it stays dense. Nobody tuned that. It falls out of writing "next" as a
+# condition rather than a time.
+#
+# It is also the exit test of the v4 pack format: written in data only, read by
+# tools/packlint the way the game reads it, and it ends with a rule (endAct)
+# rather than with a number.
+#
+# Decor, with no new asset: act 2's city and its shipped baked rail. The rail
+# and the map are a PAIR -- a .cp2b stores per-frame face indices into that
+# map's entities, so act 3's map (act 1's city) with act 3's rail (baked in
+# 2009 for act 2's city, and 35 s long) would have culled the wrong faces on
+# the wrong geometry. Act 2's flight is also the only one that shows this city
+# in full: the finale spends nine seconds of it and then hovers.
+
 map
 {
 	filename: data/map/act2.map
@@ -26,12 +47,6 @@ light
 
 camera
 {
-	# Act 2's shipped BAKED rail -- the configuration the boss act flew for months,
-	# with its visibility set and a decor that shows up on device. The text rail
-	# act3boss.cp (a real 180 U-turn, live decor culling for the whole act) made
-	# this act black on device while rendering correctly in the Simulator; it stays
-	# in the repo, unused. The U-turn is not worth an unplayable level -- it now
-	# happens at the END of the rail only (see driftAtEnd below).
 	path:  data/cameraPath/act2.cp.cp2b
 
 	fov:	55
@@ -39,27 +54,28 @@ camera
 	zFar:	22000
 
 	attachAt: 09000
-	detachAt: 900000
+	# No detachAt (4.0.2): the ships park at the end and stay visible under the
+	# epilog card, like every other act.
 
-	# The fight lasts as long as the boss does, so the rail WILL run out. Hand
-	# over to the end-of-rail patrol (settle -> 180 turn -> leg back over the
-	# city, live decor culling) instead of freezing. Used to be hardcoded in
-	# dEngine as "sceneId == 3"; now that there are two acts past act 2, the
-	# scene says it.
+	# A reactive act has NO KNOWN LENGTH -- it lasts as long as the players take
+	# to clear seven waves, and two of them clear it faster than one. The rail
+	# runs out at ~142 s, so hand over to the end-of-rail patrol instead of
+	# freezing, exactly as the finale does while its fight drags on. This is the
+	# camera setting that a level without a schedule requires.
 	driftAtEnd: 1
 }
 
-# "Water" act: deep blue haze.
+# Rain: the city seen through weather. Same ramp start as acts 1/2 (starting it
+# at the camera is what made the old act 3 needlessly dark), but the fog CLOSES
+# EARLIER -- 300 against their 405 -- so the far towers dissolve and the near
+# ones stay hard. Grey-blue, on the way down to the finale's deep water.
 fog
 {
 	enabled 1
 	density 0.1
-	# startAt matches act 2 (70, not 0.1): with the ramp starting at the camera
-	# the city kept only ~60% of its texture where act 2 keeps ~73%, so act 3 was
-	# needlessly ~18% darker. Measured on device: the readout showed LIT12.
 	startAt 70
-	endAt   405.0
-	color:  0.0  0.02  0.10
+	endAt   300.0
+	color:  0.05  0.06  0.10
 }
 
 player
@@ -90,7 +106,7 @@ playback
 {
 	play 0
 	record 0
-	filename 04act4.scene.io
+	filename 04rain.scene.io
 }
 
 
@@ -99,88 +115,113 @@ music
 {
 	startMusicAt 122
 	trackname data/music/UNREALPM.mp3
-	# v4.1.1: when this one runs out (the acts share it and it plays ON from act
-	# to act), hand over to the other theme rather than fall silent.
+	# v4.1.1: hand over to the other theme when this one runs out, so a long
+	# run -- and this act can be a long one -- never falls silent.
 	alternate data/music/UNREALTH.mp3
 }
 
 title
 {
-	titleName  data/titles/boss.png
-	prolog start 500 duration 8500
+	titleName  data/titles/rainTitle.png
+	prolog start 2000 duration 6000
+
+	# THE BACKSTOP, NOT THE SCHEDULE. The act normally ends on the last rule
+	# (endAct, below), whenever that is. But a chain of "cleared" conditions has
+	# one failure mode -- a wave that never clears -- and a level that cannot be
+	# finished is worse than one that ends early. Four minutes is far past any
+	# honest run of seven waves; if this fires, something is wrong, and the
+	# player still gets their score screen. Whichever ending arrives first wins:
+	# endAct is a one-shot and it refuses to start on top of a running epilog.
+	at 240000 movePlayersToDefautlSSLocation
+	epilog start 243000 duration 6000
+
 }
 
 
-# Act IV -- the boss act (it was act 3 until the TTB act was inserted before it).
-# A short gauntlet, a warning, then the LOFB.
-# Its behaviour (phases, spirals, escorts) lives in lofb.c; the fight ends when
-# it dies (LOFB_OnBossDeath -> epilog -> back to the menu), not on a timer.
+# The seed, and the ONLY thing here with a time on it. Everything after it is
+# in the rules block, waiting on this.
 enemies
 {
 	settime 11000
-	setttl 5000
+	setttl 8000
 
-	# opening dives, criss-crossing
-	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.8 1.3 endPos 0.6 -1.3 controlPoint -0.8 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 400  spawnEnemy mouvement 1 enemyType 1 startPos 0.8 1.3 endPos -0.6 -1.3 controlPoint 0.8 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 800  spawnEnemy mouvement 1 enemyType 1 startPos -0.5 1.3 endPos 0.4 -1.3 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1200 spawnEnemy mouvement 1 enemyType 1 startPos 0.5 1.3 endPos -0.4 -1.3 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1600 spawnEnemy mouvement 1 enemyType 1 startPos 0 1.3 endPos 0 -1.3 controlPoint 0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-
-	addtime 6000
-	setttl 4500
-
-	# weaving columns, left and right
-	at 0    spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.5 enemyType 1 startPos -0.5 1.2 endPos -0.5 -1.2 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 350  spawnEnemy mouvement 2 xOffset 0.5 xWidth 0.5 enemyType 1 startPos 0.5 1.2 endPos 0.5 -1.2 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 700  spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.5 enemyType 1 startPos -0.5 1.2 endPos -0.5 -1.2 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1050 spawnEnemy mouvement 2 xOffset 0.5 xWidth 0.5 enemyType 1 startPos 0.5 1.2 endPos 0.5 -1.2 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1400 spawnEnemy mouvement 2 xOffset -0.5 xWidth 0.5 enemyType 1 startPos -0.5 1.2 endPos -0.5 -1.2 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	at 1750 spawnEnemy mouvement 2 xOffset 0.5 xWidth 0.5 enemyType 1 startPos 0.5 1.2 endPos 0.5 -1.2 controlPoint 0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-
-	addtime 7000
-	setttl 6000
-
-	# hardened stragglers
-	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.7 1.3 endPos -0.7 -1.3 controlPoint 0 0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	at 500  spawnEnemy mouvement 1 enemyType 1 startPos 0.7 1.3 endPos 0.7 -1.3 controlPoint 0 0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	at 1000 spawnEnemy mouvement 1 enemyType 1 startPos -0.3 1.3 endPos -0.3 -1.3 controlPoint 0 -0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	at 1500 spawnEnemy mouvement 1 enemyType 1 startPos 0.3 1.3 endPos 0.3 -1.3 controlPoint 0 -0.2 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-
-	addtime 8000
-	setttl 9000000
-
-	# THE BOSS. Eases down to its hover point, then lofb.c takes over.
-	at 9000 spawnEnemy mouvement 1 enemyType 4 startPos 0 1.35 endPos 0 0.55 controlPoint 0 1 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	group boss
-
-
+	# Four divers, criss-crossing.
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.7 1.3 endPos 0.5 -1.3 controlPoint -0.7 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+	at 500  spawnEnemy mouvement 1 enemyType 1 startPos 0.7 1.3 endPos -0.5 -1.3 controlPoint 0.7 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+	at 1000 spawnEnemy mouvement 1 enemyType 1 startPos -0.3 1.3 endPos 0.3 -1.3 controlPoint -0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+	at 1500 spawnEnemy mouvement 1 enemyType 1 startPos 0.3 1.3 endPos -0.3 -1.3 controlPoint 0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
 }
 
-texts_events
-{
-	settime 0
-	at 38500 display WARNING size 4.0  for 3000 starting 0 50 ending  0 50
 
-}
-
-events
-{
-	at 40000 uploadScore
-
-}
-# v4 stage 2b: the boss's attack ladder, as rules. The thresholds lofb.c used
-# since the fight was built (HP at most 85 / 75 / 50 / 25 % of the fight's pool),
-# read on the same frame -- the act-4 sound trace is identical with and without
-# this block. Cadences, patterns and the mega-laser clock stay in lofb.c; a pack
-# may reorder the ladder, drop an attack, or key it on the clock ("after").
+# The act. Each rule waits for the previous group to be GONE -- shot down, or
+# flown off the bottom and expired (every wave carries a ttl, so a player who
+# refuses to fire cannot stall the level; it just advances slower and gives
+# them nothing).
 rules
 {
-	rule spray    hpAtMost boss 85   bossAttack spray on
-	rule minions  hpAtMost boss 75   bossAttack minions on
-	rule bigshot  hpAtMost boss 50   bossAttack bigshot on
-	rule finale   hpAtMost boss 25   bossAttack missiles on   bossAttack frenzy on
+	setttl 8000
+
+	# --- the downpour builds -------------------------------------------------
+	rule r2 when cleared r1 after 1200
+	        spawnEnemy mouvement 2 xOffset -0.55 xWidth 0.45 enemyType 1 startPos -0.55 1.2 endPos -0.55 -1.2 controlPoint -0.55 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 2 xOffset  0.55 xWidth 0.45 enemyType 1 startPos  0.55 1.2 endPos  0.55 -1.2 controlPoint  0.55 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 2 xOffset -0.20 xWidth 0.45 enemyType 1 startPos -0.20 1.2 endPos -0.20 -1.2 controlPoint -0.20 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 2 xOffset  0.20 xWidth 0.45 enemyType 1 startPos  0.20 1.2 endPos  0.20 -1.2 controlPoint  0.20 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group r2
+
+	# A ring closing in -- the first moment the whole screen is busy.
+	rule r3 when cleared r2 after 1200
+	        spawnEnemyWave circle enemyNum 8 enemyType 1 percentageInvulnerable 0 angleoffset 0 defaultType 0
+	        group r3
+
+	# --- it starts shooting back ---------------------------------------------
+	# Three turrets on their own orbits. The act's first sustained fire.
+	rule r4 when cleared r3 after 1500
+	        spawnEnemy mouvement 0 startAngle 0   fireFrequency 55 enemyType 2 startPos -0.6 1.2 endPos -0.6 -1.2 controlPoint -0.6 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
+	        spawnEnemy mouvement 0 startAngle 120 fireFrequency 55 enemyType 2 startPos  0.0 1.2 endPos  0.0 -1.2 controlPoint  0.0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
+	        spawnEnemy mouvement 0 startAngle 240 fireFrequency 55 enemyType 2 startPos  0.6 1.2 endPos  0.6 -1.2 controlPoint  0.6 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
+	        group r4
+
+	# A pair of spiral gunners, one from each flank.
+	rule r5 when cleared r4 after 1500
+	        spawnEnemy mouvement 1 enemyType 3 startPos -2 0.9 endPos -0.40 0.45 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 5 rotAngle -180
+	        spawnEnemy mouvement 1 enemyType 3 startPos  2 0.9 endPos  0.40 0.45 controlPoint  1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 5 rotAngle  180
+	        group r5
+
+	# ...and they call for help when they are half dead. A reaction to DAMAGE,
+	# not to a clock: rush the pair and the escort never comes.
+	rule r5b when hpBelow r5 50
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.9 1.3 endPos -0.9 -1.3 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos  0.9 1.3 endPos  0.9 -1.3 controlPoint  0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group r5
+
+	# --- the squall ----------------------------------------------------------
+	# A hardened ring, then the last stand.
+	rule r6 when cleared r5 after 1500
+	        spawnEnemyWave circle enemyNum 10 enemyType 1 percentageInvulnerable 0 angleoffset 22 defaultType 1
+	        group r6
+
+	rule r7 when cleared r6 after 1800
+	        spawnEnemy mouvement 1 enemyType 3 startPos -2 0.6 endPos -0.35 0.35 controlPoint -1 0.8 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 6 rotAngle -200
+	        spawnEnemy mouvement 1 enemyType 3 startPos  2 0.6 endPos  0.35 0.35 controlPoint  1 0.8 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 6 rotAngle  200
+	        spawnEnemy mouvement 2 xOffset -0.35 xWidth 0.5 enemyType 1 startPos -0.35 1.2 endPos -0.35 -1.2 controlPoint -0.35 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 2 xOffset  0.35 xWidth 0.5 enemyType 1 startPos  0.35 1.2 endPos  0.35 -1.2 controlPoint  0.35 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	        group r7
+
+	# --- more guns, more rain ------------------------------------------------
+	# A party of three or four gets squalls the solo player never sees. The
+	# trigger holds from the first tick, so "after" is what puts each squall
+	# 20 s downstream of its own firing -- and it is also what makes the late
+	# ones harmless: a squall queued once the act has ended is dropped with the
+	# rest of the scene's events when the next one loads.
+	rule squall when players 3 every 20000 after 20000
+	        spawnEnemyWave circle enemyNum 5 enemyType 1 percentageInvulnerable 0 angleoffset 40 defaultType 0
+	        group squall
+
+	# --- the ending, as a rule -----------------------------------------------
+	# Two seconds of clear sky after the last hull falls, then the ships park
+	# and the card comes up. No time appears in this line, and that is the whole
+	# point of the act.
+	rule finish when cleared r7 after 2000
+	        endAct
 }
-
-
-

@@ -41,6 +41,11 @@ int TITLE_IsEndOfGameScreen(void);
 // A prolog/epilog card is on screen (its top band covers the HUD's zone).
 int TITLE_IsShowing(void);
 
+// The EPILOG card specifically is running: the act is already ending, and its
+// end will change the scene. A rule's endAct checks this so a pack that has
+// both a timed epilog and a reactive one cannot schedule a second ending.
+int TITLE_IsEpilogRunning(void);
+
 extern texture_t titleTexture;
 #define MODE_PROLOG 0
 #define MODE_EPILOG 1

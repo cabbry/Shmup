@@ -27,6 +27,7 @@
 #include "log.h"
 #include "player.h"
 #include "lofb.h"	// stage 2b: the boss ladder as rule actions
+#include "titles.h"	// v4: endAct schedules the epilog
 #include <string.h>
 #include <stdlib.h>
 
@@ -49,6 +50,7 @@ typedef struct rule_t
 	int  numSpawns;
 	event_spawnEnemy_payload_t spawns[RULE_MAX_SPAWNS];
 	char bossAttack[LOFB_NUM_ATTACKS];	// stage 2b: -1 untouched, 0 off, 1 on (applied at fire, no delay)
+	char endAct;						// v4: this rule ends the act (park the ships, then the epilog)
 } rule_t;
 
 typedef struct group_t
@@ -64,6 +66,17 @@ static int     gNumRules;
 static group_t gGroups[GROUPS_MAX];
 static int     gNumGroups;
 
+// v4: the act can only be ended once, however many rules ask for it (an "every"
+// rule that carries endAct would otherwise queue an epilog per period).
+static int     gEndActFired;
+
+// endAct's shape, taken from what every hand-authored act already does: park
+// the ships, three seconds later the epilog card, six seconds of it (act 1:
+// 139 s / 142 s / 6000; act 3: 106 s / 109 s / 6000). Written once here so a
+// pack that ends on a rule ends exactly like a pack that ends on the clock.
+#define ENDACT_PARK_TO_EPILOG_MS	3000
+#define ENDACT_EPILOG_MS			6000
+
 static const char* triggerNames[] = { "none", "cleared", "hpBelow", "players", "after", "hpAtMost" };
 
 // ---------------------------------------------------------------------------
@@ -74,6 +87,7 @@ void RULES_InitForScene(void)
 	memset(gGroups, 0, sizeof(gGroups));
 	gNumRules = 0;
 	gNumGroups = 0;
+	gEndActFired = 0;
 	LOFB_ResetLadder();		// stage 2b: thresholds again until a rule says otherwise
 }
 
@@ -174,6 +188,40 @@ static int RULES_Holds(const rule_t* r)
 	}
 }
 
+// Schedule one payload-less event at an absolute simulation time.
+static void RULES_ScheduleEvent(int type, int atTime, void* payload)
+{
+	event_t* event = calloc(1, sizeof(event_t));
+	event->time = atTime;
+	event->type = type;
+	event->payload = payload;
+	EV_AddEvent(event);
+}
+
+// v4: end the act from a rule. The hand-authored acts declare their ending as
+// two timed events (park the ships, then the epilog card); a reactive act
+// cannot know WHEN that is, only THAT the last wave is down -- so it says
+// endAct and the same two events are scheduled from here, relative to now.
+static void RULES_EndAct(int atTime)
+{
+	event_title_payload_t* pl;
+
+	// Once per scene, and never on top of an ending already under way: a pack
+	// that keeps a timed epilog as a backstop must not get two of them.
+	if (gEndActFired || TITLE_IsEpilogRunning())
+		return;
+	gEndActFired = 1;
+
+	RULES_ScheduleEvent(EV_AUTOPILOT_PL, atTime, NULL);
+
+	pl = calloc(1, sizeof(event_title_payload_t));
+	pl->duration = ENDACT_EPILOG_MS;
+	RULES_ScheduleEvent(EV_SHOW_EPILOG, atTime + ENDACT_PARK_TO_EPILOG_MS, pl);
+
+	Log_Printf("[rule] t=%d endAct: park at %d, epilog at %d for %d\n",
+		simulationTime, atTime, atTime + ENDACT_PARK_TO_EPILOG_MS, ENDACT_EPILOG_MS);
+}
+
 static void RULES_Fire(rule_t* r)
 {
 	int i;
@@ -184,6 +232,8 @@ static void RULES_Fire(rule_t* r)
 	for (i = 0; i < LOFB_NUM_ATTACKS; i++)
 		if (r->bossAttack[i] >= 0)
 			LOFB_SetAttack(i, r->bossAttack[i]);
+	if (r->endAct)
+		RULES_EndAct(simulationTime + r->delay);
 	for (i = 0; i < r->numSpawns; i++)
 	{
 		event_t* event = calloc(1, sizeof(event_t));
@@ -332,6 +382,10 @@ void RULES_Read(void)
 					LE_readToken();		// circle
 					r->numSpawns += EV_ParseCircleWave(&r->spawns[r->numSpawns], RULE_MAX_SPAWNS - r->numSpawns, ttl);
 				}
+				else if (!strcmp("endAct", tok))
+				{
+					r->endAct = 1;
+				}
 				else if (!strcmp("group", tok))
 				{
 					LE_readToken();
@@ -343,8 +397,9 @@ void RULES_Read(void)
 				}
 				LE_readToken();
 			}
-			Log_Printf("[rule] %s: %s %s %d, delay %d, every %d, %d spawns\n",
-				r->name, triggerNames[r->trigger], r->group, r->value, r->delay, r->period, r->numSpawns);
+			Log_Printf("[rule] %s: %s %s %d, delay %d, every %d, %d spawns%s\n",
+				r->name, triggerNames[r->trigger], r->group, r->value, r->delay, r->period, r->numSpawns,
+				r->endAct ? ", ends the act" : "");
 		}
 	}
 }

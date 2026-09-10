@@ -6,7 +6,7 @@ name: Smoke test the audio (sound trace of one act)
 # "[music] t=<sim> wall=<ms> init|start|stop|pause|resume|pos=" lines, with
 # a position sample every ~5 s of game. Act 1 with autofire exercises all
 # four effects and the UNREALPM track cued at 0. Stage 2b: the act is an input
-# (scene 4 = the boss), and the "[boss] attack" + "[rule] fire" lines ride along
+# (scene 5 = the finale), and the "[boss] attack" + "[rule] fire" lines ride along
 # in the trace -- the boss ladder parity contract.
 #
 # The trace is the parity contract for the audio port: the game is
@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       scene:
-        description: "Scene id to bake (1..4 = acts I..IV). The trace is cut at that scene's end."
+        description: "Scene id to bake (1..5 = acts I..IV and the finale). The trace is cut at that scene's end."
         default: "1"
         required: false
       maxMin:
@@ -96,7 +96,7 @@ jobs:
           START=$(date +%s)
           SCENE="${{ inputs.scene || 1 }}"
           MAXMIN="${{ inputs.maxMin || 35 }}"
-          case "$SCENE" in 0) TRACK=UNREALTH; SCN=data/data/scenes/intro.scene;; *) TRACK=UNREALPM; SCN="data/data/scenes/act$SCENE.scene";; esac
+          case "$SCENE" in 0) TRACK=UNREALTH; SCN=data/data/scenes/intro.scene;; 5) TRACK=UNREALPM; SCN=data/data/scenes/final.scene;; *) TRACK=UNREALPM; SCN="data/data/scenes/act$SCENE.scene";; esac
           CUE=$(awk '/startMusicAt/{print $2}' "$SCN" 2>/dev/null); CUE="${CUE:-0}"
           echo "scene $SCENE, track $TRACK cued at $CUE, up to $MAXMIN min"
 
@@ -147,10 +147,10 @@ jobs:
           [ "${PLASMA:-0}" -ge 100 ] || { echo "::error::Autofire should have fired far more than $PLASMA plasma shots."; exit 1; }
           [ "${EXPLO:-0}"  -ge 5 ]   || { echo "::error::Too few explosions ($EXPLO)."; exit 1; }
           # the boss speaks through explosions and its own bullets, not the enemy_shot effect
-          [ "$SCENE" = "4" ] || [ "${ENEMY:-0}" -ge 5 ] || { echo "::error::Too few enemy shots ($ENEMY)."; exit 1; }
+          [ "$SCENE" = "5" ] || [ "${ENEMY:-0}" -ge 5 ] || { echo "::error::Too few enemy shots ($ENEMY)."; exit 1; }
 
-          # --- scene 4: the boss ladder, in order, each attack once
-          if [ "$SCENE" = "4" ]; then
+          # --- scene 5: the boss ladder, in order, each attack once
+          if [ "$SCENE" = "5" ]; then
             ON=$(tr -d "\r" < audio-trace.log | grep -E "^\[boss\] t=[0-9]+ attack [a-z]+ on" | awk '{print $2, $4}' | sed "s/t=//")
             echo "ladder: $(echo "$ON" | tr '\n' ' ')"
             [ "$(echo "$ON" | grep -c .)" -eq 5 ] || { echo "::error::Expected 5 attack-on transitions, got: $ON"; exit 1; }

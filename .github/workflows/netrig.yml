@@ -83,11 +83,17 @@ jobs:
           ./packlint ../../data
           echo "--- a deliberately broken pack (must fail)"
           if ./packlint fixtures/broken > broken.log 2>&1; then
-            echo "::error::packlint accepted a pack set with eight planted faults."
+            echo "::error::packlint accepted a pack set with ten planted faults."
             cat broken.log
             exit 1
           fi
           grep -q "never fire" broken.log || { echo "::error::packlint missed the rule watching a group nobody spawns."; cat broken.log; exit 1; }
+          # ...and the two checks the reactive act needed: a chain cut in the
+          # MIDDLE (the stranded rules' groups ARE spawned -- by rules that can
+          # never run, which the flat check cannot see), and an act that ends
+          # only on a rule, with no timed epilog behind it.
+          grep -q "the chain is cut before this rule" broken.log || { echo "::error::packlint missed the chain cut in the middle."; cat broken.log; exit 1; }
+          grep -q "no way out" broken.log || { echo "::error::packlint missed the endAct with no backstop."; cat broken.log; exit 1; }
           echo "it said no, and for the right reason:"
           grep "ERROR" broken.log
       - name: Upload the log

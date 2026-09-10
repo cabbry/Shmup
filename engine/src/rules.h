@@ -37,7 +37,16 @@
  *  Modifiers: after <ms> (delay between the trigger and the spawns) |
  *  every <ms> (re-fire while the condition holds; default fires once).
  *  Actions: spawnEnemy / spawnEnemyWave circle, the enemies-block grammar;
- *  a trailing group <name> tags what the rule spawns.
+ *  a trailing group <name> tags what the rule spawns. endAct ends the act:
+ *  the ships park and the epilog card follows, the same two events every
+ *  hand-authored act schedules by hand -- but at a time only play can know.
+ *  It takes no argument and fires at most once per scene; the "after" delay
+ *  applies to it like it does to spawns, so "cleared last after 2000 endAct"
+ *  gives the player two seconds of clear sky before the card. An act that
+ *  ends this way should still declare a timed epilog as a BACKSTOP: one enemy
+ *  stuck off-screen must not mean a level that never finishes (the first of
+ *  the two to arrive wins -- endAct is a one-shot, and an epilog already
+ *  showing swallows the second).
  *
  *  Deterministic by construction: pure functions of the simulation clock and
  *  the enemy list, evaluated once per tick on every peer -- lockstep-safe.

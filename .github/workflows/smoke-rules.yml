@@ -1,4 +1,4 @@
-name: Smoke test the rules (conditional events, scene 12)
+name: Smoke test the rules (the bench, then the reactive act)
 
 # v4 stage 2 -- the rules bench. Scene 12 (data/levels/test_rules) chains
 # three waves by RULES, not by the clock: w2 spawns 1.5 s after w1 is wiped
@@ -7,6 +7,10 @@ name: Smoke test the rules (conditional events, scene 12)
 # The smoke asserts the order (w2 before w3 before late), that w2 fired only
 # after the last w1 enemy died (the [snd] explosion trace dates the deaths),
 # and prints the fire times -- deterministic run to run, like every trace.
+#
+# Phase B then plays ACT IV, the first act written entirely as reactions, from
+# its seed wave to the rule that ends it -- and insists it ends on that rule
+# rather than on the four-minute backstop behind it.
 
 on:
   workflow_dispatch:
@@ -14,7 +18,7 @@ on:
 jobs:
   smoke:
     runs-on: macos-15
-    timeout-minutes: 40
+    timeout-minutes: 75
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -133,6 +137,70 @@ jobs:
             exit 1
           fi
 
+      # ---------------------------------------------------------------------
+      # Phase B: ACT IV, the whole act, unattended.
+      #
+      # Scene 12 proves a chain of three rules. This proves a LEVEL: seven
+      # waves that each wait for the one before, and an ending that is itself a
+      # rule. The assertion that matters is not that the act finishes -- the
+      # timed epilog at 240 s would finish it either way -- but that it
+      # finishes EARLY, on endAct, and hands over to the finale. If the chain
+      # breaks anywhere, the act still ends, just four minutes late: so the
+      # deadline IS the test.
+      - name: Play Act IV to its end
+        id: activ
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          BUNDLE_ID="${{ steps.run.outputs.bundle }}"
+          CONTAINER=$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+          rm -f "$CONTAINER"/Documents/*.log
+          nohup env \
+            SIMCTL_CHILD_SHMUP_BAKE_SCENE=4 \
+            SIMCTL_CHILD_SHMUP_CULL_DEBUG=1 \
+            SIMCTL_CHILD_SHMUP_LOG_FILE=1 \
+            SIMCTL_CHILD_SHMUP_INVULN=1 \
+            SIMCTL_CHILD_SHMUP_AUTOFIRE=1 \
+            xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
+            > "$RUNNER_TEMP/act4.log" 2>&1 &
+          START=$(date +%s)
+          for i in $(seq 1 90); do
+            LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+            [ -z "$LOG" ] && LOG="$RUNNER_TEMP/act4.log"
+            DONE=$(grep -c "scene\] 4 -> 5" "$LOG" 2>/dev/null || true)
+            MIN=$((($(date +%s)-START)/60))
+            echo "[$MIN min] rules fired: $(grep -c "^\[rule\] t=" "$LOG" 2>/dev/null || echo 0)"
+            [ "${DONE:-0}" -ge 1 ] && { echo "the act handed over to the finale"; break; }
+            [ "$MIN" -ge 30 ] && { echo "::error::Act IV never reached the finale."; tail -40 "$LOG" || true; exit 1; }
+            sleep 10
+          done
+          LOG=$(ls -t "$CONTAINER"/Documents/*.log 2>/dev/null | head -1)
+          [ -z "$LOG" ] && LOG="$RUNNER_TEMP/act4.log"
+          grep -E "^\[(rule|scene|title|snd|pack)\] " "$LOG" > act4-trace.log || true
+          echo "=== the chain ==="
+          grep -E "^\[rule\] t=" act4-trace.log || true
+
+          # every link, in order
+          PREV=0
+          for R in r2 r3 r4 r5 r6 r7 finish; do
+            T=$(grep "^\[rule\] t=.* fire $R " act4-trace.log | head -1 | grep -oE "t=[0-9]+" | grep -oE "[0-9]+")
+            [ -n "$T" ] || { echo "::error::rule $R never fired -- the chain broke there."; exit 1; }
+            [ "$T" -gt "$PREV" ] || { echo "::error::rule $R fired at $T, before the link ahead of it ($PREV)."; exit 1; }
+            echo "  $R at $T"
+            PREV=$T
+          done
+
+          # the ending came from the rule, not from the backstop
+          END=$(grep "^\[rule\] t=.* endAct: " act4-trace.log | head -1 | grep -oE "t=[0-9]+" | grep -oE "[0-9]+")
+          [ -n "$END" ] || { echo "::error::endAct never ran: the act must have ended on its timed backstop."; exit 1; }
+          [ "$END" -lt 200000 ] || { echo "::error::endAct fired at $END, which is the backstop's territory -- the chain crawled."; exit 1; }
+          echo "ACT IV ENDED ON ITS OWN RULE at ${END} ms, not on the 240 s backstop."
+
+          if ls ~/Library/Logs/DiagnosticReports/Shmup* >/dev/null 2>&1; then
+            echo "::error::A crash report exists:"; for c in ~/Library/Logs/DiagnosticReports/Shmup*; do head -40 "$c"; done
+            exit 1
+          fi
+
       - name: Collect logs even on failure
         if: always()
         run: |
@@ -149,6 +217,7 @@ jobs:
           name: rules-trace
           path: |
             rules-trace.log
+            act4-trace.log
             console.log
             documents.log
           if-no-files-found: ignore

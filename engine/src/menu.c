@@ -431,7 +431,7 @@ void Action_startNewGame(void* tag)
 }
 
 // New Game flow: pick a difficulty, then pick the starting act (full lives
-// either way). Act select makes practicing an act -- and reaching the act-4
+// either way). Act select makes practicing an act -- and reaching the final
 // boss -- possible without clearing the whole game in one run. Acts are only
 // selectable once they have been REACHED in play (gHighestActReached).
 
@@ -444,33 +444,74 @@ void Action_startNewGame(void* tag)
 // this many are here", so two devices asking for different numbers already
 // agree on whoever actually showed up.
 static int gPartyPickIsOnline = 0;	// which transport the size picker is choosing for
-static int gMPPickedAct = 1;		// 1..4, this device's wish
+static int gMPPickedAct = 1;		// 1..numActs, this device's wish
 static int gPickingActForMP = 0;	// the act screen is serving the multiplayer flow
 static int gPendingPartySize = 2;	// remembered while the act is chosen
 static void MENU_ActPickedForParty(int act);
 
-static const char* actRoman[] = { "", "I", "II", "III", "IV" };
+// The grid's ceiling, not the count: how many acts are actually drawn comes
+// from the packs (engine.numActs).
+#define MAX_ACT_BUTTONS 6
 
-// One button per playable act (scenes 1..numScenes-1), laid out as a 2x2 grid.
-#define NUM_ACT_BUTTONS 4
+// v4: an act's scene id, from its 1-based index. The two were the same number
+// for as long as the acts happened to be scenes 1..4, and this menu quietly
+// relied on it -- a pack set with anything else between the acts would have
+// sent the player to the wrong scene. Ask, like the netcode already does.
+static int MENU_SceneIdForAct(int act)
+{
+	int s;
+	for (s = 0; s < MAX_NUM_SCENES; s++)
+		if (engine.scenes[s].kind == SCENE_KIND_ACT && engine.scenes[s].actIndex == act)
+			return s;
+	return -1;
+}
 
-// texts[1] of the act-select screen is its status line; buttons 0..3 are the acts.
+// ...and its NAME, from the pack manifest ("name Act_I", "name Final"). This is
+// what the manifest's name field was for: naming an act, adding one, or calling
+// the last one something other than a numeral is an edit to DATA now. The
+// fallback is per-act so the pointer a button keeps stays valid.
+static const char* MENU_ActName(int act)
+{
+	static char fallback[MAX_ACT_BUTTONS + 1][16];
+	int s = MENU_SceneIdForAct(act);
+	if (s >= 0 && engine.scenes[s].name[0])
+		return engine.scenes[s].name;
+	if (act < 1 || act > MAX_ACT_BUTTONS)
+		return "Act";
+	sprintf(fallback[act], "Act %d", act);
+	return fallback[act];
+}
+
+static int MENU_NumActButtons(void)
+{
+	int n = engine.numActs;
+	if (n > MAX_ACT_BUTTONS)
+		n = MAX_ACT_BUTTONS;
+	if (n < 1)
+		n = 1;
+	return n;
+}
+
+// texts[1] of the act-select screen is its status line; the buttons are the acts.
 static void MENU_UpdateActLockStatus(int lockedActTried)
 {
-	static char* actLabels[] = { "", "Act I", "Act II", "Act III", "Act IV" };
 	menu_screen_t* screen = &menuScreens[MENU_SELECT_ACT];
 	char* line = screen->texts[1].text;
+	int n = MENU_NumActButtons();
 	int act;
 
 	// "Grey out" locked acts: swap the button label (button text is a pointer,
-	// so swapping between the two literals is safe; the font is single-colour).
-	for (act = 1; act <= NUM_ACT_BUTTONS; act++)
-		screen->buttons[act - 1].text = MENU_Tr((act <= gHighestActReached) ? actLabels[act] : "Locked");
+	// so swapping between the name and the literal is safe; the font is
+	// single-colour). Pack names live in engine.scenes[] for the whole run.
+	for (act = 1; act <= n; act++)
+		screen->buttons[act - 1].text = (act <= gHighestActReached)
+			? (char*)MENU_ActName(act)
+			: MENU_Tr("Locked");
 
 	if (lockedActTried > 1)
-		sprintf(line, MENU_Tr("Locked - finish Act %s first"), actRoman[lockedActTried - 1]);
+		sprintf(line, MENU_Tr("Locked - finish %s first"), MENU_ActName(lockedActTried - 1));
 	else if (gHighestActReached >= 2)
-		sprintf(line, MENU_Tr("Unlocked up to Act %s"), actRoman[gHighestActReached]);
+		sprintf(line, MENU_Tr("Unlocked up to %s"), MENU_ActName(gHighestActReached));
 	else
 		line[0] = '\0';
 }
@@ -485,22 +526,27 @@ void Action_PickDifficulty(void* tag)
 void Action_startNewGameAtAct(void* tag)
 {
 	int i;
-	int sceneId = *(char*)tag;	// 1..4 = Act I..IV
+	int act = *(char*)tag;		// 1-based act index, NOT a scene id (v4)
+	int sceneId;
 
 	// Progression gate: the act must have been reached in play at least once.
 	// (Multiplayer comes through here too -- see MENU_ActPickedForParty.)
-	if (sceneId > gHighestActReached)
+	if (act > gHighestActReached)
 	{
-		MENU_UpdateActLockStatus(sceneId);
+		MENU_UpdateActLockStatus(act);
 		MENU_ClearButtonStates();
 		return;
 	}
 
 	if (gPickingActForMP)
 	{
-		MENU_ActPickedForParty(sceneId);
+		MENU_ActPickedForParty(act);
 		return;
 	}
+
+	sceneId = MENU_SceneIdForAct(act);
+	if (sceneId < 0)
+		return;					// no pack declares that act: the button is a no-op
 
 	MENU_Set(MENU_NONE);
 	dEngine_RequireSceneId(sceneId);
@@ -551,7 +597,7 @@ void Action_ConfigureMultiplayer(void* tag)
 	engine.mode = DE_MODE_MULTIPLAYER;
 	NET_Init();
 	NET_SetPartyTarget(partySize);	// the roster stops waiting once this many are found
-	sprintf(MENU_GetMultiplayerTextLine(0), "Act %s -- the host's act is the one that plays", actRoman[gMPPickedAct]);
+	sprintf(MENU_GetMultiplayerTextLine(0), "%s -- the host's act is the one that plays", MENU_ActName(gMPPickedAct));
 	PL_ResetPlayersScore();
 
 	// Shared life pool in multiplayer, mirrored on each death in P_Die. This is
@@ -602,7 +648,7 @@ void Action_ConfigureOnlineMultiplayer(void* tag)
 
 	engine.difficultyLevel = DIFFICULTY_NORMAL;
 
-	sprintf(MENU_GetMultiplayerTextLine(0), "Finding %d players for Act %s...", partySize, actRoman[gMPPickedAct]);
+	sprintf(MENU_GetMultiplayerTextLine(0), "Finding %d players for %s...", partySize, MENU_ActName(gMPPickedAct));
 	sprintf(MENU_GetMultiplayerTextLine(1), "(the host's act is the one that plays)");
 	Native_StartOnlineMatchmaking(partySize);	// presents the Game Center matchmaker UI
 }
@@ -805,8 +851,9 @@ static const menu_tr_t gMenuTr[] = {
 	{ "How many players ?",  "Combien de joueurs ?" },
 	{ "SELECT ACT",          "CHOISIR L'ACTE" },
 	{ "CUSTOM",              "CUSTOM" },
-	{ "Locked - finish Act %s first", "Bloqu\xE9 - finis d'abord l'Acte %s" },
-	{ "Unlocked up to Act %s",        "D\xE9" "bloqu\xE9 jusqu'\xE0 l'Acte %s" },
+	// v4: the %s is the act's own name, from its pack ("Act III", "Final").
+	{ "Locked - finish %s first", "Bloqu\xE9 - finis d'abord %s" },
+	{ "Unlocked up to %s",        "D\xE9" "bloqu\xE9 jusqu'\xE0 %s" },
 	{ "Red",                 "Rouge" },
 	{ "Blue",                "Bleu" },
 	{ "Invisible",           "Invisible" },
@@ -1178,7 +1225,7 @@ void MENU_Init(void)
 
 
 	// --- Act select (solo), after the difficulty pick: start at any act with full
-	// lives. Practicing an act (and reaching the act-4 boss) no longer requires
+	// lives. Practicing an act (and reaching the finale) no longer requires
 	// clearing the whole game in one run.
 	currentMenu = &menuScreens[MENU_SELECT_ACT];
 
@@ -1186,23 +1233,30 @@ void MENU_Init(void)
 	// texts[1]: lock/progress status line (filled by MENU_UpdateActLockStatus).
 	MENU_CreateText(currentMenu, 0, (SS_H - 230), 2.0f, TEXT_CENTERED, "");
 
-	// A fourth act no longer fits in one column: stacked 150 apart, the last one
-	// would sit on top of the Back button in its standard bottom slot (the very
-	// overlap that had to be fixed on the difficulty screen). Two columns of two,
-	// same cell geometry as the Custom screen.
+	// Two columns, 150 apart, same cell geometry as the Custom screen -- one
+	// column would put the last act on top of the Back button (the overlap that
+	// had to be fixed on the difficulty screen). Five acts is two full rows and
+	// a lone one; the third row's lower edge is at -244 and Back's upper edge at
+	// -296, so it fits. MAX_ACT_BUTTONS is the ceiling that keeps it true.
 	{
+		int n = MENU_NumActButtons();
 		int a;
-		for (a = 0; a < NUM_ACT_BUTTONS; a++)
+		for (a = 0; a < n; a++)
 		{
-			static char* gridLabels[NUM_ACT_BUTTONS] = { "Act I", "Act II", "Act III", "Act IV" };
+			// Two columns, top-left first. A LAST button with no partner sits in
+			// the middle instead of hanging off the left column -- five acts is
+			// two full rows and a lone one, and the lone one is the finale.
+			int lastAndAlone = (a == n - 1) && !(a & 1);
 
-			buttonPos[X] = (a & 1) ? 160 : -160;
+			buttonPos[X] = lastAndAlone ? 0 : ((a & 1) ? 160 : -160);
 			buttonPos[Y] = (SS_H - 360) - (a >> 1) * 150;
 			buttonDim[WIDTH] = (159 * 2);
 			buttonDim[HEIGHT] = 64 * 2;
 			actId = calloc(1, sizeof(char));
 			*actId = a + 1;
-			MENU_CreateButtonWithTag(currentMenu, MENU_Tr(gridLabels[a]), 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
+			// The label is set for real by MENU_UpdateActLockStatus, which runs
+			// every time the screen is entered (locked acts read "Locked").
+			MENU_CreateButtonWithTag(currentMenu, (char*)MENU_ActName(a + 1), 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
 		}
 	}
 

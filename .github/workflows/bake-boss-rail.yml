@@ -47,8 +47,8 @@ jobs:
 
       - name: Point act3 at the TEXT rail (bake input)
         run: |
-          sed -i '' 's|data/cameraPath/act3boss.cp.cp2b|data/cameraPath/act3boss.cp|' data/data/scenes/act4.scene
-          grep "path:" data/data/scenes/act4.scene
+          sed -i '' 's|data/cameraPath/act3boss.cp.cp2b|data/cameraPath/act3boss.cp|' data/data/scenes/final.scene
+          grep "path:" data/data/scenes/final.scene
 
       - name: Build (iphonesimulator, arm64, no signing)
         working-directory: engine/iOS

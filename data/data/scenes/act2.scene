@@ -88,7 +88,7 @@ playback
 
 music
 {
-	# EVEN ACT -- the same track, cued at 2:02. Far enough into a 6:44 piece to
+	# EVEN ACT -- the same track, cued at 2:02. Far enough into a 6:07 piece to
 	# be another section entirely, so starting a game at act II does not open
 	# on the same bars as act I.
 	#

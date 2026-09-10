@@ -98,7 +98,7 @@ playback
 music
 {
 	# ODD ACT -- the game track from the top. ONE track for the whole game
-	# (UNREALPM, 6:44); UNREALTH belongs to the home screen and nowhere else.
+	# (UNREALPM, 6:07); UNREALTH belongs to the home screen and nowhere else.
 	#
 	# The cue applies WHEN THE GAME TRACK STARTS -- entering from the home
 	# screen. Between acts the file does not change, so the music plays on and

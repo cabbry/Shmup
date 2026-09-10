@@ -12,6 +12,14 @@ defaultMenu -1
 # guns; it stays dense. Nobody tuned that. It falls out of writing "next" as a
 # condition rather than a time.
 #
+# Its signature is the RED RAIN: three falls of homing seekers (enemyType 6),
+# until now the finale boss's private weapon. They steer toward the nearest
+# ship at a capped turn rate, so they are dodgeable, and they carry four points
+# of hull, so they can be shot out of the sky instead. They tint themselves
+# red-hot -- which against this act's grey-blue weather is the act's whole
+# look. Each fall arrives in beats, from two or three rules sharing one
+# trigger with different delays.
+#
 # It is also the exit test of the v4 pack format: written in data only, read by
 # tools/packlint the way the game reads it, and it ends with a rule (endAct)
 # rather than with a number.
@@ -182,8 +190,28 @@ rules
 	        spawnEnemy mouvement 0 startAngle 240 fireFrequency 55 enemyType 2 startPos  0.6 1.2 endPos  0.6 -1.2 controlPoint  0.6 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
 	        group r4
 
+	# --- THE RED RAIN, first fall --------------------------------------------
+	# Homing seekers, until now the finale boss's private weapon (enemyType 6):
+	# they steer at a capped turn rate toward the nearest ship, so they can be
+	# juked, and they carry four points of hull, so they can also just be shot
+	# out of the air. They tint themselves red-hot every frame -- and against
+	# this act's grey-blue weather that is the whole picture: red rain.
+	#
+	# TWO rules on the SAME trigger with different delays make one volley
+	# arrive in two beats. A single rule fires all its spawns on one tick,
+	# which for seekers reads as a wall; a beat and a half later, as weather.
+	rule m1a when cleared r4 after 1200
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.75 1.25 endPos -0.75 -1.3 controlPoint -0.75 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.00 1.25 endPos  0.00 -1.3 controlPoint  0.00 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.75 1.25 endPos  0.75 -1.3 controlPoint  0.75 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m1
+	rule m1b when cleared r4 after 2800
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.40 1.25 endPos -0.40 -1.3 controlPoint -0.40 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.40 1.25 endPos  0.40 -1.3 controlPoint  0.40 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m1
+
 	# A pair of spiral gunners, one from each flank.
-	rule r5 when cleared r4 after 1500
+	rule r5 when cleared m1 after 1500
 	        spawnEnemy mouvement 1 enemyType 3 startPos -2 0.9 endPos -0.40 0.45 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 5 rotAngle -180
 	        spawnEnemy mouvement 1 enemyType 3 startPos  2 0.9 endPos  0.40 0.45 controlPoint  1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 5 rotAngle  180
 	        group r5
@@ -201,7 +229,20 @@ rules
 	        spawnEnemyWave circle enemyNum 10 enemyType 1 percentageInvulnerable 0 angleoffset 22 defaultType 1
 	        group r6
 
-	rule r7 when cleared r6 after 1800
+	# --- second fall, heavier, and it comes in under the ring's wreckage -----
+	rule m2a when cleared r6 after 1000
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.85 1.25 endPos -0.85 -1.3 controlPoint -0.85 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.28 1.25 endPos -0.28 -1.3 controlPoint -0.28 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.28 1.25 endPos  0.28 -1.3 controlPoint  0.28 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.85 1.25 endPos  0.85 -1.3 controlPoint  0.85 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m2
+	rule m2b when cleared r6 after 2400
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.60 1.25 endPos -0.60 -1.3 controlPoint -0.60 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.00 1.25 endPos  0.00 -1.3 controlPoint  0.00 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.60 1.25 endPos  0.60 -1.3 controlPoint  0.60 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m2
+
+	rule r7 when cleared m2 after 1800
 	        spawnEnemy mouvement 1 enemyType 3 startPos -2 0.6 endPos -0.35 0.35 controlPoint -1 0.8 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 6 rotAngle -200
 	        spawnEnemy mouvement 1 enemyType 3 startPos  2 0.6 endPos  0.35 0.35 controlPoint  1 0.8 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 6 rotAngle  200
 	        spawnEnemy mouvement 2 xOffset -0.35 xWidth 0.5 enemyType 1 startPos -0.35 1.2 endPos -0.35 -1.2 controlPoint -0.35 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
@@ -218,10 +259,29 @@ rules
 	        spawnEnemyWave circle enemyNum 5 enemyType 1 percentageInvulnerable 0 angleoffset 40 defaultType 0
 	        group squall
 
+	# --- the cloudburst ------------------------------------------------------
+	# The last thing the act does: three beats, nine seekers, nothing else on
+	# screen to hide behind. Then it stops raining.
+	rule m3a when cleared r7 after 900
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.90 1.25 endPos -0.90 -1.3 controlPoint -0.90 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.30 1.25 endPos -0.30 -1.3 controlPoint -0.30 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.30 1.25 endPos  0.30 -1.3 controlPoint  0.30 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.90 1.25 endPos  0.90 -1.3 controlPoint  0.90 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m3
+	rule m3b when cleared r7 after 2200
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.62 1.25 endPos -0.62 -1.3 controlPoint -0.62 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.00 1.25 endPos  0.00 -1.3 controlPoint  0.00 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.62 1.25 endPos  0.62 -1.3 controlPoint  0.62 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m3
+	rule m3c when cleared r7 after 3600
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.16 1.25 endPos -0.16 -1.3 controlPoint -0.16 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.16 1.25 endPos  0.16 -1.3 controlPoint  0.16 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m3
+
 	# --- the ending, as a rule -----------------------------------------------
-	# Two seconds of clear sky after the last hull falls, then the ships park
+	# Two seconds of clear sky after the last seeker falls, then the ships park
 	# and the card comes up. No time appears in this line, and that is the whole
 	# point of the act.
-	rule finish when cleared r7 after 2000
+	rule finish when cleared m3 after 2000
 	        endAct
 }

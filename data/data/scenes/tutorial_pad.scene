@@ -81,9 +81,12 @@ playback
 
 music
 {
+	# THE TITLE THEME, AND ONLY IT. No `alternate` here on purpose: with none
+	# declared the track LOOPS instead of handing over, so the home screen can
+	# never start playing an act's music at you (round 60, tester's call). The
+	# same goes for the tutorials.
 	startMusicAt 0
 	trackname data/music/UNREALTH.mp3
-	alternate data/music/UNREALPM.mp3
 }
 
 title

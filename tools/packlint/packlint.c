@@ -193,7 +193,7 @@ static void PL_NoteGroup(char list[][32], int* n, const char* name)
 
 /* ------------------------------------------------------------------ */
 
-static void PL_CheckScene(const char* scenePath, const char* packId)
+static void PL_CheckScene(const char* scenePath, const char* packId, const char* kind)
 {
 	filehandle_t* f = PL_Open(scenePath);
 	char track[MAX_NAME] = "", alternate[MAX_NAME] = "";
@@ -324,8 +324,11 @@ static void PL_CheckScene(const char* scenePath, const char* packId)
 		warn("%s: the scene names no camera path", packId);
 	if (!sawMap)
 		warn("%s: the scene names no map", packId);
-	if (track[0] && !alternate[0])
-		warn("%s: no 'alternate' theme -- the track will loop when it runs out", packId);
+	/* Only an ACT wants a hand-over. A menu or a tutorial is a place you sit
+	   in, and looping its own theme is the right answer there -- the home
+	   screen must never start playing a level's music at you. */
+	if (track[0] && !alternate[0] && kind && !strcmp(kind, "act"))
+		warn("%s: an act with no 'alternate' theme -- the track will loop when it runs out", packId);
 
 	/* The check that pays for this whole tool. */
 	for (i = 0; i < gNumWatched; i++)
@@ -445,7 +448,7 @@ static int PL_CheckManifest(const char* manifestPath, int sceneId, char* outKind
 	strncpy(outKind, kind, 31);
 	strncpy(outId, id, 63);
 	printf("  %-14s scene %-2d  %-9s players %d-%d  %s\n", id, sceneId, kind, minP, maxP, scene);
-	PL_CheckScene(scene, id);
+	PL_CheckScene(scene, id, kind);
 	return 1;
 }
 

@@ -44,3 +44,33 @@ skeleton off it, then iterate: the shapes here took three passes.
 `$KANJI_YUU` (夕, four strokes) is kept even though the dusk card no longer
 uses it — the tester picked 暮 over it. Both say dusk; 夕 is the evening
 itself and 暮 is nightfall, the sun going under the grass.
+
+## The kanji in the menu buttons
+
+`make_font.ps1` puts six of them into `data/menu/font.png`, which is a 16×16
+grid of 32×32 cells indexed by the character's own byte. Rows 0 and 1 are the
+control codes and held nothing but placeholder boxes:
+
+| cell | glyph | act | comes from |
+|---|---|---|---|
+| `0x01` | 明 | Dawn | the 2009 card, lifted by alpha box |
+| `0x02` | 希 | (unused) | the 2009 card |
+| `0x03` | 望 | Hope | the 2009 card |
+| `0x04` | 暮 | Dusk | `brush.ps1` |
+| `0x05` | 雨 | Rain | `brush.ps1` |
+| `0x06` | 水 | Final | the 2009 card |
+
+The four that exist as painted ink are **lifted from the title cards**, not
+redrawn: the button shows you the same brush the act shows you two seconds
+later. They are dilated by a pixel on the way down to 29, because a 60-pixel
+brush glyph reduced to a third loses its thin strokes and the atlas's Latin
+letters are bold.
+
+A pack asks for a cell with `~<hex>` in its manifest `name` (see
+`docs/level-pack.md` §4). Two full-width kanji cannot sit side by side: the
+renderer's glyph quad is two cells wide while the pen advances one, so 希望
+came out a single blot and Hope shows 望 alone.
+
+`menu_mock.ps1` renders the act-select screen from the real atlas, the real
+button sprite and the geometry copied out of `menu.c` — the cheapest way to
+see a menu change without a Simulator.

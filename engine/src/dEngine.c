@@ -394,6 +394,54 @@ static void dEngine_ApplyFakePlayers(void)
 //          version 1  scene data/scenes/act1.scene  minPlayers 1  maxPlayers 4 }
 // Paths are from the data root, like every other file the engine opens. Keys it
 // does not know are skipped (one value each), so a newer manifest still loads.
+// A pack's display name, expanded out of the manifest's token.
+//
+// Two escapes, because the token cannot hold a space (the lexer splits on it)
+// and cannot hold a raw control byte (nothing sane writes one into a config):
+//
+//   '_'          a space, as it always did
+//   '~' + hex    the glyph in that cell of the menu font atlas
+//
+// The font is a 16x16 grid of 32x32 cells indexed by the character's own BYTE
+// (renderer.c: col = byte & 15, row = byte >> 4), and the first two rows are
+// the control codes -- thirty-two cells the Latin alphabet never asks for.
+// Cells 1..6 now hold the acts' kanji, so "~1_Dawn" is the button reading
+// "<mei> Dawn". 0x09/0x0A/0x0D are deliberately not used: a tab or a newline
+// that found its way into a string would otherwise print as a kanji.
+/* --- PACKNAME-ARITHMETIC-BEGIN --- */
+static void dEngine_ReadPackName(char* dst, int cap, const char* src)
+{
+	int i = 0;
+	if (!dst || cap <= 0)
+		return;
+	while (*src && i < cap - 1)
+	{
+		if (*src == '_')
+		{
+			dst[i++] = ' ';
+			src++;
+		}
+		else if (*src == '~' && src[1])
+		{
+			char c = src[1];
+			int  v = (c >= '0' && c <= '9') ? c - '0'
+			       : (c >= 'a' && c <= 'f') ? c - 'a' + 10
+			       : (c >= 'A' && c <= 'F') ? c - 'A' + 10 : -1;
+			if (v > 0)			// 0 would terminate the string; ~0 is not a glyph
+			{
+				dst[i++] = (char)v;
+				src += 2;
+			}
+			else
+				dst[i++] = *src++;	// a lone '~' stays a '~'
+		}
+		else
+			dst[i++] = *src++;
+	}
+	dst[i] = 0;
+}
+/* --- PACKNAME-ARITHMETIC-END --- */
+
 static void dEngine_ReadPack(int sceneId, const char* packPath)
 {
 	filehandle_t* f;
@@ -429,7 +477,7 @@ static void dEngine_ReadPack(int sceneId, const char* packPath)
 				const char* key = LE_getCurrentToken();
 				if (!strcmp("format", key))          { (void)LE_readReal(); }
 				else if (!strcmp("id", key))         { LE_readToken(); strncpy(s->packId, LE_getCurrentToken(), sizeof(s->packId) - 1); }
-				else if (!strcmp("name", key))       { LE_readToken(); strReplace(LE_getCurrentToken(), '_', ' '); strncpy(s->name, LE_getCurrentToken(), sizeof(s->name) - 1); }
+				else if (!strcmp("name", key))       { LE_readToken(); dEngine_ReadPackName(s->name, sizeof(s->name), LE_getCurrentToken()); }
 				else if (!strcmp("author", key))     { LE_readToken(); strReplace(LE_getCurrentToken(), '_', ' '); strncpy(s->author, LE_getCurrentToken(), sizeof(s->author) - 1); }
 				else if (!strcmp("version", key))    { s->version = (short)LE_readReal(); }
 				else if (!strcmp("scene", key))      { LE_readToken(); strncpy(s->path, LE_getCurrentToken(), sizeof(s->path) - 1); }

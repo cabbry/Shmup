@@ -19,10 +19,12 @@
  *    zig cc -std=gnu99 catchup_test.c -o catchup_test && ./catchup_test
  */
 #include <stdio.h>
+#include <string.h>
 
 #include "catchup_arithmetic.inc"
 #include "partyhp_arithmetic.inc"
 #include "resync_arithmetic.inc"
+#include "packname_arithmetic.inc"
 
 /* CATCHUP_MAX_STEPS bounds the BURST, because every step beyond the first is
    simulation the player never sees drawn. Two extra steps carry three steps per
@@ -171,6 +173,33 @@ int main(void)
 		/* and it must work in both directions */
 		check(COM_ResyncStep(0.0f, -0.60f) == -0.60f, "snapping must work backwards too");
 		check(COM_ResyncStep(0.5f, 0.5f) == 0.5f, "a ship already in place must not be moved");
+	}
+	{
+		/* v4: what a pack's manifest name expands to. The button on the act
+		   screen shows this string, and the "~<hex>" escape names a cell of
+		   the menu font atlas -- cells 1..6 hold the acts' kanji, which no
+		   Latin byte can reach. A control byte cannot be typed into a config
+		   file and a space cannot survive the lexer, hence both escapes. */
+		char out[64];
+		dEngine_ReadPackName(out, sizeof(out), "~1_Dawn");
+		printf("  \"~1_Dawn\"   -> byte %d + \"%s\"\n", (int)out[0], out + 1);
+		check(out[0] == 1 && !strcmp(out + 1, " Dawn"), "~1 must become atlas cell 1, then a space");
+		dEngine_ReadPackName(out, sizeof(out), "Act_I");
+		check(!strcmp(out, "Act I"), "an underscore is still a space");
+		dEngine_ReadPackName(out, sizeof(out), "~6_Final");
+		check(out[0] == 6 && !strcmp(out + 1, " Final"), "the finale's cell is 6");
+		dEngine_ReadPackName(out, sizeof(out), "~0Nope");
+		check(!strcmp(out, "~0Nope"), "cell 0 is refused: a NUL would end the string there");
+		dEngine_ReadPackName(out, sizeof(out), "~zNope");
+		check(!strcmp(out, "~zNope"), "a non-hex escape stays literal");
+		dEngine_ReadPackName(out, sizeof(out), "~");
+		check(!strcmp(out, "~"), "a lone tilde at the end must not read past it");
+		{
+			char small[4];
+			dEngine_ReadPackName(small, sizeof(small), "~1_Dawn");
+			printf("  into a 4-byte buffer: %d chars, terminated\n", (int)strlen(small));
+			check(strlen(small) == 3, "it must fill to the cap and terminate, never past it");
+		}
 	}
 	printf("=== %d checks, %d failures ===\n", gChecks, gFailures);
 	return gFailures ? 1 : 0;

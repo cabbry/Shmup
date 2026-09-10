@@ -84,6 +84,50 @@ pack
 }
 ```
 
+
+**The `name` is what the menu shows** (round 59: the act-select buttons draw
+one button per act declared by the packs and label each from its manifest).
+Two escapes make a display string out of a token the lexer can carry:
+
+| in the manifest | on the button | why |
+|---|---|---|
+| `_` | a space | the lexer splits tokens on whitespace |
+| `~<hex>` | the glyph in that cell of the menu font atlas | a control byte cannot be typed into a config file |
+
+The menu font is a 16×16 grid of 32×32 cells indexed by the character's own
+**byte** (`renderer.c`: col = byte & 15, row = byte >> 4). The first two rows
+are the control codes and hold nothing — thirty-two cells the Latin alphabet
+never asks for. Cells 1 to 6 now hold the acts' kanji, so `name ~1_Dawn` is a
+button reading **明 Dawn**. Cells `0x09`, `0x0A` and `0x0D` are deliberately
+left empty: a tab or a newline inside a string would otherwise print as a
+kanji. `~0` is refused — that byte would end the string where it stands.
+
+Beware the renderer's overlap: a glyph quad is two cells wide and the pen
+advances one, which is invisible for narrow Latin letters and turns two
+adjacent full-width kanji into a single blot. One kanji per name.
+
+
+**The `name` is what the menu shows** (round 59: the act-select buttons draw
+one button per act declared by the packs and label each from its manifest).
+Two escapes make a display string out of a token the lexer can carry:
+
+| in the manifest | on the button | why |
+|---|---|---|
+| `_` | a space | the lexer splits tokens on whitespace |
+| `~<hex>` | the glyph in that cell of the menu font atlas | a control byte cannot be typed into a config file |
+
+The menu font is a 16×16 grid of 32×32 cells indexed by the character's own
+**byte** (`renderer.c`: col = byte & 15, row = byte >> 4). The first two rows
+are the control codes and hold nothing — thirty-two cells the Latin alphabet
+never asks for. Cells 1 to 6 now hold the acts' kanji, so `name ~1_Dawn` is a
+button reading **明 Dawn**. Cells `0x09`, `0x0A` and `0x0D` are deliberately
+left empty: a tab or a newline inside a string would otherwise print as a
+kanji. `~0` is refused — that byte would end the string where it stands.
+
+Beware the renderer's overlap: a glyph quad is two cells wide and the pen
+advances one, which is invisible for narrow Latin letters and turns two
+adjacent full-width kanji into a single blot. One kanji per name.
+
 The four acts, the intro, the demo and the two tutorials become eight packs
 that *reference* the existing assets (no 15 MB texture move). `config.cfg`
 lists `pack <id> <path/to/pack.cfg>` entries instead of scene paths (legacy `scene` entries still load, their kind inferred from the 2009 ids); the code paths that keyed on scene ids key

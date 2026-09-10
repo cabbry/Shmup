@@ -95,5 +95,5 @@ function Make-FinalCard([string]$srcPath, [string]$path) {
 }
 
 Make-Card $KANJI_AME "Rain" "Act IV"  70 44 102 "$OUT\rainTitle.png"
-Make-Card $KANJI_YUU "Dusk" "Act III" 70 44 102 "$OUT\duskTitle.png"
+Make-Card $KANJI_KURE "Dusk" "Act III" 66 44 102 "$OUT\duskTitle.png"
 Make-FinalCard "$OUT\boss.png" "$OUT\boss.png"

@@ -387,16 +387,24 @@ it ever reached a device — which is why the game looks the same and why
   finale **on `endAct` before 200 s** — not on its 240 s backstop. The chain
   breaking would still let the level finish, just four minutes late, so the
   *deadline* is the test.
-- **🎨 The act cards, as one family again.** New **雨 -Rain / Act IV**; the
-  finale's card keeps its hand-painted 2009 水 -Water and rule, with only the
-  line beneath redrawn from "Act IV" to **"Final"** (the same surgery it had
-  in round 19 when it read "Act iii"). And **`duskTitle.png` was rebuilt**: its
-  kanji 夕 was right all along — I had claimed otherwise from a thumbnail and
-  was wrong — but its *weight* was not. It was the one card drawn in Brush
-  Script MT, thinner and greyer than the four painted ones, and it stood out.
-  The Latin hand is now Viner Hand ITC Bold, picked against the shipped cards
-  in a candidate sheet; the kanji is a Song face widened by a round pen, whose
-  wedge stroke endings read closer to a brush than Yu Gothic's uniform slab.
+- **🎨 The act cards, as one family again — and the kanji are DRAWN now.** New
+  **雨 -Rain / Act IV**; the finale keeps its hand-painted 2009 水 -Water and
+  rule with only the line beneath redrawn from "Act IV" to **"Final"** (the
+  same surgery it had in round 19 when it read "Act iii"); and the dusk card
+  was rebuilt twice, which is the interesting part. First pass: new weight,
+  new Latin hand (Viner Hand ITC Bold, picked against the shipped cards in a
+  candidate sheet), new rule — and the tester looked at it and said *the kanji
+  has not changed*. He was right. It was still a font glyph, and **no
+  installed CJK face is a brush**: Yu Gothic is a uniform slab, SimSun only has
+  small wedge serifs, while the 2009 kanji have a blunt entry, a belly and a
+  tapered exit on every stroke. So `tools/cards/brush.ps1` now DRAWS them —
+  each stroke is a centreline with a width at every control point, swept into
+  a ribbon, unioned with the winding rule (the alternate rule punches a hole
+  at every crossing, which is what the first render did). Second pass: the
+  character itself. I had claimed 夕 was a mis-set katakana, then found it was
+  a perfectly good kanji and said so; the tester chose **暮** anyway, and it is
+  the better word — 夕 is the evening, 暮 is nightfall. Fourteen strokes
+  against four, all hand-placed.
 - **No build.** Nothing here has been on a device yet: the act is proven by the
   validator (statically, on the real files, through the engine's own lexer)
   and by the arithmetic and netcode benches staying green. The Simulator proof

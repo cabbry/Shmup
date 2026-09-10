@@ -7,7 +7,7 @@ The five cards the acts show at their prolog (`data/data/titles/*.png`,
 |---|---|---|
 | 明 – Dawn / Act I | `dawnTitle.png` | painted, 2009 |
 | 希望 – Hope / Act II | `hopeTitle.png` | painted, 2009 |
-| 夕 – Dusk / Act III | `duskTitle.png` | here |
+| 暮 – Dusk / Act III | `duskTitle.png` | here |
 | 雨 – Rain / Act IV | `rainTitle.png` | here |
 | 水 – Water / Final | `boss.png` | painted 2009, with only the line beneath redrawn |
 
@@ -40,3 +40,7 @@ render did.
 Adding a character means adding a stroke list. The fastest way to place the
 control points is to render the font glyph large under a grid, read the
 skeleton off it, then iterate: the shapes here took three passes.
+
+`$KANJI_YUU` (夕, four strokes) is kept even though the dusk card no longer
+uses it — the tester picked 暮 over it. Both say dusk; 夕 is the evening
+itself and 暮 is nightfall, the sun going under the grass.

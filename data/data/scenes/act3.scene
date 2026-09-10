@@ -118,10 +118,13 @@ playback
 
 music
 {
-	startMusicAt 122
+	# ODD ACT -> the long theme (6:44), from the top. Every scene cues its own
+	# music now (round 60): the acts alternate by parity, so starting act I,
+	# III or the finale always sounds the same. `alternate` is the safety net
+	# for an act that outlasts its theme -- it hands over instead of falling
+	# silent -- not the thing that decides what you hear at the start.
+	startMusicAt 0
 	trackname data/music/UNREALPM.mp3
-	# v4.1.1: when this one runs out (the acts share it and it plays ON from act
-	# to act), hand over to the other theme rather than fall silent.
 	alternate data/music/UNREALTH.mp3
 }
 

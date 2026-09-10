@@ -669,21 +669,29 @@ void dEngine_LoadScene(int sceneId)
 	
 	ENE_Precache();
 	
-	// v2: the four acts share ONE soundtrack file (UNREALPM.mp3, each act's
-	// scene merely cueing a different startMusicAt) -- so let it PLAY ON
-	// across level transitions instead of rewinding to each act's cue (user
-	// request). Only a real track change touches the player: title <-> game
-	// (UNREALTH vs UNREALPM), or a music-less scene.
+	// EVERY scene cues its own music, from the top (round 60).
+	//
+	// It used to play ON across the acts: they all named the same file, the
+	// filename was compared with what was already playing, and a match meant
+	// "leave it alone" (a v2 request -- one long track, no restart at every
+	// level). Two things broke that. The hand-over added in v4.1.1 swaps to
+	// the alternate theme when a track ends, BEHIND this comparison: what is
+	// playing stops being what gPlayingTrack says, so from act 2 on you heard
+	// whatever the previous act happened to end on -- not a decision, a
+	// residue. And the two themes are 6:44 and 1:40, so where the swaps fall
+	// depends on how long the player took. "L'act 1 commence avec une musique
+	// differente que l'act 2" (2026-09-10), and no music left at the boss.
+	//
+	// So: a scene declares its theme and gets it, cued where it asks. The acts
+	// alternate by parity -- odd on one theme, even on the other -- which is
+	// deterministic by construction and needs no state at all.
 	if (engine.musicFilename[0] != '\0')
 	{
-		if (strcmp(gPlayingTrack, engine.musicFilename) != 0)
-		{
-			SND_StopSoundTrack();
-			SND_InitSoundTrack(engine.musicFilename,engine.musicStartAt);
-			SND_StartSoundTrack();
-			strncpy(gPlayingTrack, engine.musicFilename, sizeof(gPlayingTrack)-1);
-			gPlayingTrack[sizeof(gPlayingTrack)-1] = '\0';
-		}
+		SND_StopSoundTrack();
+		SND_InitSoundTrack(engine.musicFilename, engine.musicStartAt);
+		SND_StartSoundTrack();
+		strncpy(gPlayingTrack, engine.musicFilename, sizeof(gPlayingTrack)-1);
+		gPlayingTrack[sizeof(gPlayingTrack)-1] = '\0';
 	}
 	else
 	{

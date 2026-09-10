@@ -96,7 +96,10 @@ jobs:
           START=$(date +%s)
           SCENE="${{ inputs.scene || 1 }}"
           MAXMIN="${{ inputs.maxMin || 35 }}"
-          case "$SCENE" in 0) TRACK=UNREALTH; SCN=data/data/scenes/intro.scene;; 5) TRACK=UNREALPM; SCN=data/data/scenes/final.scene;; *) TRACK=UNREALPM; SCN="data/data/scenes/act$SCENE.scene";; esac
+          case "$SCENE" in 0) SCN=data/data/scenes/intro.scene;; 5) SCN=data/data/scenes/final.scene;; *) SCN="data/data/scenes/act$SCENE.scene";; esac
+          # round 60: the acts alternate their theme by parity, so read the track
+          # OUT of the scene rather than assume it here.
+          TRACK=$(awk '/trackname/{print $2}' "$SCN" 2>/dev/null | head -1 | xargs -n1 basename | sed 's/\.mp3$//'); TRACK="${TRACK:-UNREALPM}"
           CUE=$(awk '/startMusicAt/{print $2}' "$SCN" 2>/dev/null); CUE="${CUE:-0}"
           echo "scene $SCENE, track $TRACK cued at $CUE, up to $MAXMIN min"
 

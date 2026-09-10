@@ -182,7 +182,7 @@ jobs:
 
           # the backbone, strictly in order
           PREV=0
-          for R in r2 r3 r4 m1a r5 r6 m2a r7 m3a finish; do
+          for R in cA m1a t1 cD d1 m2a cB d2 f1 finish; do
             T=$(grep "^\[rule\] t=.* fire $R " act4-trace.log | head -1 | grep -oE "t=[0-9]+" | grep -oE "[0-9]+")
             [ -n "$T" ] || { echo "::error::rule $R never fired -- the chain broke there."; exit 1; }
             [ "$T" -gt "$PREV" ] || { echo "::error::rule $R fired at $T, before the link ahead of it ($PREV)."; exit 1; }
@@ -193,11 +193,22 @@ jobs:
           # their fall's trigger, so they fire on the SAME tick as its first beat
           # -- the delay is on the spawns, not on the firing. Presence only; an
           # order check here would compare a tick with itself.
-          for R in m1b m2b m3b m3c; do
+          for R in m1b m2b f2 f3 f4 f5; do
             grep -q "^\[rule\] t=.* fire $R " act4-trace.log || { echo "::error::the seeker beat $R never fired."; exit 1; }
           done
           SEEKERS=$(grep -c "^\[spawn\] .* type=6" act4-trace.log || true)
-          echo "seekers spawned: ${SEEKERS:-0}"
+          HOGS=$(grep -c "^\[spawn\] .* type=1 " act4-trace.log || true)
+          echo "spawned: $HOGS hedgehogs, $SEEKERS seekers"
+
+          # THE POOL. MAX_NUM_ENEMIES is 64 and it does not grow: past it
+          # ENE_Get hands out a shared dummy and logs this line, so a wave that
+          # got too big does not crash, it quietly stops existing. The storm
+          # peaks near fifty by design; this is the guard on that design.
+          if grep -q "Enemy pool exhausted" "$LOG"; then
+            echo "::error::the enemy pool ran out -- a wave is too big and spawns were silently dropped."
+            grep -n "Enemy pool exhausted" "$LOG" | head -5
+            exit 1
+          fi
 
           # the ending came from the rule, not from the backstop
           END=$(grep "^\[rule\] t=.* endAct: " act4-trace.log | head -1 | grep -oE "t=[0-9]+" | grep -oE "[0-9]+")

@@ -116,14 +116,19 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 4.0.x** — Metal renderer at native
-  resolution, AVFoundation audio, full speed on device, iPhone and iPad.
-- ✅ Four acts, a boss, an ending; 2-4 player co-op over LAN and online (online
-  broken from 3.0.0 to 4.0.2 by an ARC-pass typo, fixed in 4.0.3)
-  (device-confirmed at two); leaderboards.
+- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 253) — Metal
+  renderer at native resolution, AVFoundation audio, full speed on device,
+  iPhone and iPad.
+- ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
+  — and an ending; 2-4 player co-op over LAN and online (device-confirmed at
+  two, rig-proven at four); leaderboards.
+- ✅ **Levels are data.** Every act is a pack (`data/levels/<id>/pack.cfg`);
+  Act IV was written entirely in the format, as a chain of reactions with no
+  clock, and is the format's exit test. A validator reads every pack with
+  the engine's own lexer on every push, and a Simulator smoke plays the
+  reactive act to its end.
 - ✅ Full-screen: fills tall iPhones with no black edge gaps, HUD anchored to the
   safe area, 2D sprites de-stretched (round sprites are round again).
-
 ## New features (added beyond the original 2009 game)
 
 - 🆕 **Pause / resume** when the app is backgrounded, with a **3-2-1-SHMUP** countdown
@@ -144,6 +149,38 @@ to the true screen edges, and the touch-coordinate mapping.
   during the handshake, and if both picked the same colour, player two's is shifted
   deterministically on both ends so the two players' shots stay distinguishable.
 
+- 🆕 **Act IV — 雨 Rain, an act with no clock** (v4, rounds 59-65). Acts I to
+  III are timelines: every wave has an hour. Rain is a chain of reactions — one
+  seed wave, then each wave waits for the one before it to be *gone*, and the
+  act ends on a rule rather than a number. Black hedgehogs are architecture
+  (forty hits, you find the lane, not the kill): a long corridor, a diagonal
+  lane, a chicane, a pillar, each with company; four falls of red homing
+  seekers borrowed from the boss; and a closing storm of 105 hulls in three
+  thirds — ultra fast, improbable paths, scattered — whose alive peak is
+  computed against the engine's pool of 64. The party size shapes it without
+  tuning: four guns clear a wave faster, so the act stays dense instead of
+  becoming a waiting room.
+- 🆕 **Level packs** (v4). Every scene is a pack with a manifest — kind, name,
+  author, player range — and the engine keys on the kind, never on a scene
+  id, so inserting an act is a directory and one line of `config.cfg`. The
+  rules block adds `cleared` / `hpBelow` / `hpAtMost` / `players` / `after`
+  triggers, `spawnEnemy` / `spawnEnemyWave` / `bossAttack` / `endAct`
+  actions; the boss's own attack ladder is written in it. Tools:
+  `tools/packlint` reads every pack with the engine's lexer and refuses what
+  would only fail on a device — including a rule chain cut in the middle;
+  `tools/rain` generates formations whose hulls all travel the same distance
+  in the same ttl, computes the storm's alive peak, and the act's worst-case
+  length from the scene (predicted 119 s, measured 117).
+- 🆕 **The act-select screen reads the packs.** One button per act the packs
+  declare, labelled from the manifest with its kanji — 明 Dawn, 望 Hope, 暮
+  Dusk, 雨 Rain, 水 Final — from six cells added to the 2009 font atlas.
+  Renaming the boss act "Final" was one word in one file.
+- 🆕 **The soundtrack behaves.** The title theme loops on the home screen and
+  nowhere else; the game theme loops through every act, cued at 0:00 entering
+  an odd act and 2:02 entering an even one, and a level change never rewinds
+  it. Thirty-seven seconds of digital silence that had sat at the end of the
+  mp3 since 2009 are gone — they were the "blank before it restarts".
+
 ## Known issues
 
 - The menu title cards sit on fixed margins that clear today's notches. A
@@ -156,8 +193,8 @@ to the true screen edges, and the touch-coordinate mapping.
 
 ## Roadmap
 
-Where the project stands after three major versions, forty-one rounds of
-feedback and 230 TestFlight builds. The version line is: **v1.x** — the 2009
+Where the project stands after four major versions, sixty-five rounds of
+feedback and 253 TestFlight builds. The version line is: **v1.x** — the 2009
 game finished (four acts, a boss, an ending); **v2** — four-player multiplayer;
 **v3** — the modern stack (Metal, AVFoundation, not one deprecated API left).
 
@@ -230,12 +267,11 @@ game finished (four acts, a boss, an ending); **v2** — four-player multiplayer
   the title card; a black launch screen; the credits with brush separators, a
   third tester and a **scrolling roll** with a position thumb.
 
-### Open — v4, scripting (opened 2026-09-06 on the `v4` branch)
+### Done — v4, scripting (rounds 42-65, the `v4` branch, merged to master at 4.1.2)
 
 Fabien's second suggestion, finally: the `.scene` format is declarative and
-every reactive behaviour lives in C. The plan, four stages, each with its
-proof in CI; the format and the inventory are in
-[`docs/level-pack.md`](docs/level-pack.md).
+every reactive behaviour lived in C. Four stages and an exit test, each with
+its proof in CI; the format is in [`docs/level-pack.md`](docs/level-pack.md).
 
 1. **Inventory and the level pack — ✅ (round 42)** — a manifest per level, the eight
    existing scenes become packs that reference their assets, the code keys
@@ -245,42 +281,54 @@ proof in CI; the format and the inventory are in
    block, and the boss ladder written as rules (2b, same act-IV trace).
    Proof: the rules bench (scene 12), and act IV's ladder from rules with
    the same sound trace as the C thresholds.
-3. **Lua** — only if a need appears that rules cannot say: sandboxed, one
-   state per scene, a small API.
-   Proof: the finale's traces, and the netrig at four for
-   determinism. Lua stays in bundled levels only (App Store 2.5.2).
+3. **Lua — not needed.** Kept as an option only if a need appears that rules
+   cannot say. Six rounds of level design on Rain did not produce one: the
+   moment it might have — reversing a sweeper's drift — had a better answer
+   in data (enter from the other edge). Lua would stay in bundled levels only
+   (App Store 2.5.2).
 4. **Tools — ✅ (round 58)** — `tools/packlint` reads every pack with the
    engine's own lexer and refuses what would only fail on a device (the
    shipped packs pass, a fixture with planted faults must not); the CI
    camera takes a pack id.
-5. **The exit test — ✅ (round 59)** — a whole act written in data: **Act IV
-   "Rain"**, a chain of reactions rather than a timeline, ending on a rule.
-   It cost the format two additions (`endAct`, and a menu that reads the
-   pack's name) and no scene-id churn anywhere in the engine. The boss act is
-   now the **Final Act**. What is still open is the tester's own turn at it.
+5. **The exit test — ✅ (rounds 59-65)** — a whole act written in data: **Act IV
+   "Rain"**, a chain of reactions rather than a timeline, ending on a rule,
+   then made hard over six rounds of device feedback without touching the C
+   except for what the format itself needed (`endAct`, a menu that reads the
+   manifest, `setttl` as a rule boundary, `RULES_MAX` 48). The boss act is
+   now the **Final Act**; the acts carry their names and kanji.
 
-Decided with the tester, and parked: a community level list (after stage
-4, declarative content only), first-party cosmetics through Apple's
+**What it taught.** The value sat less in the rules' vocabulary — small, and
+it will stay small — than in the tools around the file: generators for
+formations whose hulls must all travel the same distance in the same ttl,
+arithmetic for the alive peak against a pool that fails silently, and the
+act's length computed from the scene before a build. And one cost: a data
+format moves errors from the compiler to a log line nobody reads. The
+`setttl` bug lived through two builds because the static validator does not
+read durations and the Simulator smoke had not been re-run. **A format needs
+its runtime proof as much as code does.**
+
+Decided with the tester, and parked: first-party cosmetics through Apple's
 in-app purchase if ever, nothing Sorare-like for a long while.
 
 ### Open — carried over
 
+- **A community level list / store.** This was gated on "after stage 4, once
+  the format has been used by someone other than its author". The gate is
+  open: Rain was designed by the tester, round by round, in data. What it
+  still needs: a server, moderation, reporting (App Store 1.2); declarative
+  content only — no Lua from the network.
 - **A four-device session** for v2: everything is rig-proven at four,
   device-proven at two. Needs hardware and four hands.
-- **Enemy / boss scripting** (Fabien's suggestion): the `.scene` event format
-  is declarative (spawn timelines); reactive behaviour still lives in C (the
-  boss ladder in `lofb.c`, the Devil's weapons in `enemy.c`). If a second boss
-  or community levels ever happen, evaluate the lightest thing that works —
-  conditional triggers in the event system vs. a small VM/Lua.
-- **Gameplay videos on YouTube** (Fabien's suggestion): the four acts, the Act
-  III side-view beat, a LAN match, an online match. A recording session away.
+- **Gameplay videos on YouTube** (Fabien's suggestion): the five acts, the Act
+  III side-view beat, Rain's storm, a LAN match, an online match. A recording
+  session away.
 - **App Store release?** Feature-complete, modern stack, nothing deprecated.
   iMessage invites and SharePlay only light up once the app is on the store.
 - **Small things**: the accepted fade under the act title card on Metal; the
-  menu buttons touching the screen edges on iPad; the two cosmetic notes under
-  *Known issues*.
-
----
+  menu buttons touching the screen edges on iPad; the THA sweeper's
+  screen-right drift is hardcoded in `tha.c` (a scene cannot ask for a
+  leftward one; acts enter it from the left instead); the SHAB fan's angle
+  convention on Rain's pillar is unverified on device.
 
 ## Graphics stack — before and after v3
 
@@ -326,6 +374,135 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-11 — round 65 (the storm becomes a scatter)
+- **The tester's verdict on 4.2.7: "le niveau commence vraiment à être bien"**,
+  with one fault left — the storm's hedgehogs "trop sur une même ligne". They
+  were: each band was one rule, and a rule fires everything on one tick, so
+  eight bands meant eight ranks. Two mechanics replace the ranks. **Start
+  height is arrival time** — a hull that starts higher arrives later at the
+  same speed, so a band spreads its start Y over two screen units and the
+  vertical stagger *is* the temporal stagger, verticality without a rule per
+  row. And **golden-ratio stepping instead of a grid** (`x_k = frac(k·0.618)`,
+  `y_k = frac(k·0.382)`): nothing repeats a lane or a height within a band or
+  across bands, and it is deterministic, because lockstep needs every peer to
+  read the same scene. Three thirds as briefed — thirty ultra fast at 1.4 u/s,
+  thirty on improbable paths (steep crossing diagonals, crossers at the
+  player's own height), thirty normal and scattered — plus fifteen seekers.
+  Peak computed at 56 of 64; the first cut said 63 and the second rain moved
+  800 ms. 275 spawn lines, 37 rules, 117 s worst case. **v4.2.8 / 253.**
+
+### 2026-09-11 — round 64 (one parser rule under every note: setttl is a boundary)
+- **Twelve notes from the device on 4.2.6, and one thing under most of
+  them.** The rules parser's inner loop stopped on `rule` and `}` and nothing
+  else, so a `setttl` written *between* two rules was swallowed by the first
+  one as an "unknown word" — logged, skipped — and **every rule in Rain had
+  been living on the block's first `setttl`, fifteen seconds**. Walls meant
+  to cross in 11 s took 15; seekers meant to last 5 s lasted 15; round 62's
+  eight "bands of speed" never existed, every hull fell at the slowest one —
+  "ils descendent à la vitesse de l'écran". And since each wave waits for the
+  last to *expire*, those extra seconds ten times over were the dead time
+  between waves; the act outran act 2's 142 s rail, which ends pitched as
+  `camera.c` says, and the player saw the city pivot and freeze. `setttl` is
+  a rule boundary now, and the smoke fails on any "unknown word".
+- **The part that is mine**: the Simulator smoke had not been run since round
+  62 — only the static validator, which does not read durations. The log
+  would have shown `unknown word 'setttl'` the first time. A data format
+  needs its runtime proof as much as code does, and it costs quota.
+- **The notes themselves**: eighteen divers to open; the corridor's Devils at
+  6.3 s, once the player is committed to the lane; four crossers through it
+  at his height; the diagonal made a *diagonal* — a lane whose shape runs
+  bottom-left to top-right, eight a side, everything falling straight — not a
+  straight lane translating sideways; ghosts at 5.6 s; both THA entering from
+  the left, since the sweeper's screen-right drift is 2010 behaviour in
+  `tha.c` and one parked on the right left the screen at once; no storm band
+  slower than act I's charging columns. **The act's worst-case length is now
+  computed from the scene** — every group's `max(delay + ttl)` walked along
+  the chain — and it said 119.3 s; the Simulator measured 117. `driftAtEnd 2`,
+  the level patrol built for this very rail, is back as the backstop.
+  **v4.2.7 / 252**, smoke green: 0 unknown words, 0 pool exhaustion,
+  `endAct` at 106 s.
+
+### 2026-09-11 — round 63 (Rain, the tester's second pass)
+- **Twelve notes, taken in order.** Seed wave tripled. The long corridor
+  loses its turrets and gains two silver Devils either side, plus six weavers
+  down the lane. Four beats of red rain at its exit. The diagonal *straight*
+  after, with two ghost Devils where you would slip past it. The chicane
+  worked by the three turrets that used to stand in the open before it, plus
+  two falls of seekers timed for the crossing. Three stealth Devils under act
+  I's two weaving columns, *at the same time*. A tight second rain with a THA
+  sweeper high and one low. A **pillar** — two straight columns side by side,
+  no lane between, you pick a side — with SHAB fan turrets on both flanks
+  (a bounded arc, `rotAngle 0`: a spiral would close the only two ways past).
+  Two stealth and two ghost elites. And the storm **converges**: every hull's
+  end X pulled toward the floor's centre, so the outer lanes angle in.
+- **The bounce at the end was the camera**: `driftAtEnd: 1` on act 2's rail is
+  the case `camera.c` documents as climb-then-turn, and the act ran to the
+  rail's end (see round 64 for why). **RULES_MAX 32 → 48**, moved to
+  `rules.h` and checked by packlint: Rain reached 31 with the ending as the
+  32nd, and the engine only logs and drops the rest. **v4.2.6 / 251.**
+
+### 2026-09-11 — round 62 (the storm gets eight speeds; the corridors get company)
+- **"La tempête, c'est une petite brise"**, and "il y en a 25, cale-m'en 64".
+  Both counts were right — 48 was *alive*, 25 was *visible* — and the cause
+  was uniformity: forty hulls on one ttl fall in step and read as one object.
+  Eight bands of speed, ttl 9000 down to 3200, one rule per band since a rule
+  carries one ttl. Mixing speeds is also what fills the screen, so the peak
+  became arithmetic: `gen_storm.awk` walks every spawn and death in time order
+  and prints it. The first attempt came out at 74, ten over a cap that fails
+  silently. Corridors got turrets and seekers so they are not empty puzzles.
+  **v4.2.5 / 250.** (Round 64 found none of the eight ttls had been applied.)
+
+### 2026-09-10 — round 61 (Rain, made hard)
+- **"Le niveau est 100 fois trop facile."** It was. **The black hedgehogs are
+  architecture**: `subType 2` is energy ×40 and a 0.2 grey paint, forty hits
+  from a bullet that deals one — you do not clear them, you find the lane.
+  Three corridor shapes picked from four candidates drawn in the game's own
+  screen space (`tools/rain/corridors.ps1`): the long corridor, the chicane,
+  the lane that slides sideways under guns. Spaced on purpose so the act is
+  never one tunnel. Red rain doubled and spread across the width. Coordinates
+  **generated** (`gen_walls.awk`), because every hull in a formation must
+  travel the same distance in the same ttl or the shape shears apart. Two
+  facts checked, not assumed: `MAX_NUM_ENEMIES` is 64 and the pool hands out a
+  dummy past it; and **nothing tests one enemy against another** — a hedgehog
+  and a Devil fly through each other, so a wall inconveniences only the
+  player. Also from the device: the end-of-act stat read **1700 %** because
+  `ENE_Precache` counts the spawns present at scene load, which for a
+  reactive act is the seed wave — a rule's spawns count themselves now. And
+  the volume hitch was back: round 51 had taken the audio engine's
+  *questions* off the game thread, but `scheduleBuffer` takes the same lock a
+  rebuild holds; closed, and the rebuild is timed in the log. **v4.2.4 / 249.**
+
+### 2026-09-10 — round 60 (the music, three builds)
+- **The tester's spec, reached in three passes** — and I coded two wrong
+  variants before restating the rule, which is the lesson: *reformulate a
+  behaviour before writing it.* **UNREALTH is the home screen and the
+  tutorials, and nowhere else; it loops. UNREALPM is the whole game; it
+  loops; cued at 0:00 entering an odd act and 2:02 entering an even one. And
+  the cue belongs to the START OF A RUN, not to a level change**: finishing
+  act I and rolling into act II rewinds nothing. That is 2009's behaviour,
+  and what had broken it was never the filename comparison I first removed —
+  it was the v4.1.1 hand-over swapping themes *behind* it, so an act opened
+  on the residue of the one before. With no `alternate` declared anywhere the
+  hand-over cannot happen, the player loops, and the record cannot go stale.
+- **"Soit il y a un grand blanc, soit elle ne redémarre pas"** — both: the mp3
+  itself. `UNREALPM` is a 6:45 file whose music stops at 6:07; the tail is
+  digital silence at −91 dB, invisible for seventeen years while the track
+  played once, a 37-second hole the moment it looped. Both tails cut with a
+  stream copy and the kept audio verified bit-identical by decoding to PCM
+  (the two files needed different flags to come back unchanged — one shipped
+  as a bare frame stream, and an added ID3 tag shifted its decode by 24 ms).
+  **v4.2.1 / 246, v4.2.2 / 247, v4.2.3 / 248 — confirmed: "la musique a bien
+  enchaîné comme il faut."**
+- **The kanji reach the menu.** `font.png` is a 16×16 atlas indexed by the
+  character's byte, and its two control-code rows were empty: six cells now
+  hold 明 望 暮 雨 水, cut from the painted 2009 cards where they exist and
+  drawn where they do not, and a pack asks for one with `~N` in its `name`.
+  One kanji per name — a glyph's quad is two cells wide and the pen advances
+  one, invisible for narrow Latin, fatal for two full-width kanji. The
+  act-select screen was rendered from the real atlas, sprite and `menu.c`
+  geometry before a build (`tools/cards/menu_mock.ps1`): the cheapest way to
+  see a menu change. **v4.2.0 / 245 — "les noms des niveaux sont nickels."**
 
 ### 2026-09-10 — round 59 (an act written in data: Act IV "Rain", and the boss act becomes the Final Act)
 

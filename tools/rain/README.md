@@ -5,7 +5,8 @@ GENERATED rather than typed. `gen_walls.awk` emits the `spawnEnemy` lines for
 the three corridors and the storm; splice them into the scene where the
 `@@A@@`, `@@B@@`, `@@D@@`, `@@F1@@`, `@@F2@@`, `@@F3@@` markers sit.
 
-    awk -f gen_walls.awk > blocks.txt
+    awk -f gen_walls.awk > blocks.txt     # the three corridors
+    awk -f gen_storm.awk > storm.txt      # the storm, and its peak
 
 ## Why generate them
 
@@ -46,3 +47,25 @@ rules smoke fails the run if that log line ever appears.
 (x -1..1, y -1.3..1.3), so the coordinates on the picture are the numbers that
 go in the scene. Cheaper than a build, and it is how A, B and D were chosen
 out of four candidates.
+
+## The storm, and why its peak is computed
+
+Round 61 shipped the storm as forty hulls all on ttl 5000 and the tester
+called it a light breeze -- correctly: hulls falling in step read as one
+object, however many of them there are. Round 62 broke it into **eight bands
+of speed**, from ttl 9000 (slower than anything else in the act) down to
+3200 (nearly three times that). A rule carries ONE ttl -- `setttl` is read by
+the rules block's outer loop, never inside a rule -- so a band of speed is a
+rule.
+
+Mixing speeds is also what FILLS the screen rather than crossing it: a slow
+hull is still falling when three fast ones have come and gone, so the alive
+count stacks. That is why `gen_storm.awk` does the arithmetic instead of the
+author. It records each band's delay, ttl and size, walks every spawn and
+death in time order, and prints the answer:
+
+    @@PEAK@@ 85 spawned, peak 58 alive at +4600 ms (cap 64)
+
+The first attempt at eight bands came out at **74** -- ten over a cap that
+does not fail loudly. Six of the remaining margin belong to the multiplayer
+squall. Retuning is editing two numbers and reading the line again.

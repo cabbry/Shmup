@@ -19,7 +19,9 @@ function weave(xc, width, phase, y0, dy, st,    ym) {
 }
 
 BEGIN {
-	# ---- A: the long corridor. Eight a side, a 0.64 lane down the middle.
+	# ---- A: the long corridor. Eight a side, a 0.64 lane down the middle,
+	# falling 4.70 in 11 s (0.43 u/s): the head reaches the player about 5.5 s
+	# after the spawn, and the tail is off the bottom at 11.
 	print "@@A@@"
 	for (k = 0; k < 8; k++) {
 		y = 1.35 + 0.28 * k
@@ -27,12 +29,31 @@ BEGIN {
 		hog( 0.32, y,  0.32, y - 4.70, 2)
 	}
 
-	# ---- B: the same corridor, sliding right by 1.20 as it falls.
+	# ---- X: the crossers. Four ordinary hulls cutting straight across the
+	# lane at the player's height while the corridor is on him -- "comme pour
+	# nous couper la route". They come from alternate sides and pass through
+	# the black walls (nothing tests enemy against enemy), which reads as
+	# emerging from them.
+	print "@@X@@"
+	hog(-1.55, -0.55,  1.55, -0.55, 0)
+	hog( 1.55, -0.80, -1.55, -0.80, 0)
+	hog(-1.55, -0.30,  1.55, -0.30, 0)
+	hog( 1.55, -0.95, -1.55, -0.95, 0)
+
+	# ---- B: the DIAGONAL corridor. Not a straight lane translating sideways
+	# (round 63's mistake, "un couloir droit en quinconce") but a lane whose
+	# SHAPE runs bottom-left to top-right: each row sits 0.17 further right
+	# than the one below it, and every hull falls straight down. As the rows
+	# pass the player, the safe x slides from -0.56 to +0.63 -- he has to
+	# drift left to right the whole way, and the lane is only 0.64 wide.
+	# Eight a side, as asked. The right column's top row ends at 0.95, so it
+	# fits with the hull's radius to spare.
 	print "@@B@@"
-	for (k = 0; k < 5; k++) {
-		y = 1.35 + 0.28 * k
-		hog(-0.32, y, 0.88, y - 4.00, 2)
-		hog( 0.32, y, 1.52, y - 4.00, 2)
+	for (k = 0; k < 8; k++) {
+		y  = 1.35 + 0.28 * k
+		xl = -0.88 + 0.17 * k
+		hog(xl,        y, xl,        y - 4.70, 2)
+		hog(xl + 0.64, y, xl + 0.64, y - 4.70, 2)
 	}
 
 	# ---- D: the chicane. Bank 1 fills the RIGHT half so you go left; bank 2
@@ -71,9 +92,8 @@ BEGIN {
 		weave( 0.72, 0.22,  0.5, y, 2.80, 0)
 	}
 
-	# ---- E: the extra hulls crossing the long corridor (tester: "faire
-	# traverser plus de herissons"). Six weavers down the lane itself, stacked,
-	# so the safe lane is never empty for long.
+	# ---- E: six weavers down the long corridor's own lane, so the safe lane
+	# is never empty for long.
 	print "@@E@@"
 	for (k = 0; k < 6; k++) {
 		y = 1.60 + 0.42 * k

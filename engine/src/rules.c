@@ -324,7 +324,12 @@ void RULES_Read(void)
 			strncpy(r->name, LE_getCurrentToken(), sizeof(r->name) - 1);
 			LE_readToken();
 			// trigger, modifiers and actions, in any order, until the next rule or the block's end
-			while (LE_hasMoreData() && strcmp("rule", LE_getCurrentToken()) && strcmp("}", LE_getCurrentToken()))
+			// setttl is a rule BOUNDARY, like "rule" and "}" (round 64). It used to be
+			// read by the outer loop only, so a setttl written between two rules was
+			// swallowed by the FIRST one as "unknown word" -- and every rule in the
+			// act silently kept the ttl of the block's first setttl. Rain shipped two
+			// builds with eight "bands of speed" that never existed.
+			while (LE_hasMoreData() && strcmp("rule", LE_getCurrentToken()) && strcmp("}", LE_getCurrentToken()) && strcmp("setttl", LE_getCurrentToken()))
 			{
 				const char* tok = LE_getCurrentToken();
 				if (!strcmp("when", tok))

@@ -193,12 +193,23 @@ jobs:
           # their fall's trigger, so they fire on the SAME tick as its first beat
           # -- the delay is on the spawns, not on the firing. Presence only; an
           # order check here would compare a tick with itself.
-          for R in cAd cAe m1b m1c m1d cBg cDl cDm1 cDm2 d1h m2b m2t cPs s2 s3 s4 s5 s6 s7 s8; do
+          for R in cAd cAx cAe m1b m1c m1d cBg cDl cDm1 cDm2 d1h m2b m2t cPs s2 s3 s4 s5 s6 s7 s8; do
             grep -q "^\[rule\] t=.* fire $R " act4-trace.log || { echo "::error::the seeker beat $R never fired."; exit 1; }
           done
           SEEKERS=$(grep -c "^\[spawn\] .* type=6" act4-trace.log || true)
           HOGS=$(grep -c "^\[spawn\] .* type=1 " act4-trace.log || true)
           echo "spawned: $HOGS hedgehogs, $SEEKERS seekers"
+
+          # THE PARSER. A word the rules parser does not know is logged and skipped,
+          # and the act goes on with a HOLE in it. Round 64 found every setttl
+          # between two rules had been swallowed this way for two builds: eight
+          # "speed bands" that never existed, every wave living 15 s, the act
+          # outrunning its rail. Nothing in the scene may parse to an unknown word.
+          if grep -q "^\[rule\] .*unknown word" "$LOG"; then
+            echo "::error::the rules parser hit a word it does not know -- the scene is not what it looks like."
+            grep "unknown word" "$LOG" | sort | uniq -c | head -10
+            exit 1
+          fi
 
           # THE POOL. MAX_NUM_ENEMIES is 64 and it does not grow: past it
           # ENE_Get hands out a shared dummy and logs this line, so a wave that

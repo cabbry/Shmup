@@ -30,7 +30,7 @@ BEGIN {
 	nb = 0
 
 	# slow and first: still falling when three fast bands have come and gone
-	print "@@S1@@";  band(500, 9000, 10)
+	print "@@S1@@";  band(500, 7000, 10)
 	for (k = 0; k < 10; k++) dive(-1.10 + 0.244 * k, 1.30, 0.35, 0)
 
 	# quick, from wide left, angling in hard
@@ -58,7 +58,7 @@ BEGIN {
 	for (k = 0; k < 7; k++) seeker(-0.80 + 0.32 * k)
 
 	# a slow rank to close, so the storm's tail is not empty
-	print "@@S6@@";  band(8600, 9000, 10)
+	print "@@S6@@";  band(8600, 7000, 10)
 	for (k = 0; k < 10; k++) dive(-1.05 + 0.233 * k, 1.40, 0.40, 1)
 
 	# ---- the arithmetic -------------------------------------------------

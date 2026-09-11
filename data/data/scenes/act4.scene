@@ -479,56 +479,64 @@ rules
 	        group d2
 
 	# =========================================================================
-	# THE STORM. The biggest wave in the game, and the only one that fills the
-	# screen rather than crossing it.
+	# THE STORM. The biggest wave in the game -- a scatter, not a formation.
 	#
-	# EIGHT BANDS OF SPEED, not one block. A rule carries ONE ttl, so a band of
-	# speed IS a rule. The distance is about 2.7 screen units, which makes the
-	# ttl the speed outright: 7000 is act I's charging-column speed (0.4 u/s)
-	# and 3200 is more than twice that. Nothing in the storm is slower than
-	# the columns the tester pointed at.
+	# Round 65, the tester's brief after the eight-band version: no more ranks.
+	# THREE THIRDS. A third goes ULTRA FAST: 1.4 u/s, three and a half times
+	# act I's charging columns, straight down. A third takes IMPROBABLE paths:
+	# steep diagonals from off both edges crossing each other, and crossers at
+	# the player's own height cutting the road from the side. A third descends
+	# at the columns' speed but scattered -- neither in rows nor in columns.
 	#
-	# AND IT CONVERGES. Every hull's end X is pulled toward the centre of the
-	# floor, where the player lives, so the outer lanes angle IN instead of
-	# falling past in parallel. A hedgehog cannot aim -- only the seekers home
-	# -- but a formation can be aimed, and this one is.
+	# THE VERTICALITY. A rule fires all its spawns on one tick, but a hull that
+	# STARTS HIGHER arrives later, at the same speed; so each band spreads its
+	# start heights over up to two screen units, and the vertical stagger IS
+	# the temporal stagger. Positions are golden-ratio stepped, not gridded, so
+	# nothing lines up within a band or across bands. Deterministic: the scene
+	# is data and lockstep needs every peer to read the same file.
 	#
-	# Mixing the speeds is also what FILLS the screen: a slow hull is still
-	# falling when three fast ones have come and gone, so the count stacks --
-	# which is why the peak is computed rather than guessed.
-	# tools/rain/gen_storm.awk walks every spawn and death in time order and
-	# prints the answer; it is kept at 60 against a hard cap of 64, with the
-	# multiplayer squall trimmed to 4 so the two together cannot exceed it.
-	setttl 7000
-	rule s1 when cleared d2 after 500
-	        spawnEnemy mouvement 1 enemyType 1 startPos -1.10 1.30 endPos -0.39 -1.40 controlPoint -0.74 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.86 1.30 endPos -0.30 -1.40 controlPoint -0.58 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.61 1.30 endPos -0.21 -1.40 controlPoint -0.41 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.37 1.30 endPos -0.13 -1.40 controlPoint -0.25 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.12 1.30 endPos -0.04 -1.40 controlPoint -0.08 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.12 1.30 endPos 0.04 -1.40 controlPoint 0.08 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.36 1.30 endPos 0.13 -1.40 controlPoint 0.25 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.61 1.30 endPos 0.21 -1.40 controlPoint 0.41 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.85 1.30 endPos 0.30 -1.40 controlPoint 0.58 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 1.10 1.30 endPos 0.38 -1.40 controlPoint 0.74 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	# THE PEAK IS COMPUTED (tools/rain/gen_storm.awk): 105 spawned, 60 alive
+	# at once, against a cap of 64 with the multiplayer squall's 4 beside it.
+	# The first cut came out at 63 -- the second rain landed where every band
+	# overlapped -- and moved 800 ms later. Past 64 ENE_Get hands out a shared
+	# dummy and the spawn stops existing, so this is arithmetic, not optimism.
+	setttl 6500
+	rule s1 when cleared d2 after 300
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.63 2.46 endPos -0.63 -0.84 controlPoint -0.63 0.81 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.55 3.18 endPos 0.55 -0.12 controlPoint 0.55 1.53 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.18 2.01 endPos -0.18 -1.29 controlPoint -0.18 0.36 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.90 2.74 endPos -0.90 -0.56 controlPoint -0.90 1.09 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.27 1.56 endPos 0.27 -1.74 controlPoint 0.27 -0.09 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.46 2.29 endPos -0.46 -1.01 controlPoint -0.46 0.64 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.72 3.01 endPos 0.72 -0.29 controlPoint 0.72 1.36 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.01 1.84 endPos -0.01 -1.46 controlPoint -0.01 0.19 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.73 2.56 endPos -0.73 -0.74 controlPoint -0.73 0.91 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.44 1.39 endPos 0.44 -1.91 controlPoint 0.44 -0.26 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
 	        group storm
-	setttl 4500
-	rule s2 when cleared d2 after 1500
-	        spawnEnemy mouvement 1 enemyType 1 startPos -1.60 1.30 endPos -0.32 -1.40 controlPoint -0.96 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -1.44 1.30 endPos -0.29 -1.40 controlPoint -0.86 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -1.28 1.30 endPos -0.26 -1.40 controlPoint -0.77 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -1.12 1.30 endPos -0.22 -1.40 controlPoint -0.67 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.96 1.30 endPos -0.19 -1.40 controlPoint -0.58 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.80 1.30 endPos -0.16 -1.40 controlPoint -0.48 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.64 1.30 endPos -0.13 -1.40 controlPoint -0.38 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.48 1.30 endPos -0.10 -1.40 controlPoint -0.29 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.32 1.30 endPos -0.06 -1.40 controlPoint -0.19 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.16 1.30 endPos -0.03 -1.40 controlPoint -0.10 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.00 1.30 endPos 0.00 -1.40 controlPoint 0.00 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.16 1.30 endPos 0.03 -1.40 controlPoint 0.10 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	setttl 2200
+	rule s2 when cleared d2 after 900
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.28 1.64 endPos -0.28 -1.36 controlPoint -0.28 0.14 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.89 1.95 endPos 0.89 -1.05 controlPoint 0.89 0.45 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.16 1.45 endPos 0.16 -1.55 controlPoint 0.16 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.56 1.76 endPos -0.56 -1.24 controlPoint -0.56 0.26 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.61 2.07 endPos 0.61 -0.93 controlPoint 0.61 0.57 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.11 1.57 endPos -0.11 -1.43 controlPoint -0.11 0.07 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.84 1.88 endPos -0.84 -1.12 controlPoint -0.84 0.38 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.34 1.38 endPos 0.34 -1.62 controlPoint 0.34 -0.12 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.39 1.69 endPos -0.39 -1.31 controlPoint -0.39 0.19 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.78 1.99 endPos 0.78 -1.01 controlPoint 0.78 0.49 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group storm
+	setttl 2600
+	rule s3 when cleared d2 after 1600
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.55 -0.79 endPos 1.55 -0.94 controlPoint 0.00 -0.86 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.55 -0.46 endPos -1.55 -0.61 controlPoint 0.00 -0.54 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.55 -0.99 endPos 1.55 -1.14 controlPoint 0.00 -1.06 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.55 -0.66 endPos -1.55 -0.81 controlPoint 0.00 -0.74 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.55 -0.34 endPos 1.55 -0.49 controlPoint 0.00 -0.41 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.55 -0.86 endPos -1.55 -1.01 controlPoint 0.00 -0.94 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        group storm
 	setttl 5000
-	rule s3 when cleared d2 after 2400
+	rule s4 when cleared d2 after 2200
 	        spawnEnemy mouvement 1 enemyType 6 startPos -0.96 1.25 endPos -0.96 -1.30 controlPoint -0.96 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        spawnEnemy mouvement 1 enemyType 6 startPos -0.69 1.25 endPos -0.69 -1.30 controlPoint -0.69 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        spawnEnemy mouvement 1 enemyType 6 startPos -0.41 1.25 endPos -0.41 -1.30 controlPoint -0.41 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
@@ -538,59 +546,74 @@ rules
 	        spawnEnemy mouvement 1 enemyType 6 startPos 0.68 1.25 endPos 0.68 -1.30 controlPoint 0.68 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        spawnEnemy mouvement 1 enemyType 6 startPos 0.96 1.25 endPos 0.96 -1.30 controlPoint 0.96 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        group storm
-	setttl 3200
-	rule s4 when cleared d2 after 3300
-	        spawnEnemy mouvement 1 enemyType 1 startPos 1.60 1.30 endPos 0.32 -1.40 controlPoint 0.96 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 1.44 1.30 endPos 0.29 -1.40 controlPoint 0.86 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 1.28 1.30 endPos 0.26 -1.40 controlPoint 0.77 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 1.12 1.30 endPos 0.22 -1.40 controlPoint 0.67 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.96 1.30 endPos 0.19 -1.40 controlPoint 0.58 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.80 1.30 endPos 0.16 -1.40 controlPoint 0.48 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.64 1.30 endPos 0.13 -1.40 controlPoint 0.38 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.48 1.30 endPos 0.10 -1.40 controlPoint 0.29 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.32 1.30 endPos 0.06 -1.40 controlPoint 0.19 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.16 1.30 endPos 0.03 -1.40 controlPoint 0.10 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.00 1.30 endPos 0.00 -1.40 controlPoint 0.00 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.16 1.30 endPos -0.03 -1.40 controlPoint -0.10 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.32 1.30 endPos -0.06 -1.40 controlPoint -0.19 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.48 1.30 endPos -0.10 -1.40 controlPoint -0.29 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	setttl 2200
+	rule s5 when cleared d2 after 2800
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.40 1.36 endPos 0.40 -1.64 controlPoint 0.40 -0.14 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.32 1.66 endPos -0.32 -1.34 controlPoint -0.32 0.16 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.85 1.97 endPos 0.85 -1.03 controlPoint 0.85 0.47 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.12 1.47 endPos 0.12 -1.53 controlPoint 0.12 -0.03 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.60 1.78 endPos -0.60 -1.22 controlPoint -0.60 0.28 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.57 2.08 endPos 0.57 -0.92 controlPoint 0.57 0.58 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.15 1.59 endPos -0.15 -1.41 controlPoint -0.15 0.09 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.88 1.89 endPos -0.88 -1.11 controlPoint -0.88 0.39 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.30 1.40 endPos 0.30 -1.60 controlPoint 0.30 -0.10 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.43 1.71 endPos -0.43 -1.29 controlPoint -0.43 0.21 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        group storm
-	setttl 4000
-	rule s5 when cleared d2 after 4600
-	        spawnEnemy mouvement 1 enemyType 1 startPos -1.65 1.30 endPos -0.41 -1.40 controlPoint -1.03 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -1.50 1.30 endPos -0.38 -1.40 controlPoint -0.94 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -1.36 1.30 endPos -0.34 -1.40 controlPoint -0.85 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -1.21 1.30 endPos -0.30 -1.40 controlPoint -0.76 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -1.07 1.30 endPos -0.27 -1.40 controlPoint -0.67 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.92 1.30 endPos -0.23 -1.40 controlPoint -0.58 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.78 1.30 endPos -0.20 -1.40 controlPoint -0.49 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.64 1.30 endPos -0.16 -1.40 controlPoint -0.40 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.49 1.30 endPos -0.12 -1.40 controlPoint -0.31 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.34 1.30 endPos -0.09 -1.40 controlPoint -0.22 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.20 1.30 endPos -0.05 -1.40 controlPoint -0.12 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.05 1.30 endPos -0.01 -1.40 controlPoint -0.03 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.09 1.30 endPos 0.02 -1.40 controlPoint 0.06 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.23 1.30 endPos 0.06 -1.40 controlPoint 0.15 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.38 1.30 endPos 0.09 -1.40 controlPoint 0.24 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.52 1.30 endPos 0.13 -1.40 controlPoint 0.33 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	setttl 6500
+	rule s6 when cleared d2 after 3400
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.74 2.99 endPos 0.74 -0.31 controlPoint 0.74 1.34 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.02 1.81 endPos 0.02 -1.49 controlPoint 0.02 0.16 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.71 2.54 endPos -0.71 -0.76 controlPoint -0.71 0.89 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.47 1.37 endPos 0.47 -1.93 controlPoint 0.47 -0.28 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.26 2.09 endPos -0.26 -1.21 controlPoint -0.26 0.44 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.91 2.82 endPos 0.91 -0.48 controlPoint 0.91 1.17 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.19 1.64 endPos 0.19 -1.66 controlPoint 0.19 -0.01 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.54 2.37 endPos -0.54 -0.93 controlPoint -0.54 0.72 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.64 3.09 endPos 0.64 -0.21 controlPoint 0.64 1.44 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.09 1.92 endPos -0.09 -1.38 controlPoint -0.09 0.27 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
 	        group storm
-	setttl 4500
-	rule s6 when cleared d2 after 6200
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.95 1.30 endPos -0.57 -1.40 controlPoint -0.76 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.78 1.30 endPos -0.47 -1.40 controlPoint -0.62 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.60 1.30 endPos -0.36 -1.40 controlPoint -0.48 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.43 1.30 endPos -0.26 -1.40 controlPoint -0.34 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.26 1.30 endPos -0.15 -1.40 controlPoint -0.21 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.08 1.30 endPos -0.05 -1.40 controlPoint -0.07 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.09 1.30 endPos 0.05 -1.40 controlPoint 0.07 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.26 1.30 endPos 0.16 -1.40 controlPoint 0.21 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.43 1.30 endPos 0.26 -1.40 controlPoint 0.35 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.61 1.30 endPos 0.36 -1.40 controlPoint 0.49 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.78 1.30 endPos 0.47 -1.40 controlPoint 0.62 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.95 1.30 endPos 0.57 -1.40 controlPoint 0.76 -0.05 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	setttl 3000
+	rule s7 when cleared d2 after 4000
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.30 1.80 endPos 0.80 -1.00 controlPoint -0.25 0.40 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.55 1.36 endPos -0.55 -1.44 controlPoint 0.50 -0.04 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.39 1.63 endPos 0.71 -1.17 controlPoint -0.34 0.23 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.64 1.90 endPos -0.46 -0.90 controlPoint 0.59 0.50 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.49 1.47 endPos 0.61 -1.33 controlPoint -0.44 0.07 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.34 1.73 endPos -0.76 -1.07 controlPoint 0.29 0.33 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.58 1.30 endPos 0.52 -1.50 controlPoint -0.53 -0.10 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.43 1.57 endPos -0.67 -1.23 controlPoint 0.38 0.17 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group storm
+	setttl 2200
+	rule s8 when cleared d2 after 4800
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.47 1.72 endPos -0.47 -1.28 controlPoint -0.47 0.22 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.70 2.03 endPos 0.70 -0.97 controlPoint 0.70 0.53 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.02 1.53 endPos -0.02 -1.47 controlPoint -0.02 0.03 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.75 1.84 endPos -0.75 -1.16 controlPoint -0.75 0.34 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.43 1.34 endPos 0.43 -1.66 controlPoint 0.43 -0.16 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.30 1.65 endPos -0.30 -1.35 controlPoint -0.30 0.15 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.87 1.96 endPos 0.87 -1.04 controlPoint 0.87 0.46 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.15 1.46 endPos 0.15 -1.54 controlPoint 0.15 -0.04 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.58 1.77 endPos -0.58 -1.23 controlPoint -0.58 0.27 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.60 2.07 endPos 0.60 -0.93 controlPoint 0.60 0.57 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group storm
+	setttl 2600
+	rule s9 when cleared d2 after 5400
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.55 -0.70 endPos 1.55 -0.85 controlPoint 0.00 -0.78 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.55 -0.38 endPos -1.55 -0.53 controlPoint 0.00 -0.45 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.55 -0.91 endPos 1.55 -1.06 controlPoint 0.00 -0.98 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.55 -0.58 endPos -1.55 -0.73 controlPoint 0.00 -0.66 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.55 -0.26 endPos 1.55 -0.41 controlPoint 0.00 -0.33 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.55 -0.78 endPos -1.55 -0.93 controlPoint 0.00 -0.86 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group storm
+	setttl 3000
+	rule s10 when cleared d2 after 5400
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.30 1.42 endPos 0.80 -1.38 controlPoint -0.25 0.02 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.55 1.68 endPos -0.55 -1.12 controlPoint 0.50 0.28 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.39 1.95 endPos 0.71 -0.85 controlPoint -0.34 0.55 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.64 1.52 endPos -0.46 -1.28 controlPoint 0.59 0.12 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        group storm
 	setttl 5000
-	rule s7 when cleared d2 after 7400
+	rule s11 when cleared d2 after 7000
 	        spawnEnemy mouvement 1 enemyType 6 startPos -0.80 1.25 endPos -0.80 -1.30 controlPoint -0.80 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        spawnEnemy mouvement 1 enemyType 6 startPos -0.48 1.25 endPos -0.48 -1.30 controlPoint -0.48 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        spawnEnemy mouvement 1 enemyType 6 startPos -0.16 1.25 endPos -0.16 -1.30 controlPoint -0.16 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
@@ -599,18 +622,27 @@ rules
 	        spawnEnemy mouvement 1 enemyType 6 startPos 0.80 1.25 endPos 0.80 -1.30 controlPoint 0.80 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        spawnEnemy mouvement 1 enemyType 6 startPos 1.12 1.25 endPos 1.12 -1.30 controlPoint 1.12 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        group storm
-	setttl 7000
-	rule s8 when cleared d2 after 8600
-	        spawnEnemy mouvement 1 enemyType 1 startPos -1.05 1.40 endPos -0.42 -1.40 controlPoint -0.74 0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.82 1.40 endPos -0.33 -1.40 controlPoint -0.57 0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.58 1.40 endPos -0.23 -1.40 controlPoint -0.41 0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.35 1.40 endPos -0.14 -1.40 controlPoint -0.25 0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos -0.12 1.40 endPos -0.05 -1.40 controlPoint -0.08 0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.11 1.40 endPos 0.05 -1.40 controlPoint 0.08 0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.35 1.40 endPos 0.14 -1.40 controlPoint 0.24 0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.58 1.40 endPos 0.23 -1.40 controlPoint 0.41 0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos 0.81 1.40 endPos 0.33 -1.40 controlPoint 0.57 0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
-	        spawnEnemy mouvement 1 enemyType 1 startPos 1.05 1.40 endPos 0.42 -1.40 controlPoint 0.73 0.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	setttl 6500
+	rule s12 when cleared d2 after 6800
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.56 3.18 endPos 0.56 -0.12 controlPoint 0.56 1.53 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.17 2.00 endPos -0.17 -1.30 controlPoint -0.17 0.35 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.89 2.73 endPos -0.89 -0.57 controlPoint -0.89 1.08 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.28 1.55 endPos 0.28 -1.75 controlPoint 0.28 -0.10 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.45 2.28 endPos -0.45 -1.02 controlPoint -0.45 0.63 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.73 3.00 endPos 0.73 -0.30 controlPoint 0.73 1.35 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.00 1.83 endPos 0.00 -1.47 controlPoint 0.00 0.18 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.72 2.56 endPos -0.72 -0.74 controlPoint -0.72 0.91 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 0.45 1.38 endPos 0.45 -1.92 controlPoint 0.45 -0.27 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -0.27 2.11 endPos -0.27 -1.19 controlPoint -0.27 0.46 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
+	        group storm
+	setttl 2600
+	rule s13 when cleared d2 after 7800
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.55 -0.31 endPos 1.55 -0.46 controlPoint 0.00 -0.39 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.55 -0.84 endPos -1.55 -0.99 controlPoint 0.00 -0.91 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.55 -0.52 endPos 1.55 -0.67 controlPoint 0.00 -0.59 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.55 -0.19 endPos -1.55 -0.34 controlPoint 0.00 -0.27 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos -1.55 -0.72 endPos 1.55 -0.87 controlPoint 0.00 -0.79 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 1 startPos 1.55 -0.39 endPos -1.55 -0.54 controlPoint 0.00 -0.47 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        group storm
 
 	# --- more guns, more rain ------------------------------------------------

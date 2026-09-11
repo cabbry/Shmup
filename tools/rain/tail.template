@@ -243,57 +243,78 @@ rules
 	        group d2
 
 	# =========================================================================
-	# THE STORM. The biggest wave in the game, and the only one that fills the
-	# screen rather than crossing it.
+	# THE STORM. The biggest wave in the game -- a scatter, not a formation.
 	#
-	# EIGHT BANDS OF SPEED, not one block. A rule carries ONE ttl, so a band of
-	# speed IS a rule. The distance is about 2.7 screen units, which makes the
-	# ttl the speed outright: 7000 is act I's charging-column speed (0.4 u/s)
-	# and 3200 is more than twice that. Nothing in the storm is slower than
-	# the columns the tester pointed at.
+	# Round 65, the tester's brief after the eight-band version: no more ranks.
+	# THREE THIRDS. A third goes ULTRA FAST: 1.4 u/s, three and a half times
+	# act I's charging columns, straight down. A third takes IMPROBABLE paths:
+	# steep diagonals from off both edges crossing each other, and crossers at
+	# the player's own height cutting the road from the side. A third descends
+	# at the columns' speed but scattered -- neither in rows nor in columns.
 	#
-	# AND IT CONVERGES. Every hull's end X is pulled toward the centre of the
-	# floor, where the player lives, so the outer lanes angle IN instead of
-	# falling past in parallel. A hedgehog cannot aim -- only the seekers home
-	# -- but a formation can be aimed, and this one is.
+	# THE VERTICALITY. A rule fires all its spawns on one tick, but a hull that
+	# STARTS HIGHER arrives later, at the same speed; so each band spreads its
+	# start heights over up to two screen units, and the vertical stagger IS
+	# the temporal stagger. Positions are golden-ratio stepped, not gridded, so
+	# nothing lines up within a band or across bands. Deterministic: the scene
+	# is data and lockstep needs every peer to read the same file.
 	#
-	# Mixing the speeds is also what FILLS the screen: a slow hull is still
-	# falling when three fast ones have come and gone, so the count stacks --
-	# which is why the peak is computed rather than guessed.
-	# tools/rain/gen_storm.awk walks every spawn and death in time order and
-	# prints the answer; it is kept at 60 against a hard cap of 64, with the
-	# multiplayer squall trimmed to 4 so the two together cannot exceed it.
-	setttl 7000
-	rule s1 when cleared d2 after 500
-@@S1@@
+	# THE PEAK IS COMPUTED (tools/rain/gen_storm.awk): 105 spawned, 60 alive
+	# at once, against a cap of 64 with the multiplayer squall's 4 beside it.
+	# The first cut came out at 63 -- the second rain landed where every band
+	# overlapped -- and moved 800 ms later. Past 64 ENE_Get hands out a shared
+	# dummy and the spawn stops existing, so this is arithmetic, not optimism.
+	setttl 6500
+	rule s1 when cleared d2 after 300
+@@N1@@
 	        group storm
-	setttl 4500
-	rule s2 when cleared d2 after 1500
-@@S2@@
+	setttl 2200
+	rule s2 when cleared d2 after 900
+@@F1@@
+	        group storm
+	setttl 2600
+	rule s3 when cleared d2 after 1600
+@@I1@@
 	        group storm
 	setttl 5000
-	rule s3 when cleared d2 after 2400
+	rule s4 when cleared d2 after 2200
 @@SM1@@
 	        group storm
-	setttl 3200
-	rule s4 when cleared d2 after 3300
-@@S3@@
+	setttl 2200
+	rule s5 when cleared d2 after 2800
+@@F2@@
 	        group storm
-	setttl 4000
-	rule s5 when cleared d2 after 4600
-@@S4@@
+	setttl 6500
+	rule s6 when cleared d2 after 3400
+@@N2@@
 	        group storm
-	setttl 4500
-	rule s6 when cleared d2 after 6200
-@@S5@@
+	setttl 3000
+	rule s7 when cleared d2 after 4000
+@@I2@@
+	        group storm
+	setttl 2200
+	rule s8 when cleared d2 after 4800
+@@F3@@
+	        group storm
+	setttl 2600
+	rule s9 when cleared d2 after 5400
+@@I3@@
+	        group storm
+	setttl 3000
+	rule s10 when cleared d2 after 5400
+@@I4@@
 	        group storm
 	setttl 5000
-	rule s7 when cleared d2 after 7400
+	rule s11 when cleared d2 after 7000
 @@SM2@@
 	        group storm
-	setttl 7000
-	rule s8 when cleared d2 after 8600
-@@S6@@
+	setttl 6500
+	rule s12 when cleared d2 after 6800
+@@N3@@
+	        group storm
+	setttl 2600
+	rule s13 when cleared d2 after 7800
+@@I5@@
 	        group storm
 
 	# --- more guns, more rain ------------------------------------------------

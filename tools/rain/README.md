@@ -103,3 +103,28 @@ One thing I could not verify from here: the SHAB fan's angle convention.
 `firingAngle1 225 firingAngle2 315` is meant to be a downward arc centred on
 270. If it fires UP instead, the fans are harmless rather than dangerous -- a
 visible failure, not a breaking one, and a two-number fix.
+
+## Round 65 -- the storm becomes a scatter
+
+The eight-band storm still read as ranks. The tester's brief: "plus de
+verticalite, avec des petites lignes mais pleins de herissons -- 1/3 qui vont
+ultra vite, 1/3 avec des trajectoires improbables, 1/3 qui descendent
+normalement mais repartis ni en ligne ni en colonne."
+
+`gen_storm.awk` now has four kinds -- `normal` (act I's column speed, 6500),
+`fast` (2200, 1.4 u/s), `diag` (steep, from off both edges, crossing) and
+`cross` (horizontal, at the player's height) -- and thirteen bands of them.
+Two mechanics carry the brief:
+
+- **Start height is arrival time.** A rule fires everything on one tick, but a
+  hull that starts higher arrives later at the same speed, so each band spreads
+  its start Y over up to two screen units. That is where the "verticalite"
+  comes from without spending a rule per row.
+- **Golden-ratio stepping, not a grid.** `x_k = frac(k*0.618..)`,
+  `y_k = frac(k*0.382..)`: nothing repeats a lane or a height within a band or
+  across bands. Deterministic -- lockstep needs every peer to read the same
+  scene -- so no `rand()`.
+
+105 spawned, peak 56 alive against a cap of 64 (squall 4). The first cut was
+63: the second rain landed where every band overlapped, and moved 800 ms later.
+Worst-case act length, computed from the scene: 117 s to the card.

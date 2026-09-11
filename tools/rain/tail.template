@@ -1,0 +1,306 @@
+# The seed, and the ONLY thing here with a time on it. Everything after it is
+# in the rules block, waiting on this.
+enemies
+{
+	settime 9000
+	setttl 8000
+
+	# Twelve divers, criss-crossing -- three times the first draft's four. The
+	# act opens busy and never really stops.
+	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.7 1.3 endPos  0.5 -1.3 controlPoint -0.7 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+	at 200  spawnEnemy mouvement 1 enemyType 1 startPos  0.7 1.3 endPos -0.5 -1.3 controlPoint  0.7 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+	at 400  spawnEnemy mouvement 1 enemyType 1 startPos -0.3 1.3 endPos  0.3 -1.3 controlPoint -0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+	at 600  spawnEnemy mouvement 1 enemyType 1 startPos  0.3 1.3 endPos -0.3 -1.3 controlPoint  0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+	at 800  spawnEnemy mouvement 1 enemyType 1 startPos -0.9 1.3 endPos  0.9 -1.3 controlPoint -0.9 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+	at 1000 spawnEnemy mouvement 1 enemyType 1 startPos  0.9 1.3 endPos -0.9 -1.3 controlPoint  0.9 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+	at 1200 spawnEnemy mouvement 1 enemyType 1 startPos -0.5 1.3 endPos  0.7 -1.3 controlPoint -0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+	at 1400 spawnEnemy mouvement 1 enemyType 1 startPos  0.5 1.3 endPos -0.7 -1.3 controlPoint  0.5 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+	at 1600 spawnEnemy mouvement 1 enemyType 1 startPos -0.1 1.3 endPos  0.1 -1.3 controlPoint -0.1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1 group r1
+	at 1800 spawnEnemy mouvement 1 enemyType 1 startPos  0.1 1.3 endPos -0.1 -1.3 controlPoint  0.1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1 group r1
+	at 2000 spawnEnemy mouvement 1 enemyType 1 startPos -0.8 1.3 endPos  0.2 -1.3 controlPoint -0.8 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+	at 2200 spawnEnemy mouvement 1 enemyType 1 startPos  0.8 1.3 endPos -0.2 -1.3 controlPoint  0.8 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
+}
+
+
+# The act, as a chain of reactions: each rule waits for the group before it to
+# be GONE -- shot down, or expired on its ttl.
+#
+# THE BLACK HEDGEHOGS ARE ARCHITECTURE, NOT TARGETS. subType 2 multiplies an
+# FHT's energy by FORTY (event.c) and paints it 0.2 grey: forty hits from a
+# bullet that deals one. You are not meant to clear them, you are meant to
+# find the lane -- and the lane is where the act wants you rather than where
+# you want to be. Their ttl is what advances the chain, so a wall is an
+# obstacle and never a lock.
+#
+# Every wall arrives with company (round 63): a corridor with nobody in it is
+# a puzzle you solve once. Two Devils flank the long one, two ghosts close the
+# ways round the diagonal, three turrets and two falls of seekers work the
+# chicane, fan turrets cover both sides of the pillar.
+#
+# Two things to know before adding more. MAX_NUM_ENEMIES is 64, all types
+# together, and the pool does not grow -- past it the engine logs "Enemy pool
+# exhausted" and hands out a dummy. And NOTHING tests one enemy against
+# another: a hedgehog and a Devil fly straight through each other, so a wall
+# inconveniences the player and nobody else.
+#
+# The formation coordinates are GENERATED, not typed (tools/rain/gen_walls.awk,
+# gen_storm.awk): every hull in a shape has to travel the same distance in the
+# same ttl, or the ones that start higher move faster and the shape shears
+# apart on the way down.
+rules
+{
+	# --- A: THE LONG CORRIDOR, FLANKED --------------------------------------
+	# Eight hulls a side, a lane 0.64 wide, nearly two units tall: you are
+	# inside it for seconds. Two silver Devils park either side of it -- their
+	# fire crosses the lane you are pinned in -- and six weavers come down the
+	# lane itself, so the safe lane is never empty for long.
+	setttl 15000
+	rule cA when cleared r1 after 1200
+@@A@@
+	        group cA
+	setttl 12000
+	rule cAd when cleared r1 after 2000
+	        spawnEnemy mouvement 1 enemyType 0 startPos -1.6 0.55 endPos -0.85 0.50 controlPoint -1.2 0.55 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 0 startPos  1.6 0.55 endPos  0.85 0.50 controlPoint  1.2 0.55 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 0
+	        group cA
+	setttl 11000
+	rule cAe when cleared r1 after 1800
+@@E@@
+	        group cA
+
+	# --- THE RED RAIN, first fall: FOUR BEATS, TWENTY-FOUR -------------------
+	# Homing seekers (enemyType 6), the finale boss's own weapon: a capped turn
+	# rate so they can be juked, four points of hull so they can be shot down,
+	# and a red-hot tint they paint on themselves every frame. Four rules on
+	# one trigger, 800 ms apart -- the first one earlier than before and one
+	# slotted between the old two (round 63). A single rule fires all its
+	# spawns on one tick, and six seekers together is weather; twenty-four is
+	# a wall.
+	setttl 7000
+	rule m1a when cleared cA after 200
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.95 1.25 endPos -0.95 -1.3 controlPoint -0.95 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.57 1.25 endPos -0.57 -1.3 controlPoint -0.57 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.19 1.25 endPos -0.19 -1.3 controlPoint -0.19 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.19 1.25 endPos  0.19 -1.3 controlPoint  0.19 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.57 1.25 endPos  0.57 -1.3 controlPoint  0.57 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.95 1.25 endPos  0.95 -1.3 controlPoint  0.95 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m1
+	rule m1b when cleared cA after 1000
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.85 1.25 endPos -0.85 -1.3 controlPoint -0.85 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.51 1.25 endPos -0.51 -1.3 controlPoint -0.51 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.17 1.25 endPos -0.17 -1.3 controlPoint -0.17 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.17 1.25 endPos  0.17 -1.3 controlPoint  0.17 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.51 1.25 endPos  0.51 -1.3 controlPoint  0.51 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.85 1.25 endPos  0.85 -1.3 controlPoint  0.85 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m1
+	rule m1c when cleared cA after 1800
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.98 1.25 endPos -0.98 -1.3 controlPoint -0.98 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.65 1.25 endPos -0.65 -1.3 controlPoint -0.65 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.33 1.25 endPos -0.33 -1.3 controlPoint -0.33 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.00 1.25 endPos  0.00 -1.3 controlPoint  0.00 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.33 1.25 endPos  0.33 -1.3 controlPoint  0.33 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.65 1.25 endPos  0.65 -1.3 controlPoint  0.65 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m1
+	rule m1d when cleared cA after 2600
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.90 1.25 endPos -0.90 -1.3 controlPoint -0.90 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.45 1.25 endPos -0.45 -1.3 controlPoint -0.45 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.10 1.25 endPos -0.10 -1.3 controlPoint -0.10 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.10 1.25 endPos  0.10 -1.3 controlPoint  0.10 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.45 1.25 endPos  0.45 -1.3 controlPoint  0.45 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.90 1.25 endPos  0.90 -1.3 controlPoint  0.90 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m1
+
+	# --- B: THE DIAGONAL, STRAIGHT AFTER, AND NO WAY ROUND IT ----------------
+	# The same lane as A but every hull also travels 1.20 across as it falls,
+	# left to right: holding the middle stops being a position and becomes a
+	# drift you have to keep up. Two GHOST Devils park where you would slip
+	# past it -- the left flank it came from, the right it is heading to -- so
+	# the lane is the only way through (round 63).
+	setttl 13000
+	rule cB when cleared m1 after 600
+@@B@@
+	        group cB
+	setttl 10000
+	rule cBg when cleared m1 after 1400
+	        spawnEnemy mouvement 1 enemyType 0 startPos -1.6 0.30 endPos -0.90 0.25 controlPoint -1.2 0.30 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
+	        spawnEnemy mouvement 1 enemyType 0 startPos  1.6 0.90 endPos  0.95 0.75 controlPoint  1.2 0.85 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
+	        group cB
+
+	# --- D: THE CHICANE, UNDER FIRE ------------------------------------------
+	# The first bank fills the right half, so you go left. The second is 0.85
+	# behind it and fills the left, so the gap between the two banks is exactly
+	# the time you have to cross the whole screen. Three turrets orbit over it
+	# and two falls of seekers drop in while you cross -- the guns that used to
+	# stand in the open before it are IN it now (round 63).
+	setttl 12000
+	rule cD when cleared cB after 800
+@@D@@
+	        group cD
+	setttl 9000
+	rule cDl when cleared cB after 1400
+	        spawnEnemy mouvement 0 startAngle 0   fireFrequency 50 enemyType 2 startPos -0.6 1.2 endPos -0.6 -1.2 controlPoint -0.6 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.8
+	        spawnEnemy mouvement 0 startAngle 120 fireFrequency 50 enemyType 2 startPos  0.0 1.2 endPos  0.0 -1.2 controlPoint  0.0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.8
+	        spawnEnemy mouvement 0 startAngle 240 fireFrequency 50 enemyType 2 startPos  0.6 1.2 endPos  0.6 -1.2 controlPoint  0.6 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.8
+	        group cD
+	setttl 6000
+	rule cDm1 when cleared cB after 2400
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.90 1.25 endPos -0.90 -1.30 controlPoint -0.90 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.54 1.25 endPos -0.54 -1.30 controlPoint -0.54 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.18 1.25 endPos -0.18 -1.30 controlPoint -0.18 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.18 1.25 endPos  0.18 -1.30 controlPoint  0.18 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.54 1.25 endPos  0.54 -1.30 controlPoint  0.54 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.90 1.25 endPos  0.90 -1.30 controlPoint  0.90 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group cD
+	rule cDm2 when cleared cB after 4800
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.72 1.25 endPos -0.72 -1.30 controlPoint -0.72 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.36 1.25 endPos -0.36 -1.30 controlPoint -0.36 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.00 1.25 endPos  0.00 -1.30 controlPoint  0.00 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.36 1.25 endPos  0.36 -1.30 controlPoint  0.36 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.72 1.25 endPos  0.72 -1.30 controlPoint  0.72 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.00 1.55 endPos  0.00 -1.30 controlPoint  0.00 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group cD
+
+	# --- THREE STEALTH DEVILS, UNDER ACT I'S COLUMNS -------------------------
+	# Three anthracite Devils -- the stealth costume, 55 points each, the lasso
+	# -- and, AT THE SAME TIME rather than after them, act I's two fast weaving
+	# columns down both flanks, fourteen ordinary hulls. The Devils are the
+	# target; the columns are the reason you cannot stand still to hit them.
+	setttl 9000
+	rule d1 when cleared cD after 1200
+	        spawnEnemy mouvement 1 enemyType 0 startPos -1.6 0.75 endPos -0.55 0.55 controlPoint -1.0 0.65 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 0 startPos  1.6 0.80 endPos  0.55 0.60 controlPoint  1.0 0.70 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 0 startPos  0.0 1.60 endPos  0.00 0.78 controlPoint  0.0 1.20 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
+	        group d1
+	setttl 6000
+	rule d1h when cleared cD after 1200
+@@H@@
+	        group d1
+
+	# --- SECOND FALL, TIGHT, WITH TWO SWEEPERS -------------------------------
+	# Fourteen seekers in two beats 800 ms apart -- the dead air between them
+	# is gone (round 63) -- and two THA sweepers, one parked high and one low,
+	# raking their curtains across the screen while the rain falls.
+	setttl 7000
+	rule m2a when cleared d1 after 500
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.98 1.25 endPos -0.98 -1.3 controlPoint -0.98 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.65 1.25 endPos -0.65 -1.3 controlPoint -0.65 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.33 1.25 endPos -0.33 -1.3 controlPoint -0.33 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.00 1.25 endPos  0.00 -1.3 controlPoint  0.00 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.33 1.25 endPos  0.33 -1.3 controlPoint  0.33 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.65 1.25 endPos  0.65 -1.3 controlPoint  0.65 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.98 1.25 endPos  0.98 -1.3 controlPoint  0.98 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m2
+	rule m2b when cleared d1 after 1300
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.82 1.25 endPos -0.82 -1.3 controlPoint -0.82 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.49 1.25 endPos -0.49 -1.3 controlPoint -0.49 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos -0.16 1.25 endPos -0.16 -1.3 controlPoint -0.16 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.16 1.25 endPos  0.16 -1.3 controlPoint  0.16 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.49 1.25 endPos  0.49 -1.3 controlPoint  0.49 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.82 1.25 endPos  0.82 -1.3 controlPoint  0.82 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        spawnEnemy mouvement 1 enemyType 6 startPos  0.00 1.45 endPos  0.00 -1.3 controlPoint  0.00 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
+	        group m2
+	rule m2t when cleared d1 after 500
+	        spawnEnemy mouvement 1 enemyType 5 startPos  1.7  0.70 endPos  0.85  0.65 controlPoint 1.2  0.68 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection -1 firingTime 5500
+	        spawnEnemy mouvement 1 enemyType 5 startPos -1.7 -0.55 endPos -0.85 -0.60 controlPoint -1.2 -0.58 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection  1 firingTime 5500
+	        group m2
+
+	# --- P: THE PILLAR, WITH FANS ON BOTH FLANKS ------------------------------
+	# Two straight columns side by side down the middle, six tall, no lane
+	# between: you pick a side. Two SHAB turrets sit on the flanks firing
+	# downward FANS -- a bounded arc, no rotation -- because a spiral here would
+	# close the only two ways past (round 63: "pas de spirale sinon ce sera
+	# impassable").
+	setttl 13000
+	rule cP when cleared m2 after 800
+@@P@@
+	        group cP
+	setttl 10000
+	rule cPs when cleared m2 after 1200
+	        spawnEnemy mouvement 1 enemyType 3 startPos -2 0.85 endPos -0.70 0.62 controlPoint -1.3 0.75 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 225 firingAngle2 315 numThread 5 rotAngle 0
+	        spawnEnemy mouvement 1 enemyType 3 startPos  2 0.85 endPos  0.70 0.62 controlPoint  1.3 0.75 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 225 firingAngle2 315 numThread 5 rotAngle 0
+	        group cP
+
+	# --- the four elites: two stealth, two ghost -----------------------------
+	setttl 9000
+	rule d2 when cleared cP after 1200
+	        spawnEnemy mouvement 1 enemyType 0 startPos -1.6 0.60 endPos -0.42 0.45 controlPoint -1.0 0.55 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 0 startPos  1.6 0.60 endPos  0.42 0.45 controlPoint  1.0 0.55 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
+	        spawnEnemy mouvement 1 enemyType 0 startPos -1.6 0.95 endPos -0.20 0.85 controlPoint -0.9 0.90 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
+	        spawnEnemy mouvement 1 enemyType 0 startPos  1.6 0.95 endPos  0.20 0.85 controlPoint  0.9 0.90 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
+	        group d2
+
+	# =========================================================================
+	# THE STORM. The biggest wave in the game, and the only one that fills the
+	# screen rather than crossing it.
+	#
+	# EIGHT BANDS OF SPEED, not one block. A rule carries ONE ttl -- setttl is
+	# read by this block's outer loop, never inside a rule -- so a band of
+	# speed IS a rule. The distance is about 2.7 screen units, which makes the
+	# ttl the speed outright: 9000 is slower than anything else in the act and
+	# 3200 is nearly three times that.
+	#
+	# AND IT CONVERGES (round 63, "il faut que tout nous fonce dessus"). Every
+	# hull's end X is pulled toward the centre of the floor, where the player
+	# lives, so the outer lanes angle IN instead of falling past in parallel. A
+	# hedgehog cannot aim -- only the seekers home -- but a formation can be
+	# aimed, and this one is.
+	#
+	# Mixing the speeds is also what FILLS the screen: a slow hull is still
+	# falling when three fast ones have come and gone, so the count stacks --
+	# which is why the peak is computed rather than guessed.
+	# tools/rain/gen_storm.awk walks every spawn and death in time order and
+	# prints the answer; it is kept at 60 against a hard cap of 64, with the
+	# multiplayer squall trimmed to 4 so the two together cannot exceed it.
+	# Past 64 ENE_Get hands out a shared dummy and the spawn quietly stops
+	# existing, so this is arithmetic and not optimism.
+	setttl 9000
+	rule s1 when cleared d2 after 500
+@@S1@@
+	        group storm
+	setttl 4500
+	rule s2 when cleared d2 after 1500
+@@S2@@
+	        group storm
+	setttl 5000
+	rule s3 when cleared d2 after 2400
+@@SM1@@
+	        group storm
+	setttl 3200
+	rule s4 when cleared d2 after 3300
+@@S3@@
+	        group storm
+	setttl 4000
+	rule s5 when cleared d2 after 4600
+@@S4@@
+	        group storm
+	setttl 4500
+	rule s6 when cleared d2 after 6200
+@@S5@@
+	        group storm
+	setttl 5000
+	rule s7 when cleared d2 after 7400
+@@SM2@@
+	        group storm
+	setttl 9000
+	rule s8 when cleared d2 after 8600
+@@S6@@
+	        group storm
+
+	# --- more guns, more rain ------------------------------------------------
+	# A party of three or four gets squalls the solo player never sees. Four
+	# hulls, not six: the storm peaks at 60 and the pool holds 64, so this is
+	# sized to fit beside it. The trigger holds from the first tick, so "after"
+	# is what puts each squall downstream of its own firing -- and what makes
+	# the late ones harmless, dropped with the scene's events at the next load.
+	setttl 8000
+	rule squall when players 3 every 18000 after 18000
+	        spawnEnemyWave circle enemyNum 4 enemyType 1 percentageInvulnerable 0 angleoffset 40 defaultType 1
+	        group squall
+
+	# --- the ending, as a rule -----------------------------------------------
+	# Three seconds of clear sky after the storm's last hull falls, then the
+	# ships park and the card comes up. No time appears in this line, and that
+	# is the whole point of the act.
+	rule finish when cleared storm after 3000
+	        endAct
+}

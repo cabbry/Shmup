@@ -31,7 +31,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define RULES_MAX			32
+/* RULES_MAX lives in rules.h so tools/packlint can refuse a scene that
+   declares more than the engine will keep -- the engine itself only logs and
+   drops the rest, and the LAST rule in a reactive act is usually endAct. */
 #define RULE_MAX_SPAWNS		32
 #define GROUPS_MAX			32
 #define RULE_DEFAULT_TTL	6000

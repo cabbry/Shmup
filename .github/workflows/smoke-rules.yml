@@ -182,7 +182,7 @@ jobs:
 
           # the backbone, strictly in order
           PREV=0
-          for R in cA m1a t1 cD d1 m2a cB d2 s1 finish; do
+          for R in cA m1a cB cD d1 m2a cP d2 s1 finish; do
             T=$(grep "^\[rule\] t=.* fire $R " act4-trace.log | head -1 | grep -oE "t=[0-9]+" | grep -oE "[0-9]+")
             [ -n "$T" ] || { echo "::error::rule $R never fired -- the chain broke there."; exit 1; }
             [ "$T" -gt "$PREV" ] || { echo "::error::rule $R fired at $T, before the link ahead of it ($PREV)."; exit 1; }
@@ -193,7 +193,7 @@ jobs:
           # their fall's trigger, so they fire on the SAME tick as its first beat
           # -- the delay is on the spawns, not on the firing. Presence only; an
           # order check here would compare a tick with itself.
-          for R in cAx m1b cDx m2b s2 s3 s4 s5 s6 s7 s8; do
+          for R in cAd cAe m1b m1c m1d cBg cDl cDm1 cDm2 d1h m2b m2t cPs s2 s3 s4 s5 s6 s7 s8; do
             grep -q "^\[rule\] t=.* fire $R " act4-trace.log || { echo "::error::the seeker beat $R never fired."; exit 1; }
           done
           SEEKERS=$(grep -c "^\[spawn\] .* type=6" act4-trace.log || true)

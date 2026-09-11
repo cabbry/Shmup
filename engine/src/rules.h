@@ -59,6 +59,12 @@
 
 struct enemy_t;
 
+// How many rules one scene may declare. Past this the engine logs "too many
+// rules" and IGNORES the rest -- and in a reactive act the last rule is the
+// one that ends it. 48 rather than 32 since round 63, when Rain reached 31;
+// packlint reads this and refuses a scene over it, so the failure is loud.
+#define RULES_MAX			48
+
 void RULES_InitForScene(void);				// before the scene file is parsed
 void RULES_Read(void);						// the lexer sits on "rules"
 void RULES_Update(void);					// once per simulation tick, after EV_Update

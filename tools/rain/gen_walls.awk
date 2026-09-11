@@ -9,6 +9,14 @@ function hog(x0, y0, x1, y1, st,    cx, cy) {
 	cx = (x0 + x1) / 2; cy = (y0 + y1) / 2
 	printf "\t        spawnEnemy mouvement 1 enemyType 1 startPos %.2f %.2f endPos %.2f %.2f controlPoint %.2f %.2f zAxisRot 0 xAxisRot 0 yAxisRot 0 subType %d\n", x0, y0, x1, y1, cx, cy, st
 }
+# The act-1 weaving column (mouvement 2). In X_SIN the X is xOffset +
+# xWidth*cos(phase + 4*pi*f) -- the startPos X is the PHASE, not a position --
+# and the Y is the usual Bezier, so staggering start/control/end Y by the same
+# offset gives a rigid column that weaves as one.
+function weave(xc, width, phase, y0, dy, st,    ym) {
+	ym = y0 - dy / 2
+	printf "\t        spawnEnemy mouvement 2 xOffset %.2f xWidth %.2f enemyType 1 startPos %.2f %.2f endPos %.2f %.2f controlPoint %.2f %.2f zAxisRot 0 xAxisRot 0 yAxisRot 0 subType %d\n", xc, width, phase, y0, xc, y0 - dy, xc, ym, st
+}
 
 BEGIN {
 	# ---- A: the long corridor. Eight a side, a 0.64 lane down the middle.
@@ -42,22 +50,33 @@ BEGIN {
 			hog(x, y, x, y - 3.80, 2)
 		}
 
-	# ---- THE FINALE. Four beats of hedgehogs CHARGING -- ttl 5000 against
-	# the usual 8000+, so they cross at nearly twice the speed of anything
-	# else in the act, from straight down to hard diagonals both ways. They
-	# are ordinary hulls (subType 0 dies to one bullet, 1 takes five): the
-	# biggest wave in the game has to be something you can shoot through, not
-	# another wall. The budget is the reason for the speed as much as the
-	# feel -- MAX_NUM_ENEMIES is 64 and the beats overlap.
-	print "@@F1@@"
-	for (k = 0; k < 7; k++) { x = -0.95 + 0.317 * k; hog(x, 1.30, x, -1.40, 0) }
-	for (k = 0; k < 7; k++) { x = -1.35 + 0.30 * k; hog(x, 1.30, x + 0.80, -1.40, 0) }
+	# ---- P: the pillar. Two straight columns side by side down the middle,
+	# six tall: no lane between them, you pick a SIDE, and the fan turrets on
+	# the flanks are aimed at exactly the sides you can pick.
+	print "@@P@@"
+	for (k = 0; k < 6; k++) {
+		y = 1.35 + 0.28 * k
+		hog(-0.14, y, -0.14, y - 4.10, 2)
+		hog( 0.14, y,  0.14, y - 4.10, 2)
+	}
 
-	print "@@F2@@"
-	for (k = 0; k < 7; k++) { x = 1.35 - 0.30 * k; hog(x, 1.30, x - 0.80, -1.40, 0) }
-	for (k = 0; k < 7; k++) { x = -0.80 + 0.317 * k; hog(x, 1.55, x, -1.40, 1) }
+	# ---- H: act I's two fast weaving columns, both flanks, for the Devils'
+	# wave. Seven a column, stacked 0.26 apart, weaving as one; ordinary hulls
+	# that die to a bullet, because they are the pressure and the Devils are
+	# the target.
+	print "@@H@@"
+	for (k = 0; k < 7; k++) {
+		y = 1.25 + 0.26 * k
+		weave(-0.72, 0.22, -0.5, y, 2.80, 0)
+		weave( 0.72, 0.22,  0.5, y, 2.80, 0)
+	}
 
-	print "@@F3@@"
-	for (k = 0; k < 6; k++) { x = -1.50 + 0.34 * k; hog(x, 1.30, x + 2.00, -1.40, 0) }
-	for (k = 0; k < 6; k++) { x = 1.50 - 0.34 * k; hog(x, 1.30, x - 2.00, -1.40, 1) }
+	# ---- E: the extra hulls crossing the long corridor (tester: "faire
+	# traverser plus de herissons"). Six weavers down the lane itself, stacked,
+	# so the safe lane is never empty for long.
+	print "@@E@@"
+	for (k = 0; k < 6; k++) {
+		y = 1.60 + 0.42 * k
+		weave(0.0, 0.26, (k % 2) ? 0.5 : -0.5, y, 3.10, 0)
+	}
 }

@@ -69,3 +69,37 @@ death in time order, and prints the answer:
 The first attempt at eight bands came out at **74** -- ten over a cap that
 does not fail loudly. Six of the remaining margin belong to the multiplayer
 squall. Retuning is editing two numbers and reading the line again.
+
+## Round 63 -- the tester's second pass
+
+`tail.template` is the act's enemies + rules blocks with `@@MARKER@@` lines where
+the generated formations go; the scene is `head -159 act4.scene` (everything up
+to the title block) followed by the template with the markers spliced in.
+
+What changed on the device's word: the seed wave tripled; the long corridor
+flanked by two silver Devils and six weavers down its lane, no turrets; the red
+rain in four beats of six, 800 ms apart; the diagonal corridor straight after,
+with two GHOST Devils parked where you would slip past it; the chicane worked by
+three turrets and two falls of seekers, instead of guns standing in the open
+before it; three stealth Devils under act I's two weaving columns, at the same
+time; the second rain tightened to 800 ms with a THA sweeper high and one low;
+a PILLAR -- two straight columns side by side, no lane between -- with SHAB fan
+turrets on both flanks (a bounded arc, `rotAngle 0`: a spiral would close the
+only two ways past); two stealth and two ghost elites; and the storm now
+CONVERGES -- every hull's end X pulled toward the floor's centre -- at a
+computed peak of 60 with the multiplayer squall trimmed to 4.
+
+The bounce at the very end was the CAMERA: `driftAtEnd: 1` on act 2's rail is
+the case camera.c documents as climb-then-turn, and the act plus its nine
+seconds of card ran right up to the rail's 142 s. Removed; the rail holds its
+last frame instead, which under a card is invisible.
+
+And the parser: Rain reached 31 of the engine's 32 rules, with the ending as
+the 32nd. `RULES_MAX` is 48 now, lives in `rules.h`, and packlint refuses a
+scene over it -- the engine only logs and drops the rest, which for a reactive
+act means losing `endAct`.
+
+One thing I could not verify from here: the SHAB fan's angle convention.
+`firingAngle1 225 firingAngle2 315` is meant to be a downward arc centred on
+270. If it fires UP instead, the fans are harmless rather than dangerous -- a
+visible failure, not a breaking one, and a two-number fix.

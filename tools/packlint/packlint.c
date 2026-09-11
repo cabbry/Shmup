@@ -58,6 +58,7 @@
 #include <stdarg.h>
 
 #include "lexer.h"
+#include "rules.h"	/* RULES_MAX: the engine drops rules past it, silently */
 
 #define MAX_PACKS		16
 #define MAX_GROUPS		64
@@ -379,6 +380,16 @@ static void PL_CheckScene(const char* scenePath, const char* packId, const char*
 				    packId, gRules[i].name, gRules[i].watches);
 		}
 	}
+
+	/* The parser keeps RULES_MAX rules and logs-and-drops the rest. In a
+	   reactive act the last rule is the one that ends it, so an author who
+	   adds one more wave above it loses the ending and gets the 240 s
+	   backstop instead -- with nothing on a device to say why. Refuse it
+	   here, where the number can be read. */
+	gChecked++;
+	if (gNumRules > RULES_MAX)
+		err("%s: %d rules, but the engine keeps only %d -- the rest are dropped, and the last one is usually the ending",
+		    packId, gNumRules, RULES_MAX);
 
 	/* An act that ends on a rule must still be finishable when the rule does
 	   not fire: one enemy stuck off-screen would otherwise mean a level with

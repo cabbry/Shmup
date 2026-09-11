@@ -128,3 +128,10 @@ Two mechanics carry the brief:
 105 spawned, peak 56 alive against a cap of 64 (squall 4). The first cut was
 63: the second rain landed where every band overlapped, and moved 800 ms later.
 Worst-case act length, computed from the scene: 117 s to the card.
+
+## Frozen (2026-09-11)
+
+The tester's verdict on 4.2.8: "le niveau est nickel comme cela." Rain is
+frozen the way Act III was in round 19 — nothing in `act4.scene` or in this
+directory changes without an explicit request. The generators stay so the
+act can be regenerated bit-for-bit, and so the next act can borrow them.

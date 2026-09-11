@@ -390,7 +390,10 @@ it ever reached a device — which is why the game looks the same and why
   thirty on improbable paths (steep crossing diagonals, crossers at the
   player's own height), thirty normal and scattered — plus fifteen seekers.
   Peak computed at 56 of 64; the first cut said 63 and the second rain moved
-  800 ms. 275 spawn lines, 37 rules, 117 s worst case. **v4.2.8 / 253.**
+  800 ms. 275 spawn lines, 37 rules, 117 s worst case. **v4.2.8 / 253 —
+  confirmed on device: "le niveau est nickel comme cela." Rain is frozen, as
+  Act III was: no change to `act4.scene` or `tools/rain` without an explicit
+  request.**
 
 ### 2026-09-11 — round 64 (one parser rule under every note: setttl is a boundary)
 - **Twelve notes from the device on 4.2.6, and one thing under most of

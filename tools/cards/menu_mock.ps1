@@ -8,6 +8,7 @@ $sp = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 $DATA  = "E:\Projects\Shmup\data\data"
 $atlas = New-Object System.Drawing.Bitmap("$DATA\menu\homeAtlas.png")
+$ATL = $atlas.Width / 512.0   # the atlas was authored at 512; its rects scale with it. NOT $A: PowerShell is case-insensitive and $a is the act loop below
 $font  = New-Object System.Drawing.Bitmap("$DATA\menu\font.png")
 $C = [int]($font.Width / 16)   # the atlas cell, whatever resolution it ships at
 
@@ -18,7 +19,7 @@ function SSy([single]$y) { return 480 - $y }
 # homeAtlas (0,104)-(159,168) -- 159x64 px drawn at 318x128 units, so 2x.
 function Draw-Button($g, [single]$cx, [single]$cy, [single]$w, [single]$h) {
   $dst = New-Object System.Drawing.Rectangle((SSx ($cx-$w/2)), (SSy ($cy+$h/2)), $w, $h)
-  $g.DrawImage($atlas, $dst, 0, 104, 159, 64, [System.Drawing.GraphicsUnit]::Pixel)
+  $g.DrawImage($atlas, $dst, 0, [int](104*$ATL), [int](159*$ATL), [int](64*$ATL), [System.Drawing.GraphicsUnit]::Pixel)
 }
 
 # renderer.c SCR_ConvertTextToVertices, verbatim: charWidth = size*SS_W/40,

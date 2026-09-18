@@ -78,7 +78,7 @@ function Screen([string]$out, [bool]$withKanji) {
   Draw-Text $g "SELECT ACT" 3.0 0 340 $true
   Draw-Text $g "Unlocked up to Final" 2.0 0 250 $true
 
-  # menu.c: two columns at x -160/+160, rows 150 apart from y = SS_H-360 = 120,
+  # menu.c: two columns at x -150/+150 (MENU_COL_X), 280 wide (MENU_COL_W), rows 150 apart from y = SS_H-360 = 120,
   # and a LAST button with no partner sits centred.
   # the SHIPPED names, expanded the way dEngine_ReadPackName does it: the
   # escape ~N becomes the raw byte N, which indexes the atlas cell.
@@ -88,9 +88,9 @@ function Screen([string]$out, [bool]$withKanji) {
   $kanji = @($null, $null, $KANJI_KURE, $KANJI_AME, $null)
   for ($a = 0; $a -lt 5; $a++) {
     $alone = ($a -eq 4)
-    $x = if ($alone) { 0 } else { if ($a % 2 -eq 1) { 160 } else { -160 } }
+    $x = if ($alone) { 0 } else { if ($a % 2 -eq 1) { 150 } else { -150 } }
     $y = 120 - [Math]::Floor($a / 2) * 150
-    Draw-Button $g $x $y 318 128
+    Draw-Button $g $x $y 280 128
     Draw-Text $g $names[$a] 3.0 $x $y $true
   }
   Draw-Button $g 0 -360 318 128

@@ -453,6 +453,14 @@ static void MENU_ActPickedForParty(int act);
 // from the packs (engine.numActs).
 #define MAX_ACT_BUTTONS 6
 
+// Two-column button grids. The button sprite fills its quad, so two 318-wide
+// buttons at +/-160 spanned -319..319 of the 640-wide screen: one unit from
+// each edge ("les boutons touchent les bords sur iPad", 2026-09-18). 280 wide
+// at +/-150 leaves 30 units a side and 20 between the columns; the text (size
+// 3, 24 units a glyph, "Invisible" the longest at 9) fits with room.
+#define MENU_COL_X 150
+#define MENU_COL_W 280
+
 // v4: an act's scene id, from its 1-based index. The two were the same number
 // for as long as the acts happened to be scenes 1..4, and this menu quietly
 // relied on it -- a pack set with anything else between the acts would have
@@ -951,15 +959,15 @@ void MENU_Init(void)
 	
 	
 	
-	buttonPos[X] = 160 ; 
+	buttonPos[X] = MENU_COL_X ; 
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
-	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[WIDTH] = MENU_COL_W;
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Others"), 3, Action_ShowOthersMenu,NULL, buttonPos, buttonDim);
 
-	buttonPos[X] = -160 ; 
+	buttonPos[X] = -MENU_COL_X ; 
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
-	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[WIDTH] = MENU_COL_W;
 	buttonDim[HEIGHT] = 64 * 2;
 	actId = calloc(1, sizeof(char));
 	MENU_CreateButton(currentMenu, MENU_Tr("Game Multi"), 3, Action_ShowMultiModeMenu,NULL, buttonPos, buttonDim);	// v2: was Tutorial (moved to Others)
@@ -1118,27 +1126,27 @@ void MENU_Init(void)
 	
 	// v2 layout (user's order): row 1 Custom | Scores, row 2 Tutorial | Demo,
 	// row 3 Credits (centred), Back centred at the bottom.
-	buttonPos[X] = -160;
+	buttonPos[X] = -MENU_COL_X;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
-	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[WIDTH] = MENU_COL_W;
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Custom"), 3, Action_ShowShipMenu,NULL, buttonPos, buttonDim);
 
-	buttonPos[X] = 160 ;
+	buttonPos[X] = MENU_COL_X ;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
-	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[WIDTH] = MENU_COL_W;
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Scores"), 3, Action_ShowGameCenter,NULL, buttonPos, buttonDim);
 
-	buttonPos[X] = -160 ;
+	buttonPos[X] = -MENU_COL_X ;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
-	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[WIDTH] = MENU_COL_W;
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Tutorial"), 3, Action_GoToTutorial,NULL, buttonPos, buttonDim);
 
-	buttonPos[X] = 160;
+	buttonPos[X] = MENU_COL_X;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
-	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[WIDTH] = MENU_COL_W;
 	buttonDim[HEIGHT] = 64 * 2;
 	actId = calloc(1, sizeof(char));
 	*actId = 13 ;
@@ -1171,9 +1179,9 @@ void MENU_Init(void)
 	*actId = 15 ;
 	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
 
-	buttonPos[X] = -160 ; 
+	buttonPos[X] = -MENU_COL_X ; 
 	buttonPos[Y] = (-SS_H + 220);
-	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[WIDTH] = MENU_COL_W;
 	buttonDim[HEIGHT] = 64 * 2;
 	//MENU_CreateButton(currentMenu, "Replays", 3, Action_GoToReplayScreen,MENU_UpdateReplayList, buttonPos, buttonDim);
 	
@@ -1248,9 +1256,9 @@ void MENU_Init(void)
 			// two full rows and a lone one, and the lone one is the finale.
 			int lastAndAlone = (a == n - 1) && !(a & 1);
 
-			buttonPos[X] = lastAndAlone ? 0 : ((a & 1) ? 160 : -160);
+			buttonPos[X] = lastAndAlone ? 0 : ((a & 1) ? MENU_COL_X : -MENU_COL_X);
 			buttonPos[Y] = (SS_H - 360) - (a >> 1) * 150;
-			buttonDim[WIDTH] = (159 * 2);
+			buttonDim[WIDTH] = MENU_COL_W;
 			buttonDim[HEIGHT] = 64 * 2;
 			actId = calloc(1, sizeof(char));
 			*actId = a + 1;
@@ -1294,9 +1302,9 @@ void MENU_Init(void)
 		{
 			int* t = calloc(1, sizeof(int));
 			*t = k;
-			buttonPos[X] = -160 ;
+			buttonPos[X] = -MENU_COL_X ;
 			buttonPos[Y] = LOADOUT_ROW_Y(k);
-			buttonDim[WIDTH] = (159 * 2);
+			buttonDim[WIDTH] = MENU_COL_W;
 			buttonDim[HEIGHT] = 64 * 2;
 			MENU_CreateButtonWithTag(currentMenu, shipLabels[k], 3, Action_SelectShip, t, NULL, buttonPos, buttonDim);
 		}
@@ -1313,9 +1321,9 @@ void MENU_Init(void)
 		{
 			int* t = calloc(1, sizeof(int));
 			*t = colorRows[k];
-			buttonPos[X] = 160 ;
+			buttonPos[X] = MENU_COL_X ;
 			buttonPos[Y] = LOADOUT_ROW_Y(k);
-			buttonDim[WIDTH] = (159 * 2);
+			buttonDim[WIDTH] = MENU_COL_W;
 			buttonDim[HEIGHT] = 64 * 2;
 			MENU_CreateButtonWithTag(currentMenu, MENU_Tr(colorLabels[colorRows[k]]), 3, Action_SelectBulletColor, t, NULL, buttonPos, buttonDim);
 		}

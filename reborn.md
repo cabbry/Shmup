@@ -331,11 +331,12 @@ in-app purchase if ever, nothing Sorare-like for a long while.
   session away.
 - **App Store release?** Feature-complete, modern stack, nothing deprecated.
   iMessage invites and SharePlay only light up once the app is on the store.
-- **Small things**: the accepted fade under the act title card on Metal; the
-  menu buttons touching the screen edges on iPad; the THA sweeper's
-  screen-right drift is hardcoded in `tha.c` (a scene cannot ask for a
-  leftward one; acts enter it from the left instead); the SHAB fan's angle
-  convention on Rain's pillar is unverified on device.
+- **Small things**, triaged by the tester (2026-09-18): the fade under the act
+  title card on Metal stays, on purpose; the menu buttons touching the screen
+  edges — fixed in round 71 (two-column grids pulled in); the THA sweeper's
+  hardcoded screen-right drift in `tha.c` — forgotten until a scene needs a
+  leftward one; the SHAB fan's angle convention on Rain's pillar — confirmed
+  on device.
 
 ## Graphics stack — before and after v3
 
@@ -381,6 +382,21 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-18 — round 71 (the menu buttons off the screen edges)
+- **"Les boutons touchent les bords sur iPad."** They touched them everywhere:
+  the button sprite fills its quad edge to edge (measured: one atlas pixel of
+  padding), and every two-column grid — home, Others, act select, Custom —
+  put two 318-unit buttons at ±160 in a 640-unit screen, one unit from each
+  edge. On a tall iPhone the eye forgives it; on the iPad's wider frame it
+  reads as a mistake. Now **280 wide at ±150** (`MENU_COL_X`, `MENU_COL_W`
+  in `menu.c`, one pair of macros for the nine sites): 30 units a side, 20
+  between the columns, the longest label ("Invisible", nine glyphs of 24)
+  still with room. Centred single buttons keep their 318. `menu_mock.ps1`
+  follows, and an iPad-stretched render of it is what was looked at before
+  the push. The tester's triage of the other small things: the Metal fade
+  under the title card stays, the THA drift is forgotten until a scene needs
+  it, the SHAB fan on Rain's pillar is confirmed.
 
 ### 2026-09-18 — round 70 (the boss wears its damage; the big shot gets its own sprite)
 - **Fabien's boss notes, the two that were cheap.** He wanted the boss to

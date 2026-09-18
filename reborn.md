@@ -429,6 +429,25 @@ it ever reached a device — which is why the game looks the same and why
   the CPU. Five engine files compile clean under `zig cc -Wall -Wextra` on
   the host; the strict iOS build and one Simulator run of the boss act are
   the proof before a tag.
+- **What the Simulator could and could not say.** The boss smoke ran green
+  (no crash, the rigged mesh loaded and drew). Screenshot runs then showed
+  frames where one claw hung lower than on `master` — but the `[arm]` probe
+  (pose inputs and the right claw's tip, once a second) reads angles of a
+  few degrees and a tip within two units of rest, and the harness now
+  proves the idle pose keeps the mesh mirror-symmetric to a degree or so.
+  Frozen-versus-posed comparisons at "the same second" proved impossible:
+  the Simulator's clock drifts run to run, so the boss is at a different
+  height, or not there, or the smoke ship is already dead. Two CI-only
+  switches stay for whoever needs them — `SHMUP_ARMS_FREEZE` (rest skin
+  only) and `SHMUP_ARMS_TEST` (a constant left-tilt-12 / right-swing-30
+  pose). The device is the judge of the picture; the data is proven.
+- **Raised by the tester, for the next round**: the ship used to fly
+  *through* the arms — the only way into the crook of an arm, the one spot
+  the sweeping laser cannot reach. With the arms moving, they must become
+  solid (a ram kills, as the body does; the lethal shape must follow the
+  posed bone and leave the crook itself open), and the laser's sweep must
+  keep missing the crook — to be written as an explicit zone with a harness
+  assertion, not left to a constant.
 
 ### 2026-09-18 — round 73 (the boss rigged: three bones, cut by geometry, proven by the engine's own loader)
 - **Step 2 of the v5 plan.** `tools/rig/rig_lofb.ps1` reads the 2010

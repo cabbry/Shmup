@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 261) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 262) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -442,6 +442,7 @@ it ever reached a device — which is why the game looks the same and why
   same in both lockstep sims — **never while the laser charges, fires, or is
   due within 3 s**, and if the laser's clock arrives mid-pinch the arms
   return at once. The crook would otherwise be a trap.
+  Rounds 75 and 76 ship together as **v5.0.2 / 262.**
 
 ### 2026-09-19 — round 75 (the arms are solid, and the crook is guaranteed)
 - **The tester's point**: the ship used to fly *through* the boss's arms —

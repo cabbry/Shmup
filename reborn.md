@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 258) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 259) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -394,7 +394,7 @@ it ever reached a device — which is why the game looks the same and why
   between the columns, the longest label ("Invisible", nine glyphs of 24)
   still with room. Centred single buttons keep their 318. `menu_mock.ps1`
   follows, and an iPad-stretched render of it is what was looked at before
-  the push. The tester's triage of the other small things: the Metal fade
+  the push. **v4.2.14 / 259.** The tester's triage of the other small things: the Metal fade
   under the title card stays, the THA drift is forgotten until a scene needs
   it, the SHAB fan on Rain's pillar is confirmed.
 

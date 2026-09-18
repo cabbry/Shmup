@@ -278,6 +278,15 @@ static void LOFB_PoseArms(enemy_t* enemy)
 				swing += LOFB_ARM_TREMOR_DEG * sinf(t * 0.01257f + 3.0f * k);	// 2 Hz
 		}
 
+		{
+			// CI-only calibration: SHMUP_ARMS_TEST=1 forces a constant pose --
+			// left arm tilted 12 deg about X, right arm swung 30 deg about Y --
+			// so one Simulator frame shows what each axis does on screen.
+			static int test = -1;
+			if (test < 0) test = getenv("SHMUP_ARMS_TEST") ? 1 : 0;
+			if (test) { swing = (k == 1) ? 30.0f : 0.0f; tilt = (k == 0) ? 12.0f : 0.0f; }
+		}
+
 		LOFB_QuatAxisAngle(0, 1, 0, swing * mirror, qy);
 		LOFB_QuatAxisAngle(1, 0, 0, tilt, qx);
 		Quat_multQuat(qy, qx, gPoseBones[1 + k].orientation);

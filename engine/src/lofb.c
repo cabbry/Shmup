@@ -30,6 +30,7 @@
 // enemy->parameters[], HP) so it stays deterministic in lockstep multiplayer.
 
 #include <string.h>
+#include <stdlib.h>	// v5: getenv (the CI-only SHMUP_ARMS_FREEZE switch)
 
 #include "lofb.h"
 #include "globals.h"
@@ -230,6 +231,13 @@ static void LOFB_PoseArms(enemy_t* enemy)
 
 	if (!mesh || mesh->numBones != 3 || mesh->memLocation == MD5_MEMLOC_VRAM || !mesh->vertexArray)
 		return;
+	{
+		// CI-only A/B switch: SHMUP_ARMS_FREEZE=1 leaves the mesh in its rest
+		// skin (the rig loaded, the poses never applied).
+		static int freeze = -1;
+		if (freeze < 0) freeze = getenv("SHMUP_ARMS_FREEZE") ? 1 : 0;
+		if (freeze) return;
+	}
 	if (!gPoseBonesValid)
 	{
 		memcpy(gPoseBones, mesh->bones, sizeof(gPoseBones));

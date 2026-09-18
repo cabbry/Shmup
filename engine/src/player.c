@@ -1500,15 +1500,15 @@ void P_PrepareBulletSprites(void)
 			// the animation, three frames in four drew nothing: the yellow shot
 			// FLICKERED, which is the "certaines". So: a square quad, kept square
 			// on a tall screen through gVScale exactly as the muzzle flash is,
-			// always from row 0, radius twice the capsule's half-width so it reads
-			// as a shot and not a dot. Rendering only. The hitbox (ss_boudaries) is
+			// always from row 0, as wide as the red/blue capsule (its 2009 width --
+			// twice that read "trop grosses" on device). Rendering only. The hitbox is
 			// the same capsule for every colour, so lockstep and the collision
 			// bench see nothing.
 			if (colorCol == 3)
 			{
 				float cx = (bullet->ss_boudaries[LEFT] + bullet->ss_boudaries[RIGHT]) * 0.5f;
 				float cy = (bullet->ss_boudaries[UP]   + bullet->ss_boudaries[DOWN])  * 0.5f;
-				float r  = bulletConfig.halfWidth * 2.0f;
+				float r  = bulletConfig.halfWidth;
 				float ry = r / (gVScale > 0.0f ? gVScale : 1.0f);
 				short u0 = (short)(3 * (16.0f/128*SHRT_MAX)), u1 = (short)(4 * (16.0f/128*SHRT_MAX));
 				short v0 = 0, v1 = (short)(16.0f/128*SHRT_MAX);

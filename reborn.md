@@ -274,7 +274,7 @@ game finished (four acts, a boss, an ending); **v2** — four-player multiplayer
   the title card; a black launch screen; the credits with brush separators, a
   third tester and a **scrolling roll** with a position thumb.
 
-### Done — v4, scripting (rounds 42-65, the `v4` branch, merged to master at 4.1.2)
+### Done — v4, scripting (rounds 42-65, the `v4` branch, merged to master at 4.1.2 and again at 4.2.13)
 
 Fabien's second suggestion, finally: the `.scene` format is declarative and
 every reactive behaviour lived in C. Four stages and an exit test, each with

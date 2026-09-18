@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 253) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 255) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -127,6 +127,9 @@ to the true screen edges, and the touch-coordinate mapping.
   clock, and is the format's exit test. A validator reads every pack with
   the engine's own lexer on every push, and a Simulator smoke plays the
   reactive act to its end.
+- ✅ **Every piece of text and title on screen is drawn at four times its 2009
+  resolution** (rounds 66-67): the menu font re-set in the face it always
+  was, Fabien's brush titles and act cards re-vectorised rather than replaced.
 - ✅ Full-screen: fills tall iPhones with no black edge gaps, HUD anchored to the
   safe area, 2D sprites de-stretched (round sprites are round again).
 ## New features (added beyond the original 2009 game)
@@ -374,6 +377,59 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-18 — round 67 (the titles at four times their size — Fabien's hand, kept)
+- **The other half of the text on screen.** Round 66 did the font, and the
+  tester asked about everything else: the SHMUP title, Difficulty,
+  Multiplayer, Others, Game Over, Credits, the act cards. None of it is a
+  font — it is **Fabien's brush calligraphy**, painted in 2009 at 512 and 256
+  px, and the act card is drawn as a band across the whole screen: 1290 px
+  from 256, a fivefold blur, the worst in the game. Replacing it with a
+  typeface would have erased his hand, so it is **re-vectorised** instead
+  (`tools/cards/sharpen.ps1`): a bicubic upscale, then the *alpha alone*
+  pushed through a steep sigmoid around one half, which turns the
+  interpolated ramp back into an edge one pixel wide at the new size. RGB
+  stays soft — the grey shadow under the strokes is meant to be. It adds no
+  detail that was never in the 512; it stops the strokes being blurry.
+  Prototyped against plain bicubic before being applied. `homeAtlas.png` 512
+  → 2048; Dawn, Hope, demo and tutorial cards 256 → 1024×512 sharpened; Dusk
+  and Rain **regenerated natively** (they were vectors all along); the finale
+  keeps its painted 2009 水 -Water sharpened, with "Final" drawn at size.
+  Zero C: every consumer's UVs were already normalised. **v4.2.10 / 255.**
+- Two guards from the day: the finale card's generator refuses a source that
+  is not 256 px, so nothing is ever sharpened twice; and `menu_mock.ps1`
+  caught PowerShell's case-insensitivity a second time — `$A` (the atlas
+  scale) *was* `$a` (the act loop), and four of five buttons drew the S of
+  SHMUP. Rule kept: no one-letter variables in a script.
+
+### 2026-09-18 — round 66 (the menu font at four times its resolution, in the 2009 face)
+- **Fabien's first note on 4.2.8: "les fonts sont flou par rapport au nouveau
+  sign Reborn."** They were: `font.png` is a 16×16 atlas of 32-px cells, and a
+  size-3 glyph is drawn 96 px tall on a 3x device. The renderer's UVs are per
+  *cell* (`SHRT_MAX/16`), never per pixel, so the cell size is free: 128 px
+  now, 2048×2048, and not one line of C. **Not regenerated "with an LLM" —
+  identified.** A candidate sheet against the shipped cells, glyph by glyph:
+  **Century Gothic Bold** is the 2009 skeleton (the geometric S and C, the
+  straight-legged R, the equal-bowled B, the one-storey g with the same
+  hook). Its em is derived so the cap height lands on the 2009 'B' — 15/32
+  of the cell, baseline at 23/32, ink centred in the middle half, because
+  the engine draws each glyph in a quad two cells wide with a one-cell
+  advance. Two things the face lacks and the atlas had, put back: the hard
+  black rim (A=240, measured, not a shadow) and the **slashed zero** the
+  lives counter has always shown as "xØ" — stroked on, plain white, because
+  rimmed it read as a dark cut. The six kanji cells come along at 128.
+  Proven before a build by `menu_mock.ps1`, which now reads the cell size
+  off the atlas — and which caught a `sed` whose pattern had silently not
+  matched. **v4.2.9 / 254.**
+- **Fabien's other notes, assessed in the code**: the "oval yellow bullets"
+  are the *player's* 16×32 sprite, oval by design and unrotated, seen from a
+  Mac window whose aspect the v3 de-stretch was never calibrated for — a
+  screenshot of the ovals is needed before choosing round vs. spinning; the
+  "buggy" big boss shot is a 16-px sprite drawn at ×13 — a dedicated sprite
+  to make; the boss's smoke, shake, red tint and rising aggression are cheap
+  and lockstep-safe, one round; and the **skeletal arm animation is a v5**:
+  `lofb.obj.md5mesh` has a single joint and the engine has no `md5anim`
+  loader at all — the destructible arms are hit zones on a rigid mesh.
 
 ### 2026-09-11 — round 65 (the storm becomes a scatter)
 - **The tester's verdict on 4.2.7: "le niveau commence vraiment à être bien"**,

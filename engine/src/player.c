@@ -1491,6 +1491,34 @@ void P_PrepareBulletSprites(void)
 		    bullet->type++;
 			bullet->type = bullet->type & 3;
 
+			// A BALL IS DRAWN AS A BALL (round 68). The Custom menu's "Yellow" is
+			// atlas column 3, and column 3 is not a capsule like red and blue: the
+			// 2009 atlas holds a round 16x16 ball there, in row 0 only. Put on the
+			// capsule quad (26 x 173 units) that ball was stretched 6.7:1 -- Fabien,
+			// 2026-09-17: "certaines des bullets jaunes sont ovales" -- and since
+			// rows 1-3 of the column are empty and `type` cycles through them as
+			// the animation, three frames in four drew nothing: the yellow shot
+			// FLICKERED, which is the "certaines". So: a square quad, kept square
+			// on a tall screen through gVScale exactly as the muzzle flash is,
+			// always from row 0, radius twice the capsule's half-width so it reads
+			// as a shot and not a dot. Rendering only. The hitbox (ss_boudaries) is
+			// the same capsule for every colour, so lockstep and the collision
+			// bench see nothing.
+			if (colorCol == 3)
+			{
+				float cx = (bullet->ss_boudaries[LEFT] + bullet->ss_boudaries[RIGHT]) * 0.5f;
+				float cy = (bullet->ss_boudaries[UP]   + bullet->ss_boudaries[DOWN])  * 0.5f;
+				float r  = bulletConfig.halfWidth * 2.0f;
+				float ry = r / (gVScale > 0.0f ? gVScale : 1.0f);
+				short u0 = (short)(3 * (16.0f/128*SHRT_MAX)), u1 = (short)(4 * (16.0f/128*SHRT_MAX));
+				short v0 = 0, v1 = (short)(16.0f/128*SHRT_MAX);
+
+				bulSprite->pos[X] = cx - r;  bulSprite->pos[Y] = cy - ry;  bulSprite->text[X] = u0;  bulSprite->text[Y] = v1;  bulSprite++;
+				bulSprite->pos[X] = cx - r;  bulSprite->pos[Y] = cy + ry;  bulSprite->text[X] = u0;  bulSprite->text[Y] = v0;  bulSprite++;
+				bulSprite->pos[X] = cx + r;  bulSprite->pos[Y] = cy + ry;  bulSprite->text[X] = u1;  bulSprite->text[Y] = v0;  bulSprite++;
+				bulSprite->pos[X] = cx + r;  bulSprite->pos[Y] = cy - ry;  bulSprite->text[X] = u1;  bulSprite->text[Y] = v1;  bulSprite++;
+			}
+			else
 			// TTB: the capsule sprite is drawn rotated by the beat's angle from
 			// its center (long axis along the travel), so a side-view bullet is
 			// a horizontal streak, not a sideways-sliding vertical one. Upright

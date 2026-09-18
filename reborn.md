@@ -385,7 +385,7 @@ it ever reached a device — which is why the game looks the same and why
   and wrong on a device. Radius = half-width now: the ball is exactly as wide
   as the red and blue capsules, which is the width the stretched 2009 sprite
   always had on screen. One constant, rendering only, hitbox untouched;
-  strict iOS build green before the tag. **v4.2.12 / 257.** Lesson kept: a sprite's
+  strict iOS build green before the tag. **v4.2.12 / 257 — validated on device.** Lesson kept: a sprite's
   size is judged on the device, not on a mock — and when the tester has the
   device, ask for the screenshot *before* choosing a factor.
 

@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 256) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 257) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -385,7 +385,7 @@ it ever reached a device — which is why the game looks the same and why
   and wrong on a device. Radius = half-width now: the ball is exactly as wide
   as the red and blue capsules, which is the width the stretched 2009 sprite
   always had on screen. One constant, rendering only, hitbox untouched;
-  strict iOS build green before the tag. **v4.2.12.** Lesson kept: a sprite's
+  strict iOS build green before the tag. **v4.2.12 / 257.** Lesson kept: a sprite's
   size is judged on the device, not on a mock — and when the tester has the
   device, ask for the screenshot *before* choosing a factor.
 

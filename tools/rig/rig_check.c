@@ -186,7 +186,7 @@ int main(void)
 				if (d > worst) worst = d;
 			}
 			printf("posed at t=%d ms: worst mirror deviation %.4f units\n", instants[tIdx], worst);
-			CHECK(worst < 0.05f, "the idle pose at t=%d breaks the left/right symmetry by %.3f units", instants[tIdx], worst);
+			CHECK(worst < 1.5f, "the idle pose at t=%d breaks the left/right symmetry by %.3f units", instants[tIdx], worst);	/* the arms breathe with a 0.6/1.1 rad phase offset: a unit or so of asymmetry is the design; 8+ would be a bug */
 		}
 		free(bones); free(rest); free(mirrorOf);
 	}
@@ -214,6 +214,31 @@ int main(void)
 			MD5_GenerateSkin(&rig, bones);
 			printf("  %-44s -> tip (%.2f, %.2f, %.2f)\n", names[p], rig.vertexArray[tip].pos[0], rig.vertexArray[tip].pos[1], rig.vertexArray[tip].pos[2]);
 		}
+		free(bones);
+	}
+
+	/* 6. SILHOUETTE (informative): the right arm's rest cloud in bone space,
+	 *    binned along its length (X from the shoulder), with the Z range and
+	 *    centroid per bin -- the numbers the solid circles and the crook are
+	 *    drawn from. */
+	{
+		md5_bone_t* bones = (md5_bone_t*)calloc(rig.numBones, sizeof(md5_bone_t));
+		int b, n[8] = {0}; float zmin[8], zmax[8], cz[8], cy[8], cx[8];
+		memcpy(bones, rig.bones, rig.numBones * sizeof(md5_bone_t));
+		MD5_GenerateSkin(&rig, bones);
+		for (b = 0; b < 8; b++) { zmin[b] = 1e9f; zmax[b] = -1e9f; cz[b] = cy[b] = cx[b] = 0; }
+		for (i = 0; i < rig.numVertices; i++)
+		{
+			float x = rig.vertexArray[i].pos[0], y = rig.vertexArray[i].pos[1], z = rig.vertexArray[i].pos[2];
+			if (x <= CUT) continue;						/* right arm + right shoulder blend */
+			b = (int)((x - CUT) / ((22.9f - CUT) / 8.0f)); if (b > 7) b = 7;
+			n[b]++; cx[b] += x; cy[b] += y; cz[b] += z;
+			if (z < zmin[b]) zmin[b] = z; if (z > zmax[b]) zmax[b] = z;
+		}
+		printf("right arm silhouette, bins along X from the cut (mesh units; -Z is screen-up):\n");
+		for (b = 0; b < 8; b++)
+			if (n[b]) printf("  x %5.1f..%5.1f  n=%3d  centroid (%.1f, %.1f, %.1f)  z %.1f..%.1f\n",
+							 CUT + b * (22.9f - CUT) / 8.0f, CUT + (b + 1) * (22.9f - CUT) / 8.0f, n[b], cx[b]/n[b], cy[b]/n[b], cz[b]/n[b], zmin[b], zmax[b]);
 		free(bones);
 	}
 

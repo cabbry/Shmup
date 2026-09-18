@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 260) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 261) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -428,7 +428,7 @@ it ever reached a device — which is why the game looks the same and why
   lockstep sims skin the same boss. ~1200 vertices re-skinned per frame on
   the CPU. Five engine files compile clean under `zig cc -Wall -Wextra` on
   the host; the strict iOS build and one Simulator run of the boss act are
-  the proof before a tag.
+  the proof before a tag. **v5.0.1 / 261.**
 - **What the Simulator could and could not say.** The boss smoke ran green
   (no crash, the rigged mesh loaded and drew). Screenshot runs then showed
   frames where one claw hung lower than on `master` — but the `[arm]` probe

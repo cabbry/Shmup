@@ -214,6 +214,188 @@ static md5_bone_t gPoseBones[3];		// the rest bones, copied from the mesh, with 
 static int        gPoseBonesValid = 0;	// gPoseBones holds a copy of the current mesh's bones
 static float      gArmRecoilMs[2] = {0, 0};	// per arm: ms left in the big-shot recoil
 static int        gArmDeadAt[2]   = {-1, -1};	// per arm: simulationTime of destruction, -1 alive
+static float      gBossSS[2]      = {0, 0};	// the boss's ss position, stamped by updateLOFB (for the arm solids)
+
+// SOLID ARMS (v5, the tester: "avant on pouvait traverser les bras avec le
+// vaisseau; maintenant qu'ils bougent il ne faut plus, mais le laser ne doit
+// pas atteindre le creux"). Each arm is covered by a set of CIRCLES built once
+// from the rigged mesh at rest: the arm's vertices, in bone space (X outward
+// from the shoulder, Z down the screen), are binned on a 2 x 3 unit grid and
+// every occupied cell becomes a circle (centroid, radius = farthest vertex +
+// a margin). Fine enough that the arm's own hollows stay open -- in
+// particular THE CROOK: the notch above the forearm against the claw
+// (silhouette measured by tools/rig: a shoulder plate x 8..15 spanning z
+// -11..+1, a thin forearm x 15..17 at z -3..+1.5, the claw x 17..23 spreading
+// down to z +11). The crook sits ABOVE the boss's centre line, which is why a
+// beam that only ever points down cannot reach it -- and LOFB_ClampSweep
+// makes that a guarantee rather than a coincidence: the sweep is reduced,
+// deterministically, whenever the capsule would touch a live arm's crook.
+// Every circle is carried by the posed bone, so the danger follows the
+// picture. A destroyed arm has no solids and no crook to protect.
+#define LOFB_SOLID_MAX		48
+#define LOFB_SOLID_CELL_X	2.0f
+#define LOFB_SOLID_CELL_Z	3.0f
+#define LOFB_SOLID_MARGIN	0.6f	// mesh units added to every circle
+// The crook is CARVED, not found: the natural notch above the forearm is 1.9
+// units wide and the ship's collision radius is 1.8, so solids that follow
+// the mesh to the letter would close the refuge. Cells whose centroid falls
+// in the pocket below are left out (the ship may overlap the plate's outer
+// corner and the claw's top edge while parked -- the arm is solid everywhere
+// else). The pocket: bone x 5..10.5 (mesh 13.5..19), bone z -7..+2 (mesh
+// -12.3..-3.3, i.e. ABOVE the forearm, screen-up of the boss's centre line).
+#define LOFB_CROOK_X0		5.0f
+#define LOFB_CROOK_X1		10.5f
+#define LOFB_CROOK_Z0		-7.0f
+#define LOFB_CROOK_Z1		2.0f
+#define LOFB_CROOK_BX		7.8f	// crook centre, bone space (outward from the shoulder)
+#define LOFB_CROOK_BZ		-2.5f	// ... and along Z (the shoulder pivot is at mesh z -5.3)
+#define LOFB_CROOK_R		2.5f
+#define LOFB_SHIP_R_SS		0.035f	// the ship's radius the laser test uses (0.035 * SS_H px), in ss y units
+typedef struct { float bx, bz, r; } lofb_solid_t;	// bone space, mesh units, XZ plane
+static lofb_solid_t gArmSolid[2][LOFB_SOLID_MAX];
+static int          gArmSolidCount[2] = {0, 0};
+
+static void LOFB_BuildArmSolids(const md5_mesh_t* mesh)
+{
+	int k;
+	for (k = 0; k < 2; k++)
+	{
+		enum { NX = 9, NZ = 9 };
+		float sign = (k == 0) ? -1.0f : 1.0f;
+		float pz = gPoseBones[1 + k].position[2];
+		int   n[NX][NZ]; float sx[NX][NZ], sz[NX][NZ], rr[NX][NZ];
+		int i, a, b;
+		memset(n, 0, sizeof(n)); memset(sx, 0, sizeof(sx)); memset(sz, 0, sizeof(sz)); memset(rr, 0, sizeof(rr));
+		// pass 1: centroids
+		for (i = 0; i < mesh->numVertices; i++)
+		{
+			float bx = sign * mesh->vertexArray[i].pos[0] - gPoseBones[2].position[0];
+			float bz = mesh->vertexArray[i].pos[2] - pz;
+			if (bx < 0) continue;					// body side of the shoulder
+			a = (int)(bx / LOFB_SOLID_CELL_X); b = (int)((bz + 13.5f) / LOFB_SOLID_CELL_Z);
+			if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
+			n[a][b]++; sx[a][b] += bx; sz[a][b] += bz;
+		}
+		// pass 2: radii
+		for (i = 0; i < mesh->numVertices; i++)
+		{
+			float bx = sign * mesh->vertexArray[i].pos[0] - gPoseBones[2].position[0];
+			float bz = mesh->vertexArray[i].pos[2] - pz, dx, dz, d;
+			if (bx < 0) continue;
+			a = (int)(bx / LOFB_SOLID_CELL_X); b = (int)((bz + 13.5f) / LOFB_SOLID_CELL_Z);
+			if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
+			dx = bx - sx[a][b] / n[a][b]; dz = bz - sz[a][b] / n[a][b];
+			d = sqrtf(dx * dx + dz * dz);
+			if (d > rr[a][b]) rr[a][b] = d;
+		}
+		gArmSolidCount[k] = 0;
+		for (a = 0; a < NX; a++)
+			for (b = 0; b < NZ; b++)
+				if (n[a][b] > 0 && gArmSolidCount[k] < LOFB_SOLID_MAX)
+				{
+					float cx = sx[a][b] / n[a][b], cz = sz[a][b] / n[a][b];
+					lofb_solid_t* s;
+					if (cx >= LOFB_CROOK_X0 && cx <= LOFB_CROOK_X1 && cz >= LOFB_CROOK_Z0 && cz <= LOFB_CROOK_Z1)
+						continue;	// the crook: carved out, the ship's refuge
+					s = &gArmSolid[k][gArmSolidCount[k]++];
+					s->bx = cx; s->bz = cz; s->r = rr[a][b] + LOFB_SOLID_MARGIN;
+				}
+		if (Log_ProbesEnabled())
+			Log_Printf("[boss] arm %d: %d solid circles\n", k, gArmSolidCount[k]);
+	}
+}
+
+// A bone-space point of arm k (bx outward, bz down) to MESH space (x, z),
+// through the arm's current pose.
+static void LOFB_ArmPointToMesh(int k, float bx, float bz, float* mx, float* mz)
+{
+	vec3_t in, out;
+	float sign = (k == 0) ? -1.0f : 1.0f;
+	in[0] = sign * bx; in[1] = 0; in[2] = bz;
+	Quat_rotatePoint(gPoseBones[1 + k].orientation, in, out);
+	*mx = out[0] + gPoseBones[1 + k].position[0];
+	*mz = out[2] + gPoseBones[1 + k].position[2];
+}
+
+int LOFB_PlayerHitsArm(float ssX, float ssY)
+{
+	int k, i;
+	float px, pz, shipR;
+	if (gBossMaxEnergy <= 0 || simulationTime - gBossHudStamp > 300 || gBossHudStamp > simulationTime)
+		return 0;										// no boss on-screen
+	if (!gPoseBonesValid || widthAtDistance <= 0 || heightAtDistance <= 0)
+		return 0;
+	// The ship into the boss's mesh space: ss offsets scaled by the world width
+	// and height of one ss unit at the enemies' depth (enemy.c places them with
+	// exactly these), mesh Z running DOWN the screen.
+	px =  (ssX - gBossSS[X]) * widthAtDistance;
+	pz = -(ssY - gBossSS[Y]) * heightAtDistance;
+	shipR = LOFB_SHIP_R_SS * heightAtDistance;
+	for (k = 0; k < 2; k++)
+	{
+		if (gArmDeadAt[k] >= 0 || !gArmAlive[k])
+			continue;
+		for (i = 0; i < gArmSolidCount[k]; i++)
+		{
+			float mx, mz, dx, dz, reach;
+			LOFB_ArmPointToMesh(k, gArmSolid[k][i].bx, gArmSolid[k][i].bz, &mx, &mz);
+			dx = px - mx; dz = pz - mz; reach = gArmSolid[k][i].r + shipR;
+			if (dx * dx + dz * dz < reach * reach)
+				return 1;
+		}
+	}
+	return 0;
+}
+
+// Would the beam (origin ox,oy px; unit dir dx,dy) with the ship's margin
+// touch a live arm's crook? Same capsule test as collisions.c, with the crook's
+// radius added.
+static int LOFB_BeamTouchesCrook(float ox, float oy, float dx, float dy)
+{
+	int k;
+	if (!gPoseBonesValid || widthAtDistance <= 0 || heightAtDistance <= 0)
+		return 0;
+	for (k = 0; k < 2; k++)
+	{
+		float mx, mz, cx, cy, rx, ry, proj, perp, rpx;
+		if (gArmDeadAt[k] >= 0 || !gArmAlive[k])
+			continue;
+		LOFB_ArmPointToMesh(k, LOFB_CROOK_BX, LOFB_CROOK_BZ, &mx, &mz);
+		cx = (gBossSS[X] + mx / widthAtDistance)  * SS_W;
+		cy = (gBossSS[Y] - mz / heightAtDistance) * SS_H;
+		rpx = LOFB_CROOK_R / heightAtDistance * SS_H;
+		rx = cx - ox; ry = cy - oy;
+		proj = rx * dx + ry * dy;
+		perp = rx * dy - ry * dx; if (perp < 0) perp = -perp;
+		if (proj > -0.15f * LOFB_LASER_LENGTH && proj < LOFB_LASER_LENGTH && perp < LOFB_LASER_HALFWIDTH + LOFB_SHIP_R_SS * SS_H + rpx)
+			return 1;
+	}
+	return 0;
+}
+
+// The sweep angle the beam may take: the requested one, or the largest
+// smaller angle (same sign) whose capsule misses every live crook. Straight
+// down always misses (the crooks are above the origin, off to the sides), so
+// the bisection has a safe end. Pure function of the boss state.
+static float LOFB_ClampSweep(float sweep, float ox, float oy)
+{
+	float lo = 0, hi = sweep, sgn = (sweep < 0) ? -1.0f : 1.0f, mag = fabsf(sweep);
+	float ang, dx, dy;
+	int it;
+	ang = -(float)(M_PI / 2.0) + sweep; dx = cosf(ang); dy = sinf(ang);
+	if (!LOFB_BeamTouchesCrook(ox, oy, dx, dy))
+		return sweep;
+	hi = mag; lo = 0;
+	for (it = 0; it < 10; it++)
+	{
+		float mid = (lo + hi) * 0.5f;
+		ang = -(float)(M_PI / 2.0) + sgn * mid; dx = cosf(ang); dy = sinf(ang);
+		if (LOFB_BeamTouchesCrook(ox, oy, dx, dy)) hi = mid; else lo = mid;
+	}
+	if (Log_ProbesEnabled())
+		Log_Printf("[boss] t=%d laser sweep clamped %.3f -> %.3f rad for the crook\n", simulationTime, sweep, sgn * lo);
+	return sgn * lo;
+}
 
 static void LOFB_QuatAxisAngle(float ax, float ay, float az, float deg, quat4_t q)
 {
@@ -242,6 +424,7 @@ static void LOFB_PoseArms(enemy_t* enemy)
 	{
 		memcpy(gPoseBones, mesh->bones, sizeof(gPoseBones));
 		gPoseBonesValid = 1;
+		LOFB_BuildArmSolids(mesh);	// from the rest skin the loader left in vertexArray
 	}
 
 	for (k = 0; k < 2; k++)
@@ -701,6 +884,8 @@ static void LOFB_UpdateLaser(enemy_t* enemy)
 		if (frac < 0) frac = 0;
 		if (frac > 1) frac = 1;
 		sweep = LOFB_LASER_SWEEP_AMP * sinf(frac * (float)(2 * M_PI) * LOFB_LASER_SWEEP_CYCLES);
+		// v5: never into the crook of a live arm (the ship's refuge).
+		sweep = LOFB_ClampSweep(sweep, enemy->ss_position[X] * SS_W, enemy->ss_position[Y] * SS_H);
 		ang   = -(float)(M_PI / 2.0) + sweep;	// straight-down + sweep
 		gLaserDX = cosf(ang);
 		gLaserDY = sinf(ang);
@@ -953,6 +1138,8 @@ void updateLOFB(enemy_t* enemy)
 		gBossMaxEnergy = enemy->energy;
 	gBossEnergy = enemy->energy;
 	gBossHudStamp = simulationTime;
+	gBossSS[X] = enemy->ss_position[X];	// v5: the arm solids and the crook are placed from here
+	gBossSS[Y] = enemy->ss_position[Y];
 
 	// v5: pose the arm bones and re-skin (arriving too: the claws breathe as
 	// it descends). Reads the arm state of the PREVIOUS frame, which is fine.
@@ -1044,6 +1231,8 @@ void updateLOFB(enemy_t* enemy)
 		gSwayClock += timediff;
 	enemy->ss_position[X] = sinf(gSwayClock * (float)(2 * M_PI) / LOFB_SWAY_PERIOD_MS) * LOFB_SWAY_HALFWIDTH;
 	enemy->ss_position[Y] = LOFB_HOVER_Y + 0.05f * sinf(gSwayClock * (float)(2 * M_PI) / LOFB_BOB_PERIOD_MS);
+	gBossSS[X] = enemy->ss_position[X];	// v5: this frame's position for the arm solids (collisions run after us)
+	gBossSS[Y] = enemy->ss_position[Y];
 
 	// Track the two arm hit-zones with the body; tick down the hit flashes; keep
 	// destroyed arms smoking/sparking so the wreckage reads (there is no dedicated

@@ -335,7 +335,11 @@ order, each step a build:
 4. **The poses** — done, round 74 (`LOFB_PoseArms`): idle sway, recoil on the big shot, a
    flinch when an arm is hit, droop then fall when it is destroyed — all
    functions of arm HP, the last shot, the last hit and `simulationTime`.
-5. Later, if Fabien wants to author in Blender: an `md5anim` loader.
+5. **Solid arms and the crook** — done, round 75: the arms kill on contact
+   (circles from the mesh, carried by the bone; a wreck does not block), the
+   crook above the forearm is carved open, and the laser's sweep is clamped
+   so it never reaches it.
+6. Later, if Fabien wants to author in Blender: an `md5anim` loader.
 
 ### Open — carried over
 
@@ -402,6 +406,39 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-19 — round 75 (the arms are solid, and the crook is guaranteed)
+- **The tester's point**: the ship used to fly *through* the boss's arms —
+  only the body's box killed on contact — and that was the one way into the
+  crook of an arm, the spot the sweeping laser cannot reach. With the arms
+  moving, the arms must be solid, and the crook must stay out of the beam.
+- **Solid arms, from the mesh, following the bone.** `LOFB_BuildArmSolids`
+  bins each arm's rest vertices in bone space (X outward from the shoulder,
+  Z down the screen) on a 2×3-unit grid; every occupied cell becomes a
+  circle (centroid, farthest vertex + 0.6). Twenty-nine circles an arm,
+  carried by the posed bone every frame, so the danger moves with the
+  picture. `LOFB_PlayerHitsArm` brings the ship into the boss's mesh space
+  through the same width- and height-at-depth the engine places enemies
+  with, and a ram on a live arm kills like the body does (collisions.c, after
+  the laser test). **A destroyed arm has no solids** — the wreck no longer
+  blocks, the tester's call.
+- **The crook, carved rather than found.** The silhouette from the harness:
+  a shoulder plate x 8..15 spanning z −11..+1, a thin forearm x 15..17, the
+  claw x 17..23 spreading down to z +11. The natural notch above the forearm
+  is 1.9 units wide; the ship's collision radius is 1.8. Solids that follow
+  the mesh to the letter would have closed the refuge. So cells whose
+  centroid falls in a pocket above the forearm (bone x 5..10.5, z −7..+2)
+  are left out: the ship may overlap the plate's outer corner while parked,
+  the arm is solid everywhere else. The pocket sits above the boss's centre
+  line, which is why a beam that only points down cannot reach it.
+- **The guarantee.** `LOFB_ClampSweep` reduces the laser's sweep,
+  deterministically (a ten-step bisection toward straight down), whenever the
+  capsule with the ship's margin would touch a live arm's crook circle. The
+  harness replays the solids on the rest skin and asserts: the pocket clears
+  the nearest solid by 2.12 units for a ship radius of 1.82; at the nominal
+  depth the shipped ±66° sweep stays 57 px clear of the crook, which a beam
+  would first touch at 84°. The clamp is a backstop, not the mechanism.
+  Compiles clean on the host; the strict iOS build is the proof.
 
 ### 2026-09-18 — round 74 (the arms move: dynamic mesh, and the bones posed every frame)
 - **Steps 3 and 4 of the v5 plan, together.** `ENT_DYNAMIC_DRAW` is a third

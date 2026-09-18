@@ -71,6 +71,12 @@ void LOFB_ResetLadder(void);					// at scene load: thresholds again, all off
 // after the hitbox was placed, so nothing but the picture trembles.
 void LOFB_GetShakeOffset(const enemy_t* enemy, float* dx, float* dy);
 
+// v5: the arms are SOLID. Returns 1 when the point (ss units) is inside a live
+// arm -- a set of circles built from the rigged mesh and carried by the posed
+// bone, which leave the crook of the arm open. A destroyed arm (the wreck) no
+// longer blocks. Used by collisions.c for the ram test on the boss's arms.
+int LOFB_PlayerHitsArm(float ssX, float ssY);
+
 // Boss health for the HUD: returns 1 (and fills energy/maxEnergy) while a boss
 // fight is live on-screen, 0 otherwise. The HUD draws it as a real graphical
 // bar (colored quads) -- the old text-glyph bar proved unreliable on device.

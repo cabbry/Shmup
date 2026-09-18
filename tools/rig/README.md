@@ -56,3 +56,16 @@ two arm bones every frame — idle swing, recoil on the big shot, flinch on a
 hit, tremor at half HP, a folded limp wreck when destroyed — from arm HP, the
 last shot, the last hit and `simulationTime`, then calls `MD5_GenerateSkin`.
 Both lockstep sims skin the same boss.
+
+## Solid arms and the crook (round 75)
+
+`LOFB_BuildArmSolids` bins each arm's rest vertices in bone space on a 2×3-unit
+grid and turns every occupied cell into a circle; the circles ride the posed
+bone, and `LOFB_PlayerHitsArm` kills a ship that rams a live arm (a wreck does
+not block). The crook — the ship's refuge from the laser, above the forearm
+against the claw — is **carved**: cells in the pocket bone x 5..10.5, z −7..+2
+are left out, because the natural notch is narrower than the ship. The laser's
+sweep is clamped so its capsule never touches a live arm's crook. `rig_check`
+replays the solids and asserts the pocket admits the ship (2.12 units of room
+for a radius of 1.82) and that the shipped ±66° sweep clears the crook (first
+touch at 84°).

@@ -242,6 +242,85 @@ int main(void)
 		free(bones);
 	}
 
+	/* 7. SOLIDS + CROOK: replay lofb.c's LOFB_BuildArmSolids on the rest skin
+	 *    (bone space: X outward from the shoulder, Z down the screen; 2 x 3 unit
+	 *    cells, radius = farthest vertex + 0.6) and assert that the crook --
+	 *    the notch above the forearm against the claw, (7.8, -0.2) r 2.5 --
+	 *    stays clear of every solid by at least a ship's radius (~1.8 units at
+	 *    the nominal depth). Then the laser: at the nominal scale (a boss 45.7
+	 *    units wide spanning ~1.9 ss, tall-phone aspect 0.46) the beam at the
+	 *    full +/-66 degree sweep must miss the crook with the ship's margin. */
+	{
+		enum { NX = 9, NZ = 9 };
+		const float CELLX = 2.0f, CELLZ = 3.0f, MARGIN = 0.6f, PZ = -5.3f;
+		const float CROOK_BX = 7.8f, CROOK_BZ = -2.5f, CROOK_R = 2.5f;
+		const float CROOK_X0 = 5.0f, CROOK_X1 = 10.5f, CROOK_Z0 = -7.0f, CROOK_Z1 = 2.0f;	/* the carved pocket, as lofb.c */
+		const float widthAtDistance = 24.0f, heightAtDistance = 52.0f;	/* nominal, see above */
+		const float shipR = 0.035f * heightAtDistance;
+		md5_bone_t* bones = (md5_bone_t*)calloc(rig.numBones, sizeof(md5_bone_t));
+		int n[NX][NZ]; float sx[NX][NZ], sz[NX][NZ], rr[NX][NZ];
+		int a, b, count = 0; float clearance = 1e9f;
+		memcpy(bones, rig.bones, rig.numBones * sizeof(md5_bone_t));
+		MD5_GenerateSkin(&rig, bones);
+		memset(n, 0, sizeof(n)); memset(sx, 0, sizeof(sx)); memset(sz, 0, sizeof(sz)); memset(rr, 0, sizeof(rr));
+		for (i = 0; i < rig.numVertices; i++)
+		{
+			float bx = rig.vertexArray[i].pos[0] - PIVOT_X, bz = rig.vertexArray[i].pos[2] - PZ;
+			if (bx < 0) continue;
+			a = (int)(bx / CELLX); b = (int)((bz + 13.5f) / CELLZ); if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
+			n[a][b]++; sx[a][b] += bx; sz[a][b] += bz;
+		}
+		for (i = 0; i < rig.numVertices; i++)
+		{
+			float bx = rig.vertexArray[i].pos[0] - PIVOT_X, bz = rig.vertexArray[i].pos[2] - PZ, dx, dz, d;
+			if (bx < 0) continue;
+			a = (int)(bx / CELLX); b = (int)((bz + 13.5f) / CELLZ); if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
+			dx = bx - sx[a][b] / n[a][b]; dz = bz - sz[a][b] / n[a][b]; d = sqrtf(dx*dx + dz*dz);
+			if (d > rr[a][b]) rr[a][b] = d;
+		}
+		{
+			int carved = 0;
+			for (a = 0; a < NX; a++) for (b = 0; b < NZ; b++) if (n[a][b])
+			{
+				float cx = sx[a][b] / n[a][b], cz = sz[a][b] / n[a][b], r = rr[a][b] + MARGIN;
+				float dx = cx - CROOK_BX, dz = cz - CROOK_BZ, room = sqrtf(dx*dx + dz*dz) - r;	/* room for the ship's centre at the crook */
+				if (cx >= CROOK_X0 && cx <= CROOK_X1 && cz >= CROOK_Z0 && cz <= CROOK_Z1) { carved++; continue; }
+				count++;
+				if (room < clearance) clearance = room;
+			}
+			printf("solid arms: %d circles on the right arm (%d carved out for the crook); a ship parked at the crook (%.1f, %.1f) has %.2f units to the nearest solid, its radius being %.2f\n",
+				   count, carved, CROOK_BX, CROOK_BZ, clearance, shipR);
+			CHECK(count > 10 && count <= 48, "unexpected solid count %d", count);
+			CHECK(carved >= 1, "the pocket carved nothing -- the crook constants miss the arm");
+			CHECK(clearance > shipR, "the ship does not fit in the crook: %.2f units of room for a radius of %.2f", clearance, shipR);
+		}
+		{
+			/* the laser, nominal scale: boss at ss (0, 0.55); crook in px */
+			float mx = PIVOT_X + CROOK_BX, mz = PZ + CROOK_BZ;
+			float cx = (0.0f + mx / widthAtDistance) * SS_W, cy = (0.55f - mz / heightAtDistance) * SS_H;
+			float ox = 0.0f * SS_W, oy = 0.55f * SS_H, rpx = CROOK_R / heightAtDistance * SS_H;
+			float hw = 0.12f * SS_H, len = 2.5f * SS_H, worst = -1e9f; int deg, firstTouch = -1;
+			for (deg = 0; deg <= 90; deg++)
+			{
+				float ang = -(float)M_PI / 2.0f + deg * (float)M_PI / 180.0f, dx = cosf(ang), dy = sinf(ang);
+				float rx = cx - ox, ry = cy - oy, proj = rx*dx + ry*dy, perp = fabsf(rx*dy - ry*dx);
+				float intrusion = (hw + 0.035f * SS_H + rpx) - perp;		/* > 0 = the capsule reaches the crook */
+				if (proj > -0.15f * len && proj < len && intrusion > worst) worst = intrusion;
+				if (proj > -0.15f * len && proj < len && intrusion > 0 && firstTouch < 0) firstTouch = deg;
+			}
+			(void)worst;
+			printf("laser vs crook (nominal scale): the crook would first be touched at a sweep of %d degrees (shipped amplitude: 66)\n", firstTouch);
+			{
+				float ang = -(float)M_PI / 2.0f + 1.15f, dx = cosf(ang), dy = sinf(ang);
+				float rx = cx - ox, ry = cy - oy, perp = fabsf(rx*dy - ry*dx);
+				float clear = perp - (hw + 0.035f * SS_H + rpx);
+				printf("  at 1.15 rad (the shipped amplitude): clearance %.0f px\n", clear);
+				CHECK(clear > 0, "the shipped sweep reaches the crook by %.0f px at the nominal scale -- the runtime clamp would fire every beam", -clear);
+			}
+		}
+		free(bones);
+	}
+
 	if (fails) { printf("rig_check: %d FAILURE(S)\n", fails); return 1; }
 	printf("rig_check: OK -- the rig is invisible at rest and only the swung arm moves.\n");
 	return 0;

@@ -9,6 +9,7 @@ $sp = Split-Path -Parent $MyInvocation.MyCommand.Path
 $DATA  = "E:\Projects\Shmup\data\data"
 $atlas = New-Object System.Drawing.Bitmap("$DATA\menu\homeAtlas.png")
 $font  = New-Object System.Drawing.Bitmap("$DATA\menu\font.png")
+$C = [int]($font.Width / 16)   # the atlas cell, whatever resolution it ships at
 
 function SSx([single]$x) { return $x + 320 }
 function SSy([single]$y) { return 480 - $y }
@@ -31,9 +32,9 @@ function Draw-Text($g, [string]$s, [single]$size, [single]$cx, [single]$cy, [boo
   if ($centered) { $x -= ($n - 1) * $charWidth / 2 }
   for ($i = 0; $i -lt $n; $i++) {
     $b = [int][char]$s[$i]
-    $sx = ($b -band 15) * 32; $sy = [Math]::Floor($b / 16) * 32
+    $sx = ($b -band 15) * $C; $sy = [Math]::Floor($b / 16) * $C
     $dst = New-Object System.Drawing.Rectangle((SSx ($x-$charWidth)), (SSy ($cy+$charHeight)), ($charWidth*2), ($charHeight*2))
-    $g.DrawImage($font, $dst, $sx, $sy, 32, 32, [System.Drawing.GraphicsUnit]::Pixel)
+    $g.DrawImage($font, $dst, $sx, $sy, $C, $C, [System.Drawing.GraphicsUnit]::Pixel)
     $x += $charWidth
   }
 }
@@ -59,9 +60,9 @@ function Draw-TextKanji($g, $strokes, [string]$s, [single]$size, [single]$cx, [s
   $x += $charWidth
   for ($i = 0; $i -lt $s.Length; $i++) {
     $b = [int][char]$s[$i]
-    $sx = ($b -band 15) * 32; $sy = [Math]::Floor($b / 16) * 32
+    $sx = ($b -band 15) * $C; $sy = [Math]::Floor($b / 16) * $C
     $d2 = New-Object System.Drawing.Rectangle((SSx ($x-$charWidth)), (SSy ($cy+$charWidth)), ($charWidth*2), ($charWidth*2))
-    $g.DrawImage($font, $d2, $sx, $sy, 32, 32, [System.Drawing.GraphicsUnit]::Pixel)
+    $g.DrawImage($font, $d2, $sx, $sy, $C, $C, [System.Drawing.GraphicsUnit]::Pixel)
     $x += $charWidth
   }
 }

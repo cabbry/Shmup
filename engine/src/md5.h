@@ -121,6 +121,11 @@ typedef struct md5_mesh_t
 
 char MD5_LoadMesh(md5_mesh_t* mesh, const char* filename);
 void MD5_FreeMesh(md5_mesh_t* mesh);
+// v5: re-skin a mesh from a bone array (positions, normals, tangents into
+// vertexArray). The loader calls it with the mesh's own rest bones; lofb.c
+// calls it every frame with the boss's posed arm bones. The mesh must still
+// hold its vertexArray (ENT_DYNAMIC_DRAW).
+void MD5_GenerateSkin(md5_mesh_t* mesh, md5_bone_t* bones);
 #endif
 
 

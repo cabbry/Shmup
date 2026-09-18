@@ -47,10 +47,12 @@ the harness. Build it with `-fno-sanitize=undefined`: the 2010 lighting pass in
 `md5.c` increments a NULL pointer it never dereferences, which zig's debug
 build traps on.
 
-## What comes next (the v5 plan in `reborn.md`)
+## In the engine (round 74)
 
-A *dynamic* entity usage that keeps `vertexArray` in RAM instead of freeing
-it after the VBO upload — the Metal renderer already draws RAM meshes through
-its ring buffer — and `LOFB_PoseBones` in `lofb.c`: the two arm bones posed
-every frame from arm HP, the last big shot, the last hit and `simulationTime`,
-so both lockstep sims skin the same boss.
+`ENT_DYNAMIC_DRAW` keeps a mesh's `vertexArray` in RAM (the Metal renderer
+draws RAM meshes through its ring buffer); the boss loads that way from both
+precache and spawn (`ENE_ModelUsage`). `LOFB_PoseArms` in `lofb.c` poses the
+two arm bones every frame — idle swing, recoil on the big shot, flinch on a
+hit, tremor at half HP, a folded limp wreck when destroyed — from arm HP, the
+last shot, the last hit and `simulationTime`, then calls `MD5_GenerateSkin`.
+Both lockstep sims skin the same boss.

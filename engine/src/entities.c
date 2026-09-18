@@ -319,8 +319,14 @@ char ENT_LoadEntity(entity_t* entity, const char* filename, uchar usage)
 	}
 	
 	MATLIB_MakeAvailable(entity->material);
-	renderer.UpLoadEntityToGPU(entity);
-	
+	// v5: a DYNAMIC mesh keeps its vertexArray in RAM to be re-skinned each
+	// frame (the boss's arm bones); the renderer's RAM path draws it. Every
+	// loader of the same file must ask for the same usage: the model is
+	// cached by filename, and an upload by one caller would free the array
+	// under the other.
+	if (usage != ENT_DYNAMIC_DRAW)
+		renderer.UpLoadEntityToGPU(entity);
+
 	
 	
 	entity->xAxisRot = 0;

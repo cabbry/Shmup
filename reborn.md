@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 260) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 260) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -330,9 +330,9 @@ order, each step a build:
    (±8.5, 5.3, −5.3), a linear blend over 6..10), write the new md5mesh.
    Proof: the rigged mesh in the rest pose skins to the *same* vertices as
    the original, bit for bit, in a host-side harness.
-3. **Dynamic meshes**: an entity usage that keeps `vertexArray` in RAM and
+3. **Dynamic meshes** — done, round 74: an entity usage that keeps `vertexArray` in RAM and
    re-skins on demand; the Metal ring-buffer path already draws it.
-4. **The poses** (`LOFB_PoseBones`): idle sway, recoil on the big shot, a
+4. **The poses** — done, round 74 (`LOFB_PoseArms`): idle sway, recoil on the big shot, a
    flinch when an arm is hit, droop then fall when it is destroyed — all
    functions of arm HP, the last shot, the last hit and `simulationTime`.
 5. Later, if Fabien wants to author in Blender: an `md5anim` loader.
@@ -402,6 +402,33 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-18 — round 74 (the arms move: dynamic mesh, and the bones posed every frame)
+- **Steps 3 and 4 of the v5 plan, together.** `ENT_DYNAMIC_DRAW` is a third
+  entity usage: the mesh's `vertexArray` stays in RAM instead of being
+  uploaded once and freed, and the Metal renderer's existing RAM path (a
+  per-frame ring-buffer copy) draws it. The boss asks for it in both places
+  a model is loaded — precache and spawn — through `ENE_ModelUsage`, because
+  the model cache is keyed by filename and an upload by one caller would
+  free the array under the other. The boss's mesh path now points at
+  `lofb_rigged.md5mesh`; the one-joint original stays for the act-3 cameo.
+- **`LOFB_PoseArms`** (lofb.c) copies the rest bones once, then every frame
+  gives each arm bone two angles — a *swing* about the mesh Y axis, the axis
+  facing the camera, so the claw opens and closes in the screen plane; and a
+  *tilt* about X, folding toward or away from the camera — and calls
+  `MD5_GenerateSkin`. Idle: a ±6° breathing swing over four seconds, the
+  arms in mirror, with a 2° tilt. **Recoil**: the arm that fires the big
+  shot snaps back 18° and returns over 300 ms. **Flinch**: a bullet on an
+  arm tilts it 12° for the hit-flash time. **Tremor**: from half arm HP, a
+  1.5° shiver at 2 Hz. **Wreck**: a destroyed arm folds 75° toward the
+  camera over half a second and hangs there, swinging limp — *not*
+  detached: the shoulder blend would stretch to a bone that walked away,
+  and the wreck smoke already marks it. All of it a function of arm HP, the
+  arm's death time, the last shot, the last hit and `simulationTime`: both
+  lockstep sims skin the same boss. ~1200 vertices re-skinned per frame on
+  the CPU. Five engine files compile clean under `zig cc -Wall -Wextra` on
+  the host; the strict iOS build and one Simulator run of the boss act are
+  the proof before a tag.
 
 ### 2026-09-18 — round 73 (the boss rigged: three bones, cut by geometry, proven by the engine's own loader)
 - **Step 2 of the v5 plan.** `tools/rig/rig_lofb.ps1` reads the 2010

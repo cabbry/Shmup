@@ -43,6 +43,8 @@
 #include "event.h"
 #include "native_services.h"
 #include "enemy_particules.h"
+#include "md5.h"		// v5: the arm bones (MD5_GenerateSkin)
+#include "quaternion.h"
 #include <math.h>	// v3: explicit -- the Xcode prefix header hid the dependency (implicit-declaration class)
 
 // Reused engine services with no public prototype.
@@ -179,6 +181,101 @@ static short  gLastEnergy   = 0;	// to notice a hit (energy went down this frame
 static float  gHitKickMs    = 0;	// kick countdown
 static float  gBodySmokeMs  = 0;	// throttle for the body smoke
 static int    gBodySmokeIdx = 0;	// which vent smokes next (three, in turn)
+
+// THE ARMS AS BONES (v5, Fabien's last note: "animer les bras"). The boss mesh
+// is rigged in three bones by tools/rig (0 body, 1 armL, 2 armR, pivots at the
+// shoulders, a two-weight blend across the shoulder) and loaded DYNAMIC: its
+// vertexArray stays in RAM and MD5_GenerateSkin re-skins it from the bone
+// array below every frame. Each arm's pose is two angles -- a swing about the
+// mesh Y axis (the axis facing the camera: the claw opens and closes in the
+// screen plane) and a tilt about the mesh X axis (the arm folds toward or away
+// from the camera) -- composed from:
+//   idle     a slow +/-6 deg breathing swing, the two arms in mirror;
+//   recoil   the arm that fires the big shot snaps back 18 deg and returns
+//            over LOFB_ARM_RECOIL_MS;
+//   flinch   a bullet on the arm tilts it 12 deg for the hit-flash time;
+//   tremor   from half arm HP, a 2 Hz shiver;
+//   wreck    a destroyed arm folds 75 deg toward the camera over half a second
+//            and hangs there, swinging limp. It is NOT detached: the shoulder
+//            blend would stretch to a bone that walked away. The wreck smoke
+//            and sparks already mark it.
+// Everything is a function of (arm HP, arm death time, last shot, last hit,
+// simulationTime): both lockstep sims skin the same boss. Cost: ~1200
+// vertices re-skinned per frame on the CPU.
+#define LOFB_ARM_RECOIL_MS		300.0f
+#define LOFB_ARM_WRECK_FOLD_MS	500.0f
+#define LOFB_ARM_IDLE_DEG		6.0f
+#define LOFB_ARM_RECOIL_DEG		18.0f
+#define LOFB_ARM_FLINCH_DEG		12.0f
+#define LOFB_ARM_TREMOR_DEG		1.5f
+#define LOFB_ARM_WRECK_DEG		75.0f
+static md5_bone_t gPoseBones[3];		// the rest bones, copied from the mesh, with the arms re-oriented
+static int        gPoseBonesValid = 0;	// gPoseBones holds a copy of the current mesh's bones
+static float      gArmRecoilMs[2] = {0, 0};	// per arm: ms left in the big-shot recoil
+static int        gArmDeadAt[2]   = {-1, -1};	// per arm: simulationTime of destruction, -1 alive
+
+static void LOFB_QuatAxisAngle(float ax, float ay, float az, float deg, quat4_t q)
+{
+	float half = deg * (float)M_PI / 360.0f, s = sinf(half);
+	q[0] = ax * s; q[1] = ay * s; q[2] = az * s; q[3] = cosf(half);
+}
+
+// Pose the two arm bones and re-skin the mesh. Safe on any mesh: a one-joint
+// model or a GPU-resident one is left alone.
+static void LOFB_PoseArms(enemy_t* enemy)
+{
+	md5_mesh_t* mesh = enemy->entity.model;
+	float t = (float)simulationTime;
+	int k;
+
+	if (!mesh || mesh->numBones != 3 || mesh->memLocation == MD5_MEMLOC_VRAM || !mesh->vertexArray)
+		return;
+	if (!gPoseBonesValid)
+	{
+		memcpy(gPoseBones, mesh->bones, sizeof(gPoseBones));
+		gPoseBonesValid = 1;
+	}
+
+	for (k = 0; k < 2; k++)
+	{
+		float mirror = (k == 0) ? 1.0f : -1.0f;	// the left claw opens the other way
+		float swing, tilt;
+		quat4_t qy, qx;
+
+		if (gArmRecoilMs[k] > 0) gArmRecoilMs[k] -= timediff;
+
+		if (gArmDeadAt[k] >= 0)
+		{
+			// wreck: fold, then hang limp
+			float since = (float)(simulationTime - gArmDeadAt[k]);
+			float f = since / LOFB_ARM_WRECK_FOLD_MS;
+			if (f > 1) f = 1;
+			f = 1.0f - (1.0f - f) * (1.0f - f);	// ease-out
+			tilt  = LOFB_ARM_WRECK_DEG * f + 4.0f * sinf(t * 0.0044f + k) * f;
+			swing = 8.0f * f * sinf(t * 0.0031f + 2.0f * k);
+		}
+		else
+		{
+			swing = LOFB_ARM_IDLE_DEG * sinf(t * (float)(2 * M_PI) / 4000.0f + 0.6f * k);
+			tilt  = 2.0f * sinf(t * (float)(2 * M_PI) / 2300.0f + 1.1f * k);
+			if (gArmRecoilMs[k] > 0)
+			{
+				float r = gArmRecoilMs[k] / LOFB_ARM_RECOIL_MS;	// 1 at the shot, 0 at rest
+				swing -= LOFB_ARM_RECOIL_DEG * r * r;
+				tilt  += 5.0f * r;
+			}
+			if (gArmFlashMs[k] > 0)
+				tilt += LOFB_ARM_FLINCH_DEG * (gArmFlashMs[k] / LOFB_ARM_FLASH_MS);
+			if (gArmAlive[k] && gArmHP[k] <= gArmMaxHP / 2)	// (alive: before the fight gArmHP is stale)
+				swing += LOFB_ARM_TREMOR_DEG * sinf(t * 0.01257f + 3.0f * k);	// 2 Hz
+		}
+
+		LOFB_QuatAxisAngle(0, 1, 0, swing * mirror, qy);
+		LOFB_QuatAxisAngle(1, 0, 0, tilt, qx);
+		Quat_multQuat(qy, qx, gPoseBones[1 + k].orientation);
+	}
+	MD5_GenerateSkin(mesh, gPoseBones);
+}
 
 static float LOFB_AimAngleFrom(float sx, float sy)
 {
@@ -356,6 +453,8 @@ static void LOFB_FireBigShot(enemy_t* enemy, float offX)
 	float ox = enemy->ss_position[X] + offX;
 	float oy = enemy->ss_position[Y] + LOFB_ARM_OFFY;
 	float angle = LOFB_AimAngleFrom(ox, oy);
+
+	gArmRecoilMs[offX < 0 ? 0 : 1] = LOFB_ARM_RECOIL_MS;	// v5: the firing arm snaps back
 
 	bullet = ENPAR_GetNextParticule();
 
@@ -711,6 +810,7 @@ void LOFB_DamageArm(int idx, int dmg)
 		// has to cut through the noise.
 		vec2_t p;
 		gArmAlive[idx] = 0;
+		gArmDeadAt[idx] = simulationTime;	// v5: the arm bone folds and hangs from now on
 		p[X] = gArmSS[idx][X];
 		p[Y] = gArmSS[idx][Y];
 		FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 1.6f, 0);
@@ -807,6 +907,10 @@ void updateLOFB(enemy_t* enemy)
 	gBossEnergy = enemy->energy;
 	gBossHudStamp = simulationTime;
 
+	// v5: pose the arm bones and re-skin (arriving too: the claws breathe as
+	// it descends). Reads the arm state of the PREVIOUS frame, which is fine.
+	LOFB_PoseArms(enemy);
+
 	if (enemy->state == LOFB_STATE_ARRIVING)
 	{
 		// Ease from the spawn position down to the hover point.
@@ -837,11 +941,13 @@ void updateLOFB(enemy_t* enemy)
 			gArmSparkTimer = 0;
 			gArmFlashMs[0] = gArmFlashMs[1] = 0;
 			gArmChunkDmg = 0;
-			// Fresh fight: pristine hull.
+			// Fresh fight: pristine hull, arms whole and at rest.
 			gLastEnergy   = enemy->energy;
 			gHitKickMs    = 0;
 			gBodySmokeMs  = 0;
 			gBodySmokeIdx = 0;
+			gArmRecoilMs[0] = gArmRecoilMs[1] = 0;
+			gArmDeadAt[0] = gArmDeadAt[1] = -1;
 			enemy->entity.color[R] = enemy->entity.color[G] = enemy->entity.color[B] = enemy->entity.color[A] = 1.0f;
 		}
 		return;
@@ -1091,6 +1197,10 @@ void LOFB_ResetLadder(void)
 	gLadderScripted = 0;
 	memset(gAttackOn, 0, sizeof(gAttackOn));
 	gLastEnergy = 0; gHitKickMs = 0; gBodySmokeMs = 0; gBodySmokeIdx = 0;
+	// v5: the mesh is reloaded with the scene -- take the rest bones again.
+	gPoseBonesValid = 0;
+	gArmRecoilMs[0] = gArmRecoilMs[1] = 0;
+	gArmDeadAt[0] = gArmDeadAt[1] = -1;
 }
 
 // Render-only shake, in ss units, added by enemy.c to the boss entity's

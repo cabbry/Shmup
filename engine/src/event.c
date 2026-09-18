@@ -100,7 +100,7 @@ void EV_SpawnEnemy(event_t* event)
 	
 	
 	
-	ENT_LoadEntity(&enemy->entity, enemyTypePath[eventPayload->type],ENT_FULL_DRAW);
+	ENT_LoadEntity(&enemy->entity, enemyTypePath[eventPayload->type], ENE_ModelUsage(eventPayload->type));	// v5: the boss's mesh is dynamic
 
 	enemy->type = eventPayload->type  ;
 	enemy->timeCounter = 0;

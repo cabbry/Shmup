@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 255) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 256) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -377,6 +377,27 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-18 — round 68 (the "oval yellow bullets": a ball on a capsule's quad)
+- **Fabien: "certaines des bullets jaunes sont ovales."** The answer was in
+  the 2009 bullet atlas, not in any renderer. Red and blue are capsules,
+  16×32 over four rows — the shot's animation frames. The Custom menu's
+  **Yellow is column 3, and column 3 holds a round 16×16 ball, in row 0
+  only**; rows 1–3 are empty. The engine plaques whichever column on the
+  capsule's quad, 26 by 173 units: the ball came out stretched 6.7:1 — the
+  oval — and, the animation cycling through four rows of which three are
+  blank, the yellow shot was drawn **one frame in four**. It flickered. That
+  is the "certaines": the ones caught on their visible frame were oval, the
+  rest were not there.
+- **A ball is drawn as a ball.** For colour column 3 the quad is square, kept
+  square on a tall screen through `vScale` exactly as the muzzle flash
+  already is (`vScale = H / (1.5·W)`, 1.445 on an iPhone — the Y extent is
+  *divided*), always from row 0, radius twice the capsule's half-width so it
+  reads as a shot and not a dot. Rendering only: the hitbox is the same
+  capsule for every colour, so lockstep and the collision bench see nothing.
+  `player.c` cannot be compiled on the Windows host (`dns_sd.h`, Apple only),
+  so the push went up without a tag and the strict iOS build was the proof
+  — green — before **v4.2.11 / 256**.
 
 ### 2026-09-18 — round 67 (the titles at four times their size — Fabien's hand, kept)
 - **The other half of the text on screen.** Round 66 did the font, and the

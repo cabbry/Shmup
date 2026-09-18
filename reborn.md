@@ -378,6 +378,17 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-18 — round 69 (the ball, half the size)
+- **"Je n'aime pas du tout le rendu des boules jaunes. Elles sont trop
+  grosses."** Round 68 gave the ball a radius of *twice* the capsule's
+  half-width "so it reads as a shot and not a dot" — a guess made on a mock,
+  and wrong on a device. Radius = half-width now: the ball is exactly as wide
+  as the red and blue capsules, which is the width the stretched 2009 sprite
+  always had on screen. One constant, rendering only, hitbox untouched;
+  strict iOS build green before the tag. **v4.2.12.** Lesson kept: a sprite's
+  size is judged on the device, not on a mock — and when the tester has the
+  device, ask for the screenshot *before* choosing a factor.
+
 ### 2026-09-18 — round 68 (the "oval yellow bullets": a ball on a capsule's quad)
 - **Fabien: "certaines des bullets jaunes sont ovales."** The answer was in
   the 2009 bullet atlas, not in any renderer. Red and blue are capsules,

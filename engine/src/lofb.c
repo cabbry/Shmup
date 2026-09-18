@@ -164,6 +164,22 @@ static float  gArmFlashMs[2] = {0, 0};	// arm-localised hit-flash countdown (ms)
 // boss bar -- applied from updateLOFB, which holds the enemy pointer.
 static int    gArmChunkDmg = 0;
 
+// DEGRADATION (Fabien, 2026-09-17: "de la fumée, il tremble, il rougit, il
+// devient plus agressif"). Everything here is a function of the boss's HP and
+// of simulationTime, advanced from updateLOFB -- so both lockstep sims see the
+// same smoke, the same tint, the same cadences. The shake is applied to the
+// entity MATRIX only (enemy.c asks LOFB_GetShakeOffset after it has placed the
+// mesh): the hitbox, the arm zones and the muzzles never move with it.
+#define LOFB_KICK_MS			110.0f	// a body hit kicks the ship for this long
+#define LOFB_SHAKE_BASE			0.012f	// ss units of tremor at 0 HP (from half HP up)
+#define LOFB_SHAKE_KICK			0.009f	// extra ss units at the instant of a hit
+#define LOFB_SMOKE_FROM			0.40f	// body smoke starts once 40 % is lost
+#define LOFB_AGGR_GAIN			0.22f	// cadences shorten by up to 22 % at 0 HP
+static short  gLastEnergy   = 0;	// to notice a hit (energy went down this frame)
+static float  gHitKickMs    = 0;	// kick countdown
+static float  gBodySmokeMs  = 0;	// throttle for the body smoke
+static int    gBodySmokeIdx = 0;	// which vent smokes next (three, in turn)
+
 static float LOFB_AimAngleFrom(float sx, float sy)
 {
 	// Angle (screen space) from (sx,sy) toward the nearest player. Player
@@ -319,15 +335,19 @@ void updateLOFBMissile(enemy_t* enemy)
 		ENE_Release(enemy);
 }
 
-// The BIG SHOT: a large, slower orb aimed at the nearest player (same atlas
-// sprite as the SHAB/boss bullets, four times the size).
+// The BIG SHOT: a large, slower orb aimed at the nearest player. It has its OWN
+// sprite now: the 48x48 cell region at (32,32) of the bullet atlas (painted at
+// 192 px in the 512 atlas by tools/cards/make_bullets.ps1). Until 4.2.12 it
+// borrowed the 16 px SHAB orb, drawn thirteen times its size: a bilinear blur
+// with the neighbouring cells bleeding a square frame around it -- Fabien's
+// "projectile buggé". UVs are atlas fractions, so the atlas size is free.
 #define LOFB_BIG_TTL		3600
 #define LOFB_BIG_DISTANCE	1.6f
 #define LOFB_BIG_SIZE		0.22f
-#define LOFB_TEXT_BULLET_U      (80/128.0f*SHRT_MAX)
-#define LOFB_TEXT_BULLET_V      (0/128.0f*SHRT_MAX)
-#define LOFB_TEXT_BULLET_WIDTH  (16/128.0f*SHRT_MAX)
-#define LOFB_TEXT_BULLET_HEIGHT (16/128.0f*SHRT_MAX)
+#define LOFB_TEXT_BULLET_U      (32/128.0f*SHRT_MAX)
+#define LOFB_TEXT_BULLET_V      (32/128.0f*SHRT_MAX)
+#define LOFB_TEXT_BULLET_WIDTH  (48/128.0f*SHRT_MAX)
+#define LOFB_TEXT_BULLET_HEIGHT (48/128.0f*SHRT_MAX)
 // offX shifts the muzzle sideways: the energy shots fire from the ARMS now
 // (offX = +/-LOFB_ARM_OFFX), aimed from the arm's own position.
 static void LOFB_FireBigShot(enemy_t* enemy, float offX)
@@ -705,9 +725,63 @@ void LOFB_DamageArm(int idx, int dmg)
 	}
 }
 
+// The hull degrades with the HP LOST (0 pristine .. 1 dead), every frame, in
+// both sims alike:
+//  - it REDDENS from a quarter lost: white -> a hot, dark red at 0 HP, with a
+//    slow throb over the last quarter (entity.color, modulated by the renderer);
+//  - it SMOKES from 40 % lost: three vents on the body take turns, the interval
+//    closing from 700 to 250 ms and the puffs growing; from 70 % lost every
+//    other puff is a spark burst;
+//  - a body hit KICKS it (gHitKickMs, read by LOFB_GetShakeOffset) once a
+//    quarter is lost, and from half HP a permanent tremor sets in.
+// The pool budget: body smoke holds at most four puffs (ttl 1 s), the arms two.
+static void LOFB_Degrade(enemy_t* enemy, float lost)
+{
+	float red, throb;
+
+	// A hit this frame: energy went down. (Arm chunks arrive through energy
+	// too -- a blown arm kicks the ship, as it should.)
+	if (enemy->energy < gLastEnergy && lost > 0.25f)
+		gHitKickMs = LOFB_KICK_MS;
+	gLastEnergy = enemy->energy;
+	if (gHitKickMs > 0)
+		gHitKickMs -= timediff;
+
+	// Tint. red ramps 0..1 over lost 0.25..1.0 (smoothstep); the throb is a
+	// pure function of simulationTime, so it cannot drift between sims.
+	red = (lost - 0.25f) / 0.75f;
+	if (red < 0) red = 0;
+	if (red > 1) red = 1;
+	red = red * red * (3.0f - 2.0f * red);
+	throb = (lost > 0.75f) ? (0.92f + 0.08f * sinf(simulationTime * 0.006f)) : 1.0f;
+	enemy->entity.color[R] = 1.0f;
+	enemy->entity.color[G] = (1.0f - 0.62f * red) * throb;
+	enemy->entity.color[B] = (1.0f - 0.72f * red) * throb;
+	enemy->entity.color[A] = 1.0f;
+
+	// Smoke.
+	if (lost >= LOFB_SMOKE_FROM)
+	{
+		float span = (lost - LOFB_SMOKE_FROM) / (1.0f - LOFB_SMOKE_FROM);	// 0..1
+		gBodySmokeMs -= timediff;
+		if (gBodySmokeMs <= 0)
+		{
+			static const float vent[3][2] = { {-0.13f, 0.09f}, {0.10f, 0.13f}, {0.00f, 0.00f} };
+			vec2_t p;
+			p[X] = enemy->ss_position[X] + vent[gBodySmokeIdx][0];
+			p[Y] = enemy->ss_position[Y] + vent[gBodySmokeIdx][1];
+			if (lost >= 0.70f && (gBodySmokeIdx & 1))
+				FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 0.22f + 0.25f * span, 0);
+			FX_GetSmoke(p, 0.16f + 0.16f * span, 0.16f + 0.16f * span);	// (FX_GetSmoke nudges p[Y]; p is ours)
+			gBodySmokeIdx = (gBodySmokeIdx + 1) % 3;
+			gBodySmokeMs  = 700.0f - 450.0f * span;
+		}
+	}
+}
+
 void updateLOFB(enemy_t* enemy)
 {
-	float t;
+	float t, lost, aggr;
 	int hpPct, frenzy;
 
 	enemy->parameters[P_TIME] += timediff;
@@ -763,6 +837,12 @@ void updateLOFB(enemy_t* enemy)
 			gArmSparkTimer = 0;
 			gArmFlashMs[0] = gArmFlashMs[1] = 0;
 			gArmChunkDmg = 0;
+			// Fresh fight: pristine hull.
+			gLastEnergy   = enemy->energy;
+			gHitKickMs    = 0;
+			gBodySmokeMs  = 0;
+			gBodySmokeIdx = 0;
+			enemy->entity.color[R] = enemy->entity.color[G] = enemy->entity.color[B] = enemy->entity.color[A] = 1.0f;
 		}
 		return;
 	}
@@ -789,6 +869,16 @@ void updateLOFB(enemy_t* enemy)
 		LOFB_SetAttackFlag(LOFB_ATTACK_FRENZY,   hpPct <= 25);
 	}
 	frenzy = gAttackOn[LOFB_ATTACK_FRENZY];
+
+	// Degradation: tint, smoke, kick -- and the cadences below shorten with the
+	// damage (aggr 1.0 pristine .. 0.78 at 0 HP), a continuous slope under the
+	// ladder's steps, so the frenzy is a floor the fight slides down to, not a
+	// switch that flips.
+	lost = 1.0f - hpPct / 100.0f;
+	if (lost < 0) lost = 0;
+	if (lost > 1) lost = 1;
+	aggr = 1.0f - LOFB_AGGR_GAIN * lost;
+	LOFB_Degrade(enemy, lost);
 
 	// The mega-laser runs on its own clock, independent of HP phases, so a beam
 	// shows up every ~30-45s whatever the boss's health.
@@ -847,7 +937,7 @@ void updateLOFB(enemy_t* enemy)
 		if (enemy->parameters[P_FAN_CD] <= 0)
 		{
 			LOFB_FireFan(enemy, frenzy ? 5 : 3, 0.22f);
-			enemy->parameters[P_FAN_CD] = frenzy ? 1100 : 1500;
+			enemy->parameters[P_FAN_CD] = (frenzy ? 1100.0f : 1500.0f) * aggr;
 		}
 
 		// Attack 2 (-15%): twin rotating spray, SHAB-style.
@@ -860,7 +950,7 @@ void updateLOFB(enemy_t* enemy)
 				emitSHABBullet(enemy, a);
 				emitSHABBullet(enemy, a + (float)M_PI);
 				enemy->parameters[P_SPIRAL_ANGLE] = a + 0.75f;
-				enemy->parameters[P_SPIRAL_CD] = frenzy ? 170 : 260;
+				enemy->parameters[P_SPIRAL_CD] = (frenzy ? 170.0f : 260.0f) * aggr;
 			}
 		}
 
@@ -895,7 +985,7 @@ void updateLOFB(enemy_t* enemy)
 					want = 1 - want;
 				LOFB_FireBigShot(enemy, (want == 0) ? -LOFB_ARM_OFFX : LOFB_ARM_OFFX);
 				gArmShotSide = -gArmShotSide;
-				enemy->parameters[P_BIGSHOT_CD] = frenzy ? 6000 : 8500;
+				enemy->parameters[P_BIGSHOT_CD] = (frenzy ? 6000.0f : 8500.0f) * aggr;
 			}
 		}
 
@@ -909,7 +999,7 @@ void updateLOFB(enemy_t* enemy)
 			{
 				LOFB_FireMissile(enemy, gSeekerPort * 0.5f);
 				gSeekerPort = -gSeekerPort;
-				gMissileCooldown = LOFB_MISSILE_CD;
+				gMissileCooldown = LOFB_MISSILE_CD * aggr;
 			}
 		}
 	}
@@ -1000,6 +1090,41 @@ void LOFB_ResetLadder(void)
 {
 	gLadderScripted = 0;
 	memset(gAttackOn, 0, sizeof(gAttackOn));
+	gLastEnergy = 0; gHitKickMs = 0; gBodySmokeMs = 0; gBodySmokeIdx = 0;
+}
+
+// Render-only shake, in ss units, added by enemy.c to the boss entity's
+// translation AFTER the hitbox and arm zones were placed from ss_position.
+// Pure function of (HP, gHitKickMs, simulationTime): a tremor that sets in from
+// half HP and grows to LOFB_SHAKE_BASE at 0, plus a kick decaying over
+// LOFB_KICK_MS after a body hit. Two incommensurate sines per axis so it
+// never reads as a wobble on a fixed path.
+void LOFB_GetShakeOffset(const enemy_t* enemy, float* dx, float* dy)
+{
+	float lost, amp, t;
+
+	*dx = *dy = 0;
+	if (!enemy || enemy->type != ENEMY_LOFB || enemy->state != LOFB_STATE_FIGHTING || gBossMaxEnergy <= 0)
+		return;
+
+	lost = 1.0f - (float)enemy->energy / (float)gBossMaxEnergy;
+	if (lost < 0) lost = 0;
+	if (lost > 1) lost = 1;
+
+	amp = 0;
+	if (lost > 0.5f)
+	{
+		float f = (lost - 0.5f) / 0.5f;
+		amp = LOFB_SHAKE_BASE * f * f;	// eases in, so half HP is only a shiver
+	}
+	if (gHitKickMs > 0)
+		amp += LOFB_SHAKE_KICK * (gHitKickMs / LOFB_KICK_MS);
+	if (amp <= 0)
+		return;
+
+	t = (float)simulationTime;
+	*dx = amp * sinf(t * 0.071f) * cosf(t * 0.023f);
+	*dy = amp * sinf(t * 0.053f + 1.3f) * cosf(t * 0.017f);
 }
 
 // The energy the boss will show once its own update has carved off the damage

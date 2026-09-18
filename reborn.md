@@ -211,6 +211,10 @@ game finished (four acts, a boss, an ending); **v2** — four-player multiplayer
   homing missiles, and a **mega-laser** with a readable charge-up telegraph. The
   `boss.png` card announces it at last, and finishing it ends the game for real
   (MISSION COMPLETE card, rank D→S). Player-tested over ~18 rounds of feedback.
+  Since round 70 it **wears its damage**: reddening, smoking, trembling and
+  quickening as its HP goes, all render-side or HP-driven, lockstep-safe; and
+  its big energy shot has a dedicated 192-px sprite instead of a 16-px orb
+  drawn at ×13.
 - **A new level — ✅ Act III, "夕 -Dusk"**, inserted before the boss act. Its own
   title card, a dusk sky with stars and crossing meteors, three phases of
   mixed-type waves the original acts never ran, the resurrection of **"le Devil"**
@@ -377,6 +381,44 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-18 — round 70 (the boss wears its damage; the big shot gets its own sprite)
+- **Fabien's boss notes, the two that were cheap.** He wanted the boss to
+  *show* the fight — "de la fumée, il tremble, il rougit, il devient plus
+  agressif" — and called its big projectile "buggé". Both are done, and both
+  are functions of the HP lost and of `simulationTime` alone, so the two
+  lockstep sims paint the same picture (`lofb.c`, `LOFB_Degrade`):
+  - **it reddens** from a quarter lost — white to a hot dark red at zero,
+    smoothstepped, with a slow throb over the last quarter (`entity.color`,
+    the renderer already modulates enemies by it);
+  - **it smokes** from 40 % lost — three vents on the body take turns, the
+    interval closing from 700 to 250 ms and the puffs growing; past 70 % every
+    other puff is a spark burst. Budget: four body puffs alive at most, the
+    arms' two on top, in a pool of 64;
+  - **it trembles** — a permanent tremor eases in from half HP, and a body hit
+    kicks the ship for 110 ms once a quarter is lost. **Render-only**: `enemy.c`
+    adds the offset to the entity matrix *after* the hitbox and the arm zones
+    were placed from `ss_position`, so the picture shakes and the collision
+    box does not; two incommensurate sines per axis so it never reads as a
+    wobble on a path;
+  - **it gets meaner** — the fan, the spray, the big shot and the seekers'
+    cooldowns shorten continuously with the damage, up to 22 % at zero, *under*
+    the ladder's steps: the frenzy is a floor the fight slides down to, not a
+    switch that flips. The scripted ladder in `final.scene` is untouched.
+- **The "buggy" big projectile** was the 16-px SHAB orb drawn thirteen times
+  its size: a bilinear blur, framed by the half-texel bleed of the cells next
+  to it (a white ball on one side, a blue orb on the other). It has **its own
+  sprite** now: `tools/cards/make_bullets.ps1` takes the bullet atlas to 512
+  (×4 bicubic, glows left soft) and paints a 192-px plasma orb natively in a
+  48×48 region that was never used, with a transparent gutter; `lofb.c` reads
+  it at those UVs. Every other consumer already addressed the atlas in
+  fractions, so nothing else moved. Both `.c` files compile clean under
+  `zig cc -Wall -Wextra` on the Windows host before the push; the strict iOS
+  build is the proof.
+- **Not done, and said so**: the skeletal arm animation. `lofb.obj.md5mesh`
+  has a single joint and the engine has no `md5anim` loader; the destructible
+  arms are hit zones on a rigid mesh. That is a v5 item — a rig, a loader and
+  skinning in the Metal path — not a round.
 
 ### 2026-09-18 — round 69 (the ball, half the size)
 - **"Je n'aime pas du tout le rendu des boules jaunes. Elles sont trop

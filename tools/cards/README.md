@@ -74,3 +74,17 @@ came out a single blot and Hope shows 望 alone.
 `menu_mock.ps1` renders the act-select screen from the real atlas, the real
 button sprite and the geometry copied out of `menu.c` — the cheapest way to
 see a menu change without a Simulator.
+
+## The bullet atlas and the boss's big shot (`make_bullets.ps1`)
+
+`spritesBullets.png` is the 2009 sheet every shot in the game is cut from:
+128×128, cells of 16×32. The boss's big energy shot used to borrow the 16-px
+SHAB orb at (80,0) and draw it at 0.22 screen units, thirteen times its size on
+a 3× phone: a bilinear blur, framed by the half-texel bleed of the cells next to
+it. `make_bullets.ps1` upscales the sheet ×4 (bicubic, nothing re-thresholded:
+glows are meant to be soft) and paints the big shot **its own 192-px orb**,
+natively, in the 48×48 region at (32,32) that was never used, with an 8-px
+transparent gutter. `lofb.c` reads it at UV (32,32)+(48,48)/128; every other
+consumer already addressed the atlas in fractions, so nothing else moved. The
+script refuses a source that is not 128 px, so the sheet is never upscaled
+twice; it also writes a before/after mock of the two orbs at 208 px.

@@ -66,6 +66,11 @@ void LOFB_SetAttack(int which, int on);			// from a rule; makes the ladder scrip
 int  LOFB_EffectiveEnergy(const enemy_t* enemy);	// energy after the arm chunk it still owes (rules parity)
 void LOFB_ResetLadder(void);					// at scene load: thresholds again, all off
 
+// Render-only shake of the boss mesh (ss units): a pure function of HP, the
+// last body hit and simulationTime. enemy.c adds it to the entity translation
+// after the hitbox was placed, so nothing but the picture trembles.
+void LOFB_GetShakeOffset(const enemy_t* enemy, float* dx, float* dy);
+
 // Boss health for the HUD: returns 1 (and fills energy/maxEnergy) while a boss
 // fight is live on-screen, 0 otherwise. The HUD draws it as a real graphical
 // bar (colored quads) -- the old text-glyph bar proved unreliable on device.

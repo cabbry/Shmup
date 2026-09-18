@@ -368,8 +368,23 @@ void ENE_Update(void)
 			vectorAdd(translationTransform,translationForwardTransform,	translationTransform) ;
 			vectorAdd(translationTransform,translationRightTransform,	translationTransform) ;
 			vectorAdd(translationTransform,translationUpTransform,		translationTransform) ;
-	
-	
+
+			// The boss trembles as it degrades: a render-only offset, applied
+			// here AFTER ENE_UpdateSSBoundaries placed the hitbox from
+			// ss_position -- the picture shakes, the collision box does not.
+			if (enemy->type == ENEMY_LOFB)
+			{
+				float shakeX, shakeY;
+				LOFB_GetShakeOffset(enemy, &shakeX, &shakeY);
+				if (shakeX != 0 || shakeY != 0)
+				{
+					vectorScale(camera.right, shakeX * widthAtDistance,  translationRightTransform);
+					vectorScale(camera.up,    shakeY * heightAtDistance, translationUpTransform);
+					vectorAdd(translationTransform, translationRightTransform, translationTransform);
+					vectorAdd(translationTransform, translationUpTransform,    translationTransform);
+				}
+			}
+
 			entity->matrix[12] = translationTransform[X] ;
 			entity->matrix[13] = translationTransform[Y] ;
 			entity->matrix[14] = translationTransform[Z] ;

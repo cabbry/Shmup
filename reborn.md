@@ -339,7 +339,11 @@ order, each step a build:
    (circles from the mesh, carried by the bone; a wreck does not block), the
    crook above the forearm is carved open, and the laser's sweep is clamped
    so it never reaches it.
-6. Later, if Fabien wants to author in Blender: an `md5anim` loader.
+6. **Torn off, and the pincer** — done, round 76: the rig is a hard cut with
+   the seam duplicated, a destroyed arm tumbles off and the stump sparks,
+   and both arms snap shut after the laser and at pseudo-random intervals,
+   never during the laser.
+7. Later, if Fabien wants to author in Blender: an `md5anim` loader.
 
 ### Open — carried over
 
@@ -406,6 +410,38 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-19 — round 76 (the arm torn off, the stump sparking, and the pincer)
+- **"Si un bras est détruit il faudrait carrément l'arracher"** — and the
+  round-74 fold was there precisely because a torn arm would have dragged
+  the shoulder blend into spikes. So the rig changed: **a hard cut with the
+  seam duplicated.** `rig_lofb.ps1` gives every vertex one bone and makes
+  every triangle that straddled the cut single-sided by duplicating its
+  minority vertex onto the majority side (48 duplicates, 68 seam
+  triangles). Body and arms are three shells that coincide at rest — the
+  harness checks all 4,434 triangle corners against the original's geometry
+  and UVs, and the rest positions to 2e-6 — and an arm bone can go anywhere
+  without pulling a body triangle. The price: a lighting crease along the
+  shoulder, confined to 2.7 units of the cut (measured), where a mech's
+  joint has one anyway. The two-weight blend is gone; ±6° of idle swing
+  never needed it.
+- **Torn off.** A destroyed arm tumbles outward and down the screen for
+  1.2 s, accelerating and rolling over, then is parked far below any screen.
+  **The stump sparks**: from the shoulder pivot, mapped to the screen through
+  the same width- and height-at-depth as the solids, a burst, a second
+  smaller one jittered deterministically off the pivot, and a smoke puff,
+  every 320 ms for the rest of the fight. No solids, no crook on that side
+  (round 75).
+- **The pincer** (Fabien's idea, the tester's timing). Both live arms swing
+  open 18° over 400 ms — the telegraph — then snap shut to 60° in 350 ms
+  (cubic ease-in, a bang), hold 250 ms, return over 600 ms. The solids ride
+  the bones, so a ship that does not back off is caught; the claws meet
+  under the body. It fires 300 ms after every mega-laser (the ship is often
+  parked in a crook), and now and then at a pseudo-random interval of 8 to
+  15 s — a hash of `simulationTime` and the boss's energy at scheduling, the
+  same in both lockstep sims — **never while the laser charges, fires, or is
+  due within 3 s**, and if the laser's clock arrives mid-pinch the arms
+  return at once. The crook would otherwise be a trap.
 
 ### 2026-09-19 — round 75 (the arms are solid, and the crook is guaranteed)
 - **The tester's point**: the ship used to fly *through* the boss's arms —

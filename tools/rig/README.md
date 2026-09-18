@@ -7,7 +7,11 @@ reads any number of joints (parent, position, orientation), several weights
 per vertex, and `MD5_GenerateSkin(mesh, bones)` re-skins every vertex and
 normal from whatever bone array it is handed. So the arms need a **rig**, not
 a new model, and no Blender: the boss is symmetric, 45.7 units wide, and its
-two claw arms are the vertices beyond |X| = 8.
+two claw arms are the vertices beyond |**Round 76: a hard cut, seam duplicated.** Every vertex has one bone; every
+triangle that straddled the cut is made single-sided by duplicating its
+minority vertex onto the majority side (48 duplicates, 68 seam triangles), so
+body and arms are three shells that coincide at rest and a torn-off arm pulls
+no body triangle. The earlier two-weight blend is gone. Bones are written at identity| = 8.
 
 ## `rig_lofb.ps1`
 

@@ -7,30 +7,35 @@
 # So the arms only need a RIG, not a new model, and the rig is a cut:
 #
 #   bone 0  origin  parent -1  at (0,0,0)          the body, |X| < CUT
-#   bone 1  armL    parent  0  at (-PIVOT_X, PIVOT_Y, PIVOT_Z)   X < -CUT
-#   bone 2  armR    parent  0  at (+PIVOT_X, PIVOT_Y, PIVOT_Z)   X > +CUT
+#   bone 1  armL    parent  0  at (-PIVOT_X, PIVOT_Y, PIVOT_Z)   X <= -CUT
+#   bone 2  armR    parent  0  at (+PIVOT_X, PIVOT_Y, PIVOT_Z)   X >= +CUT
 #
 # The boss is symmetric, 45.7 units wide; its two claw arms are the vertices
 # beyond |X| = 8 (189 a side), the shoulder band 7..9 sits around (8.5, 5.3,
-# -5.3) -- measured in round 72. Across |X| = CUT-BLEND .. CUT+BLEND a vertex
-# carries TWO weights, body (1-t) and arm (t), t linear in |X|, so the shoulder
-# bends instead of tearing when the arm bone rotates.
+# -5.3) -- measured in round 72.
 #
-# In the rest pose (arm bones at identity) the rigged mesh must skin to the
-# original vertices: rig_check.c proves it with the engine's own md5.c, and
-# also swings one arm to see that only its vertices move.
+# A HARD cut, with the seam DUPLICATED (round 76). The first rig blended the
+# shoulder over |X| = 6..10 with two weights per vertex, which bends nicely
+# but ties the arm to the body for ever: a torn-off arm would drag the
+# shoulder triangles into spikes. So every vertex now belongs to exactly one
+# bone, and every triangle that straddled the cut is made single-sided: its
+# minority vertex is duplicated onto the majority side (same UV, that side's
+# bone). Body and arms become three disconnected shells that coincide at rest
+# -- the picture is the 2010 one to the last vertex, rig_check proves it --
+# and an arm bone can go anywhere without pulling a single body triangle. The
+# joint shows a hairline when the arm swings; a mech's shoulder does.
 #
 # All bones are written at identity orientation, so a weight's bone-space
-# position is simply (vertex - pivot). Output keeps the vertex and triangle
-# order of the source; only the weights are rewritten. Culture-invariant
-# number handling: this runs on a French Windows.
+# position is simply (vertex - pivot). The source's vertex order is kept, the
+# duplicates are appended; triangles are rewritten only where they crossed.
+# Culture-invariant number handling: this runs on a French Windows. LF line
+# endings so the committed file is byte-identical to what CI regenerates.
 #
 # Usage: powershell -File tools/rig/rig_lofb.ps1
 param(
   [string]$Source = "E:\Projects\Shmup\data\data\models\enemies\lofb.obj.md5mesh",
   [string]$Target = "E:\Projects\Shmup\data\data\models\enemies\lofb_rigged.md5mesh",
   [double]$Cut = 8.0,
-  [double]$Blend = 2.0,
   [double]$PivotX = 8.5,
   [double]$PivotY = 5.3,
   [double]$PivotZ = -5.3
@@ -58,35 +63,50 @@ if ($numJoints -ne 1) { throw "rig_lofb: $Source has numJoints $numJoints, expec
 foreach ($vertex in $verts) { if ($vertex.count -ne 1) { throw "rig_lofb: vertex $($vertex.id) has $($vertex.count) weights, expected 1" } }
 "source: $($verts.Count) verts, $($tris.Count) tris, $($weights.Count) weights, shader '$shader'"
 
-# --- rewrite the weights ------------------------------------------------------
-$outWeights = New-Object System.Collections.Generic.List[string]
-$outVerts   = New-Object System.Collections.Generic.List[string]
-$countBody = 0; $countArmL = 0; $countArmR = 0; $countBlend = 0
+# --- sides ------------------------------------------------------------------
+# side 0 = body, 1 = armL, 2 = armR (== the bone index)
+$side = New-Object int[] $verts.Count
+$pos  = @{}
 foreach ($vertex in $verts) {
   $src = $weights[$vertex.start]
-  $ax = [Math]::Abs($src.x)
-  $armBias = ($ax - ($Cut - $Blend)) / (2.0 * $Blend)
-  if ($armBias -lt 0) { $armBias = 0 }; if ($armBias -gt 1) { $armBias = 1 }
-  $armBone = 0; $pivX = 0.0
-  if ($src.x -lt 0) { $armBone = 1; $pivX = -$PivotX } else { $armBone = 2; $pivX = $PivotX }
-  $start = $outWeights.Count
-  $count = 0
-  if ($armBias -lt 1) {
-    $outWeights.Add(" weight $($outWeights.Count) 0 $(Fmt (1.0 - $armBias)) ( $(Fmt $src.x) $(Fmt $src.y) $(Fmt $src.z) ) ")
-    $count++
+  $pos[$vertex.id] = $src
+  if ($src.x -le -$Cut) { $side[$vertex.id] = 1 } elseif ($src.x -ge $Cut) { $side[$vertex.id] = 2 } else { $side[$vertex.id] = 0 }
+}
+
+# --- the seam: duplicate the minority vertex of every straddling triangle ----
+$outVertexList = New-Object System.Collections.Generic.List[object]   # {s, t, bone, x, y, z} in output order
+foreach ($vertex in $verts) {
+  $src = $pos[$vertex.id]
+  $outVertexList.Add([pscustomobject]@{ s=$vertex.s; t=$vertex.t; bone=$side[$vertex.id]; x=$src.x; y=$src.y; z=$src.z })
+}
+$dupIndex = @{}    # "vertexId|bone" -> output index of the duplicate
+$seamTris = 0
+$outTris = New-Object System.Collections.Generic.List[object]
+foreach ($tri in $tris) {
+  $ids = @($tri.a, $tri.b, $tri.c)
+  $sides = @($side[$tri.a], $side[$tri.b], $side[$tri.c])
+  if (($sides[0] -eq $sides[1]) -and ($sides[1] -eq $sides[2])) { $outTris.Add(@($tri.a, $tri.b, $tri.c)); continue }
+  $seamTris++
+  # majority side: the one that appears twice
+  $majority = if ($sides[0] -eq $sides[1]) { $sides[0] } elseif ($sides[0] -eq $sides[2]) { $sides[0] } else { $sides[1] }
+  $newIds = @(0, 0, 0)
+  for ($corner = 0; $corner -lt 3; $corner++) {
+    if ($sides[$corner] -eq $majority) { $newIds[$corner] = $ids[$corner]; continue }
+    $key = "$($ids[$corner])|$majority"
+    if (-not $dupIndex.ContainsKey($key)) {
+      $srcVertex = $verts[$ids[$corner]]; $src = $pos[$ids[$corner]]
+      $outVertexList.Add([pscustomobject]@{ s=$srcVertex.s; t=$srcVertex.t; bone=$majority; x=$src.x; y=$src.y; z=$src.z })
+      $dupIndex[$key] = $outVertexList.Count - 1
+    }
+    $newIds[$corner] = $dupIndex[$key]
   }
-  if ($armBias -gt 0) {
-    $outWeights.Add(" weight $($outWeights.Count) $armBone $(Fmt $armBias) ( $(Fmt ($src.x - $pivX)) $(Fmt ($src.y - $PivotY)) $(Fmt ($src.z - $PivotZ)) ) ")
-    $count++
-  }
-  if ($armBias -eq 0) { $countBody++ } elseif ($armBias -eq 1) { if ($armBone -eq 1) { $countArmL++ } else { $countArmR++ } } else { $countBlend++ }
-  $outVerts.Add(" vert $($vertex.id) ( $($vertex.s) $($vertex.t) ) $start $count ")
+  $outTris.Add($newIds)
 }
 
 # --- write --------------------------------------------------------------------
 $out = New-Object System.Collections.Generic.List[string]
 $out.Add("MD5Version 10")
-$out.Add("commandline `"tools/rig/rig_lofb.ps1 -- cut $Cut blend $Blend pivot ($PivotX $PivotY $PivotZ)`"")
+$out.Add("commandline `"tools/rig/rig_lofb.ps1 -- hard cut $Cut, seam duplicated, pivot ($PivotX $PivotY $PivotZ)`"")
 $out.Add("")
 $out.Add("numJoints 3")
 $out.Add("numMeshes 1")
@@ -99,13 +119,27 @@ $out.Add("}")
 $out.Add("")
 $out.Add("mesh {")
 $out.Add("`tshader `"$shader`"")
-$out.Add("`tnumverts $($outVerts.Count) ")
-foreach ($entry in $outVerts) { $out.Add($entry) }
-$out.Add("`tnumtris $($tris.Count)")
-foreach ($tri in $tris) { $out.Add(" tri $($tri.id) $($tri.a) $($tri.b) $($tri.c) ") }
-$out.Add("`tnumweights $($outWeights.Count)")
-foreach ($entry in $outWeights) { $out.Add($entry) }
+$out.Add("`tnumverts $($outVertexList.Count) ")
+for ($index = 0; $index -lt $outVertexList.Count; $index++) {
+  $entry = $outVertexList[$index]
+  $out.Add(" vert $index ( $($entry.s) $($entry.t) ) $index 1 ")
+}
+$out.Add("`tnumtris $($outTris.Count)")
+for ($index = 0; $index -lt $outTris.Count; $index++) {
+  $entry = $outTris[$index]
+  $out.Add(" tri $index $($entry[0]) $($entry[1]) $($entry[2]) ")
+}
+$out.Add("`tnumweights $($outVertexList.Count)")
+$countBody = 0; $countArmL = 0; $countArmR = 0
+for ($index = 0; $index -lt $outVertexList.Count; $index++) {
+  $entry = $outVertexList[$index]
+  $pivX = 0.0; $pivY = 0.0; $pivZ = 0.0
+  if ($entry.bone -eq 1) { $pivX = -$PivotX; $pivY = $PivotY; $pivZ = $PivotZ; $countArmL++ }
+  elseif ($entry.bone -eq 2) { $pivX = $PivotX; $pivY = $PivotY; $pivZ = $PivotZ; $countArmR++ }
+  else { $countBody++ }
+  $out.Add(" weight $index $($entry.bone) 1.000000 ( $(Fmt ($entry.x - $pivX)) $(Fmt ($entry.y - $pivY)) $(Fmt ($entry.z - $pivZ)) ) ")
+}
 $out.Add("}")
 [System.IO.File]::WriteAllText($Target, ($out -join "`n") + "`n", (New-Object System.Text.ASCIIEncoding))
 "wrote $Target"
-"bones: body $countBody, armL $countArmL, armR $countArmR, blended $countBlend (two weights each) -> $($outWeights.Count) weights"
+"bones: body $countBody, armL $countArmL, armR $countArmR vertices ($($outVertexList.Count - $verts.Count) duplicated along the seam, $seamTris seam triangles made single-sided)"

@@ -55,7 +55,7 @@ int main(void)
 {
 	md5_mesh_t orig, rig;
 	int i, moved, still, blendMoved;
-	float maxPos = 0, maxDist = 0;
+	float maxPos = 0, maxDist = 0, seamBand = 0;
 	int maxNrm = 0;
 
 	FS_InitFilesystem();
@@ -67,12 +67,26 @@ int main(void)
 	printf("original: %d joints %d verts %d weights\n", orig.numBones, orig.numVertices, orig.numWeights);
 	printf("rigged:   %d joints %d verts %d weights\n", rig.numBones, rig.numVertices, rig.numWeights);
 	CHECK(rig.numBones == 3, "rigged mesh has %d bones, expected 3", rig.numBones);
-	CHECK(rig.numVertices == orig.numVertices, "vertex count differs");
-	CHECK(rig.numIndices == orig.numIndices, "index count differs");
-	for (i = 0; i < orig.numIndices && i < rig.numIndices; i++)
-		if (orig.indices[i] != rig.indices[i]) { CHECK(0, "index %d differs", i); break; }
+	CHECK(rig.numVertices >= orig.numVertices, "the rig lost vertices (%d < %d)", rig.numVertices, orig.numVertices);
+	CHECK(rig.numIndices == orig.numIndices, "triangle count differs");
+	/* Round 76: the seam is duplicated, so indices may point at a copy; the
+	 * GEOMETRY of every triangle corner must still be the original's. */
+	{
+		int bad = 0;
+		for (i = 0; i < orig.numIndices && i < rig.numIndices; i++)
+		{
+			const vertex_t* a = &orig.vertexArray[orig.indices[i]];
+			const vertex_t* b = &rig.vertexArray[rig.indices[i]];
+			if (fabsf(a->pos[0] - b->pos[0]) > 1e-4f || fabsf(a->pos[1] - b->pos[1]) > 1e-4f || fabsf(a->pos[2] - b->pos[2]) > 1e-4f ||
+				a->text[0] != b->text[0] || a->text[1] != b->text[1])
+				bad++;
+		}
+		printf("triangles: %d corners, %d with a geometry or UV that is not the original's (%d vertices were duplicated along the seam)\n",
+			   rig.numIndices, bad, rig.numVertices - orig.numVertices);
+		CHECK(bad == 0, "%d triangle corners differ from the original", bad);
+	}
 
-	/* 1. rest pose */
+	/* 1. rest pose (the first N vertices are the originals, in order) */
 	for (i = 0; i < orig.numVertices; i++)
 	{
 		int k;
@@ -81,13 +95,18 @@ int main(void)
 			float d = fabsf(orig.vertexArray[i].pos[k] - rig.vertexArray[i].pos[k]);
 			if (d > maxPos) maxPos = d;
 			int dn = abs((int)orig.vertexArray[i].normal[k] - (int)rig.vertexArray[i].normal[k]);
-			if (dn > maxNrm) maxNrm = dn;
+			/* Round 76: a seam vertex now sees only its side's triangles, so its
+			 * normal legitimately differs -- a lighting crease at the shoulder
+			 * joint. Away from the cut the normals must be the original's. */
+			if (dn > 2) { float far = fabsf(fabsf(orig.vertexArray[i].pos[0]) - CUT); if (far > seamBand) seamBand = far; }
+			if (fabsf(fabsf(orig.vertexArray[i].pos[0]) - CUT) > 5.0f && dn > maxNrm) maxNrm = dn;
 		}
 		CHECK(orig.vertexArray[i].text[0] == rig.vertexArray[i].text[0] && orig.vertexArray[i].text[1] == rig.vertexArray[i].text[1], "uv of vertex %d differs", i);
 	}
-	printf("rest pose: max position deviation %.3g units, max normal deviation %d/32767\n", maxPos, maxNrm);
+	printf("rest pose: max position deviation %.3g units; normals differ only within %.1f units of the cut (the seam's lighting crease), max deviation beyond 5 units %d/32767\n", maxPos, seamBand, maxNrm);
 	CHECK(maxPos < 1e-4f, "rest pose positions deviate by %.3g", maxPos);
-	CHECK(maxNrm <= 2, "rest pose normals deviate by %d", maxNrm);
+	CHECK(maxNrm <= 2, "rest pose normals deviate by %d away from the seam", maxNrm);
+	CHECK(seamBand < 6.0f, "the seam's lighting crease reaches %.1f units from the cut", seamBand);
 
 	/* 2. swing armR by 30 degrees */
 	{
@@ -98,33 +117,31 @@ int main(void)
 		quatAboutY(30.0f, bones[2].orientation);
 		MD5_GenerateSkin(&rig, bones);
 
+		/* Round 76: one weight per vertex, so a vertex's side is its bone. */
 		moved = still = blendMoved = 0;
 		for (i = 0; i < rig.numVertices; i++)
 		{
+			int bone = rig.weights[rig.vertices[i].start].boneId;
 			float x = rest[i].pos[0];
 			float dx = rig.vertexArray[i].pos[0] - rest[i].pos[0];
 			float dy = rig.vertexArray[i].pos[1] - rest[i].pos[1];
 			float dz = rig.vertexArray[i].pos[2] - rest[i].pos[2];
 			float d = sqrtf(dx*dx + dy*dy + dz*dz);
 			if (d > maxDist) maxDist = d;
-			if (fabsf(x) < CUT - BLEND || x < 0)		/* body, armL side, and every blended vertex on the left */
-				CHECK(d < 1e-5f, "vertex %d (x=%.2f) moved %.3g with armR swung", i, x, d);
-			else if (x > CUT + BLEND)					/* pure armR */
-			{
-				if (d > 1e-3f) moved++; else still++;
-			}
-			else if (d > 1e-5f) blendMoved++;			/* right shoulder blend */
-			if (x > CUT + BLEND)
+			CHECK(rig.vertices[i].count == 1, "vertex %d has %d weights, expected 1 (hard cut)", i, rig.vertices[i].count);
+			if (bone != 2)								/* body and armL, wherever they sit (seam copies included) */
+				CHECK(d < 1e-5f, "vertex %d (bone %d, x=%.2f) moved %.3g with armR swung", i, bone, x, d);
+			else
 			{
 				float nx = rig.vertexArray[i].normal[0] / 32767.0f, ny = rig.vertexArray[i].normal[1] / 32767.0f, nz = rig.vertexArray[i].normal[2] / 32767.0f;
 				float len = sqrtf(nx*nx + ny*ny + nz*nz);
+				if (d > 1e-3f) moved++; else still++;
 				CHECK(fabsf(len - 1.0f) < 0.01f, "vertex %d normal length %.3f after swing", i, len);
 			}
 		}
-		printf("swing armR 30 deg: %d arm vertices moved, %d did not; %d shoulder vertices moved partially; farthest %.2f units\n", moved, still, blendMoved, maxDist);
-		CHECK(still == 0, "%d pure-armR vertices did not move", still);
-		CHECK(moved > 100, "only %d armR vertices moved", moved);
-		CHECK(blendMoved > 50, "only %d shoulder vertices blended", blendMoved);
+		printf("swing armR 30 deg: %d armR vertices moved, %d did not; nothing else moved; farthest %.2f units\n", moved, still, maxDist);
+		CHECK(still == 0, "%d armR vertices did not move", still);
+		CHECK(moved > 150, "only %d armR vertices moved", moved);
 		free(bones); free(rest);
 	}
 

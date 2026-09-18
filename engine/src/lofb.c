@@ -215,6 +215,43 @@ static int        gPoseBonesValid = 0;	// gPoseBones holds a copy of the current
 static float      gArmRecoilMs[2] = {0, 0};	// per arm: ms left in the big-shot recoil
 static int        gArmDeadAt[2]   = {-1, -1};	// per arm: simulationTime of destruction, -1 alive
 static float      gBossSS[2]      = {0, 0};	// the boss's ss position, stamped by updateLOFB (for the arm solids)
+static vec3_t     gRestPivot[2];			// the arm bones' rest positions (from the mesh), for the tear-off offsets
+
+// TORN OFF (round 76, the tester: "si un bras est détruit il faudrait
+// carrément l'arracher, et des étincelles sortant du corps à l'emplacement du
+// bras"). The mesh is now CUT at the shoulder (tools/rig, seam duplicated), so
+// an arm bone can leave without dragging a body triangle: over
+// LOFB_ARM_TEAR_MS the dead arm tumbles outward and down the screen,
+// accelerating, then is parked far below the screen. The stump sparks and
+// smokes from the shoulder pivot for the rest of the fight.
+#define LOFB_ARM_TEAR_MS		1200.0f
+#define LOFB_ARM_TEAR_DROP		60.0f	// mesh units down the screen at the end of the tumble
+#define LOFB_ARM_TEAR_OUT		10.0f	// ... and outward
+#define LOFB_ARM_PARKED_Z		4000.0f	// where a torn arm waits (off any screen)
+
+// THE PINCER (Fabien's idea, the tester's timing): both live arms swing open
+// (the telegraph), then SNAP shut in front of the body, hold, and return. The
+// solids ride the bones, so a ship that does not back off is caught. It fires
+// right after the mega-laser (the ship is often parked in a crook) and now and
+// then at a pseudo-random interval -- never while the laser charges or fires,
+// or the crook would be a trap. Pseudo-random = a hash of simulationTime and
+// the boss's energy at scheduling: the same in both lockstep sims.
+#define LOFB_PINCH_OPEN_MS		400.0f
+#define LOFB_PINCH_SNAP_MS		350.0f
+#define LOFB_PINCH_HOLD_MS		250.0f
+#define LOFB_PINCH_RETURN_MS	600.0f
+#define LOFB_PINCH_OPEN_DEG		-18.0f	// wider than rest (negative swing = outward)
+#define LOFB_PINCH_SHUT_DEG		60.0f	// the claws meet under the body
+#define LOFB_PINCH_AFTER_LASER_MS 300.0f
+#define LOFB_PINCH_MIN_GAP_MS	8000
+#define LOFB_PINCH_RAND_MS		7000
+#define LOFB_PINCH_LASER_GUARD_MS 3000.0f	// no pinch if the laser is due within this
+enum { PINCH_OFF = 0, PINCH_OPEN, PINCH_SNAP, PINCH_HOLD, PINCH_RETURN };
+static int   gPinchState   = PINCH_OFF;
+static float gPinchTimer   = 0;		// ms in the current state
+static int   gPinchNextAt  = 0;		// simulationTime of the next random pinch
+static int   gPinchRequestAt = -1;	// simulationTime at which a pinch was asked for (after the laser), -1 none
+static float gPinchSwing   = 0;		// the swing the pinch adds to both live arms this frame (deg)
 
 // SOLID ARMS (v5, the tester: "avant on pouvait traverser les bras avec le
 // vaisseau; maintenant qu'ils bougent il ne faut plus, mais le laser ne doit
@@ -423,6 +460,8 @@ static void LOFB_PoseArms(enemy_t* enemy)
 	if (!gPoseBonesValid)
 	{
 		memcpy(gPoseBones, mesh->bones, sizeof(gPoseBones));
+		vectorCopy(mesh->bones[1].position, gRestPivot[0]);
+		vectorCopy(mesh->bones[2].position, gRestPivot[1]);
 		gPoseBonesValid = 1;
 		LOFB_BuildArmSolids(mesh);	// from the rest skin the loader left in vertexArray
 	}
@@ -430,25 +469,32 @@ static void LOFB_PoseArms(enemy_t* enemy)
 	for (k = 0; k < 2; k++)
 	{
 		float mirror = (k == 0) ? 1.0f : -1.0f;	// the left claw opens the other way
+		float sign   = (k == 0) ? -1.0f : 1.0f;	// outward along mesh X
 		float swing, tilt;
 		quat4_t qy, qx;
 
+		vectorCopy(gRestPivot[k], gPoseBones[1 + k].position);	// a live arm turns about its shoulder
 		if (gArmRecoilMs[k] > 0) gArmRecoilMs[k] -= timediff;
 
 		if (gArmDeadAt[k] >= 0)
 		{
-			// wreck: fold, then hang limp
+			// TORN OFF: tumble outward and down for LOFB_ARM_TEAR_MS, then park
+			// far below the screen. The stump's sparks live in updateLOFB.
 			float since = (float)(simulationTime - gArmDeadAt[k]);
-			float f = since / LOFB_ARM_WRECK_FOLD_MS;
+			float f = since / LOFB_ARM_TEAR_MS;
 			if (f > 1) f = 1;
-			f = 1.0f - (1.0f - f) * (1.0f - f);	// ease-out
-			tilt  = LOFB_ARM_WRECK_DEG * f + 4.0f * sinf(t * 0.0044f + k) * f;
-			swing = 8.0f * f * sinf(t * 0.0031f + 2.0f * k);
+			gPoseBones[1 + k].position[0] += sign * LOFB_ARM_TEAR_OUT * f;
+			gPoseBones[1 + k].position[2] += LOFB_ARM_TEAR_DROP * f * f;		// accelerating fall
+			if (since >= LOFB_ARM_TEAR_MS)
+				gPoseBones[1 + k].position[2] += LOFB_ARM_PARKED_Z;
+			tilt  = 140.0f * f;											// tumbles over
+			swing = 70.0f * f;											// and folds inward as it goes
 		}
 		else
 		{
 			swing = LOFB_ARM_IDLE_DEG * sinf(t * (float)(2 * M_PI) / 4000.0f + 0.6f * k);
 			tilt  = 2.0f * sinf(t * (float)(2 * M_PI) / 2300.0f + 1.1f * k);
+			swing += gPinchSwing;											// the pincer, both live arms alike
 			if (gArmRecoilMs[k] > 0)
 			{
 				float r = gArmRecoilMs[k] / LOFB_ARM_RECOIL_MS;	// 1 at the shot, 0 at rest
@@ -893,6 +939,7 @@ static void LOFB_UpdateLaser(enemy_t* enemy)
 		{
 			gLaserState    = LOFB_LASER_OFF;
 			gLaserCooldown = LOFB_LASER_PERIOD_MS;
+			gPinchRequestAt = simulationTime + (int)LOFB_PINCH_AFTER_LASER_MS;	// round 76: the pincer follows the beam
 		}
 	}
 }
@@ -1057,6 +1104,76 @@ void LOFB_DamageArm(int idx, int dmg)
 	}
 }
 
+// The pincer's state machine, advanced once per frame while FIGHTING. Sets
+// gPinchSwing for LOFB_PoseArms. See the constants above for the beats.
+static float LOFB_EaseIn(float f)  { return f * f * f; }
+static float LOFB_EaseOut(float f) { return 1.0f - (1.0f - f) * (1.0f - f); }
+static void LOFB_UpdatePinch(enemy_t* enemy)
+{
+	int liveArms = (gArmAlive[0] && gArmDeadAt[0] < 0) + (gArmAlive[1] && gArmDeadAt[1] < 0);
+	int laserBusy = (gLaserState != LOFB_LASER_OFF) || (gLaserCooldown < LOFB_PINCH_LASER_GUARD_MS);
+
+	gPinchSwing = 0;
+	if (enemy->state != LOFB_STATE_FIGHTING || liveArms == 0)
+	{
+		gPinchState = PINCH_OFF;
+		return;
+	}
+
+	// Start: asked for after the laser, or the random clock -- never with the
+	// laser up or imminent.
+	if (gPinchState == PINCH_OFF && !laserBusy)
+	{
+		int wanted = (gPinchRequestAt >= 0 && simulationTime >= gPinchRequestAt) || (simulationTime >= gPinchNextAt);
+		if (wanted)
+		{
+			unsigned h = (unsigned)simulationTime * 2654435761u + (unsigned)enemy->energy * 97u;
+			gPinchState = PINCH_OPEN; gPinchTimer = 0;
+			gPinchRequestAt = -1;
+			gPinchNextAt = simulationTime + LOFB_PINCH_MIN_GAP_MS + (int)((h >> 8) % LOFB_PINCH_RAND_MS);
+			if (Log_ProbesEnabled())
+				Log_Printf("[boss] t=%d pinch: open (next random at %d)\n", simulationTime, gPinchNextAt);
+		}
+	}
+	// The laser wants the stage: whatever the pinch was doing, it returns.
+	if (gPinchState != PINCH_OFF && gPinchState != PINCH_RETURN && gLaserState != LOFB_LASER_OFF)
+	{
+		gPinchState = PINCH_RETURN; gPinchTimer = 0;
+	}
+
+	switch (gPinchState)
+	{
+	case PINCH_OPEN:
+		gPinchTimer += timediff;
+		gPinchSwing = LOFB_PINCH_OPEN_DEG * LOFB_EaseOut(gPinchTimer / LOFB_PINCH_OPEN_MS > 1 ? 1 : gPinchTimer / LOFB_PINCH_OPEN_MS);
+		if (gPinchTimer >= LOFB_PINCH_OPEN_MS) { gPinchState = PINCH_SNAP; gPinchTimer = 0; SND_PlaySound(SND_EXPLOSION); }
+		break;
+	case PINCH_SNAP:
+		gPinchTimer += timediff;
+		{
+			float f = gPinchTimer / LOFB_PINCH_SNAP_MS; if (f > 1) f = 1;
+			gPinchSwing = LOFB_PINCH_OPEN_DEG + (LOFB_PINCH_SHUT_DEG - LOFB_PINCH_OPEN_DEG) * LOFB_EaseIn(f);
+		}
+		if (gPinchTimer >= LOFB_PINCH_SNAP_MS) { gPinchState = PINCH_HOLD; gPinchTimer = 0; }
+		break;
+	case PINCH_HOLD:
+		gPinchTimer += timediff;
+		gPinchSwing = LOFB_PINCH_SHUT_DEG;
+		if (gPinchTimer >= LOFB_PINCH_HOLD_MS) { gPinchState = PINCH_RETURN; gPinchTimer = 0; }
+		break;
+	case PINCH_RETURN:
+		gPinchTimer += timediff;
+		{
+			float f = gPinchTimer / LOFB_PINCH_RETURN_MS; if (f > 1) f = 1;
+			gPinchSwing = LOFB_PINCH_SHUT_DEG * (1.0f - LOFB_EaseOut(f));
+		}
+		if (gPinchTimer >= LOFB_PINCH_RETURN_MS) { gPinchState = PINCH_OFF; gPinchSwing = 0; }
+		break;
+	default:
+		break;
+	}
+}
+
 // The hull degrades with the HP LOST (0 pristine .. 1 dead), every frame, in
 // both sims alike:
 //  - it REDDENS from a quarter lost: white -> a hot, dark red at 0 HP, with a
@@ -1141,8 +1258,10 @@ void updateLOFB(enemy_t* enemy)
 	gBossSS[X] = enemy->ss_position[X];	// v5: the arm solids and the crook are placed from here
 	gBossSS[Y] = enemy->ss_position[Y];
 
-	// v5: pose the arm bones and re-skin (arriving too: the claws breathe as
-	// it descends). Reads the arm state of the PREVIOUS frame, which is fine.
+	// v5: the pincer's clock, then pose the arm bones and re-skin (arriving
+	// too: the claws breathe as it descends). Reads the arm state of the
+	// PREVIOUS frame, which is fine.
+	LOFB_UpdatePinch(enemy);
 	LOFB_PoseArms(enemy);
 
 	if (enemy->state == LOFB_STATE_ARRIVING)
@@ -1182,6 +1301,9 @@ void updateLOFB(enemy_t* enemy)
 			gBodySmokeIdx = 0;
 			gArmRecoilMs[0] = gArmRecoilMs[1] = 0;
 			gArmDeadAt[0] = gArmDeadAt[1] = -1;
+			gPinchState = PINCH_OFF; gPinchTimer = 0; gPinchSwing = 0;
+			gPinchRequestAt = -1;
+			gPinchNextAt = simulationTime + 12000;	// the first random pinch, a while into the fight
 			enemy->entity.color[R] = enemy->entity.color[G] = enemy->entity.color[B] = enemy->entity.color[A] = 1.0f;
 		}
 		return;
@@ -1259,8 +1381,19 @@ void updateLOFB(enemy_t* enemy)
 					p[Y] = gArmSS[k][Y];
 					if (!gArmAlive[k])
 					{
-						FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 0.45f, 0);
-						FX_GetSmoke(p, 0.3f, 0.3f);
+						// THE STUMP (round 76): the arm is gone, the body sparks
+						// where it was -- at the shoulder pivot, in ss through the
+						// same mapping the solids use. A burst and a smoke puff,
+						// the spark jittering deterministically off the pivot.
+						if (gPoseBonesValid && widthAtDistance > 0 && heightAtDistance > 0)
+						{
+							p[X] = enemy->ss_position[X] + gRestPivot[k][0] / widthAtDistance  + 0.02f * sinf(gSwayClock * 0.021f + 2.0f * k);
+							p[Y] = enemy->ss_position[Y] - gRestPivot[k][2] / heightAtDistance + 0.02f * cosf(gSwayClock * 0.017f + k);
+						}
+						FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 0.55f, 0);
+						p[X] += 0.03f * cosf(gSwayClock * 0.013f + k);
+						FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 0.3f, 0);
+						FX_GetSmoke(p, 0.28f, 0.28f);
 					}
 					else if (gArmHP[k] <= gArmMaxHP / 2)
 						FX_GetSmoke(p, 0.18f, 0.18f);
@@ -1437,6 +1570,7 @@ void LOFB_ResetLadder(void)
 	gPoseBonesValid = 0;
 	gArmRecoilMs[0] = gArmRecoilMs[1] = 0;
 	gArmDeadAt[0] = gArmDeadAt[1] = -1;
+	gPinchState = PINCH_OFF; gPinchTimer = 0; gPinchSwing = 0; gPinchRequestAt = -1; gPinchNextAt = 0;
 }
 
 // Render-only shake, in ss units, added by enemy.c to the boss entity's

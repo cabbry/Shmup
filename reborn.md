@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 259) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 260) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -325,7 +325,7 @@ from any bone array; only the *rig* and the *poses* are missing. The plan, in
 order, each step a build:
 
 1. **The version on the home screen** — done, the branch's first commit.
-2. **The rig tool** (`tools/rig/rig_lofb.ps1`): cut `lofb.obj.md5mesh` into
+2. **The rig tool** — done, round 73 (`tools/rig/rig_lofb.ps1`): cut `lofb.obj.md5mesh` into
    three bones by geometry (body |X| < 8, arms beyond, shoulders at
    (±8.5, 5.3, −5.3), a linear blend over 6..10), write the new md5mesh.
    Proof: the rigged mesh in the rest pose skins to the *same* vertices as
@@ -402,6 +402,31 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-18 — round 73 (the boss rigged: three bones, cut by geometry, proven by the engine's own loader)
+- **Step 2 of the v5 plan.** `tools/rig/rig_lofb.ps1` reads the 2010
+  one-joint `lofb.obj.md5mesh` and writes `lofb_rigged.md5mesh`: bone 0 the
+  body, bones 1 and 2 the arms, pivots at the shoulders (±8.5, 5.3, −5.3),
+  the cut at |X| = 8 with a two-weight linear blend over 6..10. The tool
+  refuses a source that is not one-joint and is culture-invariant (it runs
+  on a French Windows). Counts: 670 body, 162 + 162 arm, 204 blended
+  vertices, 1402 weights. Nothing else in the file moves — same vertices,
+  same UVs, same triangles — and the engine does not reference it yet.
+- **Proven, not eyeballed.** `tools/rig/rig_check.c` compiles `md5.c`,
+  `lexer.c`, `quaternion.c`, `math.c` and the filesystem *as they are* and
+  loads both meshes through `MD5_LoadMesh`. At rest the rigged mesh skins
+  to the original within 1.1e-5 units (the float noise of (p − pivot) +
+  pivot) and 1/32767 on the normals. With the right arm bone swung 30° and
+  `MD5_GenerateSkin` re-run, exactly the 162 pure right-arm vertices move
+  (the farthest by 9.9 units), the 102 right-shoulder vertices move
+  partially, the body and the left arm do not, and the swung arm's normals
+  stay unit length. CI (`netrig.yml`) regenerates the rig from the source
+  and refuses a committed mesh that differs from the tool's output — no
+  hand edits — then runs the harness. One 2010 quirk surfaced: the lighting
+  pass in `md5.c` increments a NULL pointer it never dereferences; zig's
+  debug build traps on it, so the harness builds with the sanitizer off.
+- Next: the *dynamic* entity usage (no VBO, `vertexArray` kept, re-skin on
+  demand), then the poses in `lofb.c`.
 
 ### 2026-09-18 — round 72 (v5 opens: the version on the home screen, and the skeleton surveyed)
 - **The `v5` branch** starts from `master` (= `v4`, everything through the boss

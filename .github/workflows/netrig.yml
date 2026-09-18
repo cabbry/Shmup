@@ -73,6 +73,25 @@ jobs:
           zig cc -std=gnu99 -Wall catchup_test.c -o catchup_test
           ./catchup_test
 
+      # v5: the boss rig. The committed three-bone mesh must be exactly what the
+      # rig tool writes from the 2010 mesh (no hand edits), and the engine's own
+      # MD5 loader must skin it to the original at rest and move only the swung
+      # arm. -fno-sanitize=undefined: md5.c's 2010 lighting pass walks a NULL
+      # pointer it never dereferences, which zig's debug build traps on.
+      - name: The boss rig
+        run: |
+          set -o pipefail
+          pwsh -NoProfile -File tools/rig/rig_lofb.ps1 -Source data/data/models/enemies/lofb.obj.md5mesh -Target "$RUNNER_TEMP/lofb_rigged.md5mesh"
+          if ! cmp -s "$RUNNER_TEMP/lofb_rigged.md5mesh" data/data/models/enemies/lofb_rigged.md5mesh; then
+            echo "::error::data/models/enemies/lofb_rigged.md5mesh is not what tools/rig/rig_lofb.ps1 writes -- regenerate it, do not hand-edit it."
+            diff "$RUNNER_TEMP/lofb_rigged.md5mesh" data/data/models/enemies/lofb_rigged.md5mesh | head -20
+            exit 1
+          fi
+          zig cc -std=gnu99 -O1 -fno-sanitize=undefined -Wno-implicit-function-declaration -Wno-unknown-pragmas \
+              -I engine/src -I engine/src/libpng tools/rig/rig_check.c engine/src/md5.c engine/src/lexer.c \
+              engine/src/quaternion.c engine/src/math.c engine/src/filesystem/filesystem.c -o "$RUNNER_TEMP/rig_check"
+          RD=data WD="$RUNNER_TEMP" "$RUNNER_TEMP/rig_check" | grep -v "^SHMUP\|^=====\|Filesystem\]"
+
       # v4 stage 4: read every level pack the way the GAME reads it (it compiles
       # engine/src/lexer.c verbatim) and refuse the ones that would only fail on
       # a device. Run twice: the real data must pass, and a deliberately broken

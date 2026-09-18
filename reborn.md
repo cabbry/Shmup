@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 257) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 258) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -414,7 +414,7 @@ it ever reached a device — which is why the game looks the same and why
   it at those UVs. Every other consumer already addressed the atlas in
   fractions, so nothing else moved. Both `.c` files compile clean under
   `zig cc -Wall -Wextra` on the Windows host before the push; the strict iOS
-  build is the proof.
+  build is the proof. **v4.2.13 / 258.**
 - **Not done, and said so**: the skeletal arm animation. `lofb.obj.md5mesh`
   has a single joint and the engine has no `md5anim` loader; the destructible
   arms are hit zones on a rigid mesh. That is a v5 item — a rig, a loader and

@@ -273,8 +273,38 @@ static void LOFB_PoseArms(enemy_t* enemy)
 		LOFB_QuatAxisAngle(0, 1, 0, swing * mirror, qy);
 		LOFB_QuatAxisAngle(1, 0, 0, tilt, qx);
 		Quat_multQuat(qy, qx, gPoseBones[1 + k].orientation);
+
+		// [arm] probe (SHMUP_CULL_DEBUG): the pose inputs, once a second per arm.
+		if (Log_ProbesEnabled())
+		{
+			static int lastProbeSec = -1;
+			int sec = simulationTime / 1000;
+			if (sec != lastProbeSec)
+			{
+				if (k == 1) lastProbeSec = sec;
+				Log_Printf("[arm] t=%d k=%d swing=%.1f tilt=%.1f dead=%d flash=%.0f recoil=%.0f hp=%d/%d alive=%d q=(%.3f %.3f %.3f %.3f) pivot=(%.1f %.1f %.1f)\n",
+						   simulationTime, k, swing, tilt, gArmDeadAt[k], gArmFlashMs[k], gArmRecoilMs[k], gArmHP[k], gArmMaxHP, gArmAlive[k],
+						   gPoseBones[1 + k].orientation[0], gPoseBones[1 + k].orientation[1], gPoseBones[1 + k].orientation[2], gPoseBones[1 + k].orientation[3],
+						   gPoseBones[1 + k].position[0], gPoseBones[1 + k].position[1], gPoseBones[1 + k].position[2]);
+			}
+		}
 	}
 	MD5_GenerateSkin(mesh, gPoseBones);
+	if (Log_ProbesEnabled())
+	{
+		// the right claw's tip (the vertex farthest along +X at rest is vertex
+		// with the largest x in the first skin; cheap: track it once)
+		static int tip = -1;
+		if (tip < 0)
+		{
+			int i; float best = -1e9f;
+			for (i = 0; i < mesh->numVertices; i++)
+				if (mesh->vertexArray[i].pos[0] > best) { best = mesh->vertexArray[i].pos[0]; tip = i; }
+		}
+		if ((simulationTime / 1000) != ((simulationTime - (int)timediff) / 1000))
+			Log_Printf("[arm] t=%d tipR=(%.2f %.2f %.2f) bones=%d\n", simulationTime,
+					   mesh->vertexArray[tip].pos[0], mesh->vertexArray[tip].pos[1], mesh->vertexArray[tip].pos[2], mesh->numBones);
+	}
 }
 
 static float LOFB_AimAngleFrom(float sx, float sy)

@@ -128,6 +128,95 @@ int main(void)
 		free(bones); free(rest);
 	}
 
+	/* 4. MIRROR: the pose lofb.c computes at a few instants must keep the boss
+	 *    left/right symmetric (the arms swing in mirror). Pair every vertex
+	 *    with the one whose REST position is its mirror image (x -> -x), then
+	 *    check the posed positions mirror too. Replays LOFB_PoseArms' idle
+	 *    formula verbatim (swing about Y, mirrored for the left arm; tilt
+	 *    about X), with no hit, no recoil, no tremor. */
+	{
+		md5_bone_t* bones = (md5_bone_t*)calloc(rig.numBones, sizeof(md5_bone_t));
+		vertex_t* rest = (vertex_t*)calloc(rig.numVertices, sizeof(vertex_t));
+		int* mirrorOf = (int*)calloc(rig.numVertices, sizeof(int));
+		int j, paired = 0, tIdx;
+		const int instants[3] = { 16000, 20000, 21300 };
+
+		memcpy(bones, rig.bones, rig.numBones * sizeof(md5_bone_t));
+		MD5_GenerateSkin(&rig, bones);
+		memcpy(rest, rig.vertexArray, rig.numVertices * sizeof(vertex_t));
+		for (i = 0; i < rig.numVertices; i++)
+		{
+			float best = 1e9f; mirrorOf[i] = -1;
+			for (j = 0; j < rig.numVertices; j++)
+			{
+				float dx = rest[j].pos[0] + rest[i].pos[0], dy = rest[j].pos[1] - rest[i].pos[1], dz = rest[j].pos[2] - rest[i].pos[2];
+				float d = dx*dx + dy*dy + dz*dz;
+				if (d < best) { best = d; mirrorOf[i] = j; }
+			}
+			if (best < 1e-4f) paired++; else mirrorOf[i] = -1;
+		}
+		printf("mirror pairs at rest: %d of %d vertices have an exact mirror image\n", paired, rig.numVertices);
+		CHECK(paired > rig.numVertices * 9 / 10, "the mesh is not mirror-symmetric at rest (%d pairs)", paired);
+
+		for (tIdx = 0; tIdx < 3; tIdx++)
+		{
+			float t = (float)instants[tIdx], worst = 0;
+			int k;
+			for (k = 0; k < 2; k++)
+			{
+				float mirror = (k == 0) ? 1.0f : -1.0f;
+				float swing = 6.0f * sinf(t * (float)(2 * M_PI) / 4000.0f + 0.6f * k);
+				float tilt  = 2.0f * sinf(t * (float)(2 * M_PI) / 2300.0f + 1.1f * k);
+				quat4_t qy, qx;
+				float hy = swing * mirror * (float)M_PI / 360.0f, hx = tilt * (float)M_PI / 360.0f;
+				qy[0] = 0; qy[1] = sinf(hy); qy[2] = 0; qy[3] = cosf(hy);
+				qx[0] = sinf(hx); qx[1] = 0; qx[2] = 0; qx[3] = cosf(hx);
+				Quat_multQuat(qy, qx, bones[1 + k].orientation);
+			}
+			MD5_GenerateSkin(&rig, bones);
+			for (i = 0; i < rig.numVertices; i++)
+			{
+				float dx, dy, dz, d;
+				j = mirrorOf[i];
+				if (j < 0) continue;
+				dx = rig.vertexArray[j].pos[0] + rig.vertexArray[i].pos[0];
+				dy = rig.vertexArray[j].pos[1] - rig.vertexArray[i].pos[1];
+				dz = rig.vertexArray[j].pos[2] - rig.vertexArray[i].pos[2];
+				d = sqrtf(dx*dx + dy*dy + dz*dz);
+				if (d > worst) worst = d;
+			}
+			printf("posed at t=%d ms: worst mirror deviation %.4f units\n", instants[tIdx], worst);
+			CHECK(worst < 0.05f, "the idle pose at t=%d breaks the left/right symmetry by %.3f units", instants[tIdx], worst);
+		}
+		free(bones); free(rest); free(mirrorOf);
+	}
+
+	/* 5. DIRECTIONS (informative): where does the right claw's tip go under
+	 *    each pose ingredient? Read against a screenshot: mesh X is screen
+	 *    right, mesh Y faces the camera, mesh Z runs up the screen. */
+	{
+		md5_bone_t* bones = (md5_bone_t*)calloc(rig.numBones, sizeof(md5_bone_t));
+		int tip = -1; float tipX = 0;
+		const char* names[3] = { "swing +30 about Y (armR, mirror=-1 -> -30)", "tilt +12 about X (flinch)", "tilt +75 about X (wreck)" };
+		int p;
+		memcpy(bones, rig.bones, rig.numBones * sizeof(md5_bone_t));
+		MD5_GenerateSkin(&rig, bones);
+		for (i = 0; i < rig.numVertices; i++) if (rig.vertexArray[i].pos[0] > tipX) { tipX = rig.vertexArray[i].pos[0]; tip = i; }
+		printf("right claw tip at rest: (%.2f, %.2f, %.2f)\n", rig.vertexArray[tip].pos[0], rig.vertexArray[tip].pos[1], rig.vertexArray[tip].pos[2]);
+		for (p = 0; p < 3; p++)
+		{
+			float ang = (p == 0) ? -30.0f : (p == 1) ? 12.0f : 75.0f;
+			float h = ang * (float)M_PI / 360.0f;
+			quat4_t q = {0, 0, 0, 1};
+			if (p == 0) { q[1] = sinf(h); } else { q[0] = sinf(h); }
+			q[3] = cosf(h);
+			memcpy(bones[2].orientation, q, sizeof(quat4_t));
+			MD5_GenerateSkin(&rig, bones);
+			printf("  %-44s -> tip (%.2f, %.2f, %.2f)\n", names[p], rig.vertexArray[tip].pos[0], rig.vertexArray[tip].pos[1], rig.vertexArray[tip].pos[2]);
+		}
+		free(bones);
+	}
+
 	if (fails) { printf("rig_check: %d FAILURE(S)\n", fails); return 1; }
 	printf("rig_check: OK -- the rig is invisible at rest and only the swung arm moves.\n");
 	return 0;

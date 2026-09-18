@@ -317,6 +317,26 @@ its runtime proof as much as code does.**
 Decided with the tester, and parked: first-party cosmetics through Apple's
 in-app purchase if ever, nothing Sorare-like for a long while.
 
+### In progress — v5, the boss's skeletal arms (the `v5` branch, from round 72)
+
+Fabien's last note: animate the boss's arms. The survey (round 72) found the
+2010 MD5 loader already reads multi-joint skeletons and weights, and re-skins
+from any bone array; only the *rig* and the *poses* are missing. The plan, in
+order, each step a build:
+
+1. **The version on the home screen** — done, the branch's first commit.
+2. **The rig tool** (`tools/rig/rig_lofb.ps1`): cut `lofb.obj.md5mesh` into
+   three bones by geometry (body |X| < 8, arms beyond, shoulders at
+   (±8.5, 5.3, −5.3), a linear blend over 6..10), write the new md5mesh.
+   Proof: the rigged mesh in the rest pose skins to the *same* vertices as
+   the original, bit for bit, in a host-side harness.
+3. **Dynamic meshes**: an entity usage that keeps `vertexArray` in RAM and
+   re-skins on demand; the Metal ring-buffer path already draws it.
+4. **The poses** (`LOFB_PoseBones`): idle sway, recoil on the big shot, a
+   flinch when an arm is hit, droop then fall when it is destroyed — all
+   functions of arm HP, the last shot, the last hit and `simulationTime`.
+5. Later, if Fabien wants to author in Blender: an `md5anim` loader.
+
 ### Open — carried over
 
 - **A community level list / store.** This was gated on "after stage 4, once
@@ -382,6 +402,33 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-18 — round 72 (v5 opens: the version on the home screen, and the skeleton surveyed)
+- **The `v5` branch** starts from `master` (= `v4`, everything through the boss
+  degradation validated). First commit: **the version number on the home
+  screen**, small and centred under Game Multi and Others, read once from the
+  bundle's `CFBundleShortVersionString` — the number CI writes there from the
+  tag, so a build says what it is (`Native_GetVersionString`, iOS + an Android
+  stub; the dev plist now says 5.0.0).
+- **The skeletal arms, surveyed before a line is written.** The 2010 MD5
+  loader turns out to be more than the "one joint, no anim" verdict of round
+  66 suggested: it reads *any* number of joints (parent, position,
+  orientation) and several weights per vertex, and `MD5_GenerateSkin(mesh,
+  bones)` recomputes every vertex and normal from whatever bone array it is
+  handed. Every mesh in the game has one joint only because they were all
+  converted from `.obj`. The Metal renderer already draws a mesh left in RAM
+  through a ring buffer. So the v5 path needs **no Blender and no md5anim**:
+  a tool cuts `lofb.obj.md5mesh` into three bones by geometry — the boss is
+  symmetric, 45.7 units wide, its two claw arms are the 189 vertices a side
+  beyond |X| = 8, the shoulders at (±8.5, 5.3, −5.3), a linear blend of the
+  two bones over 6..10 so the shoulder bends instead of tearing; the entity
+  gets a *dynamic* usage (no VBO, vertexArray kept); and `lofb.c` poses the
+  two arm bones every frame from arm HP, the last big shot, the last hit and
+  `simulationTime` — idle sway, recoil on firing, a flinch when hit, a droop
+  then a fall when destroyed. Lockstep-safe by construction, ~1200 vertices
+  re-skinned per frame. Three vector diagrams drawn from the real mesh
+  (`lofb_bones.svg`, `lofb_skeleton.svg`, `lofb_pipeline.svg`) are the
+  proposal put to the tester.
 
 ### 2026-09-18 — round 71 (the menu buttons off the screen edges)
 - **"Les boutons touchent les bords sur iPad."** They touched them everywhere:

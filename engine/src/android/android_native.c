@@ -171,3 +171,4 @@ void loadNativePNG(texture_t* tmpTex)
 }
 
 int Native_IsFrenchLanguage(void) { return 0; }	// v2: menu localization (EN on Android for now)
+const char* Native_GetVersionString(void) { return "v?"; }	// v5: no bundle to read here

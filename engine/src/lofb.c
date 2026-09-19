@@ -213,12 +213,24 @@ static int    gBodySmokeIdx = 0;	// which vent smokes next (three, in turn)
 #define LOFB_ARM_FLINCH_DEG		12.0f
 #define LOFB_ARM_TREMOR_DEG		1.5f
 #define LOFB_ARM_WRECK_DEG		75.0f
-static md5_bone_t gPoseBones[3];		// the rest bones, copied from the mesh, with the arms re-oriented
+// FIVE BONES (round 83). Bone 0 the body; 1/2 the BLOCS (shoulder blocks,
+// hinged at the TUBE, bones "armL"/"armR"); 3/4 the PINCES (claws, hinged at
+// the COU -- the thin neck -- children of 1/2, bones "clawL"/"clawR"). The
+// tester's names: Antenne, Épaulette and Patte arrière are body and never
+// move; the Bloc only breathes a few degrees (anything more tears the fins
+// it sits under); the Pince does the big motions -- the pincer, the recoil,
+// the tremor. MD5 bone transforms in the skin are ABSOLUTE, so the claw's
+// are composed here every frame: Q = Q_bloc * Q_pince_local, P = P_bloc +
+// Q_bloc * (P_pince_rest - P_bloc_rest).
+#define LOFB_BONE_BLOC(k)	(1 + (k))
+#define LOFB_BONE_PINCE(k)	(3 + (k))
+#define LOFB_NUM_BONES		5
+static md5_bone_t gPoseBones[LOFB_NUM_BONES];	// the rest bones, copied from the mesh, re-oriented every frame
 static int        gPoseBonesValid = 0;	// gPoseBones holds a copy of the current mesh's bones
 static float      gArmRecoilMs[2] = {0, 0};	// per arm: ms left in the big-shot recoil
 static int        gArmDeadAt[2]   = {-1, -1};	// per arm: simulationTime of destruction, -1 alive
 static float      gBossSS[2]      = {0, 0};	// the boss's ss position, stamped by updateLOFB (for the arm solids)
-static vec3_t     gRestPivot[2];			// the arm bones' rest positions (from the mesh), for the tear-off offsets
+static vec3_t     gRestPivot[4];			// rest positions from the mesh: [k] the bloc's tube, [2+k] the pince's neck
 
 // TORN OFF (round 76, the tester: "si un bras est détruit il faudrait
 // carrément l'arracher, et des étincelles sortant du corps à l'emplacement du
@@ -244,7 +256,7 @@ static vec3_t     gRestPivot[2];			// the arm bones' rest positions (from the me
 #define LOFB_PINCH_HOLD_MS		250.0f
 #define LOFB_PINCH_RETURN_MS	600.0f
 #define LOFB_PINCH_OPEN_DEG		-18.0f	// wider than rest (negative swing = outward)
-#define LOFB_PINCH_SHUT_DEG		45.0f	// the claws swing in under the body (the hinge is at the tube now: a long lever)
+#define LOFB_PINCH_SHUT_DEG		60.0f	// the Pinces snap shut about the neck (round 83: the Bloc no longer takes part)
 #define LOFB_PINCH_AFTER_LASER_MS 300.0f
 #define LOFB_PINCH_MIN_GAP_MS	8000
 #define LOFB_PINCH_RAND_MS		7000
@@ -305,74 +317,92 @@ static float gPinchSwing   = 0;		// the swing the pinch adds to both live arms t
 #define LOFB_CROOK_R		3.0f
 #define LOFB_SHIP_R_SS		0.035f	// the ship's radius the laser test uses (0.035 * SS_H px), in ss y units
 typedef struct { float bx, bz, r; } lofb_solid_t;	// bone space, mesh units, XZ plane
-static lofb_solid_t gArmSolid[2][LOFB_SOLID_MAX];
-static int          gArmSolidCount[2] = {0, 0};
+enum { PART_BLOC = 0, PART_PINCE = 1 };
+static lofb_solid_t gArmSolid[2][2][LOFB_SOLID_MAX];	// [arm][part]
+static int          gArmSolidCount[2][2];
 
+// Solids per arm and per PART, each in its own bone's space (bx outward from
+// that bone's pivot, bz down): the Bloc's circles ride the Bloc bone, the
+// Pince's ride the Pince bone, so the danger follows the pincer's snap.
 static void LOFB_BuildArmSolids(const md5_mesh_t* mesh)
 {
-	int k;
+	int k, p;
 	for (k = 0; k < 2; k++)
-	{
-		enum { NX = 9, NZ = 9 };
-		float sign = (k == 0) ? -1.0f : 1.0f;
-		float pz = gPoseBones[1 + k].position[2];
-		int   n[NX][NZ]; float sx[NX][NZ], sz[NX][NZ], rr[NX][NZ];
-		int i, a, b;
-		memset(n, 0, sizeof(n)); memset(sx, 0, sizeof(sx)); memset(sz, 0, sizeof(sz)); memset(rr, 0, sizeof(rr));
-		// pass 1: centroids -- the arm's OWN vertices only (round 78: the
-		// antennas and rear legs reach beyond the tube plane but belong to
-		// the body; they are not lethal and do not move)
-		for (i = 0; i < mesh->numVertices; i++)
+		for (p = 0; p < 2; p++)
 		{
-			float bx = sign * mesh->vertexArray[i].pos[0] - gPoseBones[2].position[0];
-			float bz = mesh->vertexArray[i].pos[2] - pz;
-			if (mesh->weights[mesh->vertices[i].start].boneId != 1 + k) continue;
-			if (bx < 0) continue;					// body side of the shoulder
-			a = (int)(bx / LOFB_SOLID_CELL_X); b = (int)((bz + 13.5f) / LOFB_SOLID_CELL_Z);
-			if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
-			n[a][b]++; sx[a][b] += bx; sz[a][b] += bz;
+			enum { NX = 9, NZ = 9 };
+			int   bone = (p == PART_BLOC) ? LOFB_BONE_BLOC(k) : LOFB_BONE_PINCE(k);
+			float sign = (k == 0) ? -1.0f : 1.0f;
+			float pxv = fabsf(gRestPivot[(p == PART_BLOC) ? k : 2 + k][0]);	// the pivot's |x|
+			float pz  = gRestPivot[(p == PART_BLOC) ? k : 2 + k][2];
+			int   n[NX][NZ]; float sx[NX][NZ], sz[NX][NZ], rr[NX][NZ];
+			int i, a, b;
+			memset(n, 0, sizeof(n)); memset(sx, 0, sizeof(sx)); memset(sz, 0, sizeof(sz)); memset(rr, 0, sizeof(rr));
+			// pass 1: centroids -- this bone's OWN vertices only (the fins and
+			// rear legs beyond the tube plane belong to the body: not lethal,
+			// never moving)
+			for (i = 0; i < mesh->numVertices; i++)
+			{
+				float bx = sign * mesh->vertexArray[i].pos[0] - pxv;
+				float bz = mesh->vertexArray[i].pos[2] - pz;
+				if (mesh->weights[mesh->vertices[i].start].boneId != bone) continue;
+				a = (int)((bx + 2.0f) / LOFB_SOLID_CELL_X); b = (int)((bz + 13.5f) / LOFB_SOLID_CELL_Z);
+				if (a < 0) a = 0; if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
+				n[a][b]++; sx[a][b] += bx; sz[a][b] += bz;
+			}
+			// pass 2: radii
+			for (i = 0; i < mesh->numVertices; i++)
+			{
+				float bx = sign * mesh->vertexArray[i].pos[0] - pxv;
+				float bz = mesh->vertexArray[i].pos[2] - pz, dx, dz, d;
+				if (mesh->weights[mesh->vertices[i].start].boneId != bone) continue;
+				a = (int)((bx + 2.0f) / LOFB_SOLID_CELL_X); b = (int)((bz + 13.5f) / LOFB_SOLID_CELL_Z);
+				if (a < 0) a = 0; if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
+				dx = bx - sx[a][b] / n[a][b]; dz = bz - sz[a][b] / n[a][b];
+				d = sqrtf(dx * dx + dz * dz);
+				if (d > rr[a][b]) rr[a][b] = d;
+			}
+			gArmSolidCount[k][p] = 0;
+			for (a = 0; a < NX; a++)
+				for (b = 0; b < NZ; b++)
+					if (n[a][b] > 0 && gArmSolidCount[k][p] < LOFB_SOLID_MAX)
+					{
+						float cx = sx[a][b] / n[a][b], cz = sz[a][b] / n[a][b];
+						lofb_solid_t* s;
+						// the crook and the upper notch (Bloc space): carved out, the ship's refuges
+						if (p == PART_BLOC &&
+							((cx >= LOFB_CROOK_X0 && cx <= LOFB_CROOK_X1 && cz >= LOFB_CROOK_Z0 && cz <= LOFB_CROOK_Z1) ||
+							 (cx >= LOFB_UPPER_X0 && cx <= LOFB_UPPER_X1 && cz >= LOFB_UPPER_Z0 && cz <= LOFB_UPPER_Z1)))
+							continue;
+						s = &gArmSolid[k][p][gArmSolidCount[k][p]++];
+						s->bx = cx; s->bz = cz; s->r = rr[a][b] + LOFB_SOLID_MARGIN;
+					}
+			if (Log_ProbesEnabled())
+				Log_Printf("[boss] arm %d %s: %d solid circles\n", k, p == PART_BLOC ? "bloc" : "pince", gArmSolidCount[k][p]);
 		}
-		// pass 2: radii
-		for (i = 0; i < mesh->numVertices; i++)
-		{
-			float bx = sign * mesh->vertexArray[i].pos[0] - gPoseBones[2].position[0];
-			float bz = mesh->vertexArray[i].pos[2] - pz, dx, dz, d;
-			if (mesh->weights[mesh->vertices[i].start].boneId != 1 + k) continue;
-			if (bx < 0) continue;
-			a = (int)(bx / LOFB_SOLID_CELL_X); b = (int)((bz + 13.5f) / LOFB_SOLID_CELL_Z);
-			if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
-			dx = bx - sx[a][b] / n[a][b]; dz = bz - sz[a][b] / n[a][b];
-			d = sqrtf(dx * dx + dz * dz);
-			if (d > rr[a][b]) rr[a][b] = d;
-		}
-		gArmSolidCount[k] = 0;
-		for (a = 0; a < NX; a++)
-			for (b = 0; b < NZ; b++)
-				if (n[a][b] > 0 && gArmSolidCount[k] < LOFB_SOLID_MAX)
-				{
-					float cx = sx[a][b] / n[a][b], cz = sz[a][b] / n[a][b];
-					lofb_solid_t* s;
-					if ((cx >= LOFB_CROOK_X0 && cx <= LOFB_CROOK_X1 && cz >= LOFB_CROOK_Z0 && cz <= LOFB_CROOK_Z1) ||
-						(cx >= LOFB_UPPER_X0 && cx <= LOFB_UPPER_X1 && cz >= LOFB_UPPER_Z0 && cz <= LOFB_UPPER_Z1))
-						continue;	// the crook and the upper notch: carved out, the ship's refuges
-					s = &gArmSolid[k][gArmSolidCount[k]++];
-					s->bx = cx; s->bz = cz; s->r = rr[a][b] + LOFB_SOLID_MARGIN;
-				}
-		if (Log_ProbesEnabled())
-			Log_Printf("[boss] arm %d: %d solid circles\n", k, gArmSolidCount[k]);
-	}
 }
 
-// A bone-space point of arm k (bx outward, bz down) to MESH space (x, z),
-// through the arm's current pose.
-static void LOFB_ArmPointToMesh(int k, float bx, float bz, float* mx, float* mz)
+// A bone-space point (bx outward, bz down) of arm k's part to MESH space
+// (x, z), through the current pose. The Pince's bone transform is already
+// composed with the Bloc's (see LOFB_PoseArms), so one rotation does.
+static void LOFB_ArmPointToMesh(int k, int part, float bx, float bz, float* mx, float* mz)
 {
 	vec3_t in, out;
+	int bone = (part == PART_BLOC) ? LOFB_BONE_BLOC(k) : LOFB_BONE_PINCE(k);
 	float sign = (k == 0) ? -1.0f : 1.0f;
 	in[0] = sign * bx; in[1] = 0; in[2] = bz;
-	Quat_rotatePoint(gPoseBones[1 + k].orientation, in, out);
-	*mx = out[0] + gPoseBones[1 + k].position[0];
-	*mz = out[2] + gPoseBones[1 + k].position[2];
+	Quat_rotatePoint(gPoseBones[bone].orientation, in, out);
+	*mx = out[0] + gPoseBones[bone].position[0];
+	*mz = out[2] + gPoseBones[bone].position[2];
+}
+
+// ... and on to screen space (ss), through the same mapping the solids use.
+static void LOFB_ArmPointToSS(int k, int part, float bx, float bz, float* sx, float* sy)
+{
+	float mx, mz;
+	LOFB_ArmPointToMesh(k, part, bx, bz, &mx, &mz);
+	*sx = gBossSS[X] + mx / widthAtDistance;
+	*sy = gBossSS[Y] - mz / heightAtDistance;
 }
 
 int LOFB_PlayerHitsArm(float ssX, float ssY)
@@ -391,16 +421,18 @@ int LOFB_PlayerHitsArm(float ssX, float ssY)
 	shipR = LOFB_SHIP_R_SS * heightAtDistance;
 	for (k = 0; k < 2; k++)
 	{
+		int p;
 		if (gArmDeadAt[k] >= 0 || !gArmAlive[k])
 			continue;
-		for (i = 0; i < gArmSolidCount[k]; i++)
-		{
-			float mx, mz, dx, dz, reach;
-			LOFB_ArmPointToMesh(k, gArmSolid[k][i].bx, gArmSolid[k][i].bz, &mx, &mz);
-			dx = px - mx; dz = pz - mz; reach = gArmSolid[k][i].r + shipR;
-			if (dx * dx + dz * dz < reach * reach)
-				return 1;
-		}
+		for (p = 0; p < 2; p++)
+			for (i = 0; i < gArmSolidCount[k][p]; i++)
+			{
+				float mx, mz, dx, dz, reach;
+				LOFB_ArmPointToMesh(k, p, gArmSolid[k][p][i].bx, gArmSolid[k][p][i].bz, &mx, &mz);
+				dx = px - mx; dz = pz - mz; reach = gArmSolid[k][p][i].r + shipR;
+				if (dx * dx + dz * dz < reach * reach)
+					return 1;
+			}
 	}
 	return 0;
 }
@@ -418,7 +450,7 @@ static int LOFB_BeamTouchesCrook(float ox, float oy, float dx, float dy)
 		float mx, mz, cx, cy, rx, ry, proj, perp, rpx;
 		if (gArmDeadAt[k] >= 0 || !gArmAlive[k])
 			continue;
-		LOFB_ArmPointToMesh(k, LOFB_CROOK_BX, LOFB_CROOK_BZ, &mx, &mz);
+		LOFB_ArmPointToMesh(k, PART_BLOC, LOFB_CROOK_BX, LOFB_CROOK_BZ, &mx, &mz);
 		cx = (gBossSS[X] + mx / widthAtDistance)  * SS_W;
 		cy = (gBossSS[Y] - mz / heightAtDistance) * SS_H;
 		rpx = LOFB_CROOK_R / heightAtDistance * SS_H;
@@ -469,7 +501,7 @@ static void LOFB_PoseArms(enemy_t* enemy)
 	float t = (float)simulationTime;
 	int k;
 
-	if (!mesh || mesh->numBones != 3 || mesh->memLocation == MD5_MEMLOC_VRAM || !mesh->vertexArray)
+	if (!mesh || mesh->numBones != LOFB_NUM_BONES || mesh->memLocation == MD5_MEMLOC_VRAM || !mesh->vertexArray)
 		return;
 	{
 		// CI-only A/B switch: SHMUP_ARMS_FREEZE=1 leaves the mesh in its rest
@@ -481,8 +513,10 @@ static void LOFB_PoseArms(enemy_t* enemy)
 	if (!gPoseBonesValid)
 	{
 		memcpy(gPoseBones, mesh->bones, sizeof(gPoseBones));
-		vectorCopy(mesh->bones[1].position, gRestPivot[0]);
+		vectorCopy(mesh->bones[1].position, gRestPivot[0]);	// blocs: the tubes
 		vectorCopy(mesh->bones[2].position, gRestPivot[1]);
+		vectorCopy(mesh->bones[3].position, gRestPivot[2]);	// pinces: the necks
+		vectorCopy(mesh->bones[4].position, gRestPivot[3]);
 		gPoseBonesValid = 1;
 		LOFB_BuildArmSolids(mesh);	// from the rest skin the loader left in vertexArray
 	}
@@ -491,55 +525,77 @@ static void LOFB_PoseArms(enemy_t* enemy)
 	{
 		float mirror = (k == 0) ? 1.0f : -1.0f;	// the left claw opens the other way
 		float sign   = (k == 0) ? -1.0f : 1.0f;	// outward along mesh X
-		float swing, tilt;
-		quat4_t qy, qx;
+		float blocSwing, blocTilt, pinceSwing, pinceTilt;
+		quat4_t qy, qx, qPinceLocal;
+		md5_bone_t* bloc  = &gPoseBones[LOFB_BONE_BLOC(k)];
+		md5_bone_t* pince = &gPoseBones[LOFB_BONE_PINCE(k)];
+		vec3_t neckOffset, neckTurned;
 
-		vectorCopy(gRestPivot[k], gPoseBones[1 + k].position);	// a live arm turns about its shoulder
+		vectorCopy(gRestPivot[k], bloc->position);	// a live arm turns about its tube
 		if (gArmRecoilMs[k] > 0) gArmRecoilMs[k] -= timediff;
 
 		if (gArmDeadAt[k] >= 0)
 		{
-			// TORN OFF: tumble outward and down for LOFB_ARM_TEAR_MS, then park
-			// far below the screen. The stump's sparks live in updateLOFB.
+			// TORN OFF: the whole arm (Bloc + Pince, the Pince following through
+			// the chain) tumbles outward and down for LOFB_ARM_TEAR_MS, then is
+			// parked far below the screen. The stump's sparks live in updateLOFB.
 			float since = (float)(simulationTime - gArmDeadAt[k]);
 			float f = since / LOFB_ARM_TEAR_MS;
 			if (f > 1) f = 1;
-			gPoseBones[1 + k].position[0] += sign * LOFB_ARM_TEAR_OUT * f;
-			gPoseBones[1 + k].position[2] += LOFB_ARM_TEAR_DROP * f * f;		// accelerating fall
+			bloc->position[0] += sign * LOFB_ARM_TEAR_OUT * f;
+			bloc->position[2] += LOFB_ARM_TEAR_DROP * f * f;		// accelerating fall
 			if (since >= LOFB_ARM_TEAR_MS)
-				gPoseBones[1 + k].position[2] += LOFB_ARM_PARKED_Z;
-			tilt  = 140.0f * f;											// tumbles over
-			swing = 70.0f * f;											// and folds inward as it goes
+				bloc->position[2] += LOFB_ARM_PARKED_Z;
+			blocTilt  = 140.0f * f;										// tumbles over
+			blocSwing = 70.0f * f;										// and folds inward as it goes
+			pinceSwing = 40.0f * f;										// the claw flops shut
+			pinceTilt  = 0;
 		}
 		else
 		{
-			swing = LOFB_ARM_IDLE_DEG * sinf(t * (float)(2 * M_PI) / 4000.0f + 0.6f * k);
-			tilt  = 2.0f * sinf(t * (float)(2 * M_PI) / 2300.0f + 1.1f * k);
-			swing += gPinchSwing;											// the pincer, both live arms alike
+			// The Bloc breathes -- a few degrees only, it sits under the fins.
+			blocSwing = 3.0f * sinf(t * (float)(2 * M_PI) / 4000.0f + 0.6f * k);
+			blocTilt  = 1.5f * sinf(t * (float)(2 * M_PI) / 2300.0f + 1.1f * k);
+			if (gArmFlashMs[k] > 0)
+				blocTilt += 4.0f * (gArmFlashMs[k] / LOFB_ARM_FLASH_MS);	// the shoulder takes the hit
+			// The Pince does the work.
+			pinceSwing = LOFB_ARM_IDLE_DEG * sinf(t * (float)(2 * M_PI) / 3100.0f + 0.9f * k);
+			pinceTilt  = 2.0f * sinf(t * (float)(2 * M_PI) / 2300.0f + 1.1f * k);
+			pinceSwing += gPinchSwing;										// the pincer, both live claws alike
 			if (gArmRecoilMs[k] > 0)
 			{
 				float r = gArmRecoilMs[k] / LOFB_ARM_RECOIL_MS;	// 1 at the shot, 0 at rest
-				swing -= LOFB_ARM_RECOIL_DEG * r * r;
-				tilt  += 5.0f * r;
+				pinceSwing -= LOFB_ARM_RECOIL_DEG * r * r;
+				pinceTilt  += 5.0f * r;
 			}
 			if (gArmFlashMs[k] > 0)
-				tilt += LOFB_ARM_FLINCH_DEG * (gArmFlashMs[k] / LOFB_ARM_FLASH_MS);
+				pinceTilt += LOFB_ARM_FLINCH_DEG * (gArmFlashMs[k] / LOFB_ARM_FLASH_MS);
 			if (gArmAlive[k] && gArmHP[k] <= gArmMaxHP / 2)	// (alive: before the fight gArmHP is stale)
-				swing += LOFB_ARM_TREMOR_DEG * sinf(t * 0.01257f + 3.0f * k);	// 2 Hz
+				pinceSwing += LOFB_ARM_TREMOR_DEG * sinf(t * 0.01257f + 3.0f * k);	// 2 Hz
 		}
 
 		{
 			// CI-only calibration: SHMUP_ARMS_TEST=1 forces a constant pose --
-			// left arm tilted 12 deg about X, right arm swung 30 deg about Y --
+			// left Pince tilted 12 deg about X, right Pince swung 30 deg about Y --
 			// so one Simulator frame shows what each axis does on screen.
 			static int test = -1;
 			if (test < 0) test = getenv("SHMUP_ARMS_TEST") ? 1 : 0;
-			if (test) { swing = (k == 1) ? 30.0f : 0.0f; tilt = (k == 0) ? 12.0f : 0.0f; }
+			if (test) { blocSwing = blocTilt = 0; pinceSwing = (k == 1) ? 30.0f : 0.0f; pinceTilt = (k == 0) ? 12.0f : 0.0f; }
 		}
 
-		LOFB_QuatAxisAngle(0, 1, 0, swing * mirror, qy);
-		LOFB_QuatAxisAngle(1, 0, 0, tilt, qx);
-		Quat_multQuat(qy, qx, gPoseBones[1 + k].orientation);
+		// The Bloc: its own rotation about the tube.
+		LOFB_QuatAxisAngle(0, 1, 0, blocSwing * mirror, qy);
+		LOFB_QuatAxisAngle(1, 0, 0, blocTilt, qx);
+		Quat_multQuat(qy, qx, bloc->orientation);
+		// The Pince: local rotation about the neck, composed with the Bloc's;
+		// its pivot is the neck carried by the Bloc.
+		LOFB_QuatAxisAngle(0, 1, 0, pinceSwing * mirror, qy);
+		LOFB_QuatAxisAngle(1, 0, 0, pinceTilt, qx);
+		Quat_multQuat(qy, qx, qPinceLocal);
+		Quat_multQuat(bloc->orientation, qPinceLocal, pince->orientation);
+		vectorSubtract(gRestPivot[2 + k], gRestPivot[k], neckOffset);
+		Quat_rotatePoint(bloc->orientation, neckOffset, neckTurned);
+		vectorAdd(bloc->position, neckTurned, pince->position);
 
 		// [arm] probe (SHMUP_CULL_DEBUG): the pose inputs, once a second per arm.
 		if (Log_ProbesEnabled())
@@ -549,10 +605,9 @@ static void LOFB_PoseArms(enemy_t* enemy)
 			if (sec != lastProbeSec)
 			{
 				if (k == 1) lastProbeSec = sec;
-				Log_Printf("[arm] t=%d k=%d swing=%.1f tilt=%.1f dead=%d flash=%.0f recoil=%.0f hp=%d/%d alive=%d q=(%.3f %.3f %.3f %.3f) pivot=(%.1f %.1f %.1f)\n",
-						   simulationTime, k, swing, tilt, gArmDeadAt[k], gArmFlashMs[k], gArmRecoilMs[k], gArmHP[k], gArmMaxHP, gArmAlive[k],
-						   gPoseBones[1 + k].orientation[0], gPoseBones[1 + k].orientation[1], gPoseBones[1 + k].orientation[2], gPoseBones[1 + k].orientation[3],
-						   gPoseBones[1 + k].position[0], gPoseBones[1 + k].position[1], gPoseBones[1 + k].position[2]);
+				Log_Printf("[arm] t=%d k=%d bloc(swing=%.1f tilt=%.1f) pince(swing=%.1f tilt=%.1f) dead=%d flash=%.0f recoil=%.0f hp=%d/%d alive=%d neck=(%.1f %.1f %.1f)\n",
+						   simulationTime, k, blocSwing, blocTilt, pinceSwing, pinceTilt, gArmDeadAt[k], gArmFlashMs[k], gArmRecoilMs[k], gArmHP[k], gArmMaxHP, gArmAlive[k],
+						   pince->position[0], pince->position[1], pince->position[2]);
 			}
 		}
 	}
@@ -749,7 +804,12 @@ static void LOFB_FireBigShot(enemy_t* enemy, float offX)
 	enemy_part_t* bullet;
 	float ox = enemy->ss_position[X] + offX;
 	float oy = enemy->ss_position[Y] + LOFB_ARM_OFFY;
-	float angle = LOFB_AimAngleFrom(ox, oy);
+	float angle;
+	// Round 83: the muzzle is the PINCE, wherever the pose put it (the fixed
+	// offsets stay as the fallback before the bones are known).
+	if (gPoseBonesValid && widthAtDistance > 0 && heightAtDistance > 0)
+		LOFB_ArmPointToSS(offX < 0 ? 0 : 1, PART_PINCE, 3.7f, 5.2f, &ox, &oy);
+	angle = LOFB_AimAngleFrom(ox, oy);
 
 	gArmRecoilMs[offX < 0 ? 0 : 1] = LOFB_ARM_RECOIL_MS;	// v5: the firing arm snaps back
 
@@ -1390,6 +1450,15 @@ void updateLOFB(enemy_t* enemy)
 	// "it's working, keep shooting" progress tell.
 	gArmSS[0][X] = enemy->ss_position[X] - LOFB_ARM_OFFX;  gArmSS[0][Y] = enemy->ss_position[Y] + LOFB_ARM_OFFY;
 	gArmSS[1][X] = enemy->ss_position[X] + LOFB_ARM_OFFX;  gArmSS[1][Y] = enemy->ss_position[Y] + LOFB_ARM_OFFY;
+	// Round 83: the bullet hit-zone, its flash and its smoke ride the BLOC
+	// (its centre, bone space (5.5, -1.7)) -- the tester saw bullets "hit the
+	// arm" in empty air where the block had been before it moved.
+	if (gPoseBonesValid && widthAtDistance > 0 && heightAtDistance > 0)
+	{
+		int k;
+		for (k = 0; k < 2; k++)
+			LOFB_ArmPointToSS(k, PART_BLOC, 5.5f, -1.7f, &gArmSS[k][X], &gArmSS[k][Y]);
+	}
 	if (gArmFlashMs[0] > 0) gArmFlashMs[0] -= timediff;
 	if (gArmFlashMs[1] > 0) gArmFlashMs[1] -= timediff;
 	{

@@ -96,3 +96,22 @@ minus those two regions. Connectivity could not do it: the mesh is a pile of
 disconnected shells. A last pass over the mesh's adjacency (round 80) sends
 any arm vertex with fewer than two arm neighbours back to the body — no
 orphans, no splinters — which leaves 205 vertices a side. (Round 82: the "bracket" fixed in round 79 was the top of the shoulder block -- back to fins and legs only.)
+
+## Five bones, and the names of the parts (round 83)
+
+| French name (the tester's) | what it is | bone |
+|---|---|---|
+| Corps | the hull, \|X\| < 5.5 | 0 `origin` |
+| Antenne | the two top fins, screen-up, raised toward the camera | 0 |
+| Épaulette | the middle fin under each antenna | 0 |
+| Patte arrière | the two bottom fins under the hull | 0 |
+| Tube | the hinge joining the hull to the arm, (±5.5, 0.44, 1.16) | pivot of 1/2 |
+| Bloc | the shoulder block with the lights, 97 vertices | 1 `armL` / 2 `armR` |
+| Cou | the 2-unit neck between block and claw, (±16.3, 3.3, −0.7) | pivot of 3/4 |
+| Pince | the claw, 118 vertices | 3 `clawL` / 4 `clawR`, children of 1/2 |
+| Creux | the refuge under the Bloc, between Corps and Pince | (a carved pocket in Bloc space) |
+
+The Bloc only breathes (±3°): anything more tears the fins it sits under. The
+Pince does the pincer, the recoil, the flinch and the tremor. The Pince's bone
+transform is composed from the Bloc's every frame in `lofb.c` (MD5 skins with
+absolute bones), so it rides the block and a torn arm falls in one piece.

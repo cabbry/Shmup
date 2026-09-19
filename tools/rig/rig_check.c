@@ -69,7 +69,7 @@ int main(void)
 
 	printf("original: %d joints %d verts %d weights\n", orig.numBones, orig.numVertices, orig.numWeights);
 	printf("rigged:   %d joints %d verts %d weights\n", rig.numBones, rig.numVertices, rig.numWeights);
-	CHECK(rig.numBones == 3, "rigged mesh has %d bones, expected 3", rig.numBones);
+	CHECK(rig.numBones == 5, "rigged mesh has %d bones, expected 5 (body, two blocs, two pinces -- round 83)", rig.numBones);
 	CHECK(rig.numVertices >= orig.numVertices, "the rig lost vertices (%d < %d)", rig.numVertices, orig.numVertices);
 	CHECK(rig.numIndices == orig.numIndices, "triangle count differs");
 	/* Round 76: the seam is duplicated, so indices may point at a copy; the
@@ -143,13 +143,13 @@ int main(void)
 				if (d > 1e-3f) moved++; else still++;
 				/* a seam copy can end with a zero normal (its two faces cancel): a
 				 * lighting speck on the joint, not a skinning fault */
-				if (fabsf(fabsf(x) - CUT) > 2.0f)
+				if (fabsf(fabsf(x) - CUT) > 2.0f && fabsf(fabsf(x) - 16.3f) > 2.0f)	/* away from both seams: the tube's and the neck's */
 					CHECK(fabsf(len - 1.0f) < 0.01f, "vertex %d normal length %.3f after swing", i, len);
 			}
 		}
-		printf("swing armR 30 deg: %d armR vertices moved, %d did not; nothing else moved; farthest %.2f units\n", moved, still, maxDist);
-		CHECK(still == 0, "%d armR vertices did not move", still);
-		CHECK(moved > 150, "only %d armR vertices moved", moved);
+		printf("swing armR (the bloc, bone 2) 30 deg: %d bloc vertices moved, %d did not; nothing else moved (the pince's bone 4 is composed at runtime, flat here); farthest %.2f units\n", moved, still, maxDist);
+		CHECK(still == 0, "%d bloc vertices did not move", still);
+		CHECK(moved > 60, "only %d bloc vertices moved", moved);
 		free(bones); free(rest);
 	}
 
@@ -294,14 +294,14 @@ int main(void)
 		for (i = 0; i < rig.numVertices; i++)
 		{
 			float bx = rig.vertexArray[i].pos[0] - PIVOT_X, bz = rig.vertexArray[i].pos[2] - PZ;
-			if (rig.weights[rig.vertices[i].start].boneId != 2 || bx < 0) continue;	/* the right arm's own vertices */
+			{ int bn = rig.weights[rig.vertices[i].start].boneId; if ((bn != 2 && bn != 4) || bx < 0) continue; }	/* the right arm: bloc (2) + pince (4) */
 			a = (int)(bx / CELLX); b = (int)((bz + 13.5f) / CELLZ); if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
 			n[a][b]++; sx[a][b] += bx; sz[a][b] += bz;
 		}
 		for (i = 0; i < rig.numVertices; i++)
 		{
 			float bx = rig.vertexArray[i].pos[0] - PIVOT_X, bz = rig.vertexArray[i].pos[2] - PZ, dx, dz, d;
-			if (rig.weights[rig.vertices[i].start].boneId != 2 || bx < 0) continue;
+			{ int bn = rig.weights[rig.vertices[i].start].boneId; if ((bn != 2 && bn != 4) || bx < 0) continue; }
 			a = (int)(bx / CELLX); b = (int)((bz + 13.5f) / CELLZ); if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
 			dx = bx - sx[a][b] / n[a][b]; dz = bz - sz[a][b] / n[a][b]; d = sqrtf(dx*dx + dz*dz);
 			if (d > rr[a][b]) rr[a][b] = d;

@@ -38,7 +38,13 @@ param(
   [double]$Cut = 5.5,
   [double]$PivotX = 5.5,
   [double]$PivotY = 0.44,
-  [double]$PivotZ = 1.16
+  [double]$PivotZ = 1.16,
+  # Round 83: the CLAW bones, children of the arm bones, hinged at the neck --
+  # the thin section between the shoulder block and the claw (|X| 15.4..17.3,
+  # z -3..1.5, y 1.5..5.1; measured in round 76).
+  [double]$NeckX = 16.3,
+  [double]$NeckY = 3.3,
+  [double]$NeckZ = -0.7
 )
 $inv = [System.Globalization.CultureInfo]::InvariantCulture
 function Num([string]$text) { return [double]::Parse($text, $inv) }
@@ -89,7 +95,11 @@ foreach ($vertex in $verts) {
   # 7.5 -- it was the TOP OF THE SHOULDER BLOCK, and the tester's screenshot
   # on 266 showed the block sawn in two. The whole block moves with the arm;
   # the stray pass below removes the true orphans.
-  if ($src.z -lt -8.0 -and $src.y -gt 5.0) { $side[$vertex.id] = 0; $countAntenna++; continue }
+  # Round 83: every raised fin above the block -- the antenna fins and the
+  # middle fin under them -- stays with the body (z < -3, y > 4.5): the block
+  # itself never rises above y 5.1. The block will only breathe a few degrees
+  # from now on; the big motions belong to the CLAW bone, hinged at the neck.
+  if ($src.z -lt -3.0 -and $src.y -gt 4.5) { $side[$vertex.id] = 0; $countAntenna++; continue }
   if ($src.z -gt 6.0 -and $src.y -lt -3.0 -and $ax -lt 10.0) { $side[$vertex.id] = 0; $countLeg++; continue }
   $side[$vertex.id] = if ($src.x -lt 0) { 1 } else { 2 }
 }
@@ -120,6 +130,19 @@ for ($pass = 0; $pass -lt 2; $pass++) {
 }
 "strays: $strays arm vertices with fewer than two arm neighbours rejoined the body"
 
+# Round 83: the claws. Within each arm, everything beyond the neck plane is
+# the CLAW bone (3 = clawL, child of armL; 4 = clawR, child of armR). The seam
+# at the neck is thin (the neck is 2 units across), and the claw is a shell
+# of its own, so the big motions -- the pincer's snap, the recoil, the tremor
+# -- happen there without tearing a fin.
+$countClaw = 0
+foreach ($vertex in $verts) {
+  $id = $vertex.id
+  if ($side[$id] -eq 1 -and $pos[$id].x -le -$NeckX) { $side[$id] = 3; $countClaw++ }
+  elseif ($side[$id] -eq 2 -and $pos[$id].x -ge $NeckX) { $side[$id] = 4; $countClaw++ }
+}
+"claws: $countClaw vertices beyond |X| = $NeckX on the claw bones"
+
 # --- the seam: duplicate the minority vertex of every straddling triangle ----
 $outVertexList = New-Object System.Collections.Generic.List[object]   # {s, t, bone, x, y, z} in output order
 foreach ($vertex in $verts) {
@@ -134,8 +157,9 @@ foreach ($tri in $tris) {
   $sides = @($side[$tri.a], $side[$tri.b], $side[$tri.c])
   if (($sides[0] -eq $sides[1]) -and ($sides[1] -eq $sides[2])) { $outTris.Add(@($tri.a, $tri.b, $tri.c)); continue }
   $seamTris++
-  # majority side: the one that appears twice
-  $majority = if ($sides[0] -eq $sides[1]) { $sides[0] } elseif ($sides[0] -eq $sides[2]) { $sides[0] } else { $sides[1] }
+  # majority side: the one that appears twice (three different sides -- body,
+  # arm and claw meeting at one triangle -- fall to the first corner's side)
+  $majority = if ($sides[0] -eq $sides[1]) { $sides[0] } elseif ($sides[0] -eq $sides[2]) { $sides[0] } elseif ($sides[1] -eq $sides[2]) { $sides[1] } else { $sides[0] }
   $newIds = @(0, 0, 0)
   for ($corner = 0; $corner -lt 3; $corner++) {
     if ($sides[$corner] -eq $majority) { $newIds[$corner] = $ids[$corner]; continue }
@@ -155,13 +179,15 @@ $out = New-Object System.Collections.Generic.List[string]
 $out.Add("MD5Version 10")
 $out.Add("commandline `"tools/rig/rig_lofb.ps1 -- hard cut $Cut, seam duplicated, pivot ($PivotX $PivotY $PivotZ)`"")
 $out.Add("")
-$out.Add("numJoints 3")
+$out.Add("numJoints 5")
 $out.Add("numMeshes 1")
 $out.Add("")
 $out.Add("joints { ")
 $out.Add("`t`"origin`" -1 ( 0 0 0 ) ( 0 0 0 )")
 $out.Add("`t`"armL`" 0 ( $(Fmt (-$PivotX)) $(Fmt $PivotY) $(Fmt $PivotZ) ) ( 0 0 0 )")
 $out.Add("`t`"armR`" 0 ( $(Fmt $PivotX) $(Fmt $PivotY) $(Fmt $PivotZ) ) ( 0 0 0 )")
+$out.Add("`t`"clawL`" 1 ( $(Fmt (-$NeckX)) $(Fmt $NeckY) $(Fmt $NeckZ) ) ( 0 0 0 )")
+$out.Add("`t`"clawR`" 2 ( $(Fmt $NeckX) $(Fmt $NeckY) $(Fmt $NeckZ) ) ( 0 0 0 )")
 $out.Add("}")
 $out.Add("")
 $out.Add("mesh {")
@@ -177,16 +203,18 @@ for ($index = 0; $index -lt $outTris.Count; $index++) {
   $out.Add(" tri $index $($entry[0]) $($entry[1]) $($entry[2]) ")
 }
 $out.Add("`tnumweights $($outVertexList.Count)")
-$countBody = 0; $countArmL = 0; $countArmR = 0
+$countBody = 0; $countArmL = 0; $countArmR = 0; $countClawL = 0; $countClawR = 0
 for ($index = 0; $index -lt $outVertexList.Count; $index++) {
   $entry = $outVertexList[$index]
   $pivX = 0.0; $pivY = 0.0; $pivZ = 0.0
   if ($entry.bone -eq 1) { $pivX = -$PivotX; $pivY = $PivotY; $pivZ = $PivotZ; $countArmL++ }
   elseif ($entry.bone -eq 2) { $pivX = $PivotX; $pivY = $PivotY; $pivZ = $PivotZ; $countArmR++ }
+  elseif ($entry.bone -eq 3) { $pivX = -$NeckX; $pivY = $NeckY; $pivZ = $NeckZ; $countClawL++ }
+  elseif ($entry.bone -eq 4) { $pivX = $NeckX; $pivY = $NeckY; $pivZ = $NeckZ; $countClawR++ }
   else { $countBody++ }
   $out.Add(" weight $index $($entry.bone) 1.000000 ( $(Fmt ($entry.x - $pivX)) $(Fmt ($entry.y - $pivY)) $(Fmt ($entry.z - $pivZ)) ) ")
 }
 $out.Add("}")
 [System.IO.File]::WriteAllText($Target, ($out -join "`n") + "`n", (New-Object System.Text.ASCIIEncoding))
 "wrote $Target"
-"bones: body $countBody, armL $countArmL, armR $countArmR vertices ($($outVertexList.Count - $verts.Count) duplicated along the seam, $seamTris seam triangles made single-sided)"
+"bones: body $countBody, armL $countArmL, armR $countArmR, clawL $countClawL, clawR $countClawR vertices ($($outVertexList.Count - $verts.Count) duplicated along the seams, $seamTris seam triangles made single-sided)"

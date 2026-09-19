@@ -349,7 +349,9 @@ order, each step a build:
 8. **Antennas and rear legs fixed, the laser at 50°** — done, round 78: the
    arm is the plane minus the top fins, the bracket under them (round 79) and the bottom legs; the
    clamp trims the beam to the crook while an arm lives.
-9. Later, if Fabien wants to author in Blender: an `md5anim` loader.
+9. **Five bones** — done, round 83: the Bloc breathes at the Tube, the Pince
+   (a child bone at the Cou) does the pincer, the recoil and the tremor.
+10. Later, if Fabien wants to author in Blender: an `md5anim` loader.
 
 ### Open — carried over
 
@@ -416,6 +418,31 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-19 — round 83 (five bones: the Bloc breathes, the Pince works; names for every part)
+- **The tester's screenshot on 268, mid-pincer**: with the whole arm hinged
+  at the tube and swung 45°, the Épaulette — the middle fin under the
+  antenna — flew off with the block, and the antenna fin, fixed, hung alone
+  in the air; bullets "hit the arm" where the block had been, the hit zone
+  never having moved. Any big rotation of the shoulder block tears
+  whatever sits against it. So the mechanics changed: **five bones**. The
+  **Bloc** (shoulder block) turns at the **Tube** by a few degrees only —
+  breathing, a small flinch. The **Pince** (claw), a child bone hinged at
+  the **Cou** (the 2-unit neck between block and claw, |X| = 16.3), does the
+  work: the pincer's snap (60° again), the big shot's recoil, the tremor,
+  the flinch. The Pince's transform is composed from the Bloc's every frame
+  (MD5 skins with absolute bones), so the claw rides the block and the torn
+  arm falls in one piece. Solids are built per part and ride their own
+  bone; the crook stays in Bloc space; the bullet hit zone, its flash and
+  its smoke now ride the Bloc, and the big shot leaves the Pince. The fins
+  above the block (z < −3, y > 4.5: Antenne and Épaulette) and the Pattes
+  arrière are body. 97 + 118 vertices an arm, 72 seam copies. Harness green
+  on five bones.
+- **Names**, put to the tester on an annotated screenshot (validation
+  pending): **Antenne** (the top fins), **Épaulette** (the middle fin under
+  them), **Patte arrière** (the bottom fins), **Corps**, **Tube** (the
+  block's hinge), **Bloc** (the shoulder block with the lights), **Cou** (the
+  claw's hinge), **Pince** (the claw), **Creux** (the refuge under the Bloc).
 
 ### 2026-09-19 — round 82 (the shoulder block whole again)
 - **The tester's screenshot on 266, fetched from App Store Connect**: a gap

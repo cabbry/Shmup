@@ -366,16 +366,32 @@ int main(void)
 			memcpy(bones, rig.bones, rig.numBones * sizeof(md5_bone_t));
 			for (k = 0; k < 2; k++)
 			{
+				/* Round 83, five bones: the Bloc (1+k) breathes, the Pince (3+k) does
+				 * the pincer; the Pince's absolute transform is composed from the
+				 * Bloc's exactly as lofb.c does it. */
 				float mirror = (k == 0) ? 1.0f : -1.0f, sign = (k == 0) ? -1.0f : 1.0f;
-				float swing = 0, tilt = 0; quat4_t qy, qx; float hy, hx;
-				if (p == 1) swing = -18.0f;
-				if (p == 2) swing = 45.0f;
-				if (p == 3 && k == 1) { float f = 0.5f; swing = 70.0f * f; tilt = 140.0f * f;
+				float blocSwing = 0, blocTilt = 0, pinceSwing = 0, pinceTilt = 0;
+				quat4_t qy, qx, qLocal; float hy, hx; vec3_t neck, turned;
+				if (p == 1) pinceSwing = -18.0f;
+				if (p == 2) pinceSwing = 60.0f;
+				if (p == 3 && k == 1) { float f = 0.5f; blocSwing = 70.0f * f; blocTilt = 140.0f * f; pinceSwing = 40.0f * f;
 					bones[1 + k].position[0] += sign * 10.0f * f; bones[1 + k].position[2] += 60.0f * f * f; }
-				hy = swing * mirror * (float)M_PI / 360.0f; hx = tilt * (float)M_PI / 360.0f;
+				hy = blocSwing * mirror * (float)M_PI / 360.0f; hx = blocTilt * (float)M_PI / 360.0f;
 				qy[0] = 0; qy[1] = sinf(hy); qy[2] = 0; qy[3] = cosf(hy);
 				qx[0] = sinf(hx); qx[1] = 0; qx[2] = 0; qx[3] = cosf(hx);
 				Quat_multQuat(qy, qx, bones[1 + k].orientation);
+				hy = pinceSwing * mirror * (float)M_PI / 360.0f; hx = pinceTilt * (float)M_PI / 360.0f;
+				qy[0] = 0; qy[1] = sinf(hy); qy[2] = 0; qy[3] = cosf(hy);
+				qx[0] = sinf(hx); qx[1] = 0; qx[2] = 0; qx[3] = cosf(hx);
+				Quat_multQuat(qy, qx, qLocal);
+				Quat_multQuat(bones[1 + k].orientation, qLocal, bones[3 + k].orientation);
+				neck[0] = rig.bones[3 + k].position[0] - rig.bones[1 + k].position[0];
+				neck[1] = rig.bones[3 + k].position[1] - rig.bones[1 + k].position[1];
+				neck[2] = rig.bones[3 + k].position[2] - rig.bones[1 + k].position[2];
+				Quat_rotatePoint(bones[1 + k].orientation, neck, turned);
+				bones[3 + k].position[0] = bones[1 + k].position[0] + turned[0];
+				bones[3 + k].position[1] = bones[1 + k].position[1] + turned[1];
+				bones[3 + k].position[2] = bones[1 + k].position[2] + turned[2];
 			}
 			MD5_GenerateSkin(&rig, bones);
 			for (i = 0; i < rig.numVertices; i++)

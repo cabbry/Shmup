@@ -216,7 +216,7 @@ static int    gBodySmokeIdx = 0;	// which vent smokes next (three, in turn)
 // FIVE BONES (round 83). Bone 0 the body; 1/2 the BLOCS (shoulder blocks,
 // hinged at the TUBE, bones "armL"/"armR"); 3/4 the PINCES (claws, hinged at
 // the COU -- the thin neck -- children of 1/2, bones "clawL"/"clawR"). The
-// tester's names: Antenne, Épaulette and Patte arrière are body and never
+// tester's names: Ailes, Pattes arrière, Queue, Épaulettes and Antennes are body and never
 // move; the Bloc only breathes a few degrees (anything more tears the fins
 // it sits under); the Pince does the big motions -- the pincer, the recoil,
 // the tremor. MD5 bone transforms in the skin are ABSOLUTE, so the claw's

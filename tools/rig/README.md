@@ -103,10 +103,12 @@ orphans, no splinters — which leaves 205 vertices a side. (Round 82: the "brac
 
 | French name (the tester's) | what it is | bone |
 |---|---|---|
-| Corps | the hull, \|X\| < 5.5 | 0 `origin` |
-| Antenne | the two top fins, screen-up, raised toward the camera | 0 |
-| Épaulette | the middle fin under each antenna | 0 |
-| Patte arrière | the two bottom fins under the hull | 0 |
+| Corps | the hull, \|X\| < 5.5 — the ship is drawn HEAD-DOWN: head at the bottom of the screen | 0 `origin` |
+| Ailes | the two big top fins, screen-up, raised toward the camera | 0 |
+| Pattes arrière | the pieces above the wings, in the top corners | 0 |
+| Queue | the two vertical tubes at the top centre, between the score and the lives | 0 |
+| Épaulette | the middle fin under each wing | 0 |
+| Antennes | the two small bottom fins, at the head | 0 |
 | Tube | the hinge joining the hull to the arm, (±5.5, 0.44, 1.16) | pivot of 1/2 |
 | Bloc | the shoulder block with the lights, 97 vertices | 1 `armL` / 2 `armR` |
 | Cou | the 2-unit neck between block and claw, (±16.3, 3.3, −0.7) | pivot of 3/4 |

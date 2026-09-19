@@ -439,10 +439,14 @@ it ever reached a device — which is why the game looks the same and why
   arrière are body. 97 + 118 vertices an arm, 72 seam copies. Harness green
   on five bones.
 - **Names**, put to the tester on an annotated screenshot (validation
-  pending): **Antenne** (the top fins), **Épaulette** (the middle fin under
-  them), **Patte arrière** (the bottom fins), **Corps**, **Tube** (the
-  block's hinge), **Bloc** (the shoulder block with the lights), **Cou** (the
-  claw's hinge), **Pince** (the claw), **Creux** (the refuge under the Bloc).
+  pending): **corrected by the tester the same evening — the ship is drawn head-DOWN**:
+  **Ailes** (the big top fins; I had said "Antenne"), **Pattes arrière** (the
+  pieces above the wings, in the top corners), **Queue** (the two tubes
+  between the score and the lives), **Épaulette** (the middle fin under each
+  wing), **Antennes** (the small bottom fins, at the head; I had said "Patte
+  arrière"), **Corps**, **Tube** (the block's hinge), **Bloc** (the shoulder
+  block with the lights), **Cou** (the claw's hinge), **Pince** (the claw),
+  **Creux** (the refuge under the Bloc).
   **v5.0.9 / 269.**
 
 ### 2026-09-19 — round 82 (the shoulder block whole again)

@@ -346,7 +346,10 @@ order, each step a build:
 7. **The hinge at the tube, the crook under the arm** — done, round 77, from
    the tester's TestFlight screenshot: the cut at |X| = 5.5, the laser at
    ±35°, sparks on the tear and the stump, a siren on WARNING.
-8. Later, if Fabien wants to author in Blender: an `md5anim` loader.
+8. **Antennas and rear legs fixed, the laser at 50°** — done, round 78: the
+   arm is the plane minus the top fins and the bottom legs; the clamp trims
+   the beam to the crook while an arm lives.
+9. Later, if Fabien wants to author in Blender: an `md5anim` loader.
 
 ### Open — carried over
 
@@ -413,6 +416,33 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-19 — round 78 (antennas and rear legs fixed, the laser split down the middle, a harsher siren)
+- **The tester on 263, with a screenshot**: the antennas at the top and the
+  rear legs at the bottom reach beyond the tube plane too, so the plane cut
+  had handed them to the arm bones — they moved with the arms and showed
+  the seam the arms had shown before. His call: leave them fixed. Mine too.
+  Connectivity could not tell the parts apart (the mesh is a pile of
+  disconnected shells, an `.obj` conversion: a flood-fill from the claw tip
+  reaches 37 vertices), but their *place* can: the antennas are the top fins,
+  screen-up and raised toward the camera (z < −8, y > 5, out to |X| ≈ 14);
+  the rear legs hang at the bottom, away from the camera, close to the body
+  (z > 6, y < −3, |X| < 10 — the claws share their z and y but sit beyond
+  17). Everything else beyond the plane is the arm: 223 vertices a side, 50
+  seam copies, 88 seam triangles. The seam is no longer a plane, so the
+  harness now counts the vertices whose normal changed (50 of 1,198, the
+  crease) instead of measuring a distance to the cut. Rendered and checked:
+  fins and legs grey, arms coloured, hinges at the tube.
+- **The laser, split down the middle**: 66° of old, 35° of round 77, **50°**
+  now (0.88 rad). Wider than the crook allows on purpose: `LOFB_ClampSweep`
+  trims each beam to the crook's edge while an arm lives (about 42° at the
+  nominal depth), and the full 50° returns once both arms are torn off — a
+  reason to tear them. The harness asserts the clamped cone stays at least
+  38° wide.
+- **The siren, harsher** ("pas assez agressive", with a civil-defence siren
+  as the reference): two hard rises 300→760 Hz over 1.5 s each, seven
+  harmonics in a saw-like stack, a second rotor detuned by 0.6 % for the
+  beating growl, driven into soft clipping. Three seconds, 8-bit mono 22 kHz.
 
 ### 2026-09-19 — round 77 (the hinge at the tube, the crook under the arm, sparks, and a siren)
 - **The tester's screenshot, fetched from App Store Connect.** A new

@@ -86,7 +86,8 @@ extern void Spawn_EntityParticules(vec2_t ss_position);	// collisions.c: a burst
 #define LOFB_LASER_PERIOD_MS	32000.0f	// then one every ~32s (30-45 window)
 #define LOFB_LASER_CHARGE_MS	2200.0f		// telegraph: longer so the beam is easy to anticipate
 #define LOFB_LASER_FIRE_MS		3500.0f		// beam sweep duration
-#define LOFB_LASER_SWEEP_AMP	0.62f		// radians off straight-down (~35 deg; was 1.15 / 66 until round 77 --
+#define LOFB_LASER_SWEEP_AMP	0.88f		// radians off straight-down (~50 deg: round 78, "coupe la poire en deux" between the 66 of old and the 35 of round 77;
+											// LOFB_ClampSweep still keeps the beam out of a live arm's crook, so with both arms up the beam stops short of it --
 											// "le gros laser prend trop d'angle": the crook under the arm was inside the sweep)
 #define LOFB_LASER_SWEEP_CYCLES	1.2f		// sweep speed (faster than 1.3.6, calmer than 1.3.5)
 #define LOFB_LASER_HALFWIDTH	(0.12f * SS_H)	// beam half-thickness (pixels)
@@ -318,11 +319,14 @@ static void LOFB_BuildArmSolids(const md5_mesh_t* mesh)
 		int   n[NX][NZ]; float sx[NX][NZ], sz[NX][NZ], rr[NX][NZ];
 		int i, a, b;
 		memset(n, 0, sizeof(n)); memset(sx, 0, sizeof(sx)); memset(sz, 0, sizeof(sz)); memset(rr, 0, sizeof(rr));
-		// pass 1: centroids
+		// pass 1: centroids -- the arm's OWN vertices only (round 78: the
+		// antennas and rear legs reach beyond the tube plane but belong to
+		// the body; they are not lethal and do not move)
 		for (i = 0; i < mesh->numVertices; i++)
 		{
 			float bx = sign * mesh->vertexArray[i].pos[0] - gPoseBones[2].position[0];
 			float bz = mesh->vertexArray[i].pos[2] - pz;
+			if (mesh->weights[mesh->vertices[i].start].boneId != 1 + k) continue;
 			if (bx < 0) continue;					// body side of the shoulder
 			a = (int)(bx / LOFB_SOLID_CELL_X); b = (int)((bz + 13.5f) / LOFB_SOLID_CELL_Z);
 			if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
@@ -333,6 +337,7 @@ static void LOFB_BuildArmSolids(const md5_mesh_t* mesh)
 		{
 			float bx = sign * mesh->vertexArray[i].pos[0] - gPoseBones[2].position[0];
 			float bz = mesh->vertexArray[i].pos[2] - pz, dx, dz, d;
+			if (mesh->weights[mesh->vertices[i].start].boneId != 1 + k) continue;
 			if (bx < 0) continue;
 			a = (int)(bx / LOFB_SOLID_CELL_X); b = (int)((bz + 13.5f) / LOFB_SOLID_CELL_Z);
 			if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;

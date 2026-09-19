@@ -101,15 +101,17 @@ int main(void)
 			/* Round 76: a seam vertex now sees only its side's triangles, so its
 			 * normal legitimately differs -- a lighting crease at the shoulder
 			 * joint. Away from the cut the normals must be the original's. */
-			if (dn > 2) { float far = fabsf(fabsf(orig.vertexArray[i].pos[0]) - CUT); if (far > seamBand) seamBand = far; }
-			if (fabsf(fabsf(orig.vertexArray[i].pos[0]) - CUT) > 5.0f && dn > maxNrm) maxNrm = dn;
+			/* Round 78: the seam is no longer a plane (antennas and rear legs stay
+			 * with the body), so "distance to the cut" means nothing; count the
+			 * vertices whose normal changed instead -- they are the seam. */
+			if (dn > 2 && k == 0) seamBand += 1.0f;
+			(void)maxNrm;
 		}
 		CHECK(orig.vertexArray[i].text[0] == rig.vertexArray[i].text[0] && orig.vertexArray[i].text[1] == rig.vertexArray[i].text[1], "uv of vertex %d differs", i);
 	}
-	printf("rest pose: max position deviation %.3g units; normals differ only within %.1f units of the cut (the seam's lighting crease), max deviation beyond 5 units %d/32767\n", maxPos, seamBand, maxNrm);
+	printf("rest pose: max position deviation %.3g units; %d of %d vertices changed normal (the seam's lighting crease: shells see only their own faces)\n", maxPos, (int)seamBand, orig.numVertices);
 	CHECK(maxPos < 1e-4f, "rest pose positions deviate by %.3g", maxPos);
-	CHECK(maxNrm <= 2, "rest pose normals deviate by %d away from the seam", maxNrm);
-	CHECK(seamBand < 6.0f, "the seam's lighting crease reaches %.1f units from the cut", seamBand);
+	CHECK(seamBand < orig.numVertices * 0.15f, "the lighting crease touches %d vertices -- more than the seam", (int)seamBand);
 
 	/* 2. swing armR by 30 degrees */
 	{
@@ -292,14 +294,14 @@ int main(void)
 		for (i = 0; i < rig.numVertices; i++)
 		{
 			float bx = rig.vertexArray[i].pos[0] - PIVOT_X, bz = rig.vertexArray[i].pos[2] - PZ;
-			if (bx < 0) continue;
+			if (rig.weights[rig.vertices[i].start].boneId != 2 || bx < 0) continue;	/* the right arm's own vertices */
 			a = (int)(bx / CELLX); b = (int)((bz + 13.5f) / CELLZ); if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
 			n[a][b]++; sx[a][b] += bx; sz[a][b] += bz;
 		}
 		for (i = 0; i < rig.numVertices; i++)
 		{
 			float bx = rig.vertexArray[i].pos[0] - PIVOT_X, bz = rig.vertexArray[i].pos[2] - PZ, dx, dz, d;
-			if (bx < 0) continue;
+			if (rig.weights[rig.vertices[i].start].boneId != 2 || bx < 0) continue;
 			a = (int)(bx / CELLX); b = (int)((bz + 13.5f) / CELLZ); if (a >= NX) a = NX - 1; if (b < 0) b = 0; if (b >= NZ) b = NZ - 1;
 			dx = bx - sx[a][b] / n[a][b]; dz = bz - sz[a][b] / n[a][b]; d = sqrtf(dx*dx + dz*dz);
 			if (d > rr[a][b]) rr[a][b] = d;
@@ -336,14 +338,13 @@ int main(void)
 				if (proj > -0.15f * len && proj < len && intrusion > 0 && firstTouch < 0) firstTouch = deg;
 			}
 			(void)worst;
-			printf("laser vs crook (nominal scale): the crook would first be touched at a sweep of %d degrees (shipped amplitude: 35)\n", firstTouch);
-			{
-				float ang = -(float)M_PI / 2.0f + 0.62f, dx = cosf(ang), dy = sinf(ang);	/* LOFB_LASER_SWEEP_AMP, round 77 */
-				float rx = cx - ox, ry = cy - oy, perp = fabsf(rx*dy - ry*dx);
-				float clear = perp - (hw + 0.035f * SS_H + rpx);
-				printf("  at 0.62 rad (the shipped amplitude): clearance %.0f px\n", clear);
-				CHECK(clear > 0, "the shipped sweep reaches the crook by %.0f px at the nominal scale -- the runtime clamp would fire every beam", -clear);
-			}
+			printf("laser vs crook (nominal scale): the crook would first be touched at a sweep of %d degrees (shipped amplitude: 50, round 78)\n", firstTouch);
+			/* Round 78: the shipped amplitude (0.88 rad, 50 deg) is wider than the
+			 * crook allows on purpose -- LOFB_ClampSweep trims each beam to the
+			 * crook's edge while an arm lives (the tester's "coupe la poire en
+			 * deux"), and the full 50 deg returns once both arms are torn off. The
+			 * guarantee here: the clamped beam still sweeps a useful cone. */
+			CHECK(firstTouch >= 38, "the clamp would leave the beam only %d degrees of sweep -- the crook sits too close to the body", firstTouch);
 		}
 		free(bones);
 	}

@@ -65,13 +65,30 @@ foreach ($vertex in $verts) { if ($vertex.count -ne 1) { throw "rig_lofb: vertex
 
 # --- sides ------------------------------------------------------------------
 # side 0 = body, 1 = armL, 2 = armR (== the bone index)
+#
+# Round 78: the plane, MINUS the antennas and the rear legs. Both reach beyond
+# |X| = Cut, and a plane cut handed them to the arm bones -- they moved with
+# the arms and showed the same seam the arms had shown before (the tester's
+# screenshot on 263; his call: leave them fixed). The mesh is a pile of
+# disconnected shells (an .obj conversion), so connectivity cannot tell the
+# parts apart; their PLACE can: the antennas are the top fins, screen-up and
+# raised toward the camera (z < -8, y > 5, out to |X| ~14); the rear legs
+# hang at the bottom, away from the camera, close to the body (z > 6, y < -3,
+# |X| < 10 -- the claws share their z and y but sit beyond 17). Everything
+# else beyond the plane is the arm: the tube, the shoulder block, the claw.
 $side = New-Object int[] $verts.Count
 $pos  = @{}
+$countAntenna = 0; $countLeg = 0
 foreach ($vertex in $verts) {
   $src = $weights[$vertex.start]
   $pos[$vertex.id] = $src
-  if ($src.x -le -$Cut) { $side[$vertex.id] = 1 } elseif ($src.x -ge $Cut) { $side[$vertex.id] = 2 } else { $side[$vertex.id] = 0 }
+  $ax = [Math]::Abs($src.x)
+  if ($ax -lt $Cut) { $side[$vertex.id] = 0; continue }
+  if ($src.z -lt -8.0 -and $src.y -gt 5.0) { $side[$vertex.id] = 0; $countAntenna++; continue }
+  if ($src.z -gt 6.0 -and $src.y -lt -3.0 -and $ax -lt 10.0) { $side[$vertex.id] = 0; $countLeg++; continue }
+  $side[$vertex.id] = if ($src.x -lt 0) { 1 } else { 2 }
 }
+"fixed parts beyond the plane: $countAntenna antenna vertices, $countLeg rear-leg vertices stay with the body"
 
 # --- the seam: duplicate the minority vertex of every straddling triangle ----
 $outVertexList = New-Object System.Collections.Generic.List[object]   # {s, t, bone, x, y, z} in output order

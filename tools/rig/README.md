@@ -83,3 +83,11 @@ sweep is clamped so its capsule never touches a live arm's crook. `rig_check`
 replays the solids and asserts the pocket admits the ship (2.12 units of room
 for a radius of 1.82) and that the shipped ±66° sweep clears the crook (first
 touch at 84°).
+
+## The parts that stay with the body (round 78)
+
+The antennas (top fins, z < −8, y > 5) and the rear legs (bottom, z > 6,
+y < −3, |X| < 10) reach beyond the tube plane but are not arm: the tool keeps
+them on bone 0, so the seam is no longer a plane and the arm is the plane
+minus those two regions — 223 vertices a side. Connectivity could not do it:
+the mesh is a pile of disconnected shells.

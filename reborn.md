@@ -417,6 +417,10 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-19 — round 81 (the siren at two times six seconds)
+- On 266: "les sirènes sont un tout petit peu trop longues" — two wails of
+  six seconds instead of eight, same timbre, twelve seconds in all.
+
 ### 2026-09-19 — round 80 (no strays: a neighbourhood pass on the rig)
 - **"C'est normal qu'il y ait que quelques ronds de couleur ?"** — the tester,
   zoomed into the rig's render: a few arm-coloured vertices scattered inside

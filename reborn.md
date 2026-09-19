@@ -447,7 +447,7 @@ it ever reached a device — which is why the game looks the same and why
   arrière"), **Corps**, **Tube** (the block's hinge), **Bloc** (the shoulder
   block with the lights), **Cou** (the claw's hinge), **Pince** (the claw),
   **Creux** (the refuge under the Bloc).
-  **v5.0.9 / 269.**
+  **v5.0.9 / 269 — validated on device: "c'est nickel comme ça".**
 
 ### 2026-09-19 — round 82 (the shoulder block whole again)
 - **The tester's screenshot on 266, fetched from App Store Connect**: a gap

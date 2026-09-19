@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 268) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 269) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -443,6 +443,7 @@ it ever reached a device — which is why the game looks the same and why
   them), **Patte arrière** (the bottom fins), **Corps**, **Tube** (the
   block's hinge), **Bloc** (the shoulder block with the lights), **Cou** (the
   claw's hinge), **Pince** (the claw), **Creux** (the refuge under the Bloc).
+  **v5.0.9 / 269.**
 
 ### 2026-09-19 — round 82 (the shoulder block whole again)
 - **The tester's screenshot on 266, fetched from App Store Connect**: a gap

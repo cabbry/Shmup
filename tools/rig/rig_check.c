@@ -348,6 +348,43 @@ int main(void)
 		free(bones);
 	}
 
+	/* 8. RENDER DUMP (optional): RIG_DUMP=<file> writes every posed vertex, for a
+	 *    few poses lofb.c can take, as "pose x y z bone" lines -- the input of
+	 *    the schematic renders (tools/rig/render_poses.awk). Poses: rest; the
+	 *    pincer open (-18 deg) and shut (+45 deg); the right arm torn off,
+	 *    half-way through its tumble. Same quaternion recipe as LOFB_PoseArms. */
+	if (getenv("RIG_DUMP"))
+	{
+		FILE* out = fopen(getenv("RIG_DUMP"), "w");
+		md5_bone_t* bones = (md5_bone_t*)calloc(rig.numBones, sizeof(md5_bone_t));
+		const char* names[4] = { "rest", "open", "shut", "torn" };
+		int p;
+		for (p = 0; p < 4 && out; p++)
+		{
+			int k;
+			memcpy(bones, rig.bones, rig.numBones * sizeof(md5_bone_t));
+			for (k = 0; k < 2; k++)
+			{
+				float mirror = (k == 0) ? 1.0f : -1.0f, sign = (k == 0) ? -1.0f : 1.0f;
+				float swing = 0, tilt = 0; quat4_t qy, qx; float hy, hx;
+				if (p == 1) swing = -18.0f;
+				if (p == 2) swing = 45.0f;
+				if (p == 3 && k == 1) { float f = 0.5f; swing = 70.0f * f; tilt = 140.0f * f;
+					bones[1 + k].position[0] += sign * 10.0f * f; bones[1 + k].position[2] += 60.0f * f * f; }
+				hy = swing * mirror * (float)M_PI / 360.0f; hx = tilt * (float)M_PI / 360.0f;
+				qy[0] = 0; qy[1] = sinf(hy); qy[2] = 0; qy[3] = cosf(hy);
+				qx[0] = sinf(hx); qx[1] = 0; qx[2] = 0; qx[3] = cosf(hx);
+				Quat_multQuat(qy, qx, bones[1 + k].orientation);
+			}
+			MD5_GenerateSkin(&rig, bones);
+			for (i = 0; i < rig.numVertices; i++)
+				fprintf(out, "%s %.3f %.3f %.3f %d\n", names[p], rig.vertexArray[i].pos[0], rig.vertexArray[i].pos[1], rig.vertexArray[i].pos[2],
+						rig.weights[rig.vertices[i].start].boneId);
+		}
+		if (out) { fclose(out); printf("dumped 4 poses to %s\n", getenv("RIG_DUMP")); }
+		free(bones);
+	}
+
 	if (fails) { printf("rig_check: %d FAILURE(S)\n", fails); return 1; }
 	printf("rig_check: OK -- the rig is invisible at rest and only the swung arm moves.\n");
 	return 0;

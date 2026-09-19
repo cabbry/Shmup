@@ -35,10 +35,10 @@
 param(
   [string]$Source = "E:\Projects\Shmup\data\data\models\enemies\lofb.obj.md5mesh",
   [string]$Target = "E:\Projects\Shmup\data\data\models\enemies\lofb_rigged.md5mesh",
-  [double]$Cut = 8.0,
-  [double]$PivotX = 8.5,
-  [double]$PivotY = 5.3,
-  [double]$PivotZ = -5.3
+  [double]$Cut = 5.5,
+  [double]$PivotX = 5.5,
+  [double]$PivotY = 0.44,
+  [double]$PivotZ = 1.16
 )
 $inv = [System.Globalization.CultureInfo]::InvariantCulture
 function Num([string]$text) { return [double]::Parse($text, $inv) }

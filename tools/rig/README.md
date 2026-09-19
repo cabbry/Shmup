@@ -6,12 +6,22 @@ but the MD5 loader in `engine/src/md5.c` was written for the real thing: it
 reads any number of joints (parent, position, orientation), several weights
 per vertex, and `MD5_GenerateSkin(mesh, bones)` re-skins every vertex and
 normal from whatever bone array it is handed. So the arms need a **rig**, not
-a new model, and no Blender: the boss is symmetric, 45.7 units wide, and its
-two claw arms are the vertices beyond |**Round 76: a hard cut, seam duplicated.** Every vertex has one bone; every
-triangle that straddled the cut is made single-sided by duplicating its
-minority vertex onto the majority side (48 duplicates, 68 seam triangles), so
-body and arms are three shells that coincide at rest and a torn-off arm pulls
-no body triangle. The earlier two-weight blend is gone. Bones are written at identity| = 8.
+a new model, and no Blender: the boss is symmetric, 45.7 units wide, and the
+cut is a plane.
+
+**Where the cut is (round 77).** The tester saw the seam run through the
+shoulder block on device and named the joint: the small tube that joins the
+body to the arm. The mesh agrees — the |X| 4.5..6.5 band is the sparsest of
+the hull — so the cut is at |X| = 5.5 and the hinge at the tube's centroid
+(5.5, 0.44, 1.16). The arm is the whole shoulder block plus the claw.
+
+**How the cut is made (round 76): hard, with the seam duplicated.** Every
+vertex has one bone; every triangle that straddled the cut is made
+single-sided by duplicating its minority vertex onto the majority side (72
+duplicates, 116 seam triangles), so body and arms are three shells that
+coincide at rest and a torn-off arm pulls no body triangle. The first rig's
+two-weight blend is gone. Bones are written at identity, so a weight's
+bone-space position is simply vertex − pivot.
 
 ## `rig_lofb.ps1`
 
@@ -19,9 +29,9 @@ Reads the one-joint mesh and writes `lofb_rigged.md5mesh` next to it:
 
 | bone | parent | pivot | vertices |
 |---|---|---|---|
-| 0 `origin` | — | (0, 0, 0) | body, \|X\| < 8 — 670 alone, 204 shared |
-| 1 `armL` | 0 | (−8.5, 5.3, −5.3) | X < −8 — 162 alone |
-| 2 `armR` | 0 | (8.5, 5.3, −5.3) | X > 8 — 162 alone |
+| 0 `origin` | — | (0, 0, 0) | body, \|X\| < 5.5 — 686 (72 seam copies included) |
+| 1 `armL` | 0 | (−5.5, 0.44, 1.16) | X ≤ −5.5 — 292 |
+| 2 `armR` | 0 | (5.5, 0.44, 1.16) | X ≥ 5.5 — 292 |
 
 Across |X| = 6..10 a vertex carries **two weights**, body (1 − t) and arm (t),
 t linear in |X|: the shoulder bends instead of tearing when the arm bone

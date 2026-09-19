@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 263) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 264) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -443,6 +443,7 @@ it ever reached a device — which is why the game looks the same and why
   as the reference): two hard rises 300→760 Hz over 1.5 s each, seven
   harmonics in a saw-like stack, a second rotor detuned by 0.6 % for the
   beating growl, driven into soft clipping. Three seconds, 8-bit mono 22 kHz.
+  **v5.0.4 / 264.**
 
 ### 2026-09-19 — round 77 (the hinge at the tube, the crook under the arm, sparks, and a siren)
 - **The tester's screenshot, fetched from App Store Connect.** A new

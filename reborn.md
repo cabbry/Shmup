@@ -417,6 +417,17 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-19 — round 80 (no strays: a neighbourhood pass on the rig)
+- **"C'est normal qu'il y ait que quelques ronds de couleur ?"** — the tester,
+  zoomed into the rig's render: a few arm-coloured vertices scattered inside
+  the body's upper structure. Not normal: vertices beyond the cut plane that
+  no band caught — a few of the tube's, a few orphans. Alone, invisible; in
+  twos or threes, a splinter that moves with the arm. The tool now runs two
+  passes over the mesh's own adjacency: an arm vertex with fewer than two
+  arm neighbours joins the body. Twelve strays rejoined; the seam shrank
+  from 46 duplicates to 28 (52 straddling triangles instead of 82), the
+  crease with it. 194 vertices an arm. Harness green, render checked.
+
 ### 2026-09-19 — round 79 (the upper bracket fixed too; the siren at two times eight seconds)
 - **The tester, on the rig's own render**: one more piece moved with the arm
   and opened onto the sky — the bracket under the antenna fins, z −8..−5,

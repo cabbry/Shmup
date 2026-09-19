@@ -29,9 +29,9 @@ Reads the one-joint mesh and writes `lofb_rigged.md5mesh` next to it:
 
 | bone | parent | pivot | vertices |
 |---|---|---|---|
-| 0 `origin` | — | (0, 0, 0) | body, \|X\| < 5.5, plus the antennas and rear legs — 802 (50 seam copies included) |
-| 1 `armL` | 0 | (−5.5, 0.44, 1.16) | X ≤ −5.5 minus fins and legs — 223 |
-| 2 `armR` | 0 | (5.5, 0.44, 1.16) | X ≥ 5.5 minus fins and legs — 223 |
+| 0 `origin` | — | (0, 0, 0) | body, \|X\| < 5.5, plus the upper structure and rear legs — 838 (28 seam copies included) |
+| 1 `armL` | 0 | (−5.5, 0.44, 1.16) | X ≤ −5.5 minus fins, bracket, legs and strays — 194 |
+| 2 `armR` | 0 | (5.5, 0.44, 1.16) | X ≥ 5.5 minus fins, bracket, legs and strays — 194 |
 
 One weight per vertex. The source's vertex order is kept and the seam
 duplicates are appended; triangles are rewritten only where they crossed.

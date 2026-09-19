@@ -93,6 +93,31 @@ foreach ($vertex in $verts) {
 }
 "fixed parts beyond the plane: $countAntenna antenna vertices, $countLeg rear-leg vertices stay with the body"
 
+# Round 80: no orphans, no shards. A vertex that the bands left with the arm
+# but whose triangle neighbours are almost all body is a stray -- alone it is
+# invisible, in twos or threes it becomes a floating splinter that moves with
+# the arm. Two passes: an arm vertex with fewer than two arm neighbours joins
+# the body.
+$adjacency = @{}
+foreach ($tri in $tris) {
+  foreach ($pair in @(@($tri.a,$tri.b), @($tri.b,$tri.c), @($tri.c,$tri.a))) {
+    if (-not $adjacency.ContainsKey($pair[0])) { $adjacency[$pair[0]] = New-Object System.Collections.Generic.HashSet[int] }
+    if (-not $adjacency.ContainsKey($pair[1])) { $adjacency[$pair[1]] = New-Object System.Collections.Generic.HashSet[int] }
+    [void]$adjacency[$pair[0]].Add($pair[1]); [void]$adjacency[$pair[1]].Add($pair[0])
+  }
+}
+$strays = 0
+for ($pass = 0; $pass -lt 2; $pass++) {
+  foreach ($vertex in $verts) {
+    $id = $vertex.id
+    if ($side[$id] -eq 0 -or -not $adjacency.ContainsKey($id)) { continue }
+    $armNeighbours = 0
+    foreach ($next in $adjacency[$id]) { if ($side[$next] -eq $side[$id]) { $armNeighbours++ } }
+    if ($armNeighbours -lt 2) { $side[$id] = 0; $strays++ }
+  }
+}
+"strays: $strays arm vertices with fewer than two arm neighbours rejoined the body"
+
 # --- the seam: duplicate the minority vertex of every straddling triangle ----
 $outVertexList = New-Object System.Collections.Generic.List[object]   # {s, t, bone, x, y, z} in output order
 foreach ($vertex in $verts) {

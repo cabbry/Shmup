@@ -89,7 +89,7 @@ units of room for a radius of 1.82) and that the clamped cone stays ≥ 38°.
 
 ## The parts that stay with the body (round 78)
 
-The antennas (top fins, z < −8, y > 5) and the rear legs (bottom, z > 6,
+The upper structure (the antenna fins and the bracket under them: z < −8, or z < −5 beyond |X| 7.5) and the rear legs (bottom, z > 6,
 y < −3, |X| < 10) reach beyond the tube plane but are not arm: the tool keeps
 them on bone 0, so the seam is no longer a plane and the arm is the plane
 minus those two regions — 223 vertices a side. Connectivity could not do it:

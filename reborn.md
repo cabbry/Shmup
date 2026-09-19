@@ -347,8 +347,8 @@ order, each step a build:
    the tester's TestFlight screenshot: the cut at |X| = 5.5, the laser at
    ±35°, sparks on the tear and the stump, a siren on WARNING.
 8. **Antennas and rear legs fixed, the laser at 50°** — done, round 78: the
-   arm is the plane minus the top fins and the bottom legs; the clamp trims
-   the beam to the crook while an arm lives.
+   arm is the plane minus the top fins, the bracket under them (round 79) and the bottom legs; the
+   clamp trims the beam to the crook while an arm lives.
 9. Later, if Fabien wants to author in Blender: an `md5anim` loader.
 
 ### Open — carried over
@@ -416,6 +416,22 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-19 — round 79 (the upper bracket fixed too; the siren at two times eight seconds)
+- **The tester, on the rig's own render**: one more piece moved with the arm
+  and opened onto the sky — the bracket under the antenna fins, z −8..−5,
+  |X| 7.5..12.5. His three options: one block, fixed, or a black structure
+  behind it. Fixed: the shoulder block tops out at z −3 (measured, the band
+  z −6..−3 holds only the tube's own vertices), so **the whole upper
+  structure** — fins and bracket — stays with the body, and the tube's
+  vertices stay with the arm. 203 vertices an arm, 46 seam copies, 82 seam
+  triangles; the crease touches 46 vertices. Harness green, partition
+  rendered and checked: everything above the block is grey.
+- **The siren at 2 × 8 s** ("ta sirène sera trop courte"): two wails of eight
+  seconds each — a 4.8 s rise from 300 to 760 Hz, 1.2 s on the plateau, a 2 s
+  fall — same saw-like timbre, detuned second rotor, soft clipping. Sixteen
+  seconds, from the WARNING card through the boss's arrival. One
+  AVAudioPCMBuffer of 345 KB, the format of the 2009 effects.
 
 ### 2026-09-19 — round 78 (antennas and rear legs fixed, the laser split down the middle, a harsher siren)
 - **The tester on 263, with a screenshot**: the antennas at the top and the

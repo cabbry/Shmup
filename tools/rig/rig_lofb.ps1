@@ -84,7 +84,10 @@ foreach ($vertex in $verts) {
   $pos[$vertex.id] = $src
   $ax = [Math]::Abs($src.x)
   if ($ax -lt $Cut) { $side[$vertex.id] = 0; continue }
-  if ($src.z -lt -8.0 -and $src.y -gt 5.0) { $side[$vertex.id] = 0; $countAntenna++; continue }
+  # Round 79: the whole upper structure -- antenna fins AND the bracket under
+  # them (z -8..-5, |X| 7.5..12.5) -- stays with the body; the shoulder block
+  # tops out at z -3, the tube's own vertices (|X| < 7.5) stay with the arm.
+  if ($src.z -lt -8.0 -or ($src.z -lt -5.0 -and $ax -ge 7.5)) { $side[$vertex.id] = 0; $countAntenna++; continue }
   if ($src.z -gt 6.0 -and $src.y -lt -3.0 -and $ax -lt 10.0) { $side[$vertex.id] = 0; $countLeg++; continue }
   $side[$vertex.id] = if ($src.x -lt 0) { 1 } else { 2 }
 }

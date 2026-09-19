@@ -36,6 +36,7 @@
 #define SND_EXPLOSION	1
 #define SND_GHOST_LAUNCH 2
 #define SND_ENEMY_SHOT 3
+#define SND_SIREN 4			// v5: the WARNING klaxon before the boss
 
 #define NUM_SOURCES 8
 

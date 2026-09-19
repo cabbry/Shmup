@@ -102,6 +102,7 @@ void SND_LoadsSoundLibrary(void )
 	SND_Load("data/sfx/explosionShort.wav", SND_EXPLOSION);
 	SND_Load("data/sfx/ghostLauch.wav", SND_GHOST_LAUNCH);
 	SND_Load("data/sfx/enemy_shot.wav", SND_ENEMY_SHOT);
+	SND_Load("data/sfx/siren.wav", SND_SIREN);	// v5: two rising wails, 2.4 s, synthesised (tools/rig/README notes the recipe)
 }
 
 

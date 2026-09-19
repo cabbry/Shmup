@@ -343,7 +343,10 @@ order, each step a build:
    the seam duplicated, a destroyed arm tumbles off and the stump sparks,
    and both arms snap shut after the laser and at pseudo-random intervals,
    never during the laser.
-7. Later, if Fabien wants to author in Blender: an `md5anim` loader.
+7. **The hinge at the tube, the crook under the arm** — done, round 77, from
+   the tester's TestFlight screenshot: the cut at |X| = 5.5, the laser at
+   ±35°, sparks on the tear and the stump, a siren on WARNING.
+8. Later, if Fabien wants to author in Blender: an `md5anim` loader.
 
 ### Open — carried over
 
@@ -410,6 +413,35 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-19 — round 77 (the hinge at the tube, the crook under the arm, sparks, and a siren)
+- **The tester's screenshot, fetched from App Store Connect.** A new
+  read-only helper (`asc-feedback.yml`) pulls TestFlight feedback
+  screenshots through the API; the one from build 262 showed the seam's
+  black zigzag running *through* the shoulder block, and the tester named
+  the fault: the arm is hinged on itself, not where it joins the body —
+  "il y a un petit tube qui joint le corps au bras, c'est là que devrait
+  être l'articulation". The mesh agrees: the |X| 4.5..6.5 band is the
+  sparsest of the whole hull. **The cut moved to |X| = 5.5**, the pivot to
+  the tube's centroid (5.5, 0.44, 1.16); the arm is now the whole shoulder
+  block plus the claw, 292 vertices a side, 72 duplicated along the seam;
+  the lighting crease is confined to 1.2 units of the cut. Same proof,
+  regenerated: 4,434 corners identical, rest to 2e-6.
+- **The crook he actually hides in** is *under* the arm, between body and
+  claw — below the boss's centre line, which is why the ±66° beam still
+  killed there ("il nous kill quand même"). The sweep drops to **±35°**;
+  the crook is an explicit circle at mesh (13.5, 5.5), carved free of
+  solids (a ship parked there has 2.47 units of room for a radius of 1.82),
+  and at the nominal depth the shipped sweep clears it by 15 px where a
+  beam would first touch it at 42°. The runtime clamp remains the
+  guarantee, following the arm's pose. The notch above the arm is carved
+  too. The pincer's shut angle is 45° now that the lever runs from the tube.
+- **Sparks** ("des flammes, mais des étincelles aussi"): the tear throws
+  three showers of the yellow entity sparks, and the stump adds one to every
+  burst for the rest of the fight.
+- **A siren** when WARNING appears ("pour mettre un peu la pression"): a
+  2.4-second two-wail klaxon synthesised on the spot, 8-bit mono 22 kHz like
+  the 2009 effects, played from the text event that shows the card.
 
 ### 2026-09-19 — round 76 (the arm torn off, the stump sparking, and the pincer)
 - **"Si un bras est détruit il faudrait carrément l'arracher"** — and the

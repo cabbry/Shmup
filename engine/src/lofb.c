@@ -52,6 +52,7 @@
 extern void emitSHABBullet(enemy_t* enemy, float angle);	// shab.c: one enemy bullet at an angle
 extern void EV_SpawnEnemy(event_t* event);					// event.c: spawn from a payload
 extern void EV_AutoPilotPls(event_t* event);				// event.c: fly players to rest position
+extern void Spawn_EntityParticules(vec2_t ss_position);	// collisions.c: a burst of yellow sparks (round 77: the torn arm and its stump)
 
 // enemy->parameters[] slots: float scratch storage, per enemy. timeCounter is a
 // ushort (wraps at ~65s), too small for a boss fight, so time lives here.
@@ -85,7 +86,8 @@ extern void EV_AutoPilotPls(event_t* event);				// event.c: fly players to rest 
 #define LOFB_LASER_PERIOD_MS	32000.0f	// then one every ~32s (30-45 window)
 #define LOFB_LASER_CHARGE_MS	2200.0f		// telegraph: longer so the beam is easy to anticipate
 #define LOFB_LASER_FIRE_MS		3500.0f		// beam sweep duration
-#define LOFB_LASER_SWEEP_AMP	1.15f		// radians off straight-down (~66 deg)
+#define LOFB_LASER_SWEEP_AMP	0.62f		// radians off straight-down (~35 deg; was 1.15 / 66 until round 77 --
+											// "le gros laser prend trop d'angle": the crook under the arm was inside the sweep)
 #define LOFB_LASER_SWEEP_CYCLES	1.2f		// sweep speed (faster than 1.3.6, calmer than 1.3.5)
 #define LOFB_LASER_HALFWIDTH	(0.12f * SS_H)	// beam half-thickness (pixels)
 #define LOFB_LASER_LENGTH		(2.5f  * SS_H)	// beam length (crosses the screen)
@@ -241,7 +243,7 @@ static vec3_t     gRestPivot[2];			// the arm bones' rest positions (from the me
 #define LOFB_PINCH_HOLD_MS		250.0f
 #define LOFB_PINCH_RETURN_MS	600.0f
 #define LOFB_PINCH_OPEN_DEG		-18.0f	// wider than rest (negative swing = outward)
-#define LOFB_PINCH_SHUT_DEG		60.0f	// the claws meet under the body
+#define LOFB_PINCH_SHUT_DEG		45.0f	// the claws swing in under the body (the hinge is at the tube now: a long lever)
 #define LOFB_PINCH_AFTER_LASER_MS 300.0f
 #define LOFB_PINCH_MIN_GAP_MS	8000
 #define LOFB_PINCH_RAND_MS		7000
@@ -280,13 +282,26 @@ static float gPinchSwing   = 0;		// the swing the pinch adds to both live arms t
 // corner and the claw's top edge while parked -- the arm is solid everywhere
 // else). The pocket: bone x 5..10.5 (mesh 13.5..19), bone z -7..+2 (mesh
 // -12.3..-3.3, i.e. ABOVE the forearm, screen-up of the boss's centre line).
-#define LOFB_CROOK_X0		5.0f
+// Round 77, the tester on device: the hinge is the TUBE that joins the body
+// to the arm (the cut moved to |X| = 5.5, pivot (5.5, 0.44, 1.16), the arm
+// = shoulder block + claw), and the crook he hides in is UNDER the arm,
+// between the body and the claw -- mesh x 9..16, z 2..9, BELOW the centre
+// line, which the old +/-66 degree sweep reached ("il nous kill quand même").
+// Two pockets are carved: that one (the crook proper, whose centre the laser
+// clamp protects) and the notch above the arm, both in bone space of the new
+// pivot. The sweep amplitude drops to 40 degrees so the crook is clear by
+// construction; LOFB_ClampSweep stays as the guarantee.
+#define LOFB_CROOK_X0		3.5f	// the crook: bone x (outward from the tube)
 #define LOFB_CROOK_X1		10.5f
-#define LOFB_CROOK_Z0		-7.0f
-#define LOFB_CROOK_Z1		2.0f
-#define LOFB_CROOK_BX		7.8f	// crook centre, bone space (outward from the shoulder)
-#define LOFB_CROOK_BZ		-2.5f	// ... and along Z (the shoulder pivot is at mesh z -5.3)
-#define LOFB_CROOK_R		2.5f
+#define LOFB_CROOK_Z0		0.84f	// ... bone z (down the screen)
+#define LOFB_CROOK_Z1		7.84f
+#define LOFB_UPPER_X0		8.0f	// the notch above the arm
+#define LOFB_UPPER_X1		13.5f
+#define LOFB_UPPER_Z0		-13.5f
+#define LOFB_UPPER_Z1		-4.5f
+#define LOFB_CROOK_BX		8.0f	// crook centre, bone space (mesh 13.5, 5.5)
+#define LOFB_CROOK_BZ		4.34f
+#define LOFB_CROOK_R		3.0f
 #define LOFB_SHIP_R_SS		0.035f	// the ship's radius the laser test uses (0.035 * SS_H px), in ss y units
 typedef struct { float bx, bz, r; } lofb_solid_t;	// bone space, mesh units, XZ plane
 static lofb_solid_t gArmSolid[2][LOFB_SOLID_MAX];
@@ -332,8 +347,9 @@ static void LOFB_BuildArmSolids(const md5_mesh_t* mesh)
 				{
 					float cx = sx[a][b] / n[a][b], cz = sz[a][b] / n[a][b];
 					lofb_solid_t* s;
-					if (cx >= LOFB_CROOK_X0 && cx <= LOFB_CROOK_X1 && cz >= LOFB_CROOK_Z0 && cz <= LOFB_CROOK_Z1)
-						continue;	// the crook: carved out, the ship's refuge
+					if ((cx >= LOFB_CROOK_X0 && cx <= LOFB_CROOK_X1 && cz >= LOFB_CROOK_Z0 && cz <= LOFB_CROOK_Z1) ||
+						(cx >= LOFB_UPPER_X0 && cx <= LOFB_UPPER_X1 && cz >= LOFB_UPPER_Z0 && cz <= LOFB_UPPER_Z1))
+						continue;	// the crook and the upper notch: carved out, the ship's refuges
 					s = &gArmSolid[k][gArmSolidCount[k]++];
 					s->bx = cx; s->bz = cz; s->r = rr[a][b] + LOFB_SOLID_MARGIN;
 				}
@@ -1099,6 +1115,13 @@ void LOFB_DamageArm(int idx, int dmg)
 		p[Y] -= 0.13f;
 		FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 0.8f, 0);
 		FX_GetSmoke(p, 0.6f, 0.6f);
+		// round 77 ("des flammes, mais j'aimerais des étincelles aussi"): a
+		// shower of sparks flying off the tear
+		Spawn_EntityParticules(p);
+		p[X] -= (idx == 0) ? -0.06f : 0.06f;
+		Spawn_EntityParticules(p);
+		p[Y] += 0.08f;
+		Spawn_EntityParticules(p);
 		SND_PlaySound(SND_EXPLOSION);
 		gArmChunkDmg += (gBossMaxEnergy * 8) / 100;
 	}
@@ -1391,6 +1414,7 @@ void updateLOFB(enemy_t* enemy)
 							p[Y] = enemy->ss_position[Y] - gRestPivot[k][2] / heightAtDistance + 0.02f * cosf(gSwayClock * 0.017f + k);
 						}
 						FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 0.55f, 0);
+						Spawn_EntityParticules(p);	// round 77: sparks, not only flames
 						p[X] += 0.03f * cosf(gSwayClock * 0.013f + k);
 						FX_GetExplosion(p, IMPACT_TYPE_YELLOW, 0.3f, 0);
 						FX_GetSmoke(p, 0.28f, 0.28f);

@@ -11,7 +11,7 @@ cut is a plane.
 
 **Where the cut is (round 77).** The tester saw the seam run through the
 shoulder block on device and named the joint: the small tube that joins the
-body to the arm. The mesh agrees — the |The antenna fins (z < −8, raised toward the camera) and the rear legs| 4.5..6.5 band is the sparsest of
+body to the arm. The mesh agrees — the |X| 4.5..6.5 band is the sparsest of
 the hull — so the cut is at |X| = 5.5 and the hinge at the tube's centroid
 (5.5, 0.44, 1.16). The arm is the whole shoulder block plus the claw.
 
@@ -89,8 +89,8 @@ units of room for a radius of 1.82) and that the clamped cone stays ≥ 38°.
 
 ## The parts that stay with the body (round 78)
 
-The upper structure (the antenna fins and the bracket under them: z < −8, or z < −5 beyond |X| 7.5) and the rear legs (bottom, z > 6,
-y < −3, |X| < 10) reach beyond the tube plane but are not arm: the tool keeps
+The antenna fins (top, z < −8, raised toward the camera) and the rear legs
+(bottom, z > 6, y < −3, |X| < 10) reach beyond the tube plane but are not arm: the tool keeps
 them on bone 0, so the seam is no longer a plane and the arm is the plane
 minus those two regions. Connectivity could not do it: the mesh is a pile of
 disconnected shells. A last pass over the mesh's adjacency (round 80) sends

@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 267) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 268) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -425,6 +425,7 @@ it ever reached a device — which is why the game looks the same and why
   fins (z < −8, raised toward the camera) and the rear legs stay with the
   body; the block moves whole. The stray pass of round 80 does the rest — 26
   orphans rejoined the body, 205 vertices an arm, the seam still 28 copies.
+  **v5.0.8 / 268.**
 
 ### 2026-09-19 — round 81 (the siren at two times six seconds)
 - On 266: "les sirènes sont un tout petit peu trop longues" — two wails of

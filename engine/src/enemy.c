@@ -187,12 +187,21 @@ void ENE_Precache(void)
 			//Log_Printf("precache t=%denemy count %f.\n",precacheEvent->time,engine.playerStats.numEnemies);
 			eventEnemyPayload = precacheEvent->payload;
 			//Log_Printf("Precaching entity: %s.\n",enemyTypePath[eventEnemyPayload->type]);
-			ENT_LoadEntity(&dummy, enemyTypePath[eventEnemyPayload->type],ENT_FULL_DRAW);
+			ENT_LoadEntity(&dummy, enemyTypePath[eventEnemyPayload->type], ENE_ModelUsage(eventEnemyPayload->type));
 		}
 		precacheEvent = precacheEvent->next;
 	}
-	
 
+
+}
+
+// v5: how an enemy type's mesh is kept. The boss (LOFB) is rigged -- its arm
+// bones are posed every frame and the mesh re-skinned in RAM -- so it loads
+// DYNAMIC; everything else goes to the GPU once. Precache and spawn must agree
+// (the model cache is keyed by filename).
+uchar ENE_ModelUsage(int enemyType)
+{
+	return (enemyType == ENEMY_LOFB) ? ENT_DYNAMIC_DRAW : ENT_FULL_DRAW;
 }
 
 
@@ -592,7 +601,7 @@ char* enemyTypePath[] =
 	"data/models/enemies/fht.obj.md5mesh",
 	"data/models/enemies/lee.obj.md5mesh",
 	"data/models/enemies/shab.obj.md5mesh",
-	"data/models/enemies/lofb.obj.md5mesh",
+	"data/models/enemies/lofb_rigged.md5mesh",	// v5: the boss rigged in three bones (tools/rig); the one-joint original stays for the act-3 cameo
 	"data/models/enemies/tha.obj.md5mesh",
 	"data/models/enemies/fht.obj.md5mesh",	// ENEMY_MISSILE: no missile mesh exists, reuse the small FHT (tinted red in-flight)
 };

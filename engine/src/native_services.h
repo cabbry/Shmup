@@ -36,6 +36,9 @@ void Native_UploadScore(uint score);
 // v2: menu localization -- 1 when the device language is French (iOS reads
 // NSLocale; other platforms answer 0 and stay English).
 int Native_IsFrenchLanguage(void);
+// v5: the marketing version as shipped in the bundle ("v5.0.0"), for the home
+// screen. Never NULL: a static buffer, valid for the life of the process.
+const char* Native_GetVersionString(void);
 void Native_LoginGameCenter(void);
 
 // Online (GameKit GKMatch) real-time multiplayer bridge.

@@ -132,6 +132,7 @@ void ENE_ReleaseAll(void);
 void ENE_AttachToCamera(matrix_t globalMatrix);
 enemy_t* ENE_GetFirstEnemy(void);
 int ENE_GetNumEnemies(void);
+uchar ENE_ModelUsage(int enemyType);	// v5: ENT_DYNAMIC_DRAW for the rigged boss, ENT_FULL_DRAW otherwise
 void ENE_UpdateSSBoundaries(enemy_t* enemy);
 
 void Spawn_EntityParticules(vec2_t ss_position);

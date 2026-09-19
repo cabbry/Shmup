@@ -382,6 +382,17 @@ int Native_IsFrenchLanguage(void) {
 	return [langs[0] hasPrefix:@"fr"] ? 1 : 0;
 }
 
+// v5: the marketing version, read once from the bundle (CI writes the tag's
+// number into CFBundleShortVersionString; a dev build reads the plist's own).
+const char* Native_GetVersionString(void) {
+	static char buf[32] = "";
+	if (buf[0] == 0) {
+		NSString* ver = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+		snprintf(buf, sizeof(buf), "v%s", ver ? [ver UTF8String] : "?");
+	}
+	return buf;
+}
+
 void Native_UploadScore(uint score) {
 	if (![GKLocalPlayer local].isAuthenticated)
 		return;

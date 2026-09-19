@@ -972,6 +972,11 @@ void MENU_Init(void)
 	actId = calloc(1, sizeof(char));
 	MENU_CreateButton(currentMenu, MENU_Tr("Game Multi"), 3, Action_ShowMultiModeMenu,NULL, buttonPos, buttonDim);	// v2: was Tutorial (moved to Others)
 
+	// v5: the version, small and centred under the two bottom buttons (their
+	// lower edge is at -424; the glyph quad at size 1.6 is 26 units tall, so
+	// -448 sits in the 56-unit band above the screen's bottom edge).
+	MENU_CreateText(currentMenu, 0, (-SS_COO_SYST_HEIGHT + 32), 1.6f, TEXT_CENTERED, (char*)Native_GetVersionString());
+
 	
 	
 	currentMenu = &menuScreens[MENU_CREDITS];

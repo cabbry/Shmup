@@ -497,9 +497,20 @@ void COLL_CheckPlayers(void)
 			float perp = rx * dy - ry * dx;
 			if (perp < 0) perp = -perp;
 			if (proj > -0.15f * len && proj < len && perp < hw + 0.035f * SS_H)
+			{
 				P_Die(controlledPlayer);
+				return;
+			}
 		}
 	}
+
+	// v5: the boss's ARMS are solid. Until the arms moved the ship flew
+	// through them (the crook of an arm was the one spot the laser could not
+	// reach); now a ram on a LIVE arm kills, like the body does. The lethal
+	// shape follows the posed bone and leaves the crook open; the wreck of a
+	// destroyed arm no longer blocks (the tester's call, 2026-09-19).
+	if (LOFB_PlayerHitsArm(players[controlledPlayer].ss_position[X], players[controlledPlayer].ss_position[Y]))
+		P_Die(controlledPlayer);
 }
 
 void COLL_CheckEnemies(void)

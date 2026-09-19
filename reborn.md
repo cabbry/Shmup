@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 4.2.x** (build 259) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 269) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -317,6 +317,42 @@ its runtime proof as much as code does.**
 Decided with the tester, and parked: first-party cosmetics through Apple's
 in-app purchase if ever, nothing Sorare-like for a long while.
 
+### In progress — v5, the boss's skeletal arms (the `v5` branch, from round 72)
+
+Fabien's last note: animate the boss's arms. The survey (round 72) found the
+2010 MD5 loader already reads multi-joint skeletons and weights, and re-skins
+from any bone array; only the *rig* and the *poses* are missing. The plan, in
+order, each step a build:
+
+1. **The version on the home screen** — done, the branch's first commit.
+2. **The rig tool** — done, round 73 (`tools/rig/rig_lofb.ps1`): cut `lofb.obj.md5mesh` into
+   three bones by geometry (body |X| < 8, arms beyond, shoulders at
+   (±8.5, 5.3, −5.3), a linear blend over 6..10), write the new md5mesh.
+   Proof: the rigged mesh in the rest pose skins to the *same* vertices as
+   the original, bit for bit, in a host-side harness.
+3. **Dynamic meshes** — done, round 74: an entity usage that keeps `vertexArray` in RAM and
+   re-skins on demand; the Metal ring-buffer path already draws it.
+4. **The poses** — done, round 74 (`LOFB_PoseArms`): idle sway, recoil on the big shot, a
+   flinch when an arm is hit, droop then fall when it is destroyed — all
+   functions of arm HP, the last shot, the last hit and `simulationTime`.
+5. **Solid arms and the crook** — done, round 75: the arms kill on contact
+   (circles from the mesh, carried by the bone; a wreck does not block), the
+   crook above the forearm is carved open, and the laser's sweep is clamped
+   so it never reaches it.
+6. **Torn off, and the pincer** — done, round 76: the rig is a hard cut with
+   the seam duplicated, a destroyed arm tumbles off and the stump sparks,
+   and both arms snap shut after the laser and at pseudo-random intervals,
+   never during the laser.
+7. **The hinge at the tube, the crook under the arm** — done, round 77, from
+   the tester's TestFlight screenshot: the cut at |X| = 5.5, the laser at
+   ±35°, sparks on the tear and the stump, a siren on WARNING.
+8. **Antennas and rear legs fixed, the laser at 50°** — done, round 78: the
+   arm is the plane minus the top fins, the bracket under them (round 79) and the bottom legs; the
+   clamp trims the beam to the crook while an arm lives.
+9. **Five bones** — done, round 83: the Bloc breathes at the Tube, the Pince
+   (a child bone at the Cou) does the pincer, the recoil and the tremor.
+10. Later, if Fabien wants to author in Blender: an `md5anim` loader.
+
 ### Open — carried over
 
 - **A community level list / store.** This was gated on "after stage 4, once
@@ -382,6 +418,302 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-19 — round 83 (five bones: the Bloc breathes, the Pince works; names for every part)
+- **The tester's screenshot on 268, mid-pincer**: with the whole arm hinged
+  at the tube and swung 45°, the Épaulette — the middle fin under the
+  antenna — flew off with the block, and the antenna fin, fixed, hung alone
+  in the air; bullets "hit the arm" where the block had been, the hit zone
+  never having moved. Any big rotation of the shoulder block tears
+  whatever sits against it. So the mechanics changed: **five bones**. The
+  **Bloc** (shoulder block) turns at the **Tube** by a few degrees only —
+  breathing, a small flinch. The **Pince** (claw), a child bone hinged at
+  the **Cou** (the 2-unit neck between block and claw, |X| = 16.3), does the
+  work: the pincer's snap (60° again), the big shot's recoil, the tremor,
+  the flinch. The Pince's transform is composed from the Bloc's every frame
+  (MD5 skins with absolute bones), so the claw rides the block and the torn
+  arm falls in one piece. Solids are built per part and ride their own
+  bone; the crook stays in Bloc space; the bullet hit zone, its flash and
+  its smoke now ride the Bloc, and the big shot leaves the Pince. The fins
+  above the block (z < −3, y > 4.5: Antenne and Épaulette) and the Pattes
+  arrière are body. 97 + 118 vertices an arm, 72 seam copies. Harness green
+  on five bones.
+- **Names**, put to the tester on an annotated screenshot (validation
+  pending): **corrected by the tester the same evening — the ship is drawn head-DOWN**:
+  **Ailes** (the big top fins; I had said "Antenne"), **Pattes arrière** (the
+  pieces above the wings, in the top corners), **Queue** (the two tubes
+  between the score and the lives), **Épaulette** (the middle fin under each
+  wing), **Antennes** (the small bottom fins, at the head; I had said "Patte
+  arrière"), **Corps**, **Tube** (the block's hinge), **Bloc** (the shoulder
+  block with the lights), **Cou** (the claw's hinge), **Pince** (the claw),
+  **Creux** (the refuge under the Bloc).
+  **v5.0.9 / 269 — validated on device: "c'est nickel comme ça".**
+
+### 2026-09-19 — round 82 (the shoulder block whole again)
+- **The tester's screenshot on 266, fetched from App Store Connect**: a gap
+  across the shoulder block. Round 79 had fixed a "bracket under the
+  antennas" at z −8..−5 beyond |X| 7.5 — it was the top of the block, and
+  fixing it sawed the block in two. Back to round 78's rule: only the antenna
+  fins (z < −8, raised toward the camera) and the rear legs stay with the
+  body; the block moves whole. The stray pass of round 80 does the rest — 26
+  orphans rejoined the body, 205 vertices an arm, the seam still 28 copies.
+  **v5.0.8 / 268.**
+
+### 2026-09-19 — round 81 (the siren at two times six seconds)
+- On 266: "les sirènes sont un tout petit peu trop longues" — two wails of
+  six seconds instead of eight, same timbre, twelve seconds in all.
+  **v5.0.7 / 267.**
+
+### 2026-09-19 — round 80 (no strays: a neighbourhood pass on the rig)
+- **"C'est normal qu'il y ait que quelques ronds de couleur ?"** — the tester,
+  zoomed into the rig's render: a few arm-coloured vertices scattered inside
+  the body's upper structure. Not normal: vertices beyond the cut plane that
+  no band caught — a few of the tube's, a few orphans. Alone, invisible; in
+  twos or threes, a splinter that moves with the arm. The tool now runs two
+  passes over the mesh's own adjacency: an arm vertex with fewer than two
+  arm neighbours joins the body. Twelve strays rejoined; the seam shrank
+  from 46 duplicates to 28 (52 straddling triangles instead of 82), the
+  crease with it. 194 vertices an arm. Harness green, render checked.
+  **v5.0.6 / 266.**
+
+### 2026-09-19 — round 79 (the upper bracket fixed too; the siren at two times eight seconds)
+- **The tester, on the rig's own render**: one more piece moved with the arm
+  and opened onto the sky — the bracket under the antenna fins, z −8..−5,
+  |X| 7.5..12.5. His three options: one block, fixed, or a black structure
+  behind it. Fixed: the shoulder block tops out at z −3 (measured, the band
+  z −6..−3 holds only the tube's own vertices), so **the whole upper
+  structure** — fins and bracket — stays with the body, and the tube's
+  vertices stay with the arm. 203 vertices an arm, 46 seam copies, 82 seam
+  triangles; the crease touches 46 vertices. Harness green, partition
+  rendered and checked: everything above the block is grey.
+- **The siren at 2 × 8 s** ("ta sirène sera trop courte"): two wails of eight
+  seconds each — a 4.8 s rise from 300 to 760 Hz, 1.2 s on the plateau, a 2 s
+  fall — same saw-like timbre, detuned second rotor, soft clipping. Sixteen
+  seconds, from the WARNING card through the boss's arrival. One
+  AVAudioPCMBuffer of 345 KB, the format of the 2009 effects.
+  **v5.0.5 / 265.**
+
+### 2026-09-19 — round 78 (antennas and rear legs fixed, the laser split down the middle, a harsher siren)
+- **The tester on 263, with a screenshot**: the antennas at the top and the
+  rear legs at the bottom reach beyond the tube plane too, so the plane cut
+  had handed them to the arm bones — they moved with the arms and showed
+  the seam the arms had shown before. His call: leave them fixed. Mine too.
+  Connectivity could not tell the parts apart (the mesh is a pile of
+  disconnected shells, an `.obj` conversion: a flood-fill from the claw tip
+  reaches 37 vertices), but their *place* can: the antennas are the top fins,
+  screen-up and raised toward the camera (z < −8, y > 5, out to |X| ≈ 14);
+  the rear legs hang at the bottom, away from the camera, close to the body
+  (z > 6, y < −3, |X| < 10 — the claws share their z and y but sit beyond
+  17). Everything else beyond the plane is the arm: 223 vertices a side, 50
+  seam copies, 88 seam triangles. The seam is no longer a plane, so the
+  harness now counts the vertices whose normal changed (50 of 1,198, the
+  crease) instead of measuring a distance to the cut. Rendered and checked:
+  fins and legs grey, arms coloured, hinges at the tube.
+- **The laser, split down the middle**: 66° of old, 35° of round 77, **50°**
+  now (0.88 rad). Wider than the crook allows on purpose: `LOFB_ClampSweep`
+  trims each beam to the crook's edge while an arm lives (about 42° at the
+  nominal depth), and the full 50° returns once both arms are torn off — a
+  reason to tear them. The harness asserts the clamped cone stays at least
+  38° wide.
+- **The siren, harsher** ("pas assez agressive", with a civil-defence siren
+  as the reference): two hard rises 300→760 Hz over 1.5 s each, seven
+  harmonics in a saw-like stack, a second rotor detuned by 0.6 % for the
+  beating growl, driven into soft clipping. Three seconds, 8-bit mono 22 kHz.
+  **v5.0.4 / 264.**
+
+### 2026-09-19 — round 77 (the hinge at the tube, the crook under the arm, sparks, and a siren)
+- **The tester's screenshot, fetched from App Store Connect.** A new
+  read-only helper (`asc-feedback.yml`) pulls TestFlight feedback
+  screenshots through the API; the one from build 262 showed the seam's
+  black zigzag running *through* the shoulder block, and the tester named
+  the fault: the arm is hinged on itself, not where it joins the body —
+  "il y a un petit tube qui joint le corps au bras, c'est là que devrait
+  être l'articulation". The mesh agrees: the |X| 4.5..6.5 band is the
+  sparsest of the whole hull. **The cut moved to |X| = 5.5**, the pivot to
+  the tube's centroid (5.5, 0.44, 1.16); the arm is now the whole shoulder
+  block plus the claw, 292 vertices a side, 72 duplicated along the seam;
+  the lighting crease is confined to 1.2 units of the cut. Same proof,
+  regenerated: 4,434 corners identical, rest to 2e-6.
+- **The crook he actually hides in** is *under* the arm, between body and
+  claw — below the boss's centre line, which is why the ±66° beam still
+  killed there ("il nous kill quand même"). The sweep drops to **±35°**;
+  the crook is an explicit circle at mesh (13.5, 5.5), carved free of
+  solids (a ship parked there has 2.47 units of room for a radius of 1.82),
+  and at the nominal depth the shipped sweep clears it by 15 px where a
+  beam would first touch it at 42°. The runtime clamp remains the
+  guarantee, following the arm's pose. The notch above the arm is carved
+  too. The pincer's shut angle is 45° now that the lever runs from the tube.
+- **Sparks** ("des flammes, mais des étincelles aussi"): the tear throws
+  three showers of the yellow entity sparks, and the stump adds one to every
+  burst for the rest of the fight.
+- **A siren** when WARNING appears ("pour mettre un peu la pression"): a
+  2.4-second two-wail klaxon synthesised on the spot, 8-bit mono 22 kHz like
+  the 2009 effects, played from the text event that shows the card.
+  **v5.0.3 / 263.**
+
+### 2026-09-19 — round 76 (the arm torn off, the stump sparking, and the pincer)
+- **"Si un bras est détruit il faudrait carrément l'arracher"** — and the
+  round-74 fold was there precisely because a torn arm would have dragged
+  the shoulder blend into spikes. So the rig changed: **a hard cut with the
+  seam duplicated.** `rig_lofb.ps1` gives every vertex one bone and makes
+  every triangle that straddled the cut single-sided by duplicating its
+  minority vertex onto the majority side (48 duplicates, 68 seam
+  triangles). Body and arms are three shells that coincide at rest — the
+  harness checks all 4,434 triangle corners against the original's geometry
+  and UVs, and the rest positions to 2e-6 — and an arm bone can go anywhere
+  without pulling a body triangle. The price: a lighting crease along the
+  shoulder, confined to 2.7 units of the cut (measured), where a mech's
+  joint has one anyway. The two-weight blend is gone; ±6° of idle swing
+  never needed it.
+- **Torn off.** A destroyed arm tumbles outward and down the screen for
+  1.2 s, accelerating and rolling over, then is parked far below any screen.
+  **The stump sparks**: from the shoulder pivot, mapped to the screen through
+  the same width- and height-at-depth as the solids, a burst, a second
+  smaller one jittered deterministically off the pivot, and a smoke puff,
+  every 320 ms for the rest of the fight. No solids, no crook on that side
+  (round 75).
+- **The pincer** (Fabien's idea, the tester's timing). Both live arms swing
+  open 18° over 400 ms — the telegraph — then snap shut to 60° in 350 ms
+  (cubic ease-in, a bang), hold 250 ms, return over 600 ms. The solids ride
+  the bones, so a ship that does not back off is caught; the claws meet
+  under the body. It fires 300 ms after every mega-laser (the ship is often
+  parked in a crook), and now and then at a pseudo-random interval of 8 to
+  15 s — a hash of `simulationTime` and the boss's energy at scheduling, the
+  same in both lockstep sims — **never while the laser charges, fires, or is
+  due within 3 s**, and if the laser's clock arrives mid-pinch the arms
+  return at once. The crook would otherwise be a trap.
+  Rounds 75 and 76 ship together as **v5.0.2 / 262.**
+
+### 2026-09-19 — round 75 (the arms are solid, and the crook is guaranteed)
+- **The tester's point**: the ship used to fly *through* the boss's arms —
+  only the body's box killed on contact — and that was the one way into the
+  crook of an arm, the spot the sweeping laser cannot reach. With the arms
+  moving, the arms must be solid, and the crook must stay out of the beam.
+- **Solid arms, from the mesh, following the bone.** `LOFB_BuildArmSolids`
+  bins each arm's rest vertices in bone space (X outward from the shoulder,
+  Z down the screen) on a 2×3-unit grid; every occupied cell becomes a
+  circle (centroid, farthest vertex + 0.6). Twenty-nine circles an arm,
+  carried by the posed bone every frame, so the danger moves with the
+  picture. `LOFB_PlayerHitsArm` brings the ship into the boss's mesh space
+  through the same width- and height-at-depth the engine places enemies
+  with, and a ram on a live arm kills like the body does (collisions.c, after
+  the laser test). **A destroyed arm has no solids** — the wreck no longer
+  blocks, the tester's call.
+- **The crook, carved rather than found.** The silhouette from the harness:
+  a shoulder plate x 8..15 spanning z −11..+1, a thin forearm x 15..17, the
+  claw x 17..23 spreading down to z +11. The natural notch above the forearm
+  is 1.9 units wide; the ship's collision radius is 1.8. Solids that follow
+  the mesh to the letter would have closed the refuge. So cells whose
+  centroid falls in a pocket above the forearm (bone x 5..10.5, z −7..+2)
+  are left out: the ship may overlap the plate's outer corner while parked,
+  the arm is solid everywhere else. The pocket sits above the boss's centre
+  line, which is why a beam that only points down cannot reach it.
+- **The guarantee.** `LOFB_ClampSweep` reduces the laser's sweep,
+  deterministically (a ten-step bisection toward straight down), whenever the
+  capsule with the ship's margin would touch a live arm's crook circle. The
+  harness replays the solids on the rest skin and asserts: the pocket clears
+  the nearest solid by 2.12 units for a ship radius of 1.82; at the nominal
+  depth the shipped ±66° sweep stays 57 px clear of the crook, which a beam
+  would first touch at 84°. The clamp is a backstop, not the mechanism.
+  Compiles clean on the host; the strict iOS build is the proof.
+
+### 2026-09-18 — round 74 (the arms move: dynamic mesh, and the bones posed every frame)
+- **Steps 3 and 4 of the v5 plan, together.** `ENT_DYNAMIC_DRAW` is a third
+  entity usage: the mesh's `vertexArray` stays in RAM instead of being
+  uploaded once and freed, and the Metal renderer's existing RAM path (a
+  per-frame ring-buffer copy) draws it. The boss asks for it in both places
+  a model is loaded — precache and spawn — through `ENE_ModelUsage`, because
+  the model cache is keyed by filename and an upload by one caller would
+  free the array under the other. The boss's mesh path now points at
+  `lofb_rigged.md5mesh`; the one-joint original stays for the act-3 cameo.
+- **`LOFB_PoseArms`** (lofb.c) copies the rest bones once, then every frame
+  gives each arm bone two angles — a *swing* about the mesh Y axis, the axis
+  facing the camera, so the claw opens and closes in the screen plane; and a
+  *tilt* about X, folding toward or away from the camera — and calls
+  `MD5_GenerateSkin`. Idle: a ±6° breathing swing over four seconds, the
+  arms in mirror, with a 2° tilt. **Recoil**: the arm that fires the big
+  shot snaps back 18° and returns over 300 ms. **Flinch**: a bullet on an
+  arm tilts it 12° for the hit-flash time. **Tremor**: from half arm HP, a
+  1.5° shiver at 2 Hz. **Wreck**: a destroyed arm folds 75° toward the
+  camera over half a second and hangs there, swinging limp — *not*
+  detached: the shoulder blend would stretch to a bone that walked away,
+  and the wreck smoke already marks it. All of it a function of arm HP, the
+  arm's death time, the last shot, the last hit and `simulationTime`: both
+  lockstep sims skin the same boss. ~1200 vertices re-skinned per frame on
+  the CPU. Five engine files compile clean under `zig cc -Wall -Wextra` on
+  the host; the strict iOS build and one Simulator run of the boss act are
+  the proof before a tag. **v5.0.1 / 261.**
+- **What the Simulator could and could not say.** The boss smoke ran green
+  (no crash, the rigged mesh loaded and drew). Screenshot runs then showed
+  frames where one claw hung lower than on `master` — but the `[arm]` probe
+  (pose inputs and the right claw's tip, once a second) reads angles of a
+  few degrees and a tip within two units of rest, and the harness now
+  proves the idle pose keeps the mesh mirror-symmetric to a degree or so.
+  Frozen-versus-posed comparisons at "the same second" proved impossible:
+  the Simulator's clock drifts run to run, so the boss is at a different
+  height, or not there, or the smoke ship is already dead. Two CI-only
+  switches stay for whoever needs them — `SHMUP_ARMS_FREEZE` (rest skin
+  only) and `SHMUP_ARMS_TEST` (a constant left-tilt-12 / right-swing-30
+  pose). The device is the judge of the picture; the data is proven.
+- **Raised by the tester, for the next round**: the ship used to fly
+  *through* the arms — the only way into the crook of an arm, the one spot
+  the sweeping laser cannot reach. With the arms moving, they must become
+  solid (a ram kills, as the body does; the lethal shape must follow the
+  posed bone and leave the crook itself open), and the laser's sweep must
+  keep missing the crook — to be written as an explicit zone with a harness
+  assertion, not left to a constant.
+
+### 2026-09-18 — round 73 (the boss rigged: three bones, cut by geometry, proven by the engine's own loader)
+- **Step 2 of the v5 plan.** `tools/rig/rig_lofb.ps1` reads the 2010
+  one-joint `lofb.obj.md5mesh` and writes `lofb_rigged.md5mesh`: bone 0 the
+  body, bones 1 and 2 the arms, pivots at the shoulders (±8.5, 5.3, −5.3),
+  the cut at |X| = 8 with a two-weight linear blend over 6..10. The tool
+  refuses a source that is not one-joint and is culture-invariant (it runs
+  on a French Windows). Counts: 670 body, 162 + 162 arm, 204 blended
+  vertices, 1402 weights. Nothing else in the file moves — same vertices,
+  same UVs, same triangles — and the engine does not reference it yet.
+- **Proven, not eyeballed.** `tools/rig/rig_check.c` compiles `md5.c`,
+  `lexer.c`, `quaternion.c`, `math.c` and the filesystem *as they are* and
+  loads both meshes through `MD5_LoadMesh`. At rest the rigged mesh skins
+  to the original within 1.1e-5 units (the float noise of (p − pivot) +
+  pivot) and 1/32767 on the normals. With the right arm bone swung 30° and
+  `MD5_GenerateSkin` re-run, exactly the 162 pure right-arm vertices move
+  (the farthest by 9.9 units), the 102 right-shoulder vertices move
+  partially, the body and the left arm do not, and the swung arm's normals
+  stay unit length. CI (`netrig.yml`) regenerates the rig from the source
+  and refuses a committed mesh that differs from the tool's output — no
+  hand edits — then runs the harness. One 2010 quirk surfaced: the lighting
+  pass in `md5.c` increments a NULL pointer it never dereferences; zig's
+  debug build traps on it, so the harness builds with the sanitizer off.
+- Next: the *dynamic* entity usage (no VBO, `vertexArray` kept, re-skin on
+  demand), then the poses in `lofb.c`.
+
+### 2026-09-18 — round 72 (v5 opens: the version on the home screen, and the skeleton surveyed)
+- **The `v5` branch** starts from `master` (= `v4`, everything through the boss
+  degradation validated). First commit: **the version number on the home
+  screen**, small and centred under Game Multi and Others, read once from the
+  bundle's `CFBundleShortVersionString` — the number CI writes there from the
+  tag, so a build says what it is (`Native_GetVersionString`, iOS + an Android
+  stub; the dev plist now says 5.0.0).
+- **The skeletal arms, surveyed before a line is written.** The 2010 MD5
+  loader turns out to be more than the "one joint, no anim" verdict of round
+  66 suggested: it reads *any* number of joints (parent, position,
+  orientation) and several weights per vertex, and `MD5_GenerateSkin(mesh,
+  bones)` recomputes every vertex and normal from whatever bone array it is
+  handed. Every mesh in the game has one joint only because they were all
+  converted from `.obj`. The Metal renderer already draws a mesh left in RAM
+  through a ring buffer. So the v5 path needs **no Blender and no md5anim**:
+  a tool cuts `lofb.obj.md5mesh` into three bones by geometry — the boss is
+  symmetric, 45.7 units wide, its two claw arms are the 189 vertices a side
+  beyond |X| = 8, the shoulders at (±8.5, 5.3, −5.3), a linear blend of the
+  two bones over 6..10 so the shoulder bends instead of tearing; the entity
+  gets a *dynamic* usage (no VBO, vertexArray kept); and `lofb.c` poses the
+  two arm bones every frame from arm HP, the last big shot, the last hit and
+  `simulationTime` — idle sway, recoil on firing, a flinch when hit, a droop
+  then a fall when destroyed. Lockstep-safe by construction, ~1200 vertices
+  re-skinned per frame. Three vector diagrams drawn from the real mesh
+  (`lofb_bones.svg`, `lofb_skeleton.svg`, `lofb_pipeline.svg`) are the
+  proposal put to the tester.
 
 ### 2026-09-18 — round 71 (the menu buttons off the screen edges)
 - **"Les boutons touchent les bords sur iPad."** They touched them everywhere:

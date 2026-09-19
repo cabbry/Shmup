@@ -74,6 +74,10 @@ void ENT_GenerateWorldSpaceBBox(entity_t* entity);
 
 #define ENT_FULL_DRAW 0
 #define ENT_PARTIAL_DRAW 1
+// v5: a mesh that is re-skinned at runtime (the boss's arm bones). Its
+// vertexArray stays in RAM instead of being uploaded once and freed; the
+// renderer draws RAM meshes through its per-frame ring buffer. Full draw.
+#define ENT_DYNAMIC_DRAW 2
 
 char ENT_LoadEntity(entity_t* entity, const char* filename, uchar usage);
 void ENT_InitCacheSystem(void);

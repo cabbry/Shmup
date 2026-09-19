@@ -43,6 +43,7 @@
 #include "shab.h"
 #include "tha.h"
 #include "native_services.h"
+#include "sounds.h"	// v5: the WARNING siren
 #include "enemy_particules.h"
 
 void EV_StopPlayback(event_t* event)
@@ -100,7 +101,7 @@ void EV_SpawnEnemy(event_t* event)
 	
 	
 	
-	ENT_LoadEntity(&enemy->entity, enemyTypePath[eventPayload->type],ENT_FULL_DRAW);
+	ENT_LoadEntity(&enemy->entity, enemyTypePath[eventPayload->type], ENE_ModelUsage(eventPayload->type));	// v5: the boss's mesh is dynamic
 
 	enemy->type = eventPayload->type  ;
 	enemy->timeCounter = 0;
@@ -260,9 +261,13 @@ void EV_SpawnText(event_t* event)
 	
 	
 	payload = (event_text_payload_t*)event->payload;
-	
+
 	DYN_TEXT_AddText(payload->ss_start_pos, payload->ss_end_pos, payload->duration,payload->size, payload->text);
-	
+
+	// v5 (the tester: "au moment où le mot warning apparaît, une sirène pour
+	// mettre la pression"): the boss act's WARNING card sounds the klaxon.
+	if (!strcmp(payload->text, "WARNING"))
+		SND_PlaySound(SND_SIREN);
 }
 
 void EV_DisplayStats(event_t* event)

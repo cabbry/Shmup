@@ -11,7 +11,7 @@ cut is a plane.
 
 **Where the cut is (round 77).** The tester saw the seam run through the
 shoulder block on device and named the joint: the small tube that joins the
-body to the arm. The mesh agrees — the |X| 4.5..6.5 band is the sparsest of
+body to the arm. The mesh agrees — the |The antenna fins (z < −8, raised toward the camera) and the rear legs| 4.5..6.5 band is the sparsest of
 the hull — so the cut is at |X| = 5.5 and the hinge at the tube's centroid
 (5.5, 0.44, 1.16). The arm is the whole shoulder block plus the claw.
 
@@ -29,9 +29,9 @@ Reads the one-joint mesh and writes `lofb_rigged.md5mesh` next to it:
 
 | bone | parent | pivot | vertices |
 |---|---|---|---|
-| 0 `origin` | — | (0, 0, 0) | body, \|X\| < 5.5, plus the upper structure and rear legs — 838 (28 seam copies included) |
-| 1 `armL` | 0 | (−5.5, 0.44, 1.16) | X ≤ −5.5 minus fins, bracket, legs and strays — 194 |
-| 2 `armR` | 0 | (5.5, 0.44, 1.16) | X ≥ 5.5 minus fins, bracket, legs and strays — 194 |
+| 0 `origin` | — | (0, 0, 0) | body, \|X\| < 5.5, plus the upper structure and rear legs — 816 (28 seam copies included) |
+| 1 `armL` | 0 | (−5.5, 0.44, 1.16) | X ≤ −5.5 minus fins, legs and strays — 205 |
+| 2 `armR` | 0 | (5.5, 0.44, 1.16) | X ≥ 5.5 minus fins, legs and strays — 205 |
 
 One weight per vertex. The source's vertex order is kept and the seam
 duplicates are appended; triangles are rewritten only where they crossed.
@@ -56,7 +56,7 @@ through `MD5_LoadMesh`, and asserts
    stays at least 38° wide;
 6. `RIG_DUMP=<file>` writes four posed vertex clouds for the schematic renders.
 
-Measured: 1.9e-6 units at rest, 194 vertices moved by the swing, the farthest
+Measured: 1.9e-6 units at rest, 205 vertices moved by the swing, the farthest
 9.4 units, 28 vertices in the crease. `netrig.yml` regenerates the rig from the source on every
 push, refuses a committed mesh that differs from the tool's output, and runs
 the harness. Build it with `-fno-sanitize=undefined`: the 2010 lighting pass in
@@ -95,4 +95,4 @@ them on bone 0, so the seam is no longer a plane and the arm is the plane
 minus those two regions. Connectivity could not do it: the mesh is a pile of
 disconnected shells. A last pass over the mesh's adjacency (round 80) sends
 any arm vertex with fewer than two arm neighbours back to the body — no
-orphans, no splinters — which leaves 194 vertices a side.
+orphans, no splinters — which leaves 205 vertices a side. (Round 82: the "bracket" fixed in round 79 was the top of the shoulder block -- back to fins and legs only.)

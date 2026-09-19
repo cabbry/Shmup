@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 266) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 267) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -417,9 +417,19 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-19 — round 82 (the shoulder block whole again)
+- **The tester's screenshot on 266, fetched from App Store Connect**: a gap
+  across the shoulder block. Round 79 had fixed a "bracket under the
+  antennas" at z −8..−5 beyond |X| 7.5 — it was the top of the block, and
+  fixing it sawed the block in two. Back to round 78's rule: only the antenna
+  fins (z < −8, raised toward the camera) and the rear legs stay with the
+  body; the block moves whole. The stray pass of round 80 does the rest — 26
+  orphans rejoined the body, 205 vertices an arm, the seam still 28 copies.
+
 ### 2026-09-19 — round 81 (the siren at two times six seconds)
 - On 266: "les sirènes sont un tout petit peu trop longues" — two wails of
   six seconds instead of eight, same timbre, twelve seconds in all.
+  **v5.0.7 / 267.**
 
 ### 2026-09-19 — round 80 (no strays: a neighbourhood pass on the rig)
 - **"C'est normal qu'il y ait que quelques ronds de couleur ?"** — the tester,

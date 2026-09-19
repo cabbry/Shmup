@@ -56,8 +56,8 @@ through `MD5_LoadMesh`, and asserts
    stays at least 38° wide;
 6. `RIG_DUMP=<file>` writes four posed vertex clouds for the schematic renders.
 
-Measured: 1.9e-6 units at rest, 223 vertices moved by the swing, the farthest
-9.4 units, 50 vertices in the crease. `netrig.yml` regenerates the rig from the source on every
+Measured: 1.9e-6 units at rest, 194 vertices moved by the swing, the farthest
+9.4 units, 28 vertices in the crease. `netrig.yml` regenerates the rig from the source on every
 push, refuses a committed mesh that differs from the tool's output, and runs
 the harness. Build it with `-fno-sanitize=undefined`: the 2010 lighting pass in
 `md5.c` increments a NULL pointer it never dereferences, which zig's debug
@@ -92,5 +92,7 @@ units of room for a radius of 1.82) and that the clamped cone stays ≥ 38°.
 The upper structure (the antenna fins and the bracket under them: z < −8, or z < −5 beyond |X| 7.5) and the rear legs (bottom, z > 6,
 y < −3, |X| < 10) reach beyond the tube plane but are not arm: the tool keeps
 them on bone 0, so the seam is no longer a plane and the arm is the plane
-minus those two regions — 223 vertices a side. Connectivity could not do it:
-the mesh is a pile of disconnected shells.
+minus those two regions. Connectivity could not do it: the mesh is a pile of
+disconnected shells. A last pass over the mesh's adjacency (round 80) sends
+any arm vertex with fewer than two arm neighbours back to the body — no
+orphans, no splinters — which leaves 194 vertices a side.

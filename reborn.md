@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 264) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 266) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -427,6 +427,7 @@ it ever reached a device — which is why the game looks the same and why
   arm neighbours joins the body. Twelve strays rejoined; the seam shrank
   from 46 duplicates to 28 (52 straddling triangles instead of 82), the
   crease with it. 194 vertices an arm. Harness green, render checked.
+  **v5.0.6 / 266.**
 
 ### 2026-09-19 — round 79 (the upper bracket fixed too; the siren at two times eight seconds)
 - **The tester, on the rig's own render**: one more piece moved with the arm
@@ -443,6 +444,7 @@ it ever reached a device — which is why the game looks the same and why
   fall — same saw-like timbre, detuned second rotor, soft clipping. Sixteen
   seconds, from the WARNING card through the boss's arrival. One
   AVAudioPCMBuffer of 345 KB, the format of the 2009 effects.
+  **v5.0.5 / 265.**
 
 ### 2026-09-19 — round 78 (antennas and rear legs fixed, the laser split down the middle, a harsher siren)
 - **The tester on 263, with a screenshot**: the antennas at the top and the

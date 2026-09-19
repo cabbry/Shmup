@@ -1,0 +1,69 @@
+name: ASC — TestFlight feedback (screenshots)
+# Diagnostic helper: pulls the latest TestFlight feedback the testers sent
+# from the app (the "Send Beta Feedback" screenshot flow) through the App
+# Store Connect API, prints each comment with its device and build, and
+# saves the screenshots as an artifact. Read-only; prints no secret material.
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "how many recent submissions to fetch"
+        default: "5"
+jobs:
+  feedback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch feedback
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          LIMIT: ${{ github.event.inputs.limit }}
+        run: |
+          pip install --quiet pyjwt cryptography requests
+          mkdir -p feedback
+          python3 - <<'EOF'
+          import os, time, jwt, requests, json
+          token = jwt.encode(
+              {"iss": os.environ["ISSUER_ID"], "iat": int(time.time()) - 30,
+               "exp": int(time.time()) + 1200, "aud": "appstoreconnect-v1"},
+              os.environ["PRIVATE_KEY"], algorithm="ES256",
+              headers={"kid": os.environ["KEY_ID"]})
+          H = {"Authorization": "Bearer " + token}
+          base = "https://api.appstoreconnect.apple.com"
+          apps = requests.get(base + "/v1/apps?filter[bundleId]=com.cabbry.shmup", headers=H).json()
+          if not apps.get("data"):
+              print("APP LOOKUP FAILED:", apps); raise SystemExit(1)
+          app_id = apps["data"][0]["id"]
+          limit = int(os.environ.get("LIMIT") or "5")
+          r = requests.get(base + f"/v1/apps/{app_id}/betaFeedbackScreenshotSubmissions",
+                           params={"sort": "-createdDate", "limit": limit, "include": "build"}, headers=H)
+          print("status", r.status_code)
+          data = r.json()
+          if r.status_code != 200:
+              print(json.dumps(data, indent=1)[:3000]); raise SystemExit(1)
+          builds = {b["id"]: b["attributes"].get("version") for b in data.get("included", []) if b.get("type") == "builds"}
+          for i, sub in enumerate(data.get("data", [])):
+              a = sub.get("attributes", {})
+              build_rel = sub.get("relationships", {}).get("build", {}).get("data") or {}
+              print(f"--- submission {i}: {a.get('createdDate')} build {builds.get(build_rel.get('id'), '?')} "
+                    f"device {a.get('deviceModel')} iOS {a.get('osVersion')} locale {a.get('locale')}")
+              print("comment:", a.get("comment"))
+              shots = a.get("screenshots") or []
+              for j, s in enumerate(shots):
+                  url = s.get("url") if isinstance(s, dict) else None
+                  if not url:
+                      print("  screenshot entry without url:", json.dumps(s)[:300]); continue
+                  img = requests.get(url)
+                  path = f"feedback/sub{i}_shot{j}.png"
+                  open(path, "wb").write(img.content)
+                  print(f"  saved {path} ({len(img.content)} bytes)")
+          if not data.get("data"):
+              print("no screenshot feedback submissions found")
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: testflight-feedback
+          path: feedback/
+          if-no-files-found: warn

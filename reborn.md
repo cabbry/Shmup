@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 262) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 263) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -442,6 +442,7 @@ it ever reached a device — which is why the game looks the same and why
 - **A siren** when WARNING appears ("pour mettre un peu la pression"): a
   2.4-second two-wail klaxon synthesised on the spot, 8-bit mono 22 kHz like
   the 2009 effects, played from the text event that shows the card.
+  **v5.0.3 / 263.**
 
 ### 2026-09-19 — round 76 (the arm torn off, the stump sparking, and the pincer)
 - **"Si un bras est détruit il faudrait carrément l'arracher"** — and the

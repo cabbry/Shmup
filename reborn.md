@@ -419,6 +419,20 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-20 — round 84 (the big shots: from the start, from three mouths, on jittered clocks)
+- **"Je ne voyais plus la grosse boule d'énergie."** She was not gone, she was
+  never fired: the big shot waited for half the boss's HP and for a live
+  arm, and the tester, enjoying the tear-off, had both arms down before
+  50 %. Three changes, all his: **no more waiting** — the scene rule reads
+  `hpAtMost boss 100`, the arms fire from the first seconds of the fight;
+  **the Corps fires too**, from the laser mouth, so the attack survives the
+  arms; and **three independent emitters** — each Pince and the Corps has its
+  own countdown, reloaded with 8 s (5.5 in the frenzy, shortened by the
+  damage) plus a ±2 s jitter hashed from `simulationTime`, the boss's energy
+  and the emitter, so the clocks drift in and out of phase and two or three
+  balls cross the screen together. A torn Pince's emitter is silent. The
+  probe logs every shot with its origin. packlint green on the scene.
+
 ### 2026-09-19 — round 83 (five bones: the Bloc breathes, the Pince works; names for every part)
 - **The tester's screenshot on 268, mid-pincer**: with the whole arm hinged
   at the tube and swung 45°, the Épaulette — the middle fin under the

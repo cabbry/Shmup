@@ -188,7 +188,7 @@ rules
 {
 	rule spray    hpAtMost boss 85   bossAttack spray on
 	rule minions  hpAtMost boss 75   bossAttack minions on
-	rule bigshot  hpAtMost boss 50   bossAttack bigshot on
+	rule bigshot  hpAtMost boss 100  bossAttack bigshot on	# round 84: no longer waits for half HP -- the arms fire from the start of the fight (the tester: "on n'attend plus 50 %")
 	rule finale   hpAtMost boss 25   bossAttack missiles on   bossAttack frenzy on
 }
 

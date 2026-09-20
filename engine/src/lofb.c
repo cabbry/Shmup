@@ -262,6 +262,18 @@ static vec3_t     gRestPivot[4];			// rest positions from the mesh: [k] the bloc
 #define LOFB_PINCH_RAND_MS		7000
 #define LOFB_PINCH_LASER_GUARD_MS 3000.0f	// no pinch if the laser is due within this
 enum { PINCH_OFF = 0, PINCH_OPEN, PINCH_SNAP, PINCH_HOLD, PINCH_RETURN };
+// THE BIG SHOTS, three emitters (round 84, the tester: "les 2 bras + le corps,
+// avec tir pseudo-aléatoire, 2 voire 3 boules en même temps"): each Pince
+// and the body's laser mouth has its own countdown, reloaded with a base
+// cadence plus a deterministic jitter (a hash of simulationTime, the boss's
+// energy and the emitter), so the three drift in and out of phase and the
+// balls overlap. A torn arm's emitter is silent; the body's never is. From the
+// start of the fight (no more waiting for half HP).
+#define LOFB_SHOT_BASE_MS		8000.0f
+#define LOFB_SHOT_FRENZY_MS		5500.0f
+#define LOFB_SHOT_JITTER_MS		4000		// +/- half of this
+#define LOFB_SHOT_MIN_MS		2500.0f
+static float gShotCd[3] = {0, 0, 0};	// [0] Pince gauche, [1] Pince droite, [2] Corps
 static int   gPinchState   = PINCH_OFF;
 static float gPinchTimer   = 0;		// ms in the current state
 static int   gPinchNextAt  = 0;		// simulationTime of the next random pinch
@@ -799,19 +811,14 @@ void updateLOFBMissile(enemy_t* enemy)
 #define LOFB_TEXT_BULLET_HEIGHT (48/128.0f*SHRT_MAX)
 // offX shifts the muzzle sideways: the energy shots fire from the ARMS now
 // (offX = +/-LOFB_ARM_OFFX), aimed from the arm's own position.
-static void LOFB_FireBigShot(enemy_t* enemy, float offX)
+// One big shot from the ss point (ox, oy), aimed at the nearest player.
+static void LOFB_FireBigShotFrom(enemy_t* enemy, float ox, float oy)
 {
 	enemy_part_t* bullet;
-	float ox = enemy->ss_position[X] + offX;
-	float oy = enemy->ss_position[Y] + LOFB_ARM_OFFY;
-	float angle;
-	// Round 83: the muzzle is the PINCE, wherever the pose put it (the fixed
-	// offsets stay as the fallback before the bones are known).
-	if (gPoseBonesValid && widthAtDistance > 0 && heightAtDistance > 0)
-		LOFB_ArmPointToSS(offX < 0 ? 0 : 1, PART_PINCE, 3.7f, 5.2f, &ox, &oy);
-	angle = LOFB_AimAngleFrom(ox, oy);
-
-	gArmRecoilMs[offX < 0 ? 0 : 1] = LOFB_ARM_RECOIL_MS;	// v5: the firing arm snaps back
+	float angle = LOFB_AimAngleFrom(ox, oy);
+	(void)enemy;
+	if (Log_ProbesEnabled())
+		Log_Printf("[boss] t=%d bigshot from (%.2f, %.2f)\n", simulationTime, ox, oy);
 
 	bullet = ENPAR_GetNextParticule();
 
@@ -1392,6 +1399,7 @@ void updateLOFB(enemy_t* enemy)
 			gPinchState = PINCH_OFF; gPinchTimer = 0; gPinchSwing = 0;
 			gPinchRequestAt = -1;
 			gPinchNextAt = simulationTime + 12000;	// the first random pinch, a while into the fight
+			gShotCd[0] = 5000; gShotCd[1] = 8500; gShotCd[2] = 12000;	// the three big-shot clocks, staggered from the start
 			enemy->entity.color[R] = enemy->entity.color[G] = enemy->entity.color[B] = enemy->entity.color[A] = 1.0f;
 		}
 		return;
@@ -1414,7 +1422,7 @@ void updateLOFB(enemy_t* enemy)
 	{
 		LOFB_SetAttackFlag(LOFB_ATTACK_SPRAY,    hpPct <= 85);
 		LOFB_SetAttackFlag(LOFB_ATTACK_MINIONS,  hpPct <= 75);
-		LOFB_SetAttackFlag(LOFB_ATTACK_BIGSHOT,  hpPct <= 50);
+		LOFB_SetAttackFlag(LOFB_ATTACK_BIGSHOT,  hpPct <= 100);	// round 84: from the start (the scene rules say the same)
 		LOFB_SetAttackFlag(LOFB_ATTACK_MISSILES, hpPct <= 25);
 		LOFB_SetAttackFlag(LOFB_ATTACK_FRENZY,   hpPct <= 25);
 	}
@@ -1547,18 +1555,39 @@ void updateLOFB(enemy_t* enemy)
 		// Attack 4 (-50%): THE BIG ENERGY SHOT -- fired from the ARMS, alternating
 		// sides. Destroying an arm silences that side; destroying both cancels the
 		// attack entirely -- that is the strategic reward for focusing the arms.
-		if (gAttackOn[LOFB_ATTACK_BIGSHOT] && (gArmAlive[0] || gArmAlive[1]))
+		// Round 84: three emitters, each on its own jittered clock -- the two
+		// Pinces (silent once torn off) and the Corps (the laser mouth, never
+		// silent) -- so two or three balls can be in flight at once.
+		if (gAttackOn[LOFB_ATTACK_BIGSHOT])
 		{
-			enemy->parameters[P_BIGSHOT_CD] -= timediff;
-			if (enemy->parameters[P_BIGSHOT_CD] <= 0)
+			int e;
+			for (e = 0; e < 3; e++)
 			{
-				// Alternate arms; if the preferred one is gone, the survivor fires.
-				int want = (gArmShotSide < 0) ? 0 : 1;
-				if (!gArmAlive[want])
-					want = 1 - want;
-				LOFB_FireBigShot(enemy, (want == 0) ? -LOFB_ARM_OFFX : LOFB_ARM_OFFX);
-				gArmShotSide = -gArmShotSide;
-				enemy->parameters[P_BIGSHOT_CD] = (frenzy ? 6000.0f : 8500.0f) * aggr;
+				if (e < 2 && (!gArmAlive[e] || gArmDeadAt[e] >= 0))
+					continue;
+				gShotCd[e] -= timediff;
+				if (gShotCd[e] <= 0)
+				{
+					float ox, oy;
+					unsigned h = (unsigned)simulationTime * 2654435761u + (unsigned)enemy->energy * 97u + (unsigned)e * 7919u;
+					float next = (frenzy ? LOFB_SHOT_FRENZY_MS : LOFB_SHOT_BASE_MS) * aggr
+							   + (float)((h >> 8) % LOFB_SHOT_JITTER_MS) - LOFB_SHOT_JITTER_MS * 0.5f;
+					if (e < 2)
+					{
+						ox = enemy->ss_position[X] + (e == 0 ? -LOFB_ARM_OFFX : LOFB_ARM_OFFX);
+						oy = enemy->ss_position[Y] + LOFB_ARM_OFFY;
+						if (gPoseBonesValid && widthAtDistance > 0 && heightAtDistance > 0)
+							LOFB_ArmPointToSS(e, PART_PINCE, 3.7f, 5.2f, &ox, &oy);
+						gArmRecoilMs[e] = LOFB_ARM_RECOIL_MS;	// the firing Pince snaps back
+					}
+					else
+					{
+						ox = enemy->ss_position[X];
+						oy = enemy->ss_position[Y] - 0.04f;	// the laser mouth
+					}
+					LOFB_FireBigShotFrom(enemy, ox, oy);
+					gShotCd[e] = (next < LOFB_SHOT_MIN_MS) ? LOFB_SHOT_MIN_MS : next;
+				}
 			}
 		}
 
@@ -1669,6 +1698,7 @@ void LOFB_ResetLadder(void)
 	gArmRecoilMs[0] = gArmRecoilMs[1] = 0;
 	gArmDeadAt[0] = gArmDeadAt[1] = -1;
 	gPinchState = PINCH_OFF; gPinchTimer = 0; gPinchSwing = 0; gPinchRequestAt = -1; gPinchNextAt = 0;
+	gShotCd[0] = gShotCd[1] = gShotCd[2] = 0;
 }
 
 // Render-only shake, in ss units, added by enemy.c to the boss entity's

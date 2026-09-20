@@ -116,7 +116,7 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 269) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 270) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
@@ -418,6 +418,21 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-20 — round 84 (the big shots: from the start, from three mouths, on jittered clocks)
+- **"Je ne voyais plus la grosse boule d'énergie."** She was not gone, she was
+  never fired: the big shot waited for half the boss's HP and for a live
+  arm, and the tester, enjoying the tear-off, had both arms down before
+  50 %. Three changes, all his: **no more waiting** — the scene rule reads
+  `hpAtMost boss 100`, the arms fire from the first seconds of the fight;
+  **the Corps fires too**, from the laser mouth, so the attack survives the
+  arms; and **three independent emitters** — each Pince and the Corps has its
+  own countdown, reloaded with 8 s (5.5 in the frenzy, shortened by the
+  damage) plus a ±2 s jitter hashed from `simulationTime`, the boss's energy
+  and the emitter, so the clocks drift in and out of phase and two or three
+  balls cross the screen together. A torn Pince's emitter is silent. The
+  probe logs every shot with its origin. packlint green on the scene.
+  **v5.0.10 / 270 — validated on device: "c'est nickel comme ça".**
 
 ### 2026-09-19 — round 83 (five bones: the Bloc breathes, the Pince works; names for every part)
 - **The tester's screenshot on 268, mid-pincer**: with the whole arm hinged

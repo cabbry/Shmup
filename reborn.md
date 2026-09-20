@@ -432,7 +432,7 @@ it ever reached a device — which is why the game looks the same and why
   and the emitter, so the clocks drift in and out of phase and two or three
   balls cross the screen together. A torn Pince's emitter is silent. The
   probe logs every shot with its origin. packlint green on the scene.
-  **v5.0.10 / 270.**
+  **v5.0.10 / 270 — validated on device: "c'est nickel comme ça".**
 
 ### 2026-09-19 — round 83 (five bones: the Bloc breathes, the Pince works; names for every part)
 - **The tester's screenshot on 268, mid-pincer**: with the whole arm hinged

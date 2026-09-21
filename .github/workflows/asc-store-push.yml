@@ -190,7 +190,7 @@ jobs:
                   # Apple's questionnaire mixes booleans and NONE/INFREQUENT/FREQUENT
                   # strings and the split is not documented for the newest questions:
                   # on a "wrong type" answer, flip the named attribute and try again.
-                  for attempt in range(6):
+                  for attempt in range(30):
                       body = {"data": {"type": "ageRatingDeclarations", "id": aid, "attributes": attrs}}
                       try:
                           echo = write("PATCH", f"/v1/ageRatingDeclarations/{aid}", body)
@@ -201,7 +201,7 @@ jobs:
                           flipped = []
                           if "ENTITY_ERROR.ATTRIBUTE.TYPE" in msg:
                               import re
-                              for name in re.findall(r"/data/attributes/(\w+)", msg):
+                              for name in sorted(set(re.findall(r"/data/attributes/(\w+)", msg))):
                                   if name in attrs:
                                       attrs[name] = "NONE" if isinstance(attrs[name], bool) else False
                                       flipped.append(name)

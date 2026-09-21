@@ -50,7 +50,7 @@ jobs:
 
           print("\n== APP INFO (app-level, one per state)")
           infos = get(f"/v1/apps/{app_id}/appInfos",
-                      **{"fields[appInfos]": "appStoreState,state,appStoreAgeRating,brazilAgeRating,kidsAgeBand",
+                      **{"fields[appInfos]": "state,appStoreAgeRating,brazilAgeRating",
                          "include": "primaryCategory,primaryCategoryV2,secondaryCategory,ageRatingDeclaration"})
           for i in infos.get("data", []):
               a = i["attributes"]
@@ -92,14 +92,14 @@ jobs:
           print("\n== PRICE / AVAILABILITY")
           ps = get(f"/v1/apps/{app_id}/appPriceSchedule", **{"include": "baseTerritory,manualPrices"})
           print("  priceSchedule present:", bool(ps.get("data")), "baseTerritory:", rel(ps.get("data") or {}, "baseTerritory").get("id"))
-          av = get(f"/v1/apps/{app_id}/appAvailabilityV2", **{"include": "territoryAvailabilities", "limit[territoryAvailabilities]": 200})
+          av = get(f"/v1/apps/{app_id}/appAvailabilityV2", **{"include": "territoryAvailabilities", "limit[territoryAvailabilities]": 50})
           ava = (av.get("data") or {}).get("attributes", {})
           print("  availability present:", bool(av.get("data")), "availableInNewTerritories:", ava.get("availableInNewTerritories"),
                 "territories:", len(av.get("included", [])))
 
           print("\n== LATEST BUILDS")
           bl = get("/v1/builds", **{"filter[app]": app_id, "sort": "-uploadedDate", "limit": 5,
-                                    "fields[builds]": "version,processingState,uploadedDate,expired",
+                                    "fields[builds]": "version,processingState,uploadedDate,expired,preReleaseVersion",
                                     "include": "preReleaseVersion", "fields[preReleaseVersions]": "version"})
           trains = {i["id"]: i["attributes"]["version"] for i in bl.get("included", [])}
           for b in bl.get("data", []):

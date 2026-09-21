@@ -88,11 +88,20 @@ jobs:
                      **{"filter[platform]": "IOS", "fields[appStoreVersions]": "versionString,appVersionState,appStoreState"})
           ver = next((v for v in vers.get("data", []) if v["attributes"]["versionString"] == VERSION), None)
           editable = {"PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED", "INVALID_BINARY", "WAITING_FOR_REVIEW"}
+          def vstate(v): return v["attributes"].get("appVersionState") or v["attributes"].get("appStoreState")
+          draft = next((v for v in vers.get("data", []) if vstate(v) == "PREPARE_FOR_SUBMISSION"), None)
           if ver:
-              state = ver["attributes"].get("appVersionState") or ver["attributes"].get("appStoreState")
+              state = vstate(ver)
               print("version exists:", ver["id"], "state", state)
               if state not in editable:
                   raise SystemExit(f"version {VERSION} is in state {state}: not editable, nothing written")
+          elif draft:
+              # App Store Connect allows one version in preparation; the record
+              # created with the app (a "1.0") is renamed rather than duplicated.
+              print("renaming the draft version", draft["attributes"]["versionString"], "->", VERSION)
+              write("PATCH", f"/v1/appStoreVersions/{draft['id']}", {"data": {"type": "appStoreVersions", "id": draft["id"],
+                     "attributes": {"versionString": VERSION}}})
+              ver = draft
           else:
               print("no version", VERSION, "yet: creating it")
               ver = write("POST", "/v1/appStoreVersions", {"data": {"type": "appStoreVersions",
@@ -164,17 +173,19 @@ jobs:
                          "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": ver_id}}}}})
 
           # ---- the build: newest VALID build whose train is this version
-          bl = get("/v1/builds", **{"filter[app]": app_id, "filter[preReleaseVersion.version]": VERSION,
-                                    "filter[processingState]": "VALID", "sort": "-uploadedDate", "limit": 1,
-                                    "fields[builds]": "version,processingState,expired"})
-          if bl.get("data"):
-              b = bl["data"][0]
-              print("build for", VERSION, "->", b["attributes"]["version"], "expired" if b["attributes"]["expired"] else "")
-              if not b["attributes"]["expired"]:
-                  write("PATCH", f"/v1/appStoreVersions/{ver_id}/relationships/build",
-                        {"data": {"type": "builds", "id": b["id"]}})
+          bl = get("/v1/builds", **{"filter[app]": app_id, "filter[processingState]": "VALID", "filter[expired]": "false",
+                                    "sort": "-uploadedDate", "limit": 20,
+                                    "fields[builds]": "version,processingState,expired,preReleaseVersion",
+                                    "include": "preReleaseVersion", "fields[preReleaseVersions]": "version"})
+          trains = {i["id"]: i["attributes"]["version"] for i in bl.get("included", [])}
+          b = next((b for b in bl.get("data", []) if trains.get(rel(b, "preReleaseVersion").get("id")) == VERSION), None)
+          if b:
+              print("build for", VERSION, "->", b["attributes"]["version"])
+              write("PATCH", f"/v1/appStoreVersions/{ver_id}/relationships/build",
+                    {"data": {"type": "builds", "id": b["id"]}})
           else:
-              print("::warning::no VALID build with version", VERSION, "-- none attached")
+              print("::warning::no VALID build on train", VERSION, "among the last 20 -- none attached;",
+                    "seen:", sorted({trains.get(rel(x, 'preReleaseVersion').get('id'), '?') for x in bl.get('data', [])}))
 
           # ---- screenshots: store/screenshots/<locale>/<DISPLAY_TYPE>/*.png replaces the set
           def upload(set_id, path):

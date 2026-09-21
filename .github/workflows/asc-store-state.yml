@@ -51,7 +51,7 @@ jobs:
           print("\n== APP INFO (app-level, one per state)")
           infos = get(f"/v1/apps/{app_id}/appInfos",
                       **{"fields[appInfos]": "state,appStoreAgeRating,brazilAgeRating",
-                         "include": "primaryCategory,primaryCategoryV2,secondaryCategory,ageRatingDeclaration"})
+                         "include": "primaryCategory,secondaryCategory,ageRatingDeclaration"})
           for i in infos.get("data", []):
               a = i["attributes"]
               print(f"  appInfo {i['id']} state={a.get('state') or a.get('appStoreState')} ageRating={a.get('appStoreAgeRating')}"

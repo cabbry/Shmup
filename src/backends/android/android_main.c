@@ -108,11 +108,11 @@
 #include <android/log.h>
 #include "native_app_glue.h"
 
-#include "../dEngine.h"
-#include "../io_interface.h"
-#include "../menu.h"
-#include "../timer.h"
-#include "../native_URL.h"
+#include "../../core/dEngine.h"
+#include "../../core/io_interface.h"
+#include "../../core/menu.h"
+#include "../../core/timer.h"
+#include "../../core/native_URL.h"
 
 #include "android_display.h"
 #include "android_filesystem.h"

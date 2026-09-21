@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="470" viewBox="0 0 720 470" font-family="Helvetica, Arial, sans-serif">
+  <rect width="720" height="470" fill="#11131a"/>
+
+  <text x="24" y="28" fill="#8b93a7" font-size="15">Ligne du HUD (les 320 px de large de l'écran moteur)</text>
+
+  <!-- BEFORE -->
+  <text x="24" y="58" fill="#5c6478" font-size="12">AVANT (build 214) : le x6 perdu au milieu, l'icône collée au bord</text>
+  <g transform="translate(24,68)">
+    <rect x="0" y="0" width="320" height="52" fill="#05060a" stroke="#2a2f3d"/>
+    <text x="6" y="32" fill="#cfd6e6" font-size="13" font-family="monospace">SCORE:0001250</text>
+    <text x="235" y="32" fill="#e0554f" font-size="13" font-family="monospace">x6</text>
+    <g fill="#c8543f" stroke="#e8785f">
+      <path d="M 288 18 l 8 -6 8 6 -8 14 z"/>
+    </g>
+    <line x1="252" y1="26" x2="285" y2="26" stroke="#e0554f" stroke-dasharray="3 3"/>
+    <text x="176" y="48" fill="#e0554f" font-size="10">33 px de vide, et le nombre est à gauche de l'icône</text>
+  </g>
+
+  <!-- AFTER -->
+  <text x="24" y="168" fill="#5c6478" font-size="12">APRÈS : l'icône puis le nombre à sa droite, séparés d'un demi-glyphe + 6</text>
+  <g transform="translate(24,178)">
+    <rect x="0" y="0" width="320" height="52" fill="#05060a" stroke="#2a2f3d"/>
+    <text x="6" y="32" fill="#cfd6e6" font-size="13" font-family="monospace">SCORE:0001250</text>
+    <g fill="#c8543f" stroke="#e8785f">
+      <path d="M 240 18 l 8 -6 8 6 -8 14 z"/>
+    </g>
+    <text x="262" y="32" fill="#e6c86a" font-size="13" font-family="monospace">x6</text>
+    <g stroke="#4f9d69">
+      <line x1="240" y1="42" x2="259" y2="42"/>
+      <line x1="262" y1="42" x2="296" y2="42"/>
+    </g>
+    <text x="150" y="48" fill="#4f9d69" font-size="10">icône 240-259 px, nombre 262-296 px, 24 px de marge au bord</text>
+  </g>
+
+  <text x="24" y="272" fill="#5c6478" font-size="11">À quatre joueurs le compteur affiche « x12 » : trois glyphes, qui finissent à 296 px — ça tient.</text>
+
+  <!-- MENU colour column -->
+  <text x="400" y="58" fill="#5c6478" font-size="12">Colonne des couleurs</text>
+  <g transform="translate(400,68)">
+    <text x="0" y="14" fill="#8b93a7" font-size="11">avant</text>
+    <g fill="#2a1b28" stroke="#a8558f">
+      <rect x="0" y="24" width="130" height="30"/>
+      <rect x="0" y="58" width="130" height="30"/>
+      <rect x="0" y="92" width="130" height="30"/>
+      <rect x="0" y="126" width="130" height="30"/>
+    </g>
+    <g fill="#e79ec9" font-size="11" text-anchor="middle">
+      <text x="65" y="43">Red</text><text x="65" y="77">Blue</text>
+      <text x="65" y="111">Invisible</text><text x="65" y="145">Yellow</text>
+    </g>
+
+    <text x="170" y="14" fill="#8b93a7" font-size="11">après</text>
+    <g fill="#2a1b28" stroke="#a8558f">
+      <rect x="170" y="24" width="130" height="30"/>
+      <rect x="170" y="58" width="130" height="30"/>
+      <rect x="170" y="92" width="130" height="30"/>
+      <rect x="170" y="126" width="130" height="30"/>
+    </g>
+    <g fill="#e79ec9" font-size="11" text-anchor="middle">
+      <text x="235" y="43">Red</text><text x="235" y="77">Blue</text>
+      <text x="235" y="111">Yellow</text><text x="235" y="145">Invisible</text>
+    </g>
+    <g stroke="#4f9d69" fill="none">
+      <path d="M 140 107 l 22 0"/>
+      <path d="M 140 141 l 22 0"/>
+    </g>
+    <text x="0" y="185" fill="#5c6478" font-size="10">Seul l'ordre des lignes bouge :</text>
+    <text x="0" y="199" fill="#5c6478" font-size="10">la ligne porte sa colonne d'atlas</text>
+    <text x="0" y="213" fill="#5c6478" font-size="10">(jaune = 3, invisible = 2), donc</text>
+    <text x="0" y="227" fill="#5c6478" font-size="10">personne ne reçoit la mauvaise</text>
+    <text x="0" y="241" fill="#5c6478" font-size="10">couleur en silence.</text>
+  </g>
+</svg>

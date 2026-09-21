@@ -79,7 +79,7 @@ Eclipse C/C++ support is nice.
 
 #include <android/native_activity.h>
 
-#include "../../src/log.h"
+#include "../../core/log.h"
 #include <assert.h>
 
 static AAssetManager* assetManager;
@@ -88,9 +88,9 @@ void SND_Android_Init(AAssetManager* mgr)
 	assetManager = mgr;
 }
 
-#include "../../src/music.h"
-#include "../../src/sounds.h"
-#include "../../src/sound_backend.h"
+#include "../../core/music.h"
+#include "../../core/sounds.h"
+#include "../../core/sound_backend.h"
 
 /*
  * Overall architecture: The sound system is expected to be able to play NUM_SOURCES sounds at the same time.

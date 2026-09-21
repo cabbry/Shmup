@@ -5,9 +5,9 @@ EGLContext engineContext ;
 EGLSurface engineSurface ;
 ANativeWindow* window=0;
 
-#include "../dEngine.h"
-#include "../log.h"
-#include "../renderer.h"
+#include "../../core/dEngine.h"
+#include "../../core/log.h"
+#include "../../core/renderer.h"
 
 /**
  * Initialize an EGL context for the current display.

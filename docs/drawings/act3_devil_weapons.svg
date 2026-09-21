@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 600" font-family="monospace">
+<rect width="1080" height="600" fill="#0a0a18"/>
+<text x="540" y="34" fill="#eee" font-size="20" text-anchor="middle">Les armes du Devil -- instantane a t+2.6s de combat (vue de dessus, iPhone portrait)</text>
+<rect x="30" y="60" width="320" height="480" fill="#101028" stroke="#445"/>
+<text x="190" y="568" fill="#ccd" font-size="13" text-anchor="middle">ORIGINAL -- le trident (3 flux rouges)</text>
+<path d="M 190.000000 158.000000 l 12 10 l -12 10 l -12 -10 z" fill="#8891b8" stroke="#c8d0ff"/>
+<circle cx="166.000000" cy="502.523077" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="190.000000" cy="509.723077" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="214.000000" cy="502.523077" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="166.000000" cy="463.753846" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="190.000000" cy="470.953846" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="214.000000" cy="463.753846" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="166.000000" cy="424.984615" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="190.000000" cy="432.184615" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="214.000000" cy="424.984615" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="166.000000" cy="386.215385" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="190.000000" cy="393.415385" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="214.000000" cy="386.215385" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="166.000000" cy="347.446154" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="190.000000" cy="354.646154" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="214.000000" cy="347.446154" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="166.000000" cy="308.676923" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="190.000000" cy="315.876923" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="214.000000" cy="308.676923" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="166.000000" cy="269.907692" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="190.000000" cy="277.107692" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="214.000000" cy="269.907692" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="166.000000" cy="231.138462" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="190.000000" cy="238.338462" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="214.000000" cy="231.138462" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="166.000000" cy="192.369231" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="190.000000" cy="199.569231" r="4.2" fill="#ff3830" opacity="0.9"/>
+<circle cx="214.000000" cy="192.369231" r="4.2" fill="#ff3830" opacity="0.9"/>
+<rect x="380" y="60" width="320" height="480" fill="#101028" stroke="#445"/>
+<text x="540" y="568" fill="#ccd" font-size="13" text-anchor="middle">ANTHRACITE -- le lasso (fouet THA)</text>
+<path d="M 540.000000 158.000000 l 12 10 l -12 10 l -12 -10 z" fill="#8891b8" stroke="#c8d0ff"/>
+<ellipse cx="429.564710" cy="515.682451" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="371.829440" cy="469.923869" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="372.233811" cy="447.984760" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="422.659270" cy="451.906662" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="507.331604" cy="454.141182" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="594.028704" cy="431.314145" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="648.820633" cy="392.629094" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="660.396072" cy="364.440693" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="634.837610" cy="356.709480" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="583.148016" cy="355.088879" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="524.857014" cy="340.135208" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="484.030186" cy="311.039645" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="471.574427" cy="283.677573" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="482.989673" cy="268.104259" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="508.977087" cy="258.849210" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="537.620547" cy="244.763130" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="555.773698" cy="223.398109" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="558.191139" cy="201.817783" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="549.962037" cy="184.413343" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<ellipse cx="540.000000" cy="168.000000" rx="3.4" ry="6.5" fill="#40c8ff" opacity="0.9"/>
+<rect x="730" y="60" width="320" height="480" fill="#101028" stroke="#445"/>
+<text x="890" y="568" fill="#ccd" font-size="13" text-anchor="middle">FANTOME -- les ondes (balles jaunes)</text>
+<path d="M 890.000000 158.000000 l 12 10 l -12 10 l -12 -10 z" fill="#8891b8" stroke="#c8d0ff"/>
+<ellipse cx="1052.174396" cy="89.900927" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="727.825604" cy="89.900926" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="727.825603" cy="246.099072" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="777.771835" cy="308.729666" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="849.946231" cy="343.487024" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="930.053767" cy="343.487024" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="1002.228163" cy="308.729668" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="1052.174396" cy="246.099074" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="973.076923" cy="168.000000" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="964.849721" cy="131.954274" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="941.797614" cy="103.047846" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="908.486355" cy="87.005989" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="871.513646" cy="87.005989" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="838.202386" cy="103.047846" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="815.150279" cy="131.954274" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="806.923077" cy="168.000000" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="815.150279" cy="204.045726" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="838.202385" cy="232.952154" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="871.513645" cy="248.994011" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="908.486354" cy="248.994011" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="941.797614" cy="232.952154" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+<ellipse cx="964.849721" cy="204.045727" rx="3.2" ry="5.5" fill="#ffd428" opacity="0.9"/>
+</svg>

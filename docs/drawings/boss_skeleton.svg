@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="1000" height="620" fill="#0f1320"/>
+<text x="500" y="34" fill="#e8ecf4" font-size="20" text-anchor="middle">Le squelette : trois os, et les poses que lofb.c calcule a chaque frame</text>
+<defs>
+  <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#f5e663"/></marker>
+  <g id="body"><ellipse cx="0" cy="0" rx="46" ry="34" fill="#2b3350" stroke="#8d9bb5" stroke-width="2"/><circle cx="0" cy="0" r="4" fill="#ffffff"/></g>
+</defs>
+
+<!-- hierarchy -->
+<g transform="translate(120,110)">
+  <text x="0" y="-40" fill="#9aa4b8" font-size="14">hierarchie</text>
+  <rect x="0" y="0" width="150" height="34" rx="6" fill="#2b3350" stroke="#8d9bb5"/><text x="75" y="22" fill="#e8ecf4" font-size="13" text-anchor="middle">0  origin (corps)</text>
+  <line x1="75" y1="34" x2="30" y2="70" stroke="#8d9bb5"/><line x1="75" y1="34" x2="120" y2="70" stroke="#8d9bb5"/>
+  <rect x="-40" y="70" width="140" height="34" rx="6" fill="#4a3320" stroke="#f0a04a"/><text x="30" y="92" fill="#f0a04a" font-size="13" text-anchor="middle">1  armL  (parent 0)</text>
+  <rect x="50" y="110" width="140" height="34" rx="6" fill="#1e3a4a" stroke="#4ac8f0"/><text x="120" y="132" fill="#4ac8f0" font-size="13" text-anchor="middle">2  armR  (parent 0)</text>
+  <text x="0" y="175" fill="#9aa4b8" font-size="12">pivot = epaule, (+/-8.5, 5.3, -5.3) dans le mesh</text>
+  <text x="0" y="193" fill="#9aa4b8" font-size="12">poids : 1.0 os du bras au-dela de |X|=10,</text>
+  <text x="0" y="209" fill="#9aa4b8" font-size="12">fondu lineaire corps/bras entre 6 et 10</text>
+  <text x="0" y="240" fill="#9aa4b8" font-size="12">Le MD5 de 2010 lit deja parent, position,</text>
+  <text x="0" y="256" fill="#9aa4b8" font-size="12">orientation et poids : rien a inventer.</text>
+</g>
+
+<!-- poses -->
+<g font-size="13" fill="#d8dde8">
+  <!-- pose 1: idle -->
+  <g transform="translate(470,170)">
+    <use href="#body"/>
+    <g stroke="#f0a04a" stroke-width="6" stroke-linecap="round" fill="none">
+      <path d="M-40,-10 C-80,-20 -110,10 -120,50"/>
+    </g>
+    <g stroke="#4ac8f0" stroke-width="6" stroke-linecap="round" fill="none">
+      <path d="M40,-10 C80,-20 110,10 120,50"/>
+    </g>
+    <path d="M-120,50 q-8,-16 0,-32" stroke="#f5e663" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+    <path d="M120,50 q8,-16 0,-32" stroke="#f5e663" stroke-width="1.5" fill="none" marker-end="url(#arr)"/>
+    <text x="0" y="80" text-anchor="middle">1. repos : balancement lent, +/-6 deg, sin(t)</text>
+  </g>
+  <!-- pose 2: recoil -->
+  <g transform="translate(790,170)">
+    <use href="#body"/>
+    <g stroke="#f0a04a" stroke-width="6" stroke-linecap="round" fill="none">
+      <path d="M-40,-10 C-80,-20 -110,10 -120,50"/>
+    </g>
+    <g stroke="#4ac8f0" stroke-width="6" stroke-linecap="round" fill="none">
+      <path d="M40,-10 C70,-50 90,-70 130,-60"/>
+    </g>
+    <circle cx="135" cy="-62" r="9" fill="#ff5ad2"/>
+    <path d="M70,-30 l14,-24" stroke="#f5e663" stroke-width="1.5" marker-end="url(#arr)"/>
+    <text x="0" y="80" text-anchor="middle">2. gros tir : le bras se leve, tire, revient en 300 ms</text>
+  </g>
+  <!-- pose 3: hit flinch -->
+  <g transform="translate(470,420)">
+    <use href="#body"/>
+    <g stroke="#f0a04a" stroke-width="6" stroke-linecap="round" fill="none">
+      <path d="M-40,-10 C-80,-30 -100,-10 -125,20"/>
+    </g>
+    <g stroke="#4ac8f0" stroke-width="6" stroke-linecap="round" fill="none">
+      <path d="M40,-10 C80,-20 110,10 120,50"/>
+    </g>
+    <g fill="#f5e663"><circle cx="-100" cy="-8" r="3"/><circle cx="-112" cy="2" r="2"/><circle cx="-92" cy="6" r="2"/></g>
+    <text x="0" y="80" text-anchor="middle">3. bras touche : sursaut de 12 deg, retombe en 150 ms</text>
+    <text x="0" y="98" text-anchor="middle" fill="#9aa4b8" font-size="12">a mi-vie : tremblement propre au bras, 2 Hz</text>
+  </g>
+  <!-- pose 4: destroyed -->
+  <g transform="translate(790,420)">
+    <use href="#body"/>
+    <g stroke="#f0a04a" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.35">
+      <path d="M-40,-10 C-60,30 -70,70 -60,110"/>
+    </g>
+    <g stroke="#f0a04a" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.15">
+      <path d="M-40,-10 C-50,60 -40,120 -20,160"/>
+    </g>
+    <g stroke="#4ac8f0" stroke-width="6" stroke-linecap="round" fill="none">
+      <path d="M40,-10 C80,-20 110,10 120,50"/>
+    </g>
+    <path d="M-60,40 l-6,40" stroke="#f5e663" stroke-width="1.5" marker-end="url(#arr)"/>
+    <text x="0" y="80" text-anchor="middle">4. bras detruit : il plie, se detache, tombe hors champ</text>
+    <text x="0" y="98" text-anchor="middle" fill="#9aa4b8" font-size="12">l'os s'eloigne sous l'ecran ; la zone de collision est deja eteinte</text>
+  </g>
+</g>
+
+<text x="500" y="590" fill="#9aa4b8" font-size="12" text-anchor="middle">Chaque pose est une fonction de (vie du bras, dernier tir, dernier impact, simulationTime) : identique dans les deux simulations d'une partie en ligne.</text>
+</svg>

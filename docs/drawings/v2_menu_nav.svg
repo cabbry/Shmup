@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="430" viewBox="0 0 760 430" font-family="Helvetica, Arial, sans-serif">
+  <rect width="760" height="430" fill="#11131a"/>
+  <text x="24" y="30" fill="#8b93a7" font-size="15">Navigation des menus — build 216</text>
+
+  <!-- HOME -->
+  <g transform="translate(24,60)">
+    <rect x="0" y="0" width="150" height="120" rx="6" fill="#0a0d14" stroke="#3d63a8"/>
+    <text x="75" y="22" fill="#93b4ea" font-size="12" text-anchor="middle" font-weight="bold">HOME</text>
+    <text x="75" y="46" fill="#cfd6e6" font-size="11" text-anchor="middle">Game Solo</text>
+    <text x="75" y="68" fill="#e6c86a" font-size="11" text-anchor="middle">Game Multi ★</text>
+    <text x="75" y="90" fill="#cfd6e6" font-size="11" text-anchor="middle">Others</text>
+  </g>
+
+  <!-- GAME MULTI -->
+  <g transform="translate(240,40)">
+    <rect x="0" y="0" width="150" height="130" rx="6" fill="#0a0d14" stroke="#e6c86a"/>
+    <text x="75" y="22" fill="#e6c86a" font-size="12" text-anchor="middle" font-weight="bold">GAME MULTI ★</text>
+    <text x="75" y="46" fill="#cfd6e6" font-size="11" text-anchor="middle">Local</text>
+    <text x="75" y="68" fill="#cfd6e6" font-size="11" text-anchor="middle">Online</text>
+    <text x="75" y="90" fill="#7f879b" font-size="11" text-anchor="middle">Back → Home</text>
+    <text x="75" y="115" fill="#5c6478" font-size="9" text-anchor="middle">(annulation matchmaking → ici)</text>
+  </g>
+
+  <!-- SIZE PICKER -->
+  <g transform="translate(456,40)">
+    <rect x="0" y="0" width="150" height="130" rx="6" fill="#0a0d14" stroke="#a8558f"/>
+    <text x="75" y="22" fill="#e79ec9" font-size="12" text-anchor="middle" font-weight="bold">2 / 3 / 4 ?</text>
+    <text x="75" y="46" fill="#cfd6e6" font-size="11" text-anchor="middle">2 Players</text>
+    <text x="75" y="66" fill="#cfd6e6" font-size="11" text-anchor="middle">3 Players</text>
+    <text x="75" y="86" fill="#cfd6e6" font-size="11" text-anchor="middle">4 Players</text>
+    <text x="75" y="110" fill="#7f879b" font-size="11" text-anchor="middle">Back → Game Multi</text>
+  </g>
+
+  <!-- OTHERS -->
+  <g transform="translate(240,220)">
+    <rect x="0" y="0" width="150" height="150" rx="6" fill="#0a0d14" stroke="#59627a"/>
+    <text x="75" y="22" fill="#98a1b8" font-size="12" text-anchor="middle" font-weight="bold">OTHERS</text>
+    <text x="75" y="44" fill="#cfd6e6" font-size="11" text-anchor="middle">Demo · Custom</text>
+    <text x="75" y="64" fill="#cfd6e6" font-size="11" text-anchor="middle">Credits · Scores</text>
+    <text x="75" y="86" fill="#e6c86a" font-size="11" text-anchor="middle">Tutorial ★</text>
+    <text x="75" y="112" fill="#7f879b" font-size="11" text-anchor="middle">Back → Home</text>
+    <text x="75" y="136" fill="#4f9d69" font-size="9" text-anchor="middle">Local Network / Online retirés</text>
+  </g>
+
+  <!-- arrows -->
+  <g stroke="#59627a" fill="none" marker-end="url(#a)">
+    <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#59627a"/></marker></defs>
+    <path d="M 174 128 C 205 128 205 105 238 105"/>
+    <path d="M 174 150 C 210 150 210 290 238 290"/>
+    <path d="M 392 105 L 454 105"/>
+  </g>
+  <text x="196" y="96" fill="#5c6478" font-size="9">Game Multi</text>
+  <text x="196" y="175" fill="#5c6478" font-size="9">Others</text>
+  <text x="400" y="96" fill="#5c6478" font-size="9">Local ou Online</text>
+
+  <text x="24" y="410" fill="#5c6478" font-size="10">★ = nouveau. Vaisseaux renommés : Falcon, Viper, Phoenix, Ghost — la ligne d'état du Custom affiche désormais « Falcon - Red ».</text>
+</svg>

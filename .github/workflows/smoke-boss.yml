@@ -52,7 +52,7 @@ jobs:
           grep "path:" data/data/scenes/final.scene   # the REAL act uses the baked rail
 
       - name: Build (iphonesimulator, arm64, no signing)
-        working-directory: engine/iOS
+        working-directory: ios
         run: |
           set -o pipefail
           xcodebuild \
@@ -83,7 +83,7 @@ jobs:
       - name: Phase A -- the REAL rail's opening seconds
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
-          APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
+          APP=$(find ios/build -name "Shmup.app" -maxdepth 3 | head -1)
           BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
           xcrun simctl install "$UDID" "$APP"
           mkdir -p shots

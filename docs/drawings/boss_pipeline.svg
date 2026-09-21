@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="1000" height="560" fill="#0f1320"/>
+<text x="500" y="34" fill="#e8ecf4" font-size="20" text-anchor="middle">Le chemin des sommets : ce qui existe, ce qui change pour la v5</text>
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#8d9bb5"/></marker></defs>
+
+<!-- row 1: today -->
+<text x="40" y="90" fill="#9aa4b8" font-size="14">aujourd'hui (tous les meshes, 1 os)</text>
+<g font-size="12" fill="#e8ecf4" text-anchor="middle">
+  <rect x="40" y="105" width="150" height="56" rx="8" fill="#2b3350" stroke="#8d9bb5"/><text x="115" y="128">lofb.obj.md5mesh</text><text x="115" y="146" fill="#9aa4b8">1 os, 1198 poids</text>
+  <line x1="190" y1="133" x2="230" y2="133" stroke="#8d9bb5" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="235" y="105" width="150" height="56" rx="8" fill="#2b3350" stroke="#8d9bb5"/><text x="310" y="128">MD5_LoadMesh</text><text x="310" y="146" fill="#9aa4b8">md5.c, lit os + poids</text>
+  <line x1="385" y1="133" x2="425" y2="133" stroke="#8d9bb5" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="430" y="105" width="150" height="56" rx="8" fill="#2b3350" stroke="#8d9bb5"/><text x="505" y="128">MD5_GenerateSkin</text><text x="505" y="146" fill="#9aa4b8">une fois, au chargement</text>
+  <line x1="580" y1="133" x2="620" y2="133" stroke="#8d9bb5" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="625" y="105" width="150" height="56" rx="8" fill="#2b3350" stroke="#8d9bb5"/><text x="700" y="128">VBO Metal</text><text x="700" y="146" fill="#9aa4b8">vertexArray libere</text>
+  <line x1="775" y1="133" x2="815" y2="133" stroke="#8d9bb5" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="820" y="105" width="140" height="56" rx="8" fill="#2b3350" stroke="#8d9bb5"/><text x="890" y="128">RenderEntityM</text><text x="890" y="146" fill="#9aa4b8">matrice + dessin</text>
+</g>
+
+<!-- row 2: v5 -->
+<text x="40" y="240" fill="#f5e663" font-size="14">v5 (le boss seulement : usage "dynamique")</text>
+<g font-size="12" fill="#e8ecf4" text-anchor="middle">
+  <rect x="40" y="255" width="150" height="56" rx="8" fill="#3a3620" stroke="#f5e663"/><text x="115" y="278">rig_lofb.ps1</text><text x="115" y="296" fill="#f5e663">3 os, poids fondus</text>
+  <line x1="190" y1="283" x2="230" y2="283" stroke="#8d9bb5" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="235" y="255" width="150" height="56" rx="8" fill="#2b3350" stroke="#8d9bb5"/><text x="310" y="278">MD5_LoadMesh</text><text x="310" y="296" fill="#9aa4b8">inchange</text>
+  <line x1="385" y1="283" x2="425" y2="283" stroke="#8d9bb5" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="430" y="255" width="150" height="56" rx="8" fill="#3a3620" stroke="#f5e663"/><text x="505" y="278">LOFB_PoseBones</text><text x="505" y="296" fill="#f5e663">lofb.c, chaque frame</text>
+  <line x1="580" y1="283" x2="620" y2="283" stroke="#8d9bb5" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="625" y="255" width="150" height="56" rx="8" fill="#3a3620" stroke="#f5e663"/><text x="700" y="278">MD5_GenerateSkin</text><text x="700" y="296" fill="#f5e663">re-skin, vertexArray garde</text>
+  <line x1="775" y1="283" x2="815" y2="283" stroke="#8d9bb5" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="820" y="255" width="140" height="56" rx="8" fill="#2b3350" stroke="#8d9bb5"/><text x="890" y="278">RenderEntityM</text><text x="890" y="296" fill="#9aa4b8">chemin RAM existant</text>
+</g>
+
+<!-- notes -->
+<g font-size="13" fill="#d8dde8">
+  <text x="40" y="370">Ce qui existe deja et que l'on reutilise tel quel :</text>
+  <text x="60" y="392" fill="#b8c0d0">- le lecteur MD5 sait lire plusieurs os (parent, position, orientation) et plusieurs poids par sommet ;</text>
+  <text x="60" y="410" fill="#b8c0d0">- MD5_GenerateSkin(mesh, bones) recalcule tous les sommets et leurs normales depuis un tableau d'os quelconque ;</text>
+  <text x="60" y="428" fill="#b8c0d0">- RenderEntityM dessine deja un mesh reste en RAM via un tampon circulaire, sans VBO (chemin utilise par les meshes non envoyes).</text>
+  <text x="40" y="462">Ce qui s'ecrit :</text>
+  <text x="60" y="484" fill="#b8c0d0">- un outil qui coupe le mesh en trois os et ecrit les poids (aucun Blender : la coupe est geometrique, |X| = 8) ;</text>
+  <text x="60" y="502" fill="#b8c0d0">- un usage "dynamique" pour l'entite : pas de VBO, vertexArray conserve, re-skin a la demande ;</text>
+  <text x="60" y="520" fill="#b8c0d0">- LOFB_PoseBones : les quatre poses, fonctions de la vie des bras, du dernier tir, du dernier impact et du temps de simulation.</text>
+  <text x="40" y="548" fill="#9aa4b8" font-size="12">Cout : 1198 sommets re-skinnes par frame sur CPU, une fraction du culling du decor. Un chargeur md5anim (Blender) pourra suivre : le format est standard.</text>
+</g>
+</svg>

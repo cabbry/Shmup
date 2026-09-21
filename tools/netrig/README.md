@@ -1,7 +1,7 @@
 # net_rig — four peers, one process, the real netchannel
 
 A test harness for the 3-4 player netcode (v2). It runs **four instances of
-`engine/src/netchannel.c`, compiled verbatim**, in a single process on any
+`src/core/netchannel.c`, compiled verbatim**, in a single process on any
 machine — no devices, no Simulator, no Game Center accounts.
 
 Testing a party of four on real hardware needs four iPhones on one WiFi (LAN)
@@ -28,7 +28,7 @@ a second.
 
 ```bash
 cd tools/netrig
-zig cc -UWIN32 -U__WIN32__ -I shim -I ../../engine/src -I . -std=gnu99 \
+zig cc -UWIN32 -U__WIN32__ -I shim -I ../../src/core -I . -std=gnu99 \
     net_rig.c net_bus.c peer0.c peer1.c peer2.c peer3.c -o net_rig
 ./net_rig            # -v to see every peer's log
 ```

@@ -32,7 +32,7 @@ jobs:
           xcodebuild -version
 
       - name: Build (iphonesimulator, arm64, no signing)
-        working-directory: engine/iOS
+        working-directory: ios
         run: |
           set -o pipefail
           xcodebuild \

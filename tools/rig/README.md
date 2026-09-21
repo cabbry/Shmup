@@ -2,7 +2,7 @@
 
 Fabien's last note on the boss (2026-09-17): animate its arms. The 2010 mesh,
 `lofb.obj.md5mesh`, has one joint because it was converted from an `.obj` —
-but the MD5 loader in `engine/src/md5.c` was written for the real thing: it
+but the MD5 loader in `src/core/md5.c` was written for the real thing: it
 reads any number of joints (parent, position, orientation), several weights
 per vertex, and `MD5_GenerateSkin(mesh, bones)` re-skins every vertex and
 normal from whatever bone array it is handed. So the arms need a **rig**, not

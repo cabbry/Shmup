@@ -261,13 +261,13 @@ possible later without a store-review fight.
 ## 7. Stage 4 — tools (landed, round 58)
 
 **`tools/packlint`** reads every pack the way the game reads it and says what
-is wrong before a device has to. It compiles `engine/src/lexer.c` **verbatim**
+is wrong before a device has to. It compiles `src/core/lexer.c` **verbatim**
 — the trick `tools/netrig` plays with `netchannel.c`, for the same reason: the
 tool cannot disagree with the engine about what a token is.
 
 ```bash
 cd tools/packlint
-zig cc -std=gnu99 -I ../../engine/src packlint.c ../../engine/src/lexer.c -o packlint
+zig cc -std=gnu99 -I ../../src/core packlint.c ../../src/core/lexer.c -o packlint
 ./packlint ../../data
 ```
 

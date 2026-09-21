@@ -1,6 +1,6 @@
 name: benches (netrig, the engine arithmetic, the level packs)
 
-# tools/netrig runs FOUR instances of engine/src/netchannel.c, compiled verbatim,
+# tools/netrig runs FOUR instances of src/core/netchannel.c, compiled verbatim,
 # in one process on a fake network. It needs no device, no Simulator and no Game
 # Center account, and it finishes in about a second -- so it runs on every push.
 #
@@ -35,7 +35,7 @@ jobs:
       - name: Build the rig
         working-directory: tools/netrig
         run: |
-          zig cc -UWIN32 -U__WIN32__ -I shim -I ../../engine/src -I . -std=gnu99 \
+          zig cc -UWIN32 -U__WIN32__ -I shim -I ../../src/core -I . -std=gnu99 \
             net_rig.c net_bus.c peer0.c peer1.c peer2.c peer3.c -o net_rig
 
       - name: Run it
@@ -59,16 +59,16 @@ jobs:
         run: |
           set -o pipefail
           awk '/CATCHUP-ARITHMETIC-BEGIN/{f=1;next} /CATCHUP-ARITHMETIC-END/{f=0} f' \
-              ../../engine/src/dEngine.c > catchup_arithmetic.inc
+              ../../src/core/dEngine.c > catchup_arithmetic.inc
           [ -s catchup_arithmetic.inc ] || { echo "::error::the markers in dEngine.c are gone: nothing extracted."; exit 1; }
           awk '/PARTY-HP-ARITHMETIC-BEGIN/{f=1;next} /PARTY-HP-ARITHMETIC-END/{f=0} f' \
-              ../../engine/src/player.c > partyhp_arithmetic.inc
+              ../../src/core/player.c > partyhp_arithmetic.inc
           [ -s partyhp_arithmetic.inc ] || { echo "::error::the markers in player.c are gone: nothing extracted."; exit 1; }
           awk '/RESYNC-ARITHMETIC-BEGIN/{f=1;next} /RESYNC-ARITHMETIC-END/{f=0} f' \
-              ../../engine/src/commands.c > resync_arithmetic.inc
+              ../../src/core/commands.c > resync_arithmetic.inc
           [ -s resync_arithmetic.inc ] || { echo "::error::the markers in commands.c are gone: nothing extracted."; exit 1; }
           awk '/PACKNAME-ARITHMETIC-BEGIN/{f=1;next} /PACKNAME-ARITHMETIC-END/{f=0} f' \
-              ../../engine/src/dEngine.c > packname_arithmetic.inc
+              ../../src/core/dEngine.c > packname_arithmetic.inc
           [ -s packname_arithmetic.inc ] || { echo "::error::the pack-name markers in dEngine.c are gone: nothing extracted."; exit 1; }
           zig cc -std=gnu99 -Wall catchup_test.c -o catchup_test
           ./catchup_test
@@ -88,19 +88,19 @@ jobs:
             exit 1
           fi
           zig cc -std=gnu99 -O1 -fno-sanitize=undefined -Wno-implicit-function-declaration -Wno-unknown-pragmas \
-              -I engine/src -I engine/src/libpng tools/rig/rig_check.c engine/src/md5.c engine/src/lexer.c \
-              engine/src/quaternion.c engine/src/math.c engine/src/filesystem/filesystem.c -o "$RUNNER_TEMP/rig_check"
+              -I src/core -I src/third_party/libpng tools/rig/rig_check.c src/core/md5.c src/core/lexer.c \
+              src/core/quaternion.c src/core/math.c src/backends/posix/filesystem.c -o "$RUNNER_TEMP/rig_check"
           RD=data WD="$RUNNER_TEMP" "$RUNNER_TEMP/rig_check" | grep -v "^SHMUP\|^=====\|Filesystem\]"
 
       # v4 stage 4: read every level pack the way the GAME reads it (it compiles
-      # engine/src/lexer.c verbatim) and refuse the ones that would only fail on
+      # src/core/lexer.c verbatim) and refuse the ones that would only fail on
       # a device. Run twice: the real data must pass, and a deliberately broken
       # pack must FAIL -- a linter nobody has seen say "no" is not a linter.
       - name: The level packs
         working-directory: tools/packlint
         run: |
           set -o pipefail
-          zig cc -std=gnu99 -Wall -I ../../engine/src packlint.c ../../engine/src/lexer.c -o packlint
+          zig cc -std=gnu99 -Wall -I ../../src/core packlint.c ../../src/core/lexer.c -o packlint
           echo "--- the shipped packs (must pass)"
           ./packlint ../../data
           echo "--- a deliberately broken pack (must fail)"

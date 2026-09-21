@@ -151,9 +151,11 @@ jobs:
                  or (infos.get("data") or [None])[-1]
           if info:
               iid = info["id"]
-              write("PATCH", f"/v1/appInfos/{iid}", {"data": {"type": "appInfos", "id": iid, "relationships": {
+              echo = write("PATCH", f"/v1/appInfos/{iid}", {"data": {"type": "appInfos", "id": iid, "relationships": {
                      "primaryCategory": {"data": {"type": "appCategories", "id": "GAMES"}},
                      "primarySubcategoryOne": {"data": {"type": "appCategories", "id": "GAMES_ACTION"}}}}})
+              print("  categories as echoed by Apple:", json.dumps({k: (v or {}).get("data") for k, v in
+                    ((echo.get("data") or {}).get("relationships") or {}).items() if "ategory" in k})[:400])
               il = {l["attributes"]["locale"]: l for l in get(f"/v1/appInfos/{iid}/appInfoLocalizations").get("data", [])}
               for locale in loc_ids:
                   attrs = {"name": checked("name", read(f"metadata/{locale}/name.txt")),
@@ -186,7 +188,8 @@ jobs:
                            "healthOrWellnessTopics", "ageAssurance", "socialMediaAgeRestricted")}
                   body = {"data": {"type": "ageRatingDeclarations", "id": aid, "attributes": {**freq, **flags}}}
                   try:
-                      write("PATCH", f"/v1/ageRatingDeclarations/{aid}", body)
+                      echo = write("PATCH", f"/v1/ageRatingDeclarations/{aid}", body)
+                      print("  age rating as echoed by Apple:", json.dumps((echo.get("data") or {}).get("attributes"))[:600])
                   except SystemExit as e:
                       print("::warning::age rating not written:", str(e)[:600])
 

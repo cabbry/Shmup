@@ -59,6 +59,12 @@ jobs:
               for inc in infos.get("included", []):
                   if inc["type"] == "ageRatingDeclarations" and inc["id"] == rel(i, "ageRatingDeclaration").get("id"):
                       print("    ageRatingDeclaration:", json.dumps(inc["attributes"]))
+              # the include above can lag behind a write: ask the resources directly too
+              direct = get(f"/v1/appInfos/{i['id']}/ageRatingDeclaration")
+              print("    ageRatingDeclaration (direct):", json.dumps((direct.get("data") or {}).get("attributes")))
+              for r_ in ("primaryCategory", "primarySubcategoryOne", "primarySubcategoryTwo"):
+                  rr = get(f"/v1/appInfos/{i['id']}/relationships/{r_}")
+                  print(f"    {r_} (direct):", (rr.get("data") or {}).get("id"))
               locs = get(f"/v1/appInfos/{i['id']}/appInfoLocalizations")
               for l in locs.get("data", []):
                   la = l["attributes"]

@@ -50,12 +50,12 @@ jobs:
 
           print("\n== APP INFO (app-level, one per state)")
           infos = get(f"/v1/apps/{app_id}/appInfos",
-                      **{"fields[appInfos]": "state,appStoreAgeRating,brazilAgeRating",
+                      **{"fields[appInfos]": "state,appStoreAgeRating,brazilAgeRating,primaryCategory,primarySubcategoryOne,primarySubcategoryTwo,secondaryCategory,ageRatingDeclaration",
                          "include": "primaryCategory,secondaryCategory,ageRatingDeclaration"})
           for i in infos.get("data", []):
               a = i["attributes"]
               print(f"  appInfo {i['id']} state={a.get('state') or a.get('appStoreState')} ageRating={a.get('appStoreAgeRating')}"
-                    f" primaryCategory={rel(i,'primaryCategory').get('id')} secondary={rel(i,'secondaryCategory').get('id')}")
+                    f" primaryCategory={rel(i,'primaryCategory').get('id')} sub1={rel(i,'primarySubcategoryOne').get('id')} sub2={rel(i,'primarySubcategoryTwo').get('id')}")
               for inc in infos.get("included", []):
                   if inc["type"] == "ageRatingDeclarations" and inc["id"] == rel(i, "ageRatingDeclaration").get("id"):
                       print("    ageRatingDeclaration:", json.dumps(inc["attributes"]))
@@ -66,7 +66,7 @@ jobs:
 
           print("\n== VERSIONS")
           vers = get(f"/v1/apps/{app_id}/appStoreVersions",
-                     **{"fields[appStoreVersions]": "platform,versionString,appStoreState,appVersionState,copyright,releaseType,createdDate",
+                     **{"fields[appStoreVersions]": "platform,versionString,appStoreState,appVersionState,copyright,releaseType,createdDate,build",
                         "include": "build", "fields[builds]": "version,processingState", "limit": 10})
           builds = {b["id"]: b["attributes"] for b in vers.get("included", []) if b["type"] == "builds"}
           for v in vers.get("data", []):

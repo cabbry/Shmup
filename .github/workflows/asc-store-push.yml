@@ -1,0 +1,214 @@
+name: ASC — push the store listing
+
+# Writes store/ to App Store Connect for one version string: creates the
+# version if needed, then the copyright, the version localizations
+# (description, keywords, promotional text, what's new, URLs), the app-level
+# name / subtitle / privacy URL, the primary category, the review notes, the
+# newest VALID build of that version, and the screenshot sets from
+# store/screenshots. Everything it writes is a file in this repository --
+# review the diff, then run. It NEVER submits for review.
+#
+# Inputs: version (e.g. 5.0.10), dry_run (print the plan, write nothing).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "marketing version to prepare (must match the build's CFBundleShortVersionString)"
+        required: true
+        default: "5.0.10"
+      dry_run:
+        description: "true = print what would change, write nothing"
+        default: "true"
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Push the listing
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          VERSION: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          pip install --quiet pyjwt cryptography requests
+          python3 - <<'EOF'
+          import os, time, jwt, requests, json, hashlib, glob
+          DRY = (os.environ.get("DRY_RUN") or "true").lower() != "false"
+          VERSION = os.environ["VERSION"].strip()
+          token = jwt.encode(
+              {"iss": os.environ["ISSUER_ID"], "iat": int(time.time()) - 30,
+               "exp": int(time.time()) + 1200, "aud": "appstoreconnect-v1"},
+              os.environ["PRIVATE_KEY"], algorithm="ES256",
+              headers={"kid": os.environ["KEY_ID"]})
+          H = {"Authorization": "Bearer " + token, "Content-Type": "application/json"}
+          base = "https://api.appstoreconnect.apple.com"
+
+          def call(method, path, body=None, params=None, ok=(200, 201, 204)):
+              r = requests.request(method, base + path, headers=H, params=params,
+                                   data=json.dumps(body) if body is not None else None)
+              j = {}
+              if r.text:
+                  try: j = r.json()
+                  except Exception: j = {"text": r.text[:500]}
+              if r.status_code not in ok:
+                  raise SystemExit(f"{method} {path} -> {r.status_code}: {json.dumps(j)[:1500]}")
+              return j
+          def get(path, **params): return call("GET", path, params=params)
+          def write(method, path, body):
+              print(f"  {'(dry) ' if DRY else ''}{method} {path} {json.dumps(body)[:300]}")
+              if DRY: return {"data": {"id": "dry"}}
+              return call(method, path, body)
+          def rel(o, name):
+              return ((o.get("relationships", {}).get(name, {}) or {}).get("data")) or {}
+          def read(path):
+              p = os.path.join("store", path)
+              return open(p, encoding="utf-8").read().strip() if os.path.exists(p) else None
+
+          LIMITS = {"name": 30, "subtitle": 30, "promotionalText": 170, "keywords": 100,
+                    "description": 4000, "whatsNew": 4000, "notes": 4000}
+          def checked(field, value):
+              if value is not None and field in LIMITS and len(value) > LIMITS[field]:
+                  raise SystemExit(f"{field} is {len(value)} chars, limit {LIMITS[field]}")
+              return value
+
+          # ---- the app
+          apps = get("/v1/apps", **{"filter[bundleId]": "com.cabbry.shmup"})
+          app_id = apps["data"][0]["id"]
+          print("app", app_id, apps["data"][0]["attributes"]["name"], "| version", VERSION, "| dry run", DRY)
+
+          # ---- the version: reuse the one with this string, else create it
+          vers = get(f"/v1/apps/{app_id}/appStoreVersions",
+                     **{"filter[platform]": "IOS", "fields[appStoreVersions]": "versionString,appVersionState,appStoreState"})
+          ver = next((v for v in vers.get("data", []) if v["attributes"]["versionString"] == VERSION), None)
+          editable = {"PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED", "INVALID_BINARY", "WAITING_FOR_REVIEW"}
+          if ver:
+              state = ver["attributes"].get("appVersionState") or ver["attributes"].get("appStoreState")
+              print("version exists:", ver["id"], "state", state)
+              if state not in editable:
+                  raise SystemExit(f"version {VERSION} is in state {state}: not editable, nothing written")
+          else:
+              print("no version", VERSION, "yet: creating it")
+              ver = write("POST", "/v1/appStoreVersions", {"data": {"type": "appStoreVersions",
+                     "attributes": {"platform": "IOS", "versionString": VERSION, "releaseType": "MANUAL"},
+                     "relationships": {"app": {"data": {"type": "apps", "id": app_id}}}}})["data"]
+          ver_id = ver["id"]
+
+          # ---- copyright + manual release
+          copyright_ = read("metadata/copyright.txt")
+          write("PATCH", f"/v1/appStoreVersions/{ver_id}", {"data": {"type": "appStoreVersions", "id": ver_id,
+                 "attributes": {"copyright": copyright_, "releaseType": "MANUAL"}}})
+
+          # ---- version localizations
+          existing = {} if ver_id == "dry" else {l["attributes"]["locale"]: l for l in
+                      get(f"/v1/appStoreVersions/{ver_id}/appStoreVersionLocalizations").get("data", [])}
+          loc_ids = {}
+          for locale in sorted(d for d in os.listdir("store/metadata") if os.path.isdir(os.path.join("store/metadata", d))):
+              attrs = {k: checked(k, read(f"metadata/{locale}/{f}")) for k, f in (
+                  ("description", "description.txt"), ("keywords", "keywords.txt"),
+                  ("promotionalText", "promotional_text.txt"), ("whatsNew", "whats_new.txt"),
+                  ("supportUrl", "support_url.txt"), ("marketingUrl", "marketing_url.txt"))}
+              attrs = {k: v for k, v in attrs.items() if v is not None}
+              if locale in existing:
+                  lid = existing[locale]["id"]
+                  write("PATCH", f"/v1/appStoreVersionLocalizations/{lid}",
+                        {"data": {"type": "appStoreVersionLocalizations", "id": lid, "attributes": attrs}})
+              else:
+                  attrs["locale"] = locale
+                  lid = write("POST", "/v1/appStoreVersionLocalizations", {"data": {"type": "appStoreVersionLocalizations",
+                         "attributes": attrs, "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": ver_id}}}}})["data"]["id"]
+              loc_ids[locale] = lid
+
+          # ---- app-level info: name, subtitle, privacy URL, categories (the editable appInfo)
+          infos = get(f"/v1/apps/{app_id}/appInfos", **{"fields[appInfos]": "state,appStoreState"})
+          info = next((i for i in infos.get("data", []) if (i["attributes"].get("state") or i["attributes"].get("appStoreState"))
+                       in ("PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED", "WAITING_FOR_REVIEW")), None) \
+                 or (infos.get("data") or [None])[-1]
+          if info:
+              iid = info["id"]
+              write("PATCH", f"/v1/appInfos/{iid}", {"data": {"type": "appInfos", "id": iid, "relationships": {
+                     "primaryCategory": {"data": {"type": "appCategories", "id": "GAMES"}},
+                     "primaryCategoryV2": {"data": {"type": "appCategories", "id": "GAMES"}},
+                     "primarySubcategoryOne": {"data": {"type": "appCategories", "id": "GAMES_ACTION"}},
+                     "primarySubcategoryTwo": {"data": {"type": "appCategories", "id": "GAMES_ARCADE"}}}}})
+              il = {l["attributes"]["locale"]: l for l in get(f"/v1/appInfos/{iid}/appInfoLocalizations").get("data", [])}
+              for locale in loc_ids:
+                  attrs = {"name": checked("name", read(f"metadata/{locale}/name.txt")),
+                           "subtitle": checked("subtitle", read(f"metadata/{locale}/subtitle.txt")),
+                           "privacyPolicyUrl": read(f"metadata/{locale}/privacy_url.txt")}
+                  attrs = {k: v for k, v in attrs.items() if v is not None}
+                  if locale in il:
+                      write("PATCH", f"/v1/appInfoLocalizations/{il[locale]['id']}",
+                            {"data": {"type": "appInfoLocalizations", "id": il[locale]["id"], "attributes": attrs}})
+                  else:
+                      attrs["locale"] = locale
+                      write("POST", "/v1/appInfoLocalizations", {"data": {"type": "appInfoLocalizations", "attributes": attrs,
+                             "relationships": {"appInfo": {"data": {"type": "appInfos", "id": iid}}}}})
+
+          # ---- review notes (contact fields are left to the human: personal data)
+          notes = checked("notes", read("review_notes.txt"))
+          if notes:
+              rd = {} if ver_id == "dry" else get(f"/v1/appStoreVersions/{ver_id}/appStoreReviewDetail")
+              if rd.get("data"):
+                  write("PATCH", f"/v1/appStoreReviewDetails/{rd['data']['id']}", {"data": {"type": "appStoreReviewDetails",
+                         "id": rd["data"]["id"], "attributes": {"notes": notes, "demoAccountRequired": False}}})
+              else:
+                  write("POST", "/v1/appStoreReviewDetails", {"data": {"type": "appStoreReviewDetails",
+                         "attributes": {"notes": notes, "demoAccountRequired": False},
+                         "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": ver_id}}}}})
+
+          # ---- the build: newest VALID build whose train is this version
+          bl = get("/v1/builds", **{"filter[app]": app_id, "filter[preReleaseVersion.version]": VERSION,
+                                    "filter[processingState]": "VALID", "sort": "-uploadedDate", "limit": 1,
+                                    "fields[builds]": "version,processingState,expired"})
+          if bl.get("data"):
+              b = bl["data"][0]
+              print("build for", VERSION, "->", b["attributes"]["version"], "expired" if b["attributes"]["expired"] else "")
+              if not b["attributes"]["expired"]:
+                  write("PATCH", f"/v1/appStoreVersions/{ver_id}/relationships/build",
+                        {"data": {"type": "builds", "id": b["id"]}})
+          else:
+              print("::warning::no VALID build with version", VERSION, "-- none attached")
+
+          # ---- screenshots: store/screenshots/<locale>/<DISPLAY_TYPE>/*.png replaces the set
+          def upload(set_id, path):
+              data = open(path, "rb").read()
+              shot = write("POST", "/v1/appScreenshots", {"data": {"type": "appScreenshots",
+                     "attributes": {"fileName": os.path.basename(path), "fileSize": len(data)},
+                     "relationships": {"appScreenshotSet": {"data": {"type": "appScreenshotSets", "id": set_id}}}}})["data"]
+              if DRY: return
+              for op in shot["attributes"]["uploadOperations"]:
+                  hdrs = {h["name"]: h["value"] for h in op.get("requestHeaders", [])}
+                  chunk = data[op["offset"]: op["offset"] + op["length"]]
+                  r = requests.request(op["method"], op["url"], headers=hdrs, data=chunk)
+                  if r.status_code not in (200, 201, 204):
+                      raise SystemExit(f"upload chunk of {path} -> {r.status_code}")
+              call("PATCH", f"/v1/appScreenshots/{shot['id']}", {"data": {"type": "appScreenshots", "id": shot["id"],
+                   "attributes": {"uploaded": True, "sourceFileChecksum": hashlib.md5(data).hexdigest()}}})
+          for locale, lid in loc_ids.items():
+              root = os.path.join("store/screenshots", locale)
+              if not os.path.isdir(root): continue
+              sets = {} if lid == "dry" else {s["attributes"]["screenshotDisplayType"]: s for s in
+                      get(f"/v1/appStoreVersionLocalizations/{lid}/appScreenshotSets", **{"include": "appScreenshots"}).get("data", [])}
+              for dtype in sorted(os.listdir(root)):
+                  files = sorted(glob.glob(os.path.join(root, dtype, "*.png")))
+                  if not files: continue
+                  print(f"screenshots {locale} {dtype}: {len(files)} file(s)")
+                  if dtype in sets:
+                      sid = sets[dtype]["id"]
+                      for old in (((sets[dtype].get("relationships", {}).get("appScreenshots", {}) or {}).get("data")) or []):
+                          write("DELETE", f"/v1/appScreenshots/{old['id']}", None)
+                  else:
+                      sid = write("POST", "/v1/appScreenshotSets", {"data": {"type": "appScreenshotSets",
+                             "attributes": {"screenshotDisplayType": dtype},
+                             "relationships": {"appStoreVersionLocalization": {"data": {"type": "appStoreVersionLocalizations", "id": lid}}}}})["data"]["id"]
+                  for f in files[:10]:
+                      upload(sid, f)
+          print("done" + (" (dry run: nothing written)" if DRY else ""))
+          EOF

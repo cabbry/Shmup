@@ -1,0 +1,9 @@
+SHMUP Reborn is the modernization of "SHMUP", an open-source (GNU GPLv3) 3D shoot'em up written in 2009 by Fabien Sanglard, who published it on the App Store at the time and later released the full source (https://fabiensanglard.net/shmup/, https://github.com/fabiensanglard/Shmup). This release is made with the original author's knowledge and agreement; he follows the project and is credited in the app and in the description. The modernized source is public at https://github.com/cabbry/Shmup.
+
+No account is needed. On first launch the app asks to sign in to Game Center; declining is fine, everything except the online leaderboard and online matches works without it.
+
+How to play: tap "Game", pick a ship, then the acts play on rails. Controls: slide a finger to move the ship (default) or use the virtual pad ("Others" > "Custom"). Two short tutorials are available from "Others" > "Tutorial".
+
+Multiplayer needs at least two devices: "Multi" > "Network" plays over the local Wi-Fi (this is why the app requests Local Network access), "Multi" > "Online" uses Game Center matchmaking. Both can be reviewed on a single device up to the waiting screen; a full match needs a second device on the same network or signed in to Game Center.
+
+The app contains no purchases, no ads, no user-generated content and no chat. The only network traffic is Game Center (scores, matchmaking) and peer-to-peer game data on the local network. Encryption: none beyond the OS (ITSAppUsesNonExemptEncryption = NO).

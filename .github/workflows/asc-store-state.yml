@@ -1,0 +1,108 @@
+name: ASC — App Store listing state
+
+# Read-only helper for the App Store release: prints the listing as App
+# Store Connect has it -- app-level info (categories, age rating,
+# localizations), every version with its state and attached build, the
+# version localizations' field lengths, the screenshot sets, and whether the
+# review details and a price schedule exist. Same credentials as the
+# TestFlight upload; prints no secret material and changes nothing.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  state:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read the listing
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          pip install --quiet pyjwt cryptography requests
+          python3 - <<'EOF'
+          import os, time, jwt, requests, json
+          token = jwt.encode(
+              {"iss": os.environ["ISSUER_ID"], "iat": int(time.time()) - 30,
+               "exp": int(time.time()) + 1200, "aud": "appstoreconnect-v1"},
+              os.environ["PRIVATE_KEY"], algorithm="ES256",
+              headers={"kid": os.environ["KEY_ID"]})
+          H = {"Authorization": "Bearer " + token}
+          base = "https://api.appstoreconnect.apple.com"
+          def get(path, **params):
+              r = requests.get(base + path, headers=H, params=params)
+              try: j = r.json()
+              except Exception: j = {"text": r.text[:500]}
+              if r.status_code != 200:
+                  print(f"  ! GET {path} -> {r.status_code}: {json.dumps(j)[:400]}")
+              return j
+          def rel(o, name):
+              return ((o.get("relationships", {}).get(name, {}) or {}).get("data")) or {}
+
+          apps = get("/v1/apps", **{"filter[bundleId]": "com.cabbry.shmup",
+                                    "fields[apps]": "name,bundleId,sku,primaryLocale,contentRightsDeclaration,isOrEverWasMadeForKids"})
+          if not apps.get("data"):
+              print("APP LOOKUP FAILED"); raise SystemExit(1)
+          app = apps["data"][0]; app_id = app["id"]
+          print("== APP", app_id, json.dumps(app["attributes"]))
+
+          print("\n== APP INFO (app-level, one per state)")
+          infos = get(f"/v1/apps/{app_id}/appInfos",
+                      **{"fields[appInfos]": "appStoreState,state,appStoreAgeRating,brazilAgeRating,kidsAgeBand",
+                         "include": "primaryCategory,primaryCategoryV2,secondaryCategory,ageRatingDeclaration"})
+          for i in infos.get("data", []):
+              a = i["attributes"]
+              print(f"  appInfo {i['id']} state={a.get('state') or a.get('appStoreState')} ageRating={a.get('appStoreAgeRating')}"
+                    f" primaryCategory={rel(i,'primaryCategory').get('id')} secondary={rel(i,'secondaryCategory').get('id')}")
+              for inc in infos.get("included", []):
+                  if inc["type"] == "ageRatingDeclarations" and inc["id"] == rel(i, "ageRatingDeclaration").get("id"):
+                      print("    ageRatingDeclaration:", json.dumps(inc["attributes"]))
+              locs = get(f"/v1/appInfos/{i['id']}/appInfoLocalizations")
+              for l in locs.get("data", []):
+                  la = l["attributes"]
+                  print(f"    {la.get('locale')}: name={la.get('name')!r} subtitle={la.get('subtitle')!r} privacyPolicyUrl={la.get('privacyPolicyUrl')!r}")
+
+          print("\n== VERSIONS")
+          vers = get(f"/v1/apps/{app_id}/appStoreVersions",
+                     **{"fields[appStoreVersions]": "platform,versionString,appStoreState,appVersionState,copyright,releaseType,createdDate",
+                        "include": "build", "fields[builds]": "version,processingState", "limit": 10})
+          builds = {b["id"]: b["attributes"] for b in vers.get("included", []) if b["type"] == "builds"}
+          for v in vers.get("data", []):
+              a = v["attributes"]; b = builds.get(rel(v, "build").get("id"), {})
+              print(f"  version {a.get('versionString')} [{a.get('platform')}] state={a.get('appVersionState') or a.get('appStoreState')}"
+                    f" copyright={a.get('copyright')!r} release={a.get('releaseType')} build={b.get('version')} created={a.get('createdDate')}")
+              locs = get(f"/v1/appStoreVersions/{v['id']}/appStoreVersionLocalizations")
+              for l in locs.get("data", []):
+                  la = l["attributes"]
+                  lens = {k: len(la.get(k) or "") for k in ("description", "keywords", "promotionalText", "whatsNew")}
+                  print(f"    {la.get('locale')}: lengths={lens} support={la.get('supportUrl')!r} marketing={la.get('marketingUrl')!r}")
+                  sets = get(f"/v1/appStoreVersionLocalizations/{l['id']}/appScreenshotSets",
+                             **{"include": "appScreenshots", "fields[appScreenshots]": "fileName,assetDeliveryState"})
+                  for s in sets.get("data", []):
+                      n = len(((s.get("relationships", {}).get("appScreenshots", {}) or {}).get("data")) or [])
+                      print(f"      screenshots {s['attributes'].get('screenshotDisplayType')}: {n}")
+              rd = get(f"/v1/appStoreVersions/{v['id']}/appStoreReviewDetail")
+              ra = (rd.get("data") or {}).get("attributes", {})
+              print(f"    reviewDetail: present={bool(rd.get('data'))} contactName={'yes' if ra.get('contactFirstName') else 'no'}"
+                    f" phone={'yes' if ra.get('contactPhone') else 'no'} email={'yes' if ra.get('contactEmail') else 'no'}"
+                    f" demoRequired={ra.get('demoAccountRequired')} notesLen={len(ra.get('notes') or '')}")
+
+          print("\n== PRICE / AVAILABILITY")
+          ps = get(f"/v1/apps/{app_id}/appPriceSchedule", **{"include": "baseTerritory,manualPrices"})
+          print("  priceSchedule present:", bool(ps.get("data")), "baseTerritory:", rel(ps.get("data") or {}, "baseTerritory").get("id"))
+          av = get(f"/v1/apps/{app_id}/appAvailabilityV2", **{"include": "territoryAvailabilities", "limit[territoryAvailabilities]": 200})
+          ava = (av.get("data") or {}).get("attributes", {})
+          print("  availability present:", bool(av.get("data")), "availableInNewTerritories:", ava.get("availableInNewTerritories"),
+                "territories:", len(av.get("included", [])))
+
+          print("\n== LATEST BUILDS")
+          bl = get("/v1/builds", **{"filter[app]": app_id, "sort": "-uploadedDate", "limit": 5,
+                                    "fields[builds]": "version,processingState,uploadedDate,expired",
+                                    "include": "preReleaseVersion", "fields[preReleaseVersions]": "version"})
+          trains = {i["id"]: i["attributes"]["version"] for i in bl.get("included", [])}
+          for b in bl.get("data", []):
+              a = b["attributes"]
+              print(f"  build {a['version']} v{trains.get(rel(b,'preReleaseVersion').get('id'),'?')} state={a['processingState']} expired={a['expired']}")
+          EOF

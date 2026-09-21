@@ -63,8 +63,8 @@ the 6.9" set; an iPad Pro 12.9"/13" frame is 2048x2732 or 2064x2752.
    Infrequent or Mild*; everything else *None* or *No*, including "Guns or
    other weapons" — the ships fire bullets, not firearms; change it in the
    web UI if you read the question otherwise). Expected rating: 9+. Check the
-   result in the App Information page, along with the **subcategory** (Games:
-   Action — the API accepted it silently, the state read did not show it).
+   rating Apple computed on the App Information page. Category: Games, Action
+   (confirmed by a direct read).
 3. **Pricing and availability**: Free, all territories. (A GPLv3 game has to
    be free to download; the source is public anyway.)
 4. **App Review contact** (name, phone, e-mail) in the version's review

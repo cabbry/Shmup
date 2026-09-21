@@ -118,7 +118,8 @@ to the true screen edges, and the touch-coordinate mapping.
   ARC; simulator build and signed device archive in CI.
 - ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 270) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
-  iPhone and iPad.
+  iPhone and iPad. 🟡 **App Store listing prepared** in `store/` (round 85),
+  privacy manifest in the bundle; submission waits for Fabien's word.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
   — and an ending; 2-4 player co-op over LAN and online (device-confirmed at
   two, rig-proven at four); leaderboards.
@@ -365,7 +366,12 @@ order, each step a build:
 - **Gameplay videos on YouTube** (Fabien's suggestion): the five acts, the Act
   III side-view beat, Rain's storm, a LAN match, an online match. A recording
   session away.
-- **App Store release?** Feature-complete, modern stack, nothing deprecated.
+- **App Store release — in preparation (round 85).** The listing is in
+  `store/` and two workflows read and write App Store Connect; the record
+  is the empty "1.0" draft created with the app. Waiting for Fabien's
+  word on build 270. Then, in order: run `asc-store-push` for real,
+  screenshots from the devices into `store/screenshots`, the four clicks in
+  App Store Connect (privacy, age rating, price, contact), Submit.
   iMessage invites and SharePlay only light up once the app is on the store.
 - **Small things**, triaged by the tester (2026-09-18): the fade under the act
   title card on Metal stays, on purpose; the menu buttons touching the screen
@@ -418,6 +424,31 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-21 — round 85 (the App Store listing, versioned; waiting for Fabien's word)
+- **"Il est temps de faire la partie App Store Connect."** The listing joins
+  the repository under `store/`: name, subtitle, description, keywords,
+  promotional text, release notes and URLs in English and French, the
+  copyright, the privacy policy the listing links to (`store/PRIVACY.md`),
+  and the notes for App Review (open source, Fabien's agreement, how to
+  test the multiplayer). `store/README.md` says what still needs a click.
+- **The privacy manifest.** `engine/iOS/PrivacyInfo.xcprivacy` in the Shmup
+  target: no tracking, nothing collected, NSUserDefaults for reason CA92.1
+  (the settings, the loadout, the progress). The compile check is green.
+- **Two Linux-runner workflows** on the upload credentials: `asc-store-state`
+  reads the record, `asc-store-push` writes `store/` to one version string.
+  The first read showed App Store Connect exactly as the app was created on
+  2026-06-24: one iOS version "1.0" in preparation, empty, no build, no
+  price, no availability. The push therefore *renames* that draft rather
+  than adding a second one, then fills the localizations, the category
+  (Games: Action, Arcade), the review notes, and attaches the newest VALID
+  build of the train — 270. Two dry runs print that exact plan; nothing has
+  been written yet, and the workflow never submits for review.
+- **Still to do by hand** (no public API, or personal data): the App Privacy
+  answers ("Data Not Collected"), the age rating questionnaire (cartoon
+  violence, infrequent: 9+), Free in all territories, the review contact,
+  the screenshots taken on the devices, and the Submit button — after
+  Fabien's answer.
 
 ### 2026-09-20 — round 84 (the big shots: from the start, from three mouths, on jittered clocks)
 - **"Je ne voyais plus la grosse boule d'énergie."** She was not gone, she was

@@ -59,9 +59,12 @@ the 6.9" set; an iPad Pro 12.9"/13" frame is 2048x2732 or 2064x2752.
    settings and loadout stay on the device. `PrivacyInfo.xcprivacy` in the
    bundle says the same (no tracking, no collected data, NSUserDefaults for
    reason CA92.1).
-2. **Age rating** questionnaire: *Cartoon or Fantasy Violence: Infrequent or
-   Mild*; everything else *None*; no gambling, no contests, no unrestricted
-   web access, no user-generated content, no messaging. Expected rating: 9+.
+2. **Age rating**: written by the push (*Cartoon or Fantasy Violence:
+   Infrequent or Mild*; everything else *None* or *No*, including "Guns or
+   other weapons" — the ships fire bullets, not firearms; change it in the
+   web UI if you read the question otherwise). Expected rating: 9+. Check the
+   result in the App Information page, along with the **subcategory** (Games:
+   Action — the API accepted it silently, the state read did not show it).
 3. **Pricing and availability**: Free, all territories. (A GPLv3 game has to
    be free to download; the source is public anyway.)
 4. **App Review contact** (name, phone, e-mail) in the version's review

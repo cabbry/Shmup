@@ -168,6 +168,28 @@ jobs:
                       write("POST", "/v1/appInfoLocalizations", {"data": {"type": "appInfoLocalizations", "attributes": attrs,
                              "relationships": {"appInfo": {"data": {"type": "appInfos", "id": iid}}}}})
 
+          # ---- age rating: a 2009 space shooter. Cartoon violence, infrequent;
+          # everything else none. Non-fatal: a refused field is printed, the
+          # rest of the listing still goes through.
+          if info:
+              ard = get(f"/v1/appInfos/{iid}/ageRatingDeclaration")
+              if ard.get("data"):
+                  aid = ard["data"]["id"]
+                  freq = {k: "NONE" for k in ("violenceRealistic", "violenceRealisticProlongedGraphicOrSadistic",
+                          "profanityOrCrudeHumor", "matureOrSuggestiveThemes", "horrorOrFearThemes",
+                          "medicalOrTreatmentInformation", "alcoholTobaccoOrDrugUseOrReferences",
+                          "sexualContentOrNudity", "sexualContentGraphicAndNudity", "gamblingSimulated",
+                          "gunsOrOtherWeapons")}
+                  freq["violenceCartoonOrFantasy"] = "INFREQUENT_OR_MILD"
+                  flags = {k: False for k in ("gambling", "contests", "unrestrictedWebAccess", "lootBox", "advertising",
+                           "parentalControls", "userGeneratedContent", "messagingAndChat", "socialMedia",
+                           "healthOrWellnessTopics", "ageAssurance", "socialMediaAgeRestricted")}
+                  body = {"data": {"type": "ageRatingDeclarations", "id": aid, "attributes": {**freq, **flags}}}
+                  try:
+                      write("PATCH", f"/v1/ageRatingDeclarations/{aid}", body)
+                  except SystemExit as e:
+                      print("::warning::age rating not written:", str(e)[:600])
+
           # ---- review notes (contact fields are left to the human: personal data)
           notes = checked("notes", read("review_notes.txt"))
           if notes:

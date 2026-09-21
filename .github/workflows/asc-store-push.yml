@@ -64,7 +64,17 @@ jobs:
           def write(method, path, body):
               print(f"  {'(dry) ' if DRY else ''}{method} {path} {json.dumps(body)[:300]}")
               if DRY: return {"data": {"id": "dry"}}
-              return call(method, path, body)
+              try:
+                  return call(method, path, body)
+              except SystemExit as e:
+                  # A first release has no "what's new": Apple answers 409 for the
+                  # attribute. Drop it and write the rest.
+                  attrs = (body or {}).get("data", {}).get("attributes", {})
+                  if "409" in str(e) and "whatsNew" in str(e) and "whatsNew" in attrs:
+                      print("  (whatsNew refused on a first release: written without it)")
+                      attrs.pop("whatsNew")
+                      return call(method, path, body)
+                  raise
           def rel(o, name):
               return ((o.get("relationships", {}).get(name, {}) or {}).get("data")) or {}
           def read(path):

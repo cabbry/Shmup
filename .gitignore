@@ -25,3 +25,12 @@ build
 # stray compiler output (an empty a.out slipped in with 534899d)
 a.out
 *.o
+
+# from engine/.gitignore (the tree was flattened in round 86)
+*NUL
+*.a
+*.so
+obj
+*.xcworkspace
+DerivedData
+.DS_Store

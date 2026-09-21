@@ -24,8 +24,8 @@
 
 #import <UIKit/UIKit.h>
 
-#include "../src/ItextureLoader.h"
-#include "../src/globals.h"
+#include "../src/core/ItextureLoader.h"
+#include "../src/core/globals.h"
 
 
 

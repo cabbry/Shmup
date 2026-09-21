@@ -64,10 +64,27 @@ IntelliSense the include paths.
 | native services | `src/backends/win/native_win.c` | `dEngineAppDelegate.m` / `EAGLView.m`: PNG through WIC, settings file, language, version |
 | window and input | `win/main.c` | `EAGLView.m`: Win32 window, WGL context, the mouse as the finger |
 
-Not on Windows: Game Center (leaderboard, online matches) and the LAN mode
-(Bonjour is Apple's; `netchannel.c` compiles its stubs). The core's three
-Windows hooks are `GL_RENDERER` in `SCR_BindMethods` and the two
-`Native_Save*` calls widened from `__APPLE__` to Windows.
+Not on Windows: Game Center (leaderboard, online matches). The core's
+Windows hooks are `GL_RENDERER` in `SCR_BindMethods`, the two `Native_Save*`
+calls widened from `__APPLE__` to Windows, and in `netchannel.c` the Winsock
+spellings (`closesocket`, `ioctlsocket`, `WSAGetLastError` mapped to
+`errno`) plus the LAN address from the shim.
+
+## The LAN with an iPhone (round 88)
+
+*Jeu Multi > Local* works between the PC and iPhones on the same Wi-Fi:
+`netchannel.c` compiles as on iOS, over Winsock, and
+`src/backends/win/dnssd_win.c` is the mDNS responder and browser Bonjour
+would have been (see `tools/mdns/README.md`). The iPhone needs nothing.
+
+- **Windows Defender Firewall** asks once, at the first LAN game, whether
+  `ShmupReborn.exe` may accept connections on private networks: say yes, or
+  the iPhone's datagrams (UDP 31978) and the multicast discovery (UDP 5353)
+  never reach the game.
+- The PC and the phone must be on the same network; a guest Wi-Fi that
+  isolates clients hides them from each other.
+- The role is elected as on iOS, by the lower address hosting; the host's
+  act plays.
 
 ## Verified on the first day (round 87)
 

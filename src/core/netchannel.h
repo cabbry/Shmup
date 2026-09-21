@@ -63,7 +63,17 @@ int NET_Init(void);
 
 #define BUFFER_SIZE 1024
 
-#if !defined(WIN32) && !defined(ANDROID) && !defined(LINUX)
+#if !defined(ANDROID) && !defined(LINUX)
+#if defined(_WIN32)
+// Round 88: the LAN on Windows. Winsock, and the dns_sd.h of the shim in
+// src/backends/win (a small mDNS responder of our own -- Bonjour is Apple's).
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include "dns_sd.h"
+#define bzero(p, n) memset((p), 0, (n))
+#define NET_CLOSESOCKET(s) closesocket(s)
+#else
+#define NET_CLOSESOCKET(s) close(s)
 #include <dns_sd.h>
 #include <netdb.h>		
 #include <net/if.h>
@@ -75,6 +85,7 @@ int NET_Init(void);
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <ifaddrs.h>
+#endif	// _WIN32 / POSIX
 
 typedef struct net_channel_t
 {

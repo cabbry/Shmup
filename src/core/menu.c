@@ -605,7 +605,8 @@ void Action_ConfigureMultiplayer(void* tag)
 	engine.mode = DE_MODE_MULTIPLAYER;
 	NET_Init();
 	NET_SetPartyTarget(partySize);	// the roster stops waiting once this many are found
-	sprintf(MENU_GetMultiplayerTextLine(0), "%s -- the host's act is the one that plays", MENU_ActName(gMPPickedAct));
+	// Round 88: short enough for the line (the long form ran off the screen) and translated.
+	sprintf(MENU_GetMultiplayerTextLine(0), MENU_Tr("%s - the host's act plays"), MENU_ActName(gMPPickedAct));
 	PL_ResetPlayersScore();
 
 	// Shared life pool in multiplayer, mirrored on each death in P_Die. This is
@@ -656,8 +657,8 @@ void Action_ConfigureOnlineMultiplayer(void* tag)
 
 	engine.difficultyLevel = DIFFICULTY_NORMAL;
 
-	sprintf(MENU_GetMultiplayerTextLine(0), "Finding %d players for %s...", partySize, MENU_ActName(gMPPickedAct));
-	sprintf(MENU_GetMultiplayerTextLine(1), "(the host's act is the one that plays)");
+	sprintf(MENU_GetMultiplayerTextLine(0), MENU_Tr("Finding %d players for %s..."), partySize, MENU_ActName(gMPPickedAct));
+	sprintf(MENU_GetMultiplayerTextLine(1), MENU_Tr("(the host's act plays)"));
 	Native_StartOnlineMatchmaking(partySize);	// presents the Game Center matchmaker UI
 }
 #endif
@@ -862,6 +863,10 @@ static const menu_tr_t gMenuTr[] = {
 	// v4: the %s is the act's own name, from its pack ("Act III", "Final").
 	{ "Locked - finish %s first", "Bloqu\xE9 - finis d'abord %s" },
 	{ "Unlocked up to %s",        "D\xE9" "bloqu\xE9 jusqu'\xE0 %s" },
+	// round 88: the multiplayer waiting lines, short enough for the screen
+	{ "%s - the host's act plays",   "%s - l'acte de l'h\xF4te fait foi" },
+	{ "Finding %d players for %s...", "Recherche de %d joueurs pour %s..." },
+	{ "(the host's act plays)",       "(l'acte de l'h\xF4te fait foi)" },
 	{ "Red",                 "Rouge" },
 	{ "Blue",                "Bleu" },
 	{ "Invisible",           "Invisible" },

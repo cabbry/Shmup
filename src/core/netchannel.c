@@ -28,7 +28,7 @@
 #include "text.h"				// DYN_TEXT_AddText: the on-screen "PLAYER n LEFT" notice
 
 // The network version was designed on iOS with Unix socket. This part still needs to be ported using winsock32.
-#if defined(WIN32) || defined(ANDROID) || defined(LINUX)
+#if defined(ANDROID) || defined(LINUX)
 	int NET_Init(void){return 1;}
 	void NET_Setup(void){}
 	void NET_Receive(void){}
@@ -71,6 +71,8 @@
 	#else
 		#define INTERFACE_NAME "en0"
 	#endif
+#elif defined(_WIN32)
+	#define INTERFACE_NAME "lan"	// round 88: what the shim's if_indextoname answers for every LAN interface
 #else
 	#define INTERFACE_NAME "en0"
 #endif
@@ -535,7 +537,9 @@ static void LAN_AddRosterIp(unsigned int ip)
 	for (s = 0; s < gLanCount; s++)
 	{
 		memset(&gSeatAddr[s], 0, sizeof(gSeatAddr[s]));
+#ifndef _WIN32
 		gSeatAddr[s].sin_len    = sizeof(gSeatAddr[s]);
+#endif
 		gSeatAddr[s].sin_family = AF_INET;
 		gSeatAddr[s].sin_port   = htons(PORT_NUMBER);
 		gSeatAddr[s].sin_addr.s_addr = htonl(gLanIps[s]);
@@ -711,6 +715,12 @@ static int NET_TransportRecv(void* out, int maxlen, struct sockaddr_in* fromAddr
 	src = fromAddr ? fromAddr : &local;
 	alen = sizeof(*src);
 	n = (int)recvfrom(net.udpSocket, out, maxlen, 0, (struct sockaddr*)src, &alen);
+#ifdef _WIN32
+	// Winsock reports through WSAGetLastError, and "nothing yet" is
+	// WSAEWOULDBLOCK: hand the callers the errno they read.
+	if (n < 0)
+		errno = (WSAGetLastError() == WSAEWOULDBLOCK) ? EAGAIN : WSAGetLastError();
+#endif
 	if (senderSeat)
 		*senderSeat = (n > 0) ? LAN_SeatForAddr(src) : -1;
 	return n;
@@ -809,7 +819,7 @@ void NET_Free(void)
 	// "<= 0" sockfd checks then wrongly treated as an error. (This is what broke LAN:
 	// register succeeded but DNSServiceRefSockFD returned 0 and was rejected.)
 	if (net.udpSocket > 0)
-		close(net.udpSocket);
+		NET_CLOSESOCKET(net.udpSocket);
 	net.udpSocket=0;
 	
 	//Also reset all messages
@@ -821,6 +831,31 @@ void NET_Free(void)
 	MENU_GetMultiplayerTextLine(5)[0]='\0';
 }
 
+#ifdef _WIN32
+// Round 88: on Windows the interface has no name to look for -- the shim
+// picks the LAN adapter (the one with a gateway, Wi-Fi or Ethernet).
+char NET_IsNetworkAvailable() {
+	struct in_addr ip;
+	return DNSSD_WIN_LocalIPv4(&ip) ? 1 : 0;
+}
+struct sockaddr_in NET_GetAddressForInterfaceName( const char *ifname )
+{
+	struct sockaddr_in s;
+	uchar* ip;
+	(void)ifname;
+	memset( &s, 0, sizeof( s ) );
+	s.sin_family = AF_INET;
+	if ( !DNSSD_WIN_LocalIPv4( &s.sin_addr ) )
+	{
+		Log_Printf( "AddressForInterfaceName: no LAN address\n" );
+		return s;
+	}
+	ip = (uchar*)&s.sin_addr;
+	sprintf(MENU_GetMultiplayerTextLine(1),"My IP: %i.%i.%i.%i",ip[0], ip[1], ip[2], ip[3]);
+	return s;
+}
+int NET_InterfaceIndexForInterfaceName( const char *ifname ) { (void)ifname; return 0; }
+#else
 char NET_IsNetworkAvailable() {
 	struct ifaddrs *ifap;
 	if ( getifaddrs( &ifap ) == -1 ) {
@@ -907,6 +942,7 @@ int NET_InterfaceIndexForInterfaceName( const char *ifname ) {
 	if_freenameindex( ifnames );
 	return 0;
 }
+#endif	// _WIN32
 
 
 void DNSServiceRegisterReplyCallback ( 
@@ -1300,12 +1336,23 @@ void NET_CreateSocket(void)
 	// enable non-blocking IO
 	//int x;
 	//x = fcntl(udpSocket,F_GETFL,0);
+#ifdef _WIN32
+	{
+		u_long nonBlocking = 1;
+		if (ioctlsocket(net.udpSocket, FIONBIO, &nonBlocking) != 0) {
+			Log_Printf( "UDP ioctlsocket failed: %d\n", WSAGetLastError() );
+			NET_CLOSESOCKET( net.udpSocket );
+			return ;
+		}
+	}
+#else
 	if (fcntl(net.udpSocket,F_SETFL, O_NONBLOCK)== -1 ) {
 		Log_Printf( "UDP fcntl failed: %s\n", strerror( errno ) );
 		close( net.udpSocket );
-		
+
 		return ;
 	}
+#endif
 	
 	
 	//if (netType == SERVER)

@@ -8,7 +8,8 @@
 param(
     [switch]$Debug,
     [switch]$Run,
-    [string]$Zig = "zig"
+    [string]$Zig = "zig",
+    [string]$OutName = "ShmupReborn.exe"   # another name when the usual one is running
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -35,18 +36,18 @@ Set-Content -Path "$out\shmup_version.h" -Value "#define SHMUP_VERSION `"$versio
 $flags = @(
     "-std=gnu99", "-DWIN32", "-D_CRT_SECURE_NO_WARNINGS", "-include", "$out\shmup_version.h",
     # -iquote, not -I: src/core/math.h must not shadow the system <math.h>
-    "-iquote", "$root\src\core", "-iquote", "$root\src\backends\gl",
+    "-iquote", "$root\src\core", "-iquote", "$root\src\backends\gl", "-iquote", "$root\src\backends\win",
     "-Wall", "-Wno-unused-parameter", "-Wno-unused-variable", "-Wno-unused-function", "-Wno-unused-but-set-variable",
     "-Wno-unknown-pragmas", "-Wno-missing-braces", "-Wno-sign-compare", "-Wno-format", "-Wno-parentheses",
     "-Wno-unused-value", "-Wno-misleading-indentation", "-Wno-int-conversion",
     "-fno-sanitize=undefined", "-fno-strict-aliasing"
 )
 if ($Debug) { $flags += @("-O0", "-g") } else { $flags += @("-O2") }
-$libs = @("-lopengl32", "-lgdi32", "-luser32", "-lwinmm", "-lole32", "-lwindowscodecs", "-lws2_32", "-lshell32", "-ladvapi32")
+$libs = @("-liphlpapi", "-lopengl32", "-lgdi32", "-luser32", "-lwinmm", "-lole32", "-lwindowscodecs", "-lws2_32", "-lshell32", "-ladvapi32")
 
 Write-Host "SHMUP Reborn $version -- $($sources.Count) files, zig cc"
-& $Zig cc @flags @sources @libs -o "$out\ShmupReborn.exe"
+& $Zig cc @flags @sources @libs -o "$out\$OutName"
 if ($LASTEXITCODE -ne 0) { throw "build failed" }
-Write-Host "built $out\ShmupReborn.exe"
+Write-Host "built $out\$OutName"
 
-if ($Run) { & "$out\ShmupReborn.exe" }
+if ($Run) { & "$out\$OutName" }

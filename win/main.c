@@ -46,6 +46,7 @@
 #include "titles.h"
 #include "log.h"
 #include "native_services.h"
+#include "dns_sd.h"			// DNSSD_WIN_Tick
 
 void WIN_LoadSettings(void);	// native_win.c
 int  WIN_SavePNG(const char* path, int w, int h, const unsigned char* rgbaBottomUp);	// native_win.c
@@ -589,6 +590,7 @@ int main(int argc, char** argv)
 		GLR_EndFrame();
 		TakeShotIfDue();	// before the swap: the back buffer holds this frame
 		SwapBuffers(gDC);
+		DNSSD_WIN_Tick();	// the LAN's mDNS announcements and query retries
 		PaceFrame();
 		WallProbe();
 		SND_MusicProbeTick();

@@ -194,13 +194,20 @@ jobs:
           notes = checked("notes", read("review_notes.txt"))
           if notes:
               rd = {} if ver_id == "dry" else get(f"/v1/appStoreVersions/{ver_id}/appStoreReviewDetail")
-              if rd.get("data"):
-                  write("PATCH", f"/v1/appStoreReviewDetails/{rd['data']['id']}", {"data": {"type": "appStoreReviewDetails",
-                         "id": rd["data"]["id"], "attributes": {"notes": notes, "demoAccountRequired": False}}})
-              else:
-                  write("POST", "/v1/appStoreReviewDetails", {"data": {"type": "appStoreReviewDetails",
-                         "attributes": {"notes": notes, "demoAccountRequired": False},
-                         "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": ver_id}}}}})
+              try:
+                  if rd.get("data"):
+                      # Once the record exists Apple wants the contact with every
+                      # PATCH; the contact is personal data and stays out of the
+                      # repository, so the notes are only refreshed if the human
+                      # has filled it in. Non-fatal.
+                      write("PATCH", f"/v1/appStoreReviewDetails/{rd['data']['id']}", {"data": {"type": "appStoreReviewDetails",
+                             "id": rd["data"]["id"], "attributes": {"notes": notes, "demoAccountRequired": False}}})
+                  else:
+                      write("POST", "/v1/appStoreReviewDetails", {"data": {"type": "appStoreReviewDetails",
+                             "attributes": {"notes": notes, "demoAccountRequired": False},
+                             "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": ver_id}}}}})
+              except SystemExit as e:
+                  print("::warning::review notes not refreshed (fill in the review contact in App Store Connect first):", str(e)[:300])
 
           # ---- the build: newest VALID build whose train is this version
           bl = get("/v1/builds", **{"filter[app]": app_id, "filter[processingState]": "VALID", "filter[expired]": "false",

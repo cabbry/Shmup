@@ -368,10 +368,10 @@ order, each step a build:
   session away.
 - **App Store release — in preparation (round 85).** The listing is in
   `store/` and two workflows read and write App Store Connect; the record
-  is the empty "1.0" draft created with the app. Waiting for Fabien's
-  word on build 270. Then, in order: run `asc-store-push` for real,
-  screenshots from the devices into `store/screenshots`, the four clicks in
-  App Store Connect (privacy, age rating, price, contact), Submit.
+  is written: 5.0.10, both languages, category, age rating, review notes,
+  build 270 attached. Waiting for Fabien's word. Then: screenshots from the
+  devices into `store/screenshots` (and a push), the three clicks in App
+  Store Connect (privacy, price, contact), Submit.
   iMessage invites and SharePlay only light up once the app is on the store.
 - **Small things**, triaged by the tester (2026-09-18): the fade under the act
   title card on Metal stays, on purpose; the menu buttons touching the screen
@@ -441,14 +441,21 @@ it ever reached a device — which is why the game looks the same and why
   2026-06-24: one iOS version "1.0" in preparation, empty, no build, no
   price, no availability. The push therefore *renames* that draft rather
   than adding a second one, then fills the localizations, the category
-  (Games: Action), the review notes, and attaches the newest VALID
-  build of the train — 270. Two dry runs print that exact plan; nothing has
-  been written yet, and the workflow never submits for review.
+  (Games: Action), the review notes, the age rating questionnaire (cartoon
+  violence, infrequent; everything else none) and attaches the newest VALID
+  build of the train — 270. Two dry runs, then the real run on the tester's
+  "ok": **the record now reads 5.0.10, both languages, build 270 attached,
+  manual release.** Six Apple answers shaped the script on the way: no
+  "what's new" on a first release (409), no Arcade subcategory any more,
+  one version in preparation at a time, the review record wants the contact
+  with every later write, `primaryCategoryV2` is not a relationship, and
+  the age questionnaire mixes booleans with NONE/INFREQUENT strings in an
+  undocumented split (the script flips a refused field's type and retries).
+  The workflow never submits for review.
 - **Still to do by hand** (no public API, or personal data): the App Privacy
-  answers ("Data Not Collected"), the age rating questionnaire (cartoon
-  violence, infrequent: 9+), Free in all territories, the review contact,
-  the screenshots taken on the devices, and the Submit button — after
-  Fabien's answer.
+  answers ("Data Not Collected"), Free in all territories, the review
+  contact, the screenshots taken on the devices, and the Submit button —
+  after Fabien's answer.
 
 ### 2026-09-20 — round 84 (the big shots: from the start, from three mouths, on jittered clocks)
 - **"Je ne voyais plus la grosse boule d'énergie."** She was not gone, she was

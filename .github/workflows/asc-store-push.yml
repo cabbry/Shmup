@@ -181,9 +181,9 @@ jobs:
                           "profanityOrCrudeHumor", "matureOrSuggestiveThemes", "horrorOrFearThemes",
                           "medicalOrTreatmentInformation", "alcoholTobaccoOrDrugUseOrReferences",
                           "sexualContentOrNudity", "sexualContentGraphicAndNudity", "gamblingSimulated",
-                          "gunsOrOtherWeapons")}
+                          "gunsOrOtherWeapons", "contests")}
                   freq["violenceCartoonOrFantasy"] = "INFREQUENT_OR_MILD"
-                  flags = {k: False for k in ("gambling", "contests", "unrestrictedWebAccess", "lootBox", "advertising",
+                  flags = {k: False for k in ("gambling", "unrestrictedWebAccess", "lootBox", "advertising",
                            "parentalControls", "userGeneratedContent", "messagingAndChat", "socialMedia",
                            "healthOrWellnessTopics", "ageAssurance", "socialMediaAgeRestricted")}
                   attrs = {**freq, **flags}

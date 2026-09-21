@@ -296,15 +296,30 @@ static void KeyboardFinger(void)
 }
 
 // The tutorial / demo BACK button, as EAGLView hit-tests it.
+// player.c draws "[ BACK ]" centred at SS y = scoreY - 100 with
+// scoreY = SS_H - safeInset - 30, in the ortho that maps [-SS_H, SS_H] onto the
+// viewport's height. EAGLView hard-coded the resulting band for an iPhone
+// (whose notch pushes the score down); here it is computed, so a window
+// without inset -- or a letterboxed one -- hits the same glyphs.
 static int BackButtonHit(int x, int y)
 {
-	float fx, fy;
+	int vpX = renderer.viewPortDimensions[VP_X], vpW = renderer.viewPortDimensions[VP_WIDTH];
+	int vpH = renderer.viewPortDimensions[VP_HEIGHT];
+	int vpTop = gClientH - renderer.viewPortDimensions[VP_Y] - vpH;	// GL's origin is bottom-left
+	float fx, fy, cy, band;
 	if (!(SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) || TITLE_IsShowing())
 		return 0;
-	if (gClientW <= 0 || gClientH <= 0) return 0;
-	fx = x / (float)gClientW;
-	fy = y / (float)gClientH;
-	return (fx > 0.32f && fx < 0.68f && fy > 0.17f && fy < 0.29f);
+	if (vpW <= 0 || vpH <= 0) { vpX = 0; vpW = gClientW; vpTop = 0; vpH = gClientH; }
+	if (vpW <= 0 || vpH <= 0) return 0;
+	fx = (x - vpX) / (float)vpW;
+	fy = (y - vpTop) / (float)vpH;
+	{
+		float orthoPerPx = 2.0f * SS_H / (float)vpH;
+		float scoreY = SS_H - renderer.safeInsetTopPx * orthoPerPx - 30.0f;
+		cy = (SS_H - (scoreY - 100.0f)) / (2.0f * SS_H);	// fraction from the top
+		band = 0.055f;
+	}
+	return (fx > 0.32f && fx < 0.68f && fy > cy - band && fy < cy + band);
 }
 
 static void OnResize(int w, int h)

@@ -47,6 +47,7 @@
 		2D62C82C10801FA6002411C3 /* commands.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D62C82B10801FA6002411C3 /* commands.c */; };
 		2D689668103107EF00308FF1 /* filesystem.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D689667103107EF00308FF1 /* filesystem.c */; };
 		2D73EF65107AAF44007A8E4B /* Entitlements.plist in Resources */ = {isa = PBXBuildFile; fileRef = 2D73EF64107AAF44007A8E4B /* Entitlements.plist */; };
+		2DA5F1E02E9A000100C0FFEE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2DA5F1DF2E9A000100C0FFEE /* PrivacyInfo.xcprivacy */; };
 		2D796F201215EACF0061ACE8 /* titles.c in Sources */ = {isa = PBXBuildFile; fileRef = 2D796F1F1215EACF0061ACE8 /* titles.c */; };
 		2D7A380A129F38BF00AD251B /* MainWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = 28AD733E0D9D9553002E5188 /* MainWindow.xib */; };
 		2D7A380B129F38BF00AD251B /* Settings.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 2DAF72F110795BEA00FDD8CA /* Settings.bundle */; };
@@ -200,6 +201,7 @@
 		2D689666103107EF00308FF1 /* filesystem.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = filesystem.h; sourceTree = "<group>"; };
 		2D689667103107EF00308FF1 /* filesystem.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = filesystem/filesystem.c; sourceTree = "<group>"; };
 		2D73EF64107AAF44007A8E4B /* Entitlements.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Entitlements.plist; path = Entitlements.plist; sourceTree = "<group>"; };
+		2DA5F1DF2E9A000100C0FFEE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		2D796F1E1215EACF0061ACE8 /* titles.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = titles.h; sourceTree = "<group>"; };
 		2D796F1F1215EACF0061ACE8 /* titles.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = titles.c; sourceTree = "<group>"; };
 		2D7A3856129F38BF00AD251B /* ShmupLite.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShmupLite.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -356,6 +358,7 @@
 				2DF5075214D0E249000A6C0D /* data */,
 				28AD733E0D9D9553002E5188 /* MainWindow.xib */,
 				2D73EF64107AAF44007A8E4B /* Entitlements.plist */,
+				2DA5F1DF2E9A000100C0FFEE /* PrivacyInfo.xcprivacy */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -627,6 +630,7 @@
 				28AD733F0D9D9553002E5188 /* MainWindow.xib in Resources */,
 				2DAF72F210795BEA00FDD8CA /* Settings.bundle in Resources */,
 				2D73EF65107AAF44007A8E4B /* Entitlements.plist in Resources */,
+				2DA5F1E02E9A000100C0FFEE /* PrivacyInfo.xcprivacy in Resources */,
 				2D58B6221EE383B100E5DEE6 /* Default-568h@2x.png in Resources */,
 				2D3E47041232FA540030D4BD /* MainWindow-iPad.xib in Resources */,
 				2DF0890C1263E8EE00836147 /* Default.png in Resources */,

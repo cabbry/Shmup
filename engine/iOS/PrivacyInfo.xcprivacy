@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Store release (v5): the privacy manifest Apple requires since
+	     spring 2024. SHMUP has no tracking, no analytics and no server of its
+	     own: scores go to Game Center (Apple's), LAN play stays on the local
+	     network, the loadout and settings live in NSUserDefaults on the device.
+	     The only "required reason" API in use is NSUserDefaults (EAGLView.m,
+	     dEngineAppDelegate.m), read and written by this app for its own state:
+	     reason CA92.1. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

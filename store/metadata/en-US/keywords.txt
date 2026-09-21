@@ -1,0 +1,1 @@
+shmup,shoot em up,arcade,retro,space shooter,bullet,coop,multiplayer,ikaruga,open source,boss

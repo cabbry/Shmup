@@ -1,0 +1,8 @@
+First App Store release of SHMUP Reborn.
+
+- Five acts: Dawn, Hope, Dusk, Rain and the Final act.
+- The final boss has skeletal arms: they breathe, they recoil, they pinch. Tear one off.
+- Local network and Game Center multiplayer, two to four ships.
+- Three ships, four bullet colours, two control schemes with tutorials.
+- Game Center leaderboard.
+- English and French.

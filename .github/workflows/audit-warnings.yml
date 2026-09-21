@@ -23,7 +23,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Build with the full log
-        working-directory: engine/iOS
+        working-directory: ios
         run: |
           set -o pipefail
           xcodebuild \

@@ -84,12 +84,12 @@ jobs:
             [0-9]*.[0-9]*) ;;                 # looks like a version -> keep it
             *) VER="${MARKETING_VERSION}" ;;  # not a version tag -> fallback
           esac
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" engine/iOS/shmup.plist
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VER}" engine/iOS/shmup.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" ios/shmup.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VER}" ios/shmup.plist
           echo "Version $VER / build $BUILD"
 
       - name: Archive (Release, device, manual signing)
-        working-directory: engine/iOS
+        working-directory: ios
         run: |
           set -o pipefail
           xcodebuild \

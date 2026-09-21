@@ -13,8 +13,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-format-security -DANDROID -DNATIVE_ACTI
 
 
 set(BASE "../../../../../src")
-file(GLOB SOURCES ${BASE}/*.h ${BASE}/*.c)
-file(GLOB ANDROID_BACKENDS ${BASE}/android/*.h ${BASE}/android/*.c)
+file(GLOB SOURCES ${BASE}/core/*.h ${BASE}/core/*.c)
+file(GLOB ANDROID_BACKENDS ${BASE}/backends/android/*.h ${BASE}/backends/android/*.c)
 
 add_library( # Sets the name of the library.
         shmup
@@ -22,25 +22,25 @@ add_library( # Sets the name of the library.
         # Sets the library as a shared library.
         SHARED
 
-        ${BASE}/libpng/png.c
-        ${BASE}/libpng/pngerror.c
-        ${BASE}/libpng/pngget.c
-        ${BASE}/libpng/pngmem.c
-        ${BASE}/libpng/pngpread.c
-        ${BASE}/libpng/pngread.c
-        ${BASE}/libpng/pngrio.c
-        ${BASE}/libpng/pngrtran.c
-        ${BASE}/libpng/pngrutil.c
-        ${BASE}/libpng/pngset.c
-        ${BASE}/libpng/pngtrans.c
-        ${BASE}/libpng/pngwio.c
-        ${BASE}/libpng/pngwrite.c
-        ${BASE}/libpng/pngwtran.c
-        ${BASE}/libpng/pngwutil.c
-        ${BASE}/libpng/arm/arm_init.c
-        ${BASE}/libpng/arm/filter_neon.S
-        ${BASE}/libpng/arm/filter_neon_intrinsics.c
-        ${BASE}/libpng/arm/palette_neon_intrinsics.c
+        ${BASE}/third_party/libpng/png.c
+        ${BASE}/third_party/libpng/pngerror.c
+        ${BASE}/third_party/libpng/pngget.c
+        ${BASE}/third_party/libpng/pngmem.c
+        ${BASE}/third_party/libpng/pngpread.c
+        ${BASE}/third_party/libpng/pngread.c
+        ${BASE}/third_party/libpng/pngrio.c
+        ${BASE}/third_party/libpng/pngrtran.c
+        ${BASE}/third_party/libpng/pngrutil.c
+        ${BASE}/third_party/libpng/pngset.c
+        ${BASE}/third_party/libpng/pngtrans.c
+        ${BASE}/third_party/libpng/pngwio.c
+        ${BASE}/third_party/libpng/pngwrite.c
+        ${BASE}/third_party/libpng/pngwtran.c
+        ${BASE}/third_party/libpng/pngwutil.c
+        ${BASE}/third_party/libpng/arm/arm_init.c
+        ${BASE}/third_party/libpng/arm/filter_neon.S
+        ${BASE}/third_party/libpng/arm/filter_neon_intrinsics.c
+        ${BASE}/third_party/libpng/arm/palette_neon_intrinsics.c
         ${SOURCES}
         ${ANDROID_BACKENDS}
         )

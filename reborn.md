@@ -63,10 +63,10 @@ The project compiles cleanly once a few era-specific things are addressed:
   engine-facing `native_services` entry points are kept as no-op stubs, exactly like
   every other platform backend (win32/linux/macOS/Android).
 - **Stale Xcode project paths.** The `.pbxproj` assumed a local layout
-  (`engine/iOS/src`, `engine/iOS/srciPhone`) that isn't in the repo — on the original
+  (`ios/src`, `ios/srciPhone`) that isn't in the repo — on the original
   machine these were almost certainly symlinks. Fixed the group paths (`src` →
   `../src`, made `srciPhone` a logical group) plus a handful of stray file references
-  (`sound_openAL.c` in `engine/openal`, `filesystem.c` in `engine/src/filesystem`, the
+  (`sound_openAL.c` in `src/backends/openal`, `filesystem.c` in `src/backends/posix`, the
   `data` folder, `Settings.bundle`, `Entitlements.plist`, `MainWindow.xib`, and the
   "Touch data" run-script phases).
 - **Modern clang strictness.** clang 16 promotes the classic pre-C99 patterns
@@ -432,7 +432,7 @@ it ever reached a device — which is why the game looks the same and why
   copyright, the privacy policy the listing links to (`store/PRIVACY.md`),
   and the notes for App Review (open source, Fabien's agreement, how to
   test the multiplayer). `store/README.md` says what still needs a click.
-- **The privacy manifest.** `engine/iOS/PrivacyInfo.xcprivacy` in the Shmup
+- **The privacy manifest.** `ios/PrivacyInfo.xcprivacy` in the Shmup
   target: no tracking, nothing collected, NSUserDefaults for reason CA92.1
   (the settings, the loadout, the progress). The compile check is green.
 - **Two Linux-runner workflows** on the upload credentials: `asc-store-state`
@@ -1127,7 +1127,7 @@ The pack format exists so a level can be written without touching the C.
 Stage 4 is what makes that true for somebody who is not me.
 
 **`tools/packlint` reads every pack the way the game reads it.** It compiles
-`engine/src/lexer.c` **verbatim** — the trick `netrig` plays with
+`src/core/lexer.c` **verbatim** — the trick `netrig` plays with
 `netchannel.c`, for the same reason: the tool cannot disagree with the engine
 about what a token is. Then it checks what actually goes wrong. Pack ids in
 range and not declared twice. The manifest's required keys, a kind it
@@ -2161,7 +2161,7 @@ and smoke-tested on CI before the next:
 **And then the part that actually matters: proving it.** A party of four cannot
 be tested here — it needs four iPhones on one WiFi, or four Game Center
 accounts. So `tools/netrig` runs **four instances of the real
-`engine/src/netchannel.c` in a single process**: each peer is the engine file
+`src/core/netchannel.c` in a single process**: each peer is the engine file
 compiled *verbatim* with its symbols macro-renamed, on top of a fake in-memory
 UDP network and a GKMatch mock (plus POSIX/`dns_sd` shims, so the Apple branch
 compiles off-iOS). 152 assertions over 7 scenarios — a party forming out of

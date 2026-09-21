@@ -1,10 +1,10 @@
 EXECUTABLE     = shmup
-INCLUDES       = ../src libpng
+INCLUDES       = ../src/core libpng
 
 linux_SOURCES  := native.c main.c
 linux_OBJECTS  := $(linux_SOURCES:.c=.o)
 
-engine_SOURCES := $(wildcard ../src/*.c)
+engine_SOURCES := $(wildcard ../src/core/*.c)
 engine_OBJECTS := $(engine_SOURCES:.c=.o) 
 
 libpng_SOURCES := $(wildcard libpng/*.c)

@@ -24,7 +24,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Build (iphonesimulator, arm64, no signing)
-        working-directory: engine/iOS
+        working-directory: ios
         run: |
           set -o pipefail
           xcodebuild \
@@ -56,7 +56,7 @@ jobs:
         run: |
           # Scene 0 -- the home screen, the orbiting hull, the 2D menu -- is the one
           # scene the act smokes never show (they jump straight into an act).
-          APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
+          APP=$(find ios/build -name "Shmup.app" -maxdepth 3 | head -1)
           BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
           UDID="${{ steps.sim.outputs.udid }}"
           xcrun simctl install "$UDID" "$APP"
@@ -72,7 +72,7 @@ jobs:
       - name: Launch scene 3 on Metal
         id: run
         run: |
-          APP=$(find engine/iOS/build -name "Shmup.app" -maxdepth 3 | head -1)
+          APP=$(find ios/build -name "Shmup.app" -maxdepth 3 | head -1)
           BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
           UDID="${{ steps.sim.outputs.udid }}"
           xcrun simctl install "$UDID" "$APP"

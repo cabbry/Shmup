@@ -186,12 +186,30 @@ jobs:
                   flags = {k: False for k in ("gambling", "contests", "unrestrictedWebAccess", "lootBox", "advertising",
                            "parentalControls", "userGeneratedContent", "messagingAndChat", "socialMedia",
                            "healthOrWellnessTopics", "ageAssurance", "socialMediaAgeRestricted")}
-                  body = {"data": {"type": "ageRatingDeclarations", "id": aid, "attributes": {**freq, **flags}}}
-                  try:
-                      echo = write("PATCH", f"/v1/ageRatingDeclarations/{aid}", body)
-                      print("  age rating as echoed by Apple:", json.dumps((echo.get("data") or {}).get("attributes"))[:600])
-                  except SystemExit as e:
-                      print("::warning::age rating not written:", str(e)[:600])
+                  attrs = {**freq, **flags}
+                  # Apple's questionnaire mixes booleans and NONE/INFREQUENT/FREQUENT
+                  # strings and the split is not documented for the newest questions:
+                  # on a "wrong type" answer, flip the named attribute and try again.
+                  for attempt in range(6):
+                      body = {"data": {"type": "ageRatingDeclarations", "id": aid, "attributes": attrs}}
+                      try:
+                          echo = write("PATCH", f"/v1/ageRatingDeclarations/{aid}", body)
+                          print("  age rating as echoed by Apple:", json.dumps((echo.get("data") or {}).get("attributes"))[:900])
+                          break
+                      except SystemExit as e:
+                          msg = str(e)
+                          flipped = []
+                          if "ENTITY_ERROR.ATTRIBUTE.TYPE" in msg:
+                              import re
+                              for name in re.findall(r"/data/attributes/(\w+)", msg):
+                                  if name in attrs:
+                                      attrs[name] = "NONE" if isinstance(attrs[name], bool) else False
+                                      flipped.append(name)
+                          if flipped:
+                              print("  age rating: retyped", flipped)
+                              continue
+                          print("::warning::age rating not written:", msg[:2000])
+                          break
 
           # ---- review notes (contact fields are left to the human: personal data)
           notes = checked("notes", read("review_notes.txt"))

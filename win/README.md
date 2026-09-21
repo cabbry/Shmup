@@ -26,7 +26,11 @@ Linux runner, `win/build.sh`) and keeps the executable as an artifact.
   the drag; in pad mode (Others > Custom) the virtual pad is drawn and
   pressed like on the phone.
 - **Keyboard**: the arrows, or WASD / ZQSD, move the ship in swipe mode (a
-  synthetic finger dragging from the screen's centre at 600 px/s).
+  synthetic finger dragging from the screen's centre at 600 px/s). The ship
+  fires while a finger is down, so while moving; **Space** is a finger
+  pressed in place (fire standing still), a quick **double Space** is the
+  double tap that launches the ghosts, and **X** or **Ctrl** deliver that
+  double tap at once (the big shot, 5 s between two).
 - **Escape**: back to the home menu (the five-finger touch of iOS); on the
   home menu, quits.
 - The window is resizable; the engine letterboxes as on any device.

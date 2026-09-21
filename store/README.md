@@ -45,7 +45,7 @@ the 6.9" set; an iPad Pro 12.9"/13" frame is 2048x2732 or 2064x2752.
 - **`asc-store-push.yml`** writes this folder to App Store Connect for one
   version string (input `version`, e.g. `5.0.10`): creates the version if it
   does not exist, sets the copyright, the localizations, the app-level
-  name/subtitle/privacy URL, the primary category (Games: Action, Arcade),
+  name/subtitle/privacy URL, the primary category (Games: Action),
   the review notes, attaches the newest VALID build of that version, and
   replaces the screenshot sets from `store/screenshots`. It **never submits
   for review**: submission is a human click, after Fabien's word.

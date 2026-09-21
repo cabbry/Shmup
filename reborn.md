@@ -441,7 +441,7 @@ it ever reached a device — which is why the game looks the same and why
   2026-06-24: one iOS version "1.0" in preparation, empty, no build, no
   price, no availability. The push therefore *renames* that draft rather
   than adding a second one, then fills the localizations, the category
-  (Games: Action, Arcade), the review notes, and attaches the newest VALID
+  (Games: Action), the review notes, and attaches the newest VALID
   build of the train — 270. Two dry runs print that exact plan; nothing has
   been written yet, and the workflow never submits for review.
 - **Still to do by hand** (no public API, or personal data): the App Privacy

@@ -143,7 +143,6 @@ jobs:
               iid = info["id"]
               write("PATCH", f"/v1/appInfos/{iid}", {"data": {"type": "appInfos", "id": iid, "relationships": {
                      "primaryCategory": {"data": {"type": "appCategories", "id": "GAMES"}},
-                     "primaryCategoryV2": {"data": {"type": "appCategories", "id": "GAMES"}},
                      "primarySubcategoryOne": {"data": {"type": "appCategories", "id": "GAMES_ACTION"}},
                      "primarySubcategoryTwo": {"data": {"type": "appCategories", "id": "GAMES_ARCADE"}}}}})
               il = {l["attributes"]["locale"]: l for l in get(f"/v1/appInfos/{iid}/appInfoLocalizations").get("data", [])}

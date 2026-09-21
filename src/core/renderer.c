@@ -28,6 +28,9 @@
 #if defined(__APPLE__) && defined(SHMUP_TARGET_IOS)
 #include "renderer_metal.h"	// v3
 #endif
+#if defined(SHMUP_TARGET_WINDOWS)
+#include "renderer_gl.h"	// round 87: the desktop OpenGL backend (src/backends/gl)
+#endif
 #include "stats.h"
 #include "timer.h"
 #include "fx.h"
@@ -210,6 +213,13 @@ void SCR_BindMethods(int rendererType)
 	{
 		Log_Printf("[Renderer] Running in mode Metal\n");
 		initMetalRenderer(&renderer);
+	}
+#endif
+#if defined(SHMUP_TARGET_WINDOWS)
+	if (rendererType == GL_RENDERER)
+	{
+		Log_Printf("[Renderer] Running in mode OpenGL\n");
+		initGLRenderer(&renderer);
 	}
 #endif
 	

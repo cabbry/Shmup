@@ -1,0 +1,21 @@
+{
+  "version": "0.2.1",
+  "tasks": [
+    {
+      "taskLabel": "Build SHMUP Reborn (zig cc)",
+      "appliesTo": "/",
+      "type": "launch",
+      "contextType": "build",
+      "command": "powershell",
+      "args": [ "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceRoot}\win\build.ps1" ]
+    },
+    {
+      "taskLabel": "Build SHMUP Reborn (debug, -O0 -g)",
+      "appliesTo": "/",
+      "type": "launch",
+      "contextType": "custom",
+      "command": "powershell",
+      "args": [ "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceRoot}\win\build.ps1", "-Debug" ]
+    }
+  ]
+}

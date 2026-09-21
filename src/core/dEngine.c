@@ -643,8 +643,8 @@ void dEngine_LoadScene(int sceneId)
 	if (SCENE_KIND(sceneId) == SCENE_KIND_ACT && engine.scenes[sceneId].actIndex > gHighestActReached)
 	{
 		gHighestActReached = engine.scenes[sceneId].actIndex;
-#ifdef __APPLE__
-		Native_SaveProgress(gHighestActReached);
+#if defined(__APPLE__) || defined(SHMUP_TARGET_WINDOWS)
+		Native_SaveProgress(gHighestActReached);	// round 87: Windows persists it too (native_win.c)
 #endif
 	}
 

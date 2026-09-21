@@ -756,7 +756,7 @@ void Action_SelectShip(void* tag)
 	MENU_UpdateCustomSelection();
 	World_SetIntroShipPreview(gShipChoice);	// v2: the orbit stage follows the pick
 	MENU_ClearButtonStates();	// don't leave the just-pressed button highlighted
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(SHMUP_TARGET_WINDOWS)
 	Native_SaveLoadout(gShipChoice, gBulletColor);	// persist across restarts
 #endif
 }
@@ -769,7 +769,7 @@ void Action_SelectBulletColor(void* tag)
 		gBulletColor = choice;
 	MENU_UpdateCustomSelection();
 	MENU_ClearButtonStates();	// don't leave the just-pressed button highlighted
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(SHMUP_TARGET_WINDOWS)
 	Native_SaveLoadout(gShipChoice, gBulletColor);	// persist across restarts
 #endif
 }

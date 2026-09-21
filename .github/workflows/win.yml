@@ -1,0 +1,37 @@
+name: Windows (cross-compile check)
+
+# Round 87: the Windows port compiles and links on every push, from a Linux
+# runner, with zig cc targeting x86_64-windows-gnu -- the same command the
+# PC build runs (win/build.sh, twin of win/build.ps1). No Windows minutes.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.1
+
+      - name: Build ShmupReborn.exe
+        run: |
+          chmod +x win/build.sh
+          win/build.sh
+          ls -l win/build/ShmupReborn.exe
+
+      - name: Keep the executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShmupReborn-windows
+          path: win/build/ShmupReborn.exe
+          retention-days: 14

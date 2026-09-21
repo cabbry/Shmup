@@ -1,0 +1,11 @@
+{
+  "configurations": [
+    {
+      "name": "Windows (zig cc)",
+      "inheritEnvironments": [ "msvc_x64" ],
+      "includePath": [ "${workspaceRoot}\src\core", "${workspaceRoot}\src\backends\gl", "${env.INCLUDE}" ],
+      "defines": [ "WIN32", "_WIN32", "SHMUP_TARGET_WINDOWS" ],
+      "intelliSenseMode": "windows-clang-x64"
+    }
+  ]
+}

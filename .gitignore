@@ -34,3 +34,4 @@ obj
 *.xcworkspace
 DerivedData
 .DS_Store
+.vs/

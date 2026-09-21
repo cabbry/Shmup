@@ -1,0 +1,30 @@
+{
+  "version": "0.2.1",
+  "defaults": {},
+  "configurations": [
+    {
+      "type": "default",
+      "project": "win\build\ShmupReborn.exe",
+      "projectTarget": "",
+      "name": "SHMUP Reborn",
+      "currentDir": "${workspaceRoot}",
+      "env": { "SHMUP_LOG_FILE": "1" }
+    },
+    {
+      "type": "default",
+      "project": "win\build\ShmupReborn.exe",
+      "projectTarget": "",
+      "name": "SHMUP Reborn -- acte 1 direct",
+      "currentDir": "${workspaceRoot}",
+      "args": [ "--scene", "1" ]
+    },
+    {
+      "type": "default",
+      "project": "win\build\ShmupReborn.exe",
+      "projectTarget": "",
+      "name": "SHMUP Reborn -- le boss",
+      "currentDir": "${workspaceRoot}",
+      "args": [ "--scene", "5" ]
+    }
+  ]
+}

@@ -264,6 +264,32 @@ static int KeyIndex(WPARAM vk)
 	return -1;
 }
 
+// Space is the finger pressed without moving: in swipe mode the ship fires
+// as long as a finger is down, and two touches within 200 ms are the
+// double tap that launches the ghosts (io_interface.c). So a Space press is
+// a fresh touch (lift, plant again), a quick double press is the double tap,
+// and X or Ctrl deliver the two touches at once for the big shot.
+static int gSpaceDown = 0;
+
+static void FingerPlant(void)
+{
+	if (gKeyTouch)
+		PushTouch(IO_EVENT_ENDED, gKeyPos.x, gKeyPos.y, gKeyPos.x, gKeyPos.y);
+	else
+	{
+		gKeyPos.x = gClientW / 2; gKeyPos.y = gClientH / 2;
+	}
+	PushTouch(IO_EVENT_BEGAN, gKeyPos.x, gKeyPos.y, gKeyPos.x, gKeyPos.y);
+	gKeyTouch = 1;
+}
+
+static void FingerGhost(void)
+{
+	if (gDragging) return;
+	FingerPlant();
+	PushTouch(IO_EVENT_BEGAN, gKeyPos.x, gKeyPos.y, gKeyPos.x, gKeyPos.y);	// the second tap, at once
+}
+
 static void KeyboardFinger(void)
 {
 	int dx = (gKeyDir[1] - gKeyDir[0]), dy = (gKeyDir[3] - gKeyDir[2]);
@@ -271,7 +297,7 @@ static void KeyboardFinger(void)
 	if (step < 4) step = 4;
 	if (!dx && !dy)
 	{
-		if (gKeyTouch)
+		if (gKeyTouch && !gSpaceDown)
 		{
 			PushTouch(IO_EVENT_ENDED, gKeyPos.x, gKeyPos.y, gKeyPos.x, gKeyPos.y);
 			gKeyTouch = 0;
@@ -393,12 +419,19 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 		{
 			int k = KeyIndex(wParam);
 			if (k >= 0) gKeyDir[k] = 0;
+			if (wParam == VK_SPACE) gSpaceDown = 0;
 			return 0;
 		}
 		case WM_KEYDOWN:
 		{
 			int k = KeyIndex(wParam);
+			int repeat = (lParam & 0x40000000) != 0;
 			if (k >= 0) { gKeyDir[k] = 1; return 0; }
+			if (gEngineUp && !repeat && !gDragging)
+			{
+				if (wParam == VK_SPACE) { gSpaceDown = 1; FingerPlant(); return 0; }
+				if (wParam == 'X' || wParam == VK_CONTROL) { FingerGhost(); return 0; }
+			}
 		}
 			if (wParam == VK_ESCAPE && gEngineUp)
 			{

@@ -54,8 +54,8 @@ int E_Sys_Milliseconds( void )
 	return (int)((tp.tv_sec - secbase) * 1000 + tp.tv_usec / 1000);
 }
 #else
-#include "windows.h"
-#include "MMSystem.h"
+#include <windows.h>
+#include "mmsystem.h"
 int E_Sys_Milliseconds( void )
 {
 	return (int)timeGetTime();

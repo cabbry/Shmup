@@ -124,6 +124,10 @@ to the true screen edges, and the touch-coordinate mapping.
   renderer at native resolution, AVFoundation audio, full speed on device,
   iPhone and iPad. 🟡 **App Store listing prepared** in `store/` (round 85),
   privacy manifest in the bundle; submission waits for Fabien's word.
+- ✅ **Runs on Windows** (round 87): `win/build.ps1` with zig cc alone, an
+  OpenGL backend that is the Metal one line for line, waveOut, MCI, WIC;
+  mouse and keyboard; 60 fps paced to the fixed step. Solo only: no Game
+  Center, no LAN yet.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
   — and an ending; 2-4 player co-op over LAN and online (device-confirmed at
   two, rig-proven at four); leaderboards.
@@ -367,6 +371,18 @@ order, each step a build:
   content only — no Lua from the network.
 - **A four-device session** for v2: everything is rig-proven at four,
   device-proven at two. Needs hardware and four hands.
+- **The PC on the LAN with an iPhone** (asked 2026-09-22): the PC side of
+  `netchannel.c` on Winsock plus a small mDNS responder/browser speaking
+  `_DodgeServer._udp` (Bonjour is not on Windows; the iPhone would need no
+  change), then the open question of lockstep across architectures — ARM64
+  contracts a·b+c into one fused instruction, x86-64 does not, so the two
+  simulations may differ in the last bit; the 300 ms position resync and
+  the host's authority on deaths absorb some of that, a real match will
+  tell how much.
+- **Android on an emulator** (asked 2026-09-22): the Gradle project targets
+  API 34 but has no renderer since the GL ES retirement; the new GL backend
+  is a GLSL ES 1.00 flavour away from serving it. Worth it as a release
+  target, not as a test bench — the Windows build is that now.
 - **Gameplay videos on YouTube** (Fabien's suggestion): the five acts, the Act
   III side-view beat, Rain's storm, a LAN match, an online match. A recording
   session away.
@@ -428,6 +444,43 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-22 — round 87 (SHMUP Reborn runs on Windows: the first fruit of src/backends)
+- **"Go pour la version Windows, sans SDL."** The 2010 port rested on
+  OpenGL ES through an EGL emulator and on the two GL renderers the Metal
+  port retired, so this is a new port, not a revival: four backends and a
+  window, the core untouched but for three hooks. `src/backends/gl/renderer_gl.c`
+  is `renderer_metal.m` on OpenGL 2.1 + GLSL 1.20, line for line (the same
+  passes, cameo, stars, cull probe, the fixed pipeline emulated in the same
+  shader maths, client-side arrays where Metal had a ring buffer);
+  `sound_waveout.c` mixes the eight voices in software onto waveOut;
+  `music_mci.c` plays the MP3s through the Media Control Interface;
+  `native_win.c` decodes PNG through WIC (premultiplied, as CoreGraphics did
+  in 2009), keeps the settings in a key=value file, answers the language and
+  the version; `win/main.c` is the Win32 window, the WGL context, the mouse
+  and the keyboard as the finger. Nothing beyond the OS: `win/build.ps1`
+  with zig cc alone, 47 files, and the CI cross-compiles it from Linux on
+  every push (`win.yml`, the executable as an artifact).
+- **What the first day taught.** The 64-bit trap: a `-Wno-implicit-function-declaration`
+  inherited from the harnesses let an undeclared `Native_GetVersionString`
+  return a truncated pointer — segfault in the first printf; the flag is
+  gone and the port declares what it calls. The clock: Timer_tick steps a
+  fixed 16.67 ms per rendered frame, so the loop must run at 60 Hz whatever
+  the monitor does — first 2.7× too fast (no vsync), then half speed (vsync
+  plus a software deadline, out of phase); the answer is no vsync and a
+  deadline per frame on the performance counter, measured 59–61 fps with
+  the simulation at wall speed. The material libraries: `highQuality` is
+  the PNG set already, so the PVRTC files never enter (and
+  `IsTextureCompressionSupported` says no, as insurance).
+- **The probes**, because the Simulator's lesson holds: `--shots 5,15,30`
+  reads the frame back and writes PNGs, `[wall]` dates scene changes and
+  prints the frame rate. With them, the home screen, Act I and the final
+  act's arrival were verified on an Intel GPU without touching the tester's
+  mouse (a first attempt injected clicks on the desktop; never again).
+- **For Visual Studio**, folder mode: `win/vs/` (build task, three F5
+  targets) and `CppProperties.json` for IntelliSense.
+- **Not on Windows**: Game Center, and the LAN mode (Bonjour is Apple's;
+  `netchannel.c` compiles its stubs). Both are a chantier of their own.
 
 ### 2026-09-21 — round 86 (the tree flattened: src/core, src/backends, one folder per platform)
 - **Fabien's suggestion**, taken as is: the engine's core in `src/core`, the

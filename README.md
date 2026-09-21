@@ -22,11 +22,16 @@ Repository layout
 
     src/core/          the engine and the game, ANSI C, platform-neutral
     src/backends/      what a platform plugs in: apple/ (Metal renderer,
-                       AVFoundation sound and music), android/ (EGL display,
-                       assets, OpenSL), posix/ (stdio filesystem), openal/
+                       AVFoundation sound and music), gl/ (desktop OpenGL
+                       renderer), win/ (waveOut effects, MCI music, WIC
+                       PNG, settings), android/ (EGL display, assets,
+                       OpenSL), posix/ (stdio filesystem), openal/
     src/third_party/   libpng
     ios/               the Xcode project, app delegate, view, plist, icons
-    mac/ win/ linux/   the 2010 ports, kept as they were (not built by CI)
+    win/               the Windows port (round 87): win/build.ps1 -> ShmupReborn.exe
+                       with zig cc alone; the 2010 Visual Studio project sits
+                       beside it as it was
+    mac/ linux/        the 2010 ports, kept as they were (not built by CI)
     android/           the Gradle project (android/old: the 2010 one)
     data/              every level, model, texture, sound and music
     tools/             the harnesses and generators the CI runs

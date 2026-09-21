@@ -33,6 +33,10 @@ It's meant to be shown to Fabien and kept up to date as the project evolves.
 ## Build & ship — quick reference
 
 - CI repo: public fork **`cabbry/Shmup`**.
+- **Layout** (round 86, Fabien's suggestion): `src/core` the engine and the game;
+  `src/backends/{apple,android,posix,openal}` what each platform plugs in;
+  `src/third_party/libpng`; `ios/` the Xcode project (the only target CI builds);
+  `mac/ win/ linux/ android/` the other ports as they were; `data/`, `tools/`, `store/`.
 - **Compile check** — `.github/workflows/ios.yml`: builds the `Shmup` target for the iOS
   Simulator (arm64, unsigned) on every push.
 - **TestFlight** — `.github/workflows/testflight.yml` (manual run or a `v*` tag): manual
@@ -424,6 +428,27 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-21 — round 86 (the tree flattened: src/core, src/backends, one folder per platform)
+- **Fabien's suggestion**, taken as is: the engine's core in `src/core`, the
+  backends in `src/backends` grouped by what they plug into (apple: Metal,
+  AVFoundation; android: EGL, assets, OpenSL; posix: stdio filesystem;
+  openal), libpng under `src/third_party`, and one folder per platform at
+  the root — `ios`, `mac`, `win`, `linux`, `android` (with the 2010 project
+  as `android/old`). Two commits: the first is pure `git mv`, not a line
+  changed, so `git log --follow` and blame read straight through; the second
+  rewrites the paths — the Xcode project (the source group, the backends
+  referenced from SOURCE_ROOT, the data folder), every workflow, the harness
+  command lines, the Android CMake globs, and the old Mac/Linux/Windows
+  projects as a courtesy (they predate the Metal port and no CI builds
+  them). Proof: the compile check and the harness workflow on the push.
+- **Fabien's second question — the collisions of the animated arms** — was
+  answered with the round 75 design and a drawing: no exported bounding box
+  and no per-frame projection of the mesh; each bone's own vertices are
+  binned once, at load, into circles (21 for a Bloc, 20 for a Pince, two
+  cells carved out for the refuge), and every frame the same bone transform
+  that poses the mesh poses the circles, then the from-above mapping puts
+  them in the 2009 screen space where every collision lives.
 
 ### 2026-09-21 — round 85 (the App Store listing, versioned; waiting for Fabien's word)
 - **"Il est temps de faire la partie App Store Connect."** The listing joins

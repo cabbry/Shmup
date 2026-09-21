@@ -179,50 +179,50 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\..\..\src\camera.c"
+				RelativePath="..\..\..\src\core\camera.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\src\collisions.c"
+				RelativePath="..\..\..\src\core\collisions.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\src\commands.c"
+				RelativePath="..\..\..\src\core\commands.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\src\dEngine.c"
+				RelativePath="..\..\..\src\core\dEngine.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\src\event.c"
+				RelativePath="..\..\..\src\core\event.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\src\math.c"
+				RelativePath="..\..\..\src\core\math.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\src\vis.c"
+				RelativePath="..\..\..\src\core\vis.c"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\src\world.c"
+				RelativePath="..\..\..\src\core\world.c"
 				>
 			</File>
 			<Filter
 				Name="renderer"
 				>
 				<File
-					RelativePath="..\..\..\src\renderer.c"
+					RelativePath="..\..\..\src\core\renderer.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\renderer_fixed.c"
+					RelativePath="..\..\..\src\core\renderer_fixed.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\renderer_progr.c"
+					RelativePath="..\..\..\src\core\renderer_progr.c"
 					>
 				</File>
 			</Filter>
@@ -230,11 +230,11 @@
 				Name="math"
 				>
 				<File
-					RelativePath="..\..\..\src\matrix.c"
+					RelativePath="..\..\..\src\core\matrix.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\quaternion.c"
+					RelativePath="..\..\..\src\core\quaternion.c"
 					>
 				</File>
 			</Filter>
@@ -242,27 +242,27 @@
 				Name="entities"
 				>
 				<File
-					RelativePath="..\..\..\src\enemy.c"
+					RelativePath="..\..\..\src\core\enemy.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\enemy_particules.c"
+					RelativePath="..\..\..\src\core\enemy_particules.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\entities.c"
+					RelativePath="..\..\..\src\core\entities.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\fx.c"
+					RelativePath="..\..\..\src\core\fx.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\md5.c"
+					RelativePath="..\..\..\src\core\md5.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\player.c"
+					RelativePath="..\..\..\src\core\player.c"
 					>
 				</File>
 			</Filter>
@@ -270,15 +270,15 @@
 				Name="texture"
 				>
 				<File
-					RelativePath="..\..\..\src\ItextureLoader.c"
+					RelativePath="..\..\..\src\core\ItextureLoader.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\material.c"
+					RelativePath="..\..\..\src\core\material.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\texture.c"
+					RelativePath="..\..\..\src\core\texture.c"
 					>
 				</File>
 			</Filter>
@@ -286,47 +286,47 @@
 				Name="utils"
 				>
 				<File
-					RelativePath="..\..\..\src\config.c"
+					RelativePath="..\..\..\src\core\config.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\filesystem.c"
+					RelativePath="..\..\..\src\core\filesystem.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\io_interface.c"
+					RelativePath="..\..\..\src\core\io_interface.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\lexer.c"
+					RelativePath="..\..\..\src\core\lexer.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\log.c"
+					RelativePath="..\..\..\src\core\log.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\menu.c"
+					RelativePath="..\..\..\src\core\menu.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\preproc.c"
+					RelativePath="..\..\..\src\core\preproc.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\stats.c"
+					RelativePath="..\..\..\src\core\stats.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\text.c"
+					RelativePath="..\..\..\src\core\text.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\timer.c"
+					RelativePath="..\..\..\src\core\timer.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\titles.c"
+					RelativePath="..\..\..\src\core\titles.c"
 					>
 				</File>
 			</Filter>
@@ -350,7 +350,7 @@
 				Name="net"
 				>
 				<File
-					RelativePath="..\..\..\src\netchannel.c"
+					RelativePath="..\..\..\src\core\netchannel.c"
 					>
 				</File>
 			</Filter>
@@ -358,23 +358,23 @@
 				Name="enemies_ia"
 				>
 				<File
-					RelativePath="..\..\..\src\fht.c"
+					RelativePath="..\..\..\src\core\fht.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\lee.c"
+					RelativePath="..\..\..\src\core\lee.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\lofb.c"
+					RelativePath="..\..\..\src\core\lofb.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\shab.c"
+					RelativePath="..\..\..\src\core\shab.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\tha.c"
+					RelativePath="..\..\..\src\core\tha.c"
 					>
 				</File>
 			</Filter>
@@ -382,15 +382,15 @@
 				Name="audio"
 				>
 				<File
-					RelativePath="..\..\..\src\sound_openAL.c"
+					RelativePath="..\..\..\src\core\sound_openAL.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\sounds.c"
+					RelativePath="..\..\..\src\core\sounds.c"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\wavfile.c"
+					RelativePath="..\..\..\src\core\wavfile.c"
 					>
 				</File>
 			</Filter>
@@ -401,42 +401,42 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath="..\..\..\src\camera.h"
+				RelativePath="..\..\..\src\core\camera.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\src\collisions.h"
+				RelativePath="..\..\..\src\core\collisions.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\src\commands.h"
+				RelativePath="..\..\..\src\core\commands.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\src\dEngine.h"
+				RelativePath="..\..\..\src\core\dEngine.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\src\vis.h"
+				RelativePath="..\..\..\src\core\vis.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\src\world.h"
+				RelativePath="..\..\..\src\core\world.h"
 				>
 			</File>
 			<Filter
 				Name="renderer"
 				>
 				<File
-					RelativePath="..\..\..\src\renderer.h"
+					RelativePath="..\..\..\src\core\renderer.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\renderer_fixed.h"
+					RelativePath="..\..\..\src\core\renderer_fixed.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\renderer_progr.h"
+					RelativePath="..\..\..\src\core\renderer_progr.h"
 					>
 				</File>
 			</Filter>
@@ -444,15 +444,15 @@
 				Name="math"
 				>
 				<File
-					RelativePath="..\..\..\src\math.h"
+					RelativePath="..\..\..\src\core\math.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\matrix.h"
+					RelativePath="..\..\..\src\core\matrix.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\quaternion.h"
+					RelativePath="..\..\..\src\core\quaternion.h"
 					>
 				</File>
 			</Filter>
@@ -460,67 +460,67 @@
 				Name="utils"
 				>
 				<File
-					RelativePath="..\..\..\src\config.h"
+					RelativePath="..\..\..\src\core\config.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\event.h"
+					RelativePath="..\..\..\src\core\event.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\filesystem.h"
+					RelativePath="..\..\..\src\core\filesystem.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\globals.h"
+					RelativePath="..\..\..\src\core\globals.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\io_interface.h"
+					RelativePath="..\..\..\src\core\io_interface.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\ItextureLoader.h"
+					RelativePath="..\..\..\src\core\ItextureLoader.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\lexer.h"
+					RelativePath="..\..\..\src\core\lexer.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\log.h"
+					RelativePath="..\..\..\src\core\log.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\menu.h"
+					RelativePath="..\..\..\src\core\menu.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\preproc.h"
+					RelativePath="..\..\..\src\core\preproc.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\stats.h"
+					RelativePath="..\..\..\src\core\stats.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\target.h"
+					RelativePath="..\..\..\src\core\target.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\text.h"
+					RelativePath="..\..\..\src\core\text.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\timer.h"
+					RelativePath="..\..\..\src\core\timer.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\titles.h"
+					RelativePath="..\..\..\src\core\titles.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\unzip.h"
+					RelativePath="..\..\..\src\core\unzip.h"
 					>
 				</File>
 			</Filter>
@@ -528,11 +528,11 @@
 				Name="texture"
 				>
 				<File
-					RelativePath="..\..\..\src\material.h"
+					RelativePath="..\..\..\src\core\material.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\texture.h"
+					RelativePath="..\..\..\src\core\texture.h"
 					>
 				</File>
 			</Filter>
@@ -540,27 +540,27 @@
 				Name="entities"
 				>
 				<File
-					RelativePath="..\..\..\src\enemy.h"
+					RelativePath="..\..\..\src\core\enemy.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\enemy_particules.h"
+					RelativePath="..\..\..\src\core\enemy_particules.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\entities.h"
+					RelativePath="..\..\..\src\core\entities.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\fx.h"
+					RelativePath="..\..\..\src\core\fx.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\md5.h"
+					RelativePath="..\..\..\src\core\md5.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\player.h"
+					RelativePath="..\..\..\src\core\player.h"
 					>
 				</File>
 			</Filter>
@@ -576,7 +576,7 @@
 				Name="net"
 				>
 				<File
-					RelativePath="..\..\..\src\netchannel.h"
+					RelativePath="..\..\..\src\core\netchannel.h"
 					>
 				</File>
 			</Filter>
@@ -584,23 +584,23 @@
 				Name="enemies_ia"
 				>
 				<File
-					RelativePath="..\..\..\src\fht.h"
+					RelativePath="..\..\..\src\core\fht.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\lee.h"
+					RelativePath="..\..\..\src\core\lee.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\lofb.h"
+					RelativePath="..\..\..\src\core\lofb.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\shab.h"
+					RelativePath="..\..\..\src\core\shab.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\tha.h"
+					RelativePath="..\..\..\src\core\tha.h"
 					>
 				</File>
 			</Filter>
@@ -608,15 +608,15 @@
 				Name="audio"
 				>
 				<File
-					RelativePath="..\..\..\src\sound_backend.h"
+					RelativePath="..\..\..\src\core\sound_backend.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\sounds.h"
+					RelativePath="..\..\..\src\core\sounds.h"
 					>
 				</File>
 				<File
-					RelativePath="..\..\..\src\wavfile.h"
+					RelativePath="..\..\..\src\core\wavfile.h"
 					>
 				</File>
 			</Filter>
@@ -624,7 +624,7 @@
 				Name="native"
 				>
 				<File
-					RelativePath="..\..\..\src\native_services.h"
+					RelativePath="..\..\..\src\core\native_services.h"
 					>
 				</File>
 			</Filter>

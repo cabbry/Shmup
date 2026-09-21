@@ -72,100 +72,100 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\src\camera.c">
+    <ClCompile Include="..\..\..\src\core\camera.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\collisions.c">
+    <ClCompile Include="..\..\..\src\core\collisions.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\commands.c">
+    <ClCompile Include="..\..\..\src\core\commands.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\dEngine.c">
+    <ClCompile Include="..\..\..\src\core\dEngine.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\event.c">
+    <ClCompile Include="..\..\..\src\core\event.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\math.c">
+    <ClCompile Include="..\..\..\src\core\math.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\vis.c">
+    <ClCompile Include="..\..\..\src\core\vis.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\world.c">
+    <ClCompile Include="..\..\..\src\core\world.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\renderer.c">
+    <ClCompile Include="..\..\..\src\core\renderer.c">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\renderer_fixed.c">
+    <ClCompile Include="..\..\..\src\core\renderer_fixed.c">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\renderer_progr.c">
+    <ClCompile Include="..\..\..\src\core\renderer_progr.c">
       <Filter>Source Files\renderer</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\matrix.c">
+    <ClCompile Include="..\..\..\src\core\matrix.c">
       <Filter>Source Files\math</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\quaternion.c">
+    <ClCompile Include="..\..\..\src\core\quaternion.c">
       <Filter>Source Files\math</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\enemy.c">
+    <ClCompile Include="..\..\..\src\core\enemy.c">
       <Filter>Source Files\entities</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\enemy_particules.c">
+    <ClCompile Include="..\..\..\src\core\enemy_particules.c">
       <Filter>Source Files\entities</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\entities.c">
+    <ClCompile Include="..\..\..\src\core\entities.c">
       <Filter>Source Files\entities</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\fx.c">
+    <ClCompile Include="..\..\..\src\core\fx.c">
       <Filter>Source Files\entities</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\md5.c">
+    <ClCompile Include="..\..\..\src\core\md5.c">
       <Filter>Source Files\entities</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\player.c">
+    <ClCompile Include="..\..\..\src\core\player.c">
       <Filter>Source Files\entities</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\ItextureLoader.c">
+    <ClCompile Include="..\..\..\src\core\ItextureLoader.c">
       <Filter>Source Files\texture</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\material.c">
+    <ClCompile Include="..\..\..\src\core\material.c">
       <Filter>Source Files\texture</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\texture.c">
+    <ClCompile Include="..\..\..\src\core\texture.c">
       <Filter>Source Files\texture</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\config.c">
+    <ClCompile Include="..\..\..\src\core\config.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\filesystem.c">
+    <ClCompile Include="..\..\..\src\core\filesystem.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\io_interface.c">
+    <ClCompile Include="..\..\..\src\core\io_interface.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\lexer.c">
+    <ClCompile Include="..\..\..\src\core\lexer.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\menu.c">
+    <ClCompile Include="..\..\..\src\core\menu.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\preproc.c">
+    <ClCompile Include="..\..\..\src\core\preproc.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\stats.c">
+    <ClCompile Include="..\..\..\src\core\stats.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\text.c">
+    <ClCompile Include="..\..\..\src\core\text.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\timer.c">
+    <ClCompile Include="..\..\..\src\core\timer.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\titles.c">
+    <ClCompile Include="..\..\..\src\core\titles.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
     <ClCompile Include="..\..\main.cpp">
@@ -177,177 +177,177 @@
     <ClCompile Include="..\..\win32EGL.cpp">
       <Filter>Source Files\win32</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\netchannel.c">
+    <ClCompile Include="..\..\..\src\core\netchannel.c">
       <Filter>Source Files\net</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\fht.c">
+    <ClCompile Include="..\..\..\src\core\fht.c">
       <Filter>Source Files\enemies_ia</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\lee.c">
+    <ClCompile Include="..\..\..\src\core\lee.c">
       <Filter>Source Files\enemies_ia</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\lofb.c">
+    <ClCompile Include="..\..\..\src\core\lofb.c">
       <Filter>Source Files\enemies_ia</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\shab.c">
+    <ClCompile Include="..\..\..\src\core\shab.c">
       <Filter>Source Files\enemies_ia</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\tha.c">
+    <ClCompile Include="..\..\..\src\core\tha.c">
       <Filter>Source Files\enemies_ia</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\sounds.c">
+    <ClCompile Include="..\..\..\src\core\sounds.c">
       <Filter>Source Files\audio</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\wavfile.c">
+    <ClCompile Include="..\..\..\src\core\wavfile.c">
       <Filter>Source Files\audio</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\log.c">
+    <ClCompile Include="..\..\..\src\core\log.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\unzip.c">
+    <ClCompile Include="..\..\..\src\core\unzip.c">
       <Filter>Source Files\utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\sound_openAL.c">
+    <ClCompile Include="..\..\..\src\core\sound_openAL.c">
       <Filter>Source Files\audio</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\src\camera.h">
+    <ClInclude Include="..\..\..\src\core\camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\collisions.h">
+    <ClInclude Include="..\..\..\src\core\collisions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\commands.h">
+    <ClInclude Include="..\..\..\src\core\commands.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\dEngine.h">
+    <ClInclude Include="..\..\..\src\core\dEngine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\vis.h">
+    <ClInclude Include="..\..\..\src\core\vis.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\world.h">
+    <ClInclude Include="..\..\..\src\core\world.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\renderer.h">
+    <ClInclude Include="..\..\..\src\core\renderer.h">
       <Filter>Header Files\renderer</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\renderer_fixed.h">
+    <ClInclude Include="..\..\..\src\core\renderer_fixed.h">
       <Filter>Header Files\renderer</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\renderer_progr.h">
+    <ClInclude Include="..\..\..\src\core\renderer_progr.h">
       <Filter>Header Files\renderer</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\math.h">
+    <ClInclude Include="..\..\..\src\core\math.h">
       <Filter>Header Files\math</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\matrix.h">
+    <ClInclude Include="..\..\..\src\core\matrix.h">
       <Filter>Header Files\math</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\quaternion.h">
+    <ClInclude Include="..\..\..\src\core\quaternion.h">
       <Filter>Header Files\math</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\config.h">
+    <ClInclude Include="..\..\..\src\core\config.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\event.h">
+    <ClInclude Include="..\..\..\src\core\event.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\filesystem.h">
+    <ClInclude Include="..\..\..\src\core\filesystem.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\globals.h">
+    <ClInclude Include="..\..\..\src\core\globals.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\io_interface.h">
+    <ClInclude Include="..\..\..\src\core\io_interface.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\ItextureLoader.h">
+    <ClInclude Include="..\..\..\src\core\ItextureLoader.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\lexer.h">
+    <ClInclude Include="..\..\..\src\core\lexer.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\menu.h">
+    <ClInclude Include="..\..\..\src\core\menu.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\preproc.h">
+    <ClInclude Include="..\..\..\src\core\preproc.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\stats.h">
+    <ClInclude Include="..\..\..\src\core\stats.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\target.h">
+    <ClInclude Include="..\..\..\src\core\target.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\text.h">
+    <ClInclude Include="..\..\..\src\core\text.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\timer.h">
+    <ClInclude Include="..\..\..\src\core\timer.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\titles.h">
+    <ClInclude Include="..\..\..\src\core\titles.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\material.h">
+    <ClInclude Include="..\..\..\src\core\material.h">
       <Filter>Header Files\texture</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\texture.h">
+    <ClInclude Include="..\..\..\src\core\texture.h">
       <Filter>Header Files\texture</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\enemy.h">
+    <ClInclude Include="..\..\..\src\core\enemy.h">
       <Filter>Header Files\entities</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\enemy_particules.h">
+    <ClInclude Include="..\..\..\src\core\enemy_particules.h">
       <Filter>Header Files\entities</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\entities.h">
+    <ClInclude Include="..\..\..\src\core\entities.h">
       <Filter>Header Files\entities</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\fx.h">
+    <ClInclude Include="..\..\..\src\core\fx.h">
       <Filter>Header Files\entities</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\md5.h">
+    <ClInclude Include="..\..\..\src\core\md5.h">
       <Filter>Header Files\entities</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\player.h">
+    <ClInclude Include="..\..\..\src\core\player.h">
       <Filter>Header Files\entities</Filter>
     </ClInclude>
     <ClInclude Include="..\..\win32EGL.h">
       <Filter>Header Files\win32</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\netchannel.h">
+    <ClInclude Include="..\..\..\src\core\netchannel.h">
       <Filter>Header Files\net</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\fht.h">
+    <ClInclude Include="..\..\..\src\core\fht.h">
       <Filter>Header Files\enemies_ia</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\lee.h">
+    <ClInclude Include="..\..\..\src\core\lee.h">
       <Filter>Header Files\enemies_ia</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\lofb.h">
+    <ClInclude Include="..\..\..\src\core\lofb.h">
       <Filter>Header Files\enemies_ia</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\shab.h">
+    <ClInclude Include="..\..\..\src\core\shab.h">
       <Filter>Header Files\enemies_ia</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\tha.h">
+    <ClInclude Include="..\..\..\src\core\tha.h">
       <Filter>Header Files\enemies_ia</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\sounds.h">
+    <ClInclude Include="..\..\..\src\core\sounds.h">
       <Filter>Header Files\audio</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\wavfile.h">
+    <ClInclude Include="..\..\..\src\core\wavfile.h">
       <Filter>Header Files\audio</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\native_services.h">
+    <ClInclude Include="..\..\..\src\core\native_services.h">
       <Filter>Header Files\native</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\log.h">
+    <ClInclude Include="..\..\..\src\core\log.h">
       <Filter>Header Files\utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\sound_backend.h">
+    <ClInclude Include="..\..\..\src\core\sound_backend.h">
       <Filter>Header Files\audio</Filter>
     </ClInclude>
   </ItemGroup>

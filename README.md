@@ -17,6 +17,22 @@ done with OpenGL ES 1.1 and there is even an experimental rendition path based
 on OpenGL ES 2.0 that uses the dEngine source ( which can be found here:
 [http://fabiensanglard.net/dEngineSourceCodeRelease/index.php](http://fabiensanglard.net/dEngineSourceCodeRelease/index.php)).
 
+Repository layout
+=================
+
+    src/core/          the engine and the game, ANSI C, platform-neutral
+    src/backends/      what a platform plugs in: apple/ (Metal renderer,
+                       AVFoundation sound and music), android/ (EGL display,
+                       assets, OpenSL), posix/ (stdio filesystem), openal/
+    src/third_party/   libpng
+    ios/               the Xcode project, app delegate, view, plist, icons
+    mac/ win/ linux/   the 2010 ports, kept as they were (not built by CI)
+    android/           the Gradle project (android/old: the 2010 one)
+    data/              every level, model, texture, sound and music
+    tools/             the harnesses and generators the CI runs
+    store/             the App Store listing, versioned
+    .github/workflows  compile check, smokes, TestFlight, App Store Connect
+
 Enjoy
 
 Copyright (C) 2009 Fabien Sanglard

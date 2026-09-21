@@ -658,7 +658,7 @@ void Action_ConfigureOnlineMultiplayer(void* tag)
 	engine.difficultyLevel = DIFFICULTY_NORMAL;
 
 	sprintf(MENU_GetMultiplayerTextLine(0), MENU_Tr("Finding %d players for %s..."), partySize, MENU_ActName(gMPPickedAct));
-	sprintf(MENU_GetMultiplayerTextLine(1), MENU_Tr("(the host's act plays)"));
+	sprintf(MENU_GetMultiplayerTextLine(1), "%s", MENU_Tr("(the host's act plays)"));
 	Native_StartOnlineMatchmaking(partySize);	// presents the Game Center matchmaker UI
 }
 #endif

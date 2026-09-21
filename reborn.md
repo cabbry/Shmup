@@ -126,8 +126,8 @@ to the true screen edges, and the touch-coordinate mapping.
   privacy manifest in the bundle; submission waits for Fabien's word.
 - ✅ **Runs on Windows** (round 87): `win/build.ps1` with zig cc alone, an
   OpenGL backend that is the Metal one line for line, waveOut, MCI, WIC;
-  mouse and keyboard; 60 fps paced to the fixed step. Solo only: no Game
-  Center, no LAN yet.
+  mouse and keyboard; 60 fps paced to the fixed step. The LAN too (round
+  88, an mDNS responder of our own); no Game Center.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
   — and an ending; 2-4 player co-op over LAN and online (device-confirmed at
   two, rig-proven at four); leaderboards.
@@ -371,14 +371,14 @@ order, each step a build:
   content only — no Lua from the network.
 - **A four-device session** for v2: everything is rig-proven at four,
   device-proven at two. Needs hardware and four hands.
-- **The PC on the LAN with an iPhone** (asked 2026-09-22): the PC side of
-  `netchannel.c` on Winsock plus a small mDNS responder/browser speaking
-  `_DodgeServer._udp` (Bonjour is not on Windows; the iPhone would need no
-  change), then the open question of lockstep across architectures — ARM64
+- **The PC on the LAN with an iPhone** — built in round 88 (Winsock plus an
+  mDNS responder of our own, bench green); waiting for the first real
+  match. The open question is the lockstep across architectures — ARM64
   contracts a·b+c into one fused instruction, x86-64 does not, so the two
   simulations may differ in the last bit; the 300 ms position resync and
   the host's authority on deaths absorb some of that, a real match will
-  tell how much.
+  tell how much. If it shows, `-ffp-contract=off` on the iOS side is the
+  first thing to try.
 - **Android on an emulator** (asked 2026-09-22): the Gradle project targets
   API 34 but has no renderer since the GL ES retirement; the new GL backend
   is a GLSL ES 1.00 flavour away from serving it. Worth it as a release
@@ -444,6 +444,33 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-22 — round 88 (the LAN on Windows: an mDNS responder of our own)
+- **"La partie multi local avec un iPhone ne se lance pas."** It could not:
+  `netchannel.c` compiled its stubs on Windows since 2010 ("still needs to
+  be ported using winsock32"). Now the real file compiles over Winsock,
+  with the five spellings that differ (`closesocket`, `ioctlsocket` for
+  non-blocking, `WSAGetLastError` mapped to `errno` so the EAGAIN test
+  reads true, no `sin_len`, the LAN address from the adapter table), and
+  the part Bonjour used to do is done by hand: `src/backends/win/dnssd_win.c`
+  is an mDNS responder and browser for one service behind Apple's own
+  `dns_sd.h` names, so the LAN code is the iOS code, line for line. It
+  announces and answers our PTR / SRV / TXT / A on 224.0.0.251:5353, sends
+  the PTR / SRV / A queries for the peers with retries from a per-frame
+  tick, reads the socket only inside ProcessResult so the game's select
+  stays truthful, and answers legacy resolvers unicast with the question
+  echoed. The iPhone needs nothing: it sees a service like its own, and the
+  roster election by address is the same on both ends.
+- **The bench** (`tools/mdns`): two of them on one PC, driving the shim in
+  the game's exact sequence, find and resolve each other; a raw query from
+  node reads back the four records with the port and the address. Two
+  lessons on the way: Windows' multicast loopback is per host, so the
+  bench needs it on (echoes are filtered by name); and a legacy resolver
+  wants its transaction id and its question back (nslookup still ignores a
+  reply from an address other than the group it asked, by design).
+- **Left for the first PC-iPhone match**: the firewall's one-time question,
+  and the lockstep across architectures — the reason the roadmap kept this
+  item under "a real match will tell".
 
 ### 2026-09-22 — round 87 (SHMUP Reborn runs on Windows: the first fruit of src/backends)
 - **"Go pour la version Windows, sans SDL."** The 2010 port rested on

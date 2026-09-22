@@ -445,6 +445,30 @@ it ever reached a device — which is why the game looks the same and why
 
 ## Changelog
 
+### 2026-09-22 — round 89 (full screen with black bands, the menus at the keyboard)
+- **"Le jeu devient hyper large"**: since v1 the engine fills its whole
+  drawable (the tall-iPhone work), so a landscape window stretched it. The
+  Windows platform now presents the engine a *surface* — the largest
+  portrait rectangle at an iPhone's aspect inside the client, centred — and
+  the GL backend offsets its viewport, scissor and readbacks by it; the
+  rest of the window is cleared black. F11 or Alt+Enter toggles a
+  borderless full screen; the mouse subtracts the offset.
+- **"Flèche bas me valide un menu"**: the synthetic finger planted itself
+  at the centre, on a button. On a menu the arrows now move a cursor
+  between the buttons (the engine's own button positions, chosen by
+  direction), Enter or Space taps the selected one through `IO_PushEvent`
+  like a finger would, and the backend draws a pulsing outline after the
+  frame. One core accessor, `MENU_GetButtonRect`; iOS draws nothing.
+- **Scores** off Apple opened nothing (Game Center): the button is Apple
+  only and the Others grid closes up. The three-player match's screenshots
+  led me to a real flaw on the way: the PC advertised itself under the
+  machine's own mDNS name, for which Windows answers with *every* adapter's
+  address (an OpenVPN one here); the game's host name is now its own,
+  `shmup-<pc>.local`, with the one LAN address.
+- **Probes**: keys posted to the game's window (no focus, no mouse) drive
+  the menus for the tests; the PNG shots force alpha to opaque — the menu's
+  background reads 0.75 in the frame buffer, which the viewer showed grey.
+
 ### 2026-09-22 — round 88 (the LAN on Windows: an mDNS responder of our own)
 - **"La partie multi local avec un iPhone ne se lance pas."** It could not:
   `netchannel.c` compiled its stubs on Windows since 2010 ("still needs to

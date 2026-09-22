@@ -125,6 +125,9 @@ void MENU_HandleTouches(void);
 void MENU_FreeRessources(void);
 touch_t* MENU_GetCurrentButtonTouches(void);
 int MENU_GetNumButtonsTouches(void);
+// Round 89: the rectangle of button i of the current menu, in SS coordinates
+// (centre origin, y up), for a platform that draws a keyboard cursor. 0 if none.
+int MENU_GetButtonRect(int i, short* x0, short* y0, short* x1, short* y1);
 char* MENU_GetMultiplayerTextLine(int i);
 void MENU_SetGameOverScore(unsigned int score);
 void MENU_ClearButtonStates(void);

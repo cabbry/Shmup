@@ -69,7 +69,7 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #define GLSL_VS_PREAMBLE ""
-#define GLSL_FS_PREAMBLE "precision mediump float;\n"
+#define GLSL_FS_PREAMBLE "precision mediump float;\nprecision highp int;\n"	// ints highp like the vertex shader: uFlags is shared
 #define pglCreateShader            glCreateShader
 #define pglShaderSource            glShaderSource
 #define pglCompileShader           glCompileShader

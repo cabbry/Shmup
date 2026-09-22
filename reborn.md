@@ -383,8 +383,10 @@ order, each step a build:
   tell how much. If it shows, `-ffp-contract=off` on the iOS side is the
   first thing to try.
 - **Android** — runs since round 90 on the GL backend's ES 2 flavour; the
-  CI builds the APK. Open: play through an act on the emulator, sound and
-  music (OpenSL ES, untested since 2012), a real device, the Play Store
+  CI builds the APK; menus, act I, music and effects checked on the
+  emulator (effects at -6 dB like the other backends). Open: a real device
+  (the music's crackle on the emulator), the LAN (netchannel stubs on
+  Android), sound pause/resume in the OpenSL backend, the Play Store
   question.
 - **Gameplay videos on YouTube** (Fabien's suggestion): the five acts, the Act
   III side-view beat, Rain's storm, a LAN match, an online match. A recording
@@ -473,6 +475,14 @@ it ever reached a device — which is why the game looks the same and why
   loopback pipe is refused, a network filter), so the CI APK is installed
   with adb; `android/README.md` has the recipe. The debug key changes with
   every CI run: uninstall before installing.
+- **Sound, then**: the emulator had been started without audio (my
+  `-no-audio`); with it, the menu music and the in-game track play through
+  OpenSL ES as in 2012. "Les explosions saturées": the 2012 backend played
+  every effect at full scale where OpenAL (AL_GAIN 0.5), AVAudioEngine and
+  waveOut play them at half — two explosions together clipped; each OpenSL
+  player now carries a volume interface set to -6 dB. The music's light
+  crackle is not Android's: its audio flinger reports zero underruns, the
+  emulator's host path resamples — to judge on a real device.
 
 ### 2026-09-22 — round 89 (full screen with black bands, the menus at the keyboard)
 - **"Le jeu devient hyper large"**: since v1 the engine fills its whole

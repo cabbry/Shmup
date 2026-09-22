@@ -276,11 +276,45 @@ void SND_StopSoundTrack(void){
 
 }
 
+// Round 90: both were left unwritten in 2012, and the core has two callers:
+// the activity losing and regaining focus, and a multiplayer pause. Without
+// them the music played on over the home screen and through a paused match.
+// SL_PLAYSTATE_PAUSED keeps the head where it is; STOPPED would rewind.
 void SND_PauseSoundTrack(void){
-	Log_Printf("SND_PauseSoundTrack is not implemented./n");
+
+	SLPlayItf playerInterface;
+	SLresult result;
+
+	Log_Printf("[SND_PauseSoundTrack]\n");
+
+	if(!musicPlayerInterface){
+		Log_Printf("[SND_PauseSoundTrack] No music player to pause\n");
+		return;
+	}
+
+	result = (*musicPlayerInterface)->GetInterface(musicPlayerInterface, SL_IID_PLAY, &playerInterface);
+	if (SL_RESULT_SUCCESS != result)
+		return;
+
+	(*playerInterface)->SetPlayState(playerInterface,SL_PLAYSTATE_PAUSED);
 }
 void SND_ResumeSoundTrack(void){
-	Log_Printf("SND_ResumeSoundTrack is not implemented./n");
+
+	SLPlayItf playerInterface;
+	SLresult result;
+
+	Log_Printf("[SND_ResumeSoundTrack]\n");
+
+	if(!musicPlayerInterface){
+		Log_Printf("[SND_ResumeSoundTrack] No music player to resume\n");
+		return;
+	}
+
+	result = (*musicPlayerInterface)->GetInterface(musicPlayerInterface, SL_IID_PLAY, &playerInterface);
+	if (SL_RESULT_SUCCESS != result)
+		return;
+
+	(*playerInterface)->SetPlayState(playerInterface,SL_PLAYSTATE_PLAYING);
 }
 
 //BACKEND IMPLEMENTATION using buffer queue and callbacks.

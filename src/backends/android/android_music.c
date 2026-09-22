@@ -370,9 +370,9 @@ void SND_BACKEND_Upload(sound_t* sound, int soundID){
 	SLresult result;
 
 	 // create audio player with volume and seek interface available
-	const SLInterfaceID ids[1] = {SL_IID_BUFFERQUEUE};
-	const SLboolean req[1] = {SL_BOOLEAN_TRUE};
-	result = (*engineInterface)->CreateAudioPlayer(engineInterface,&openES_players[soundID] , &audioSource, &audioSink,1, ids, req);
+	const SLInterfaceID ids[2] = {SL_IID_BUFFERQUEUE, SL_IID_VOLUME};
+	const SLboolean req[2] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_FALSE};
+	result = (*engineInterface)->CreateAudioPlayer(engineInterface,&openES_players[soundID] , &audioSource, &audioSink,2, ids, req);
 	//result = (*engineInterface)->CreateAudioPlayer(engineInterface,&openES_players[soundID] , &audioSource, &audioSink,0, NULL, NULL);
 	assert(SL_RESULT_SUCCESS == result);
 
@@ -381,6 +381,14 @@ void SND_BACKEND_Upload(sound_t* sound, int soundID){
 	// realize the player
 	result = (*player)->Realize(player, SL_BOOLEAN_FALSE);
 	assert(SL_RESULT_SUCCESS == result);
+	// Round 90: the effects at half volume, as the OpenAL backend of 2010
+	// (AL_GAIN 0.5) and the AVAudioEngine and waveOut ones play them. At
+	// full scale, two explosions together clipped ("explosions saturees").
+	{
+		SLVolumeItf volumeItf;
+		if ((*player)->GetInterface(player, SL_IID_VOLUME, (void*)&volumeItf) == SL_RESULT_SUCCESS)
+			(*volumeItf)->SetVolumeLevel(volumeItf, -600);	// millibels: -6 dB
+	}
 
 
 	//Add the buffer queue stuff

@@ -10,4 +10,5 @@ extern ANativeWindow* window;
 void engine_draw_frame(void);
 int engine_init_display(void);
 void engine_resize_display(void);
+void engine_term_window(void);	// round 90: the window went away, the context stays
 void engine_term_display(void);

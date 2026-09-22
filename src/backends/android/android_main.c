@@ -285,8 +285,11 @@ static void engine_handle_cmd(struct android_app* state, int32_t cmd) {
             break;
         case APP_CMD_TERM_WINDOW:
         	LOGI("APP_CMD_TERM_WINDOW");
-            // The window is being hidden or closed, clean it up.
-
+        	// Round 90: let go of the surface, keep the context. 2012 left both
+        	// alive and the next APP_CMD_INIT_WINDOW built a whole new display
+        	// system on an empty context -- every texture name in the engine
+        	// then pointed into a context that had gone.
+        	engine_term_window();
             break;
         case APP_CMD_GAINED_FOCUS:
         	LOGI("APP_CMD_GAINED_FOCUS");

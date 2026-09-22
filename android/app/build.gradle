@@ -37,7 +37,7 @@ android {
     sourceSets {
         main {
             assets {
-                srcDirs '../../../data'
+                srcDirs '../../data'   // android/app -> the repository's data/ (round 86 flattened the tree by one level)
             }
         }
     }

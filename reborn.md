@@ -128,6 +128,9 @@ to the true screen edges, and the touch-coordinate mapping.
   OpenGL backend that is the Metal one line for line, waveOut, MCI, WIC;
   mouse and keyboard; 60 fps paced to the fixed step. The LAN too (round
   88, an mDNS responder of our own); no Game Center.
+- ✅ **Runs on Android** (round 90): the same GL backend in its ES 2 flavour,
+  the 2012 glue brought up to the core, the APK built by the CI; proven on
+  the PC's emulator to the act-select screen and into Act I.
 - ✅ **Five acts** — Dawn, Hope, Dusk, **Rain**, and the Final Act with its boss
   — and an ending; 2-4 player co-op over LAN and online (device-confirmed at
   two, rig-proven at four); leaderboards.
@@ -379,10 +382,10 @@ order, each step a build:
   the host's authority on deaths absorb some of that, a real match will
   tell how much. If it shows, `-ffp-contract=off` on the iOS side is the
   first thing to try.
-- **Android on an emulator** (asked 2026-09-22): the Gradle project targets
-  API 34 but has no renderer since the GL ES retirement; the new GL backend
-  is a GLSL ES 1.00 flavour away from serving it. Worth it as a release
-  target, not as a test bench — the Windows build is that now.
+- **Android** — runs since round 90 on the GL backend's ES 2 flavour; the
+  CI builds the APK. Open: play through an act on the emulator, sound and
+  music (OpenSL ES, untested since 2012), a real device, the Play Store
+  question.
 - **Gameplay videos on YouTube** (Fabien's suggestion): the five acts, the Act
   III side-view beat, Rain's storm, a LAN match, an online match. A recording
   session away.
@@ -444,6 +447,32 @@ it ever reached a device — which is why the game looks the same and why
 ---
 
 ## Changelog
+
+### 2026-09-22 — round 90 (Android runs, on the same GL backend)
+- **"Fais-moi tourner la version Android."** The Gradle project had no
+  renderer since the GL ES retirement; the OpenGL backend written for
+  Windows gained an ES 2 flavour (direct entry points, GLSL ES shaders with
+  a precision preamble, `glClearDepthf`, no fixed-pipeline cursor) and
+  `android_display.c` asks EGL for an ES 2 context, sizes the surface before
+  the menus are built, and brackets the frame. `android_native.c` answers
+  what the core learnt to ask since 2012 (language, version, settings, the
+  GameKit stubs) and its libpng loader now delivers premultiplied RGBA like
+  CoreGraphics and WIC. One config for all platforms: Android's own copy had
+  stayed at the 2012 scene list.
+- **Four rounds of CI to green**, each a real lesson: libpng lost `<math.h>`
+  to `src/core/math.h` (the `-I` versus `-iquote` rule again, and CMake's
+  de-duplication of two `-iquote` tokens, fixed with `SHELL:`); the NDK's
+  clang refuses implicit declarations the 2012 glue relied on; the APK
+  shipped without data because the assets path had one `..` too many since
+  the flattened tree; then two GLSL ES rules — `gl_` is a reserved prefix,
+  and a uniform shared by both shaders must have one precision. The NDK's
+  own clang, run locally with `-fsyntax-only`, caught the rest in a second.
+- **Proof on the PC's emulator** (Pixel 6, API 34, WHPX): the home screen
+  and the menus render as on iPhone and Windows, at 40-45 fps under the
+  emulator's GL translator. Local Gradle cannot run on this PC (Java's
+  loopback pipe is refused, a network filter), so the CI APK is installed
+  with adb; `android/README.md` has the recipe. The debug key changes with
+  every CI run: uninstall before installing.
 
 ### 2026-09-22 — round 89 (full screen with black bands, the menus at the keyboard)
 - **"Le jeu devient hyper large"**: since v1 the engine fills its whole

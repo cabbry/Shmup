@@ -27,7 +27,8 @@ endif()
 add_compile_definitions(SHMUP_VERSION="${SHMUP_VERSION}")
 # -iquote, never -I: src/core/math.h would shadow the system <math.h> for
 # libpng (frexp, modf, floor, pow undeclared -- the first CI build said so).
-add_compile_options(-iquote ${CMAKE_CURRENT_SOURCE_DIR}/${BASE}/core -iquote ${CMAKE_CURRENT_SOURCE_DIR}/${BASE}/backends/gl)
+# SHELL: keeps each "-iquote <dir>" whole; CMake would otherwise de-duplicate the two -iquote tokens.
+add_compile_options("SHELL:-iquote ${CMAKE_CURRENT_SOURCE_DIR}/${BASE}/core" "SHELL:-iquote ${CMAKE_CURRENT_SOURCE_DIR}/${BASE}/backends/gl")
 
 add_library( # Sets the name of the library.
         shmup

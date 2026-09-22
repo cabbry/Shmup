@@ -31,9 +31,16 @@ Linux runner, `win/build.sh`) and keeps the executable as an artifact.
   pressed in place (fire standing still), a quick **double Space** is the
   double tap that launches the ghosts, and **X** or **Ctrl** deliver that
   double tap at once (the big shot, 5 s between two).
+- **Menus at the keyboard**: the arrows move a white cursor between the
+  buttons of the current menu, Enter or Space is the tap. A mouse click
+  hides the cursor. (Windows only: the core just exposes the buttons'
+  rectangles; iOS draws nothing.)
 - **Escape**: back to the home menu (the five-finger touch of iOS); on the
   home menu, quits.
-- The window is resizable; the engine letterboxes as on any device.
+- **F11** or **Alt+Enter**: borderless full screen and back; `--fullscreen`
+  starts there. The game keeps a portrait surface at an iPhone's aspect,
+  centred, with black bands around it -- whatever the window's shape.
+- No **Scores** button on Windows: it opened the Game Center leaderboard.
 
 ## From Visual Studio
 

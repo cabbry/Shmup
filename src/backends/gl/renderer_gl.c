@@ -238,6 +238,7 @@ static float    sColor[4] = {1,1,1,1};
 static unsigned sTexture = 0;			// bound textureId (0 = none)
 static matrix_t sProj, sMV;
 static int      sPixelW = 0, sPixelH = 0;
+static int      sSurfX = 0, sSurfY = 0, sSurfW = 0, sSurfH = 0;	// the engine's surface in the window (round 89)
 static int      gCreated = 0;
 
 static int lastTextureIdG = -1;
@@ -482,21 +483,53 @@ static void ApplyViewport(void)
 {
 	int x = renderer.viewPortDimensions[VP_X], y = renderer.viewPortDimensions[VP_Y];
 	int w = renderer.viewPortDimensions[VP_WIDTH], h = renderer.viewPortDimensions[VP_HEIGHT];
-	if (w <= 0 || h <= 0) { x = 0; y = 0; w = sPixelW; h = sPixelH; }
-	glViewport(x, y, w, h);
+	if (w <= 0 || h <= 0) { x = 0; y = 0; w = sSurfW; h = sSurfH; }
+	glViewport(sSurfX + x, sSurfY + y, w, h);
 }
 
-// Read back a rectangle of the CURRENT frame, GL coordinates and GL_RGBA:
-// glReadPixels is exactly that.
+// Read back a rectangle of the CURRENT frame, in SURFACE coordinates (GL
+// style, origin bottom-left) and GL_RGBA: glReadPixels, offset by the surface.
 static void ReadPixelsGL(int x, int y, int w, int h, uchar* out)
 {
 	if (x < 0) x = 0;
 	if (y < 0) y = 0;
-	if (x + w > sPixelW) w = sPixelW - x;
-	if (y + h > sPixelH) h = sPixelH - y;
+	if (x + w > sSurfW) w = sSurfW - x;
+	if (y + h > sSurfH) h = sSurfH - y;
 	if (w <= 0 || h <= 0) return;
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
-	glReadPixels(x, y, w, h, GL_RGBA, GL_UNSIGNED_BYTE, out);
+	glReadPixels(sSurfX + x, sSurfY + y, w, h, GL_RGBA, GL_UNSIGNED_BYTE, out);
+}
+
+void GLR_SetSurface(int x, int y, int w, int h)
+{
+	sSurfX = x; sSurfY = y; sSurfW = w; sSurfH = h;
+}
+
+void GLR_DrawRectOutline(float x, float y, float w, float h, float r, float g, float b, float a, float width)
+{
+	if (!gCreated) return;
+	pglUseProgram(0);
+	pglBindBuffer(GL_ARRAY_BUFFER, 0);
+	pglDisableVertexAttribArray(A_POS); pglDisableVertexAttribArray(A_NORMAL);
+	pglDisableVertexAttribArray(A_UV);  pglDisableVertexAttribArray(A_COLOR);
+	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_SCISSOR_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glViewport(sSurfX, sSurfY, sSurfW, sSurfH);
+	glMatrixMode(GL_PROJECTION); glLoadIdentity();
+	glOrtho(0, sSurfW, 0, sSurfH, -1, 1);
+	glMatrixMode(GL_MODELVIEW); glLoadIdentity();
+	glLineWidth(width);
+	glColor4f(r, g, b, a);
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(x, y); glVertex2f(x + w, y); glVertex2f(x + w, y + h); glVertex2f(x, y + h);
+	glEnd();
+	glLineWidth(1.0f);
+	glEnable(GL_TEXTURE_2D);
+	lastTextureIdG = -1;
 }
 
 // ---------------------------------------------------------------------------
@@ -532,6 +565,7 @@ int GLR_Create(glr_getproc_t getProc, int pixelWidth, int pixelHeight)
 	glEnable(GL_TEXTURE_2D);
 	glDisable(GL_DITHER);
 	GLR_Resize(pixelWidth, pixelHeight);
+	if (sSurfW == 0) GLR_SetSurface(0, 0, pixelWidth, pixelHeight);
 	gCreated = 1;
 	Log_Printf("[GL] backend up on %s / %s, GL %s, %dx%d.\n",
 	           (const char*)glGetString(GL_VENDOR), (const char*)glGetString(GL_RENDERER), version ? version : "?", pixelWidth, pixelHeight);
@@ -550,15 +584,22 @@ void GLR_BeginFrame(void)
 {
 	if (!gCreated)
 		return;
+	// The whole window black -- the bands around the surface -- then the
+	// surface in the colour Set3DF chose: fog or black.
 	glDisable(GL_SCISSOR_TEST);
 	glViewport(0, 0, sPixelW, sPixelH);
-	if (engine.fogEnabled)
-		glClearColor(renderer.fogColor[0], renderer.fogColor[1], renderer.fogColor[2], 1.0f);
-	else
-		glClearColor(0, 0, 0, 1.0f);
+	glClearColor(0, 0, 0, 1.0f);
 	glClearDepth(1.0);
 	glDepthMask(GL_TRUE);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	if (engine.fogEnabled && sSurfW > 0 && sSurfH > 0)
+	{
+		glEnable(GL_SCISSOR_TEST);
+		glScissor(sSurfX, sSurfY, sSurfW, sSurfH);
+		glClearColor(renderer.fogColor[0], renderer.fogColor[1], renderer.fogColor[2], 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glDisable(GL_SCISSOR_TEST);
+	}
 	ApplyViewport();
 }
 
@@ -1327,7 +1368,7 @@ static void SetScissorG(int enable, short yTopSS, short yBottomSS)
 	int bottom, top;
 	if (!gCreated)
 		return;
-	if (vpW <= 0 || vpH <= 0) { vpX = 0; vpY = 0; vpW = sPixelW; vpH = sPixelH; }
+	if (vpW <= 0 || vpH <= 0) { vpX = 0; vpY = 0; vpW = sSurfW; vpH = sSurfH; }
 	if (!enable || yTopSS <= yBottomSS)
 	{
 		glDisable(GL_SCISSOR_TEST);
@@ -1336,10 +1377,10 @@ static void SetScissorG(int enable, short yTopSS, short yBottomSS)
 	bottom = vpY + (int)((yBottomSS + SS_H) * (long)vpH / (2 * SS_H));
 	top    = vpY + (int)((yTopSS    + SS_H) * (long)vpH / (2 * SS_H));
 	if (bottom < 0) bottom = 0;
-	if (top > sPixelH) top = sPixelH;
+	if (top > sSurfH) top = sSurfH;
 	if (top <= bottom) { bottom = 0; top = 1; }
 	glEnable(GL_SCISSOR_TEST);
-	glScissor(vpX < 0 ? 0 : vpX, bottom, vpW, top - bottom);
+	glScissor(sSurfX + (vpX < 0 ? 0 : vpX), sSurfY + bottom, vpW, top - bottom);
 }
 
 static void RefreshViewPortG(void)

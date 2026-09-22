@@ -66,6 +66,29 @@ signed char MENU_Get(void)
 	return currentMenuId;
 }
 
+int MENU_GetButtonRect(int i, short* x0, short* y0, short* x1, short* y1)
+{
+	menu_screen_t* m;
+	menu_button_t* b;
+	int k;
+	if (currentMenuId < 0 || currentMenuId == MENU_NONE)
+		return 0;
+	m = &menuScreens[currentMenuId];
+	if (i < 0 || i >= m->numButtons)
+		return 0;
+	b = &m->buttons[i];
+	*x0 = *x1 = b->upVertices[0].pos[X];
+	*y0 = *y1 = b->upVertices[0].pos[Y];
+	for (k = 1; k < 4; k++)
+	{
+		if (b->upVertices[k].pos[X] < *x0) *x0 = b->upVertices[k].pos[X];
+		if (b->upVertices[k].pos[X] > *x1) *x1 = b->upVertices[k].pos[X];
+		if (b->upVertices[k].pos[Y] < *y0) *y0 = b->upVertices[k].pos[Y];
+		if (b->upVertices[k].pos[Y] > *y1) *y1 = b->upVertices[k].pos[Y];
+	}
+	return 1;
+}
+
 // pos and dimensions are in screen space coordinate (-renderH/W, + renderH/W)
 // text is in [0,1]
 void MENU_CreateImage(menu_screen_t* screen, vec2_t pos, vec2_t dimensions, vec2_t textPos, vec2_t textDim)
@@ -1142,6 +1165,8 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Custom"), 3, Action_ShowShipMenu,NULL, buttonPos, buttonDim);
 
+#ifdef __APPLE__
+	// Scores opens the Game Center leaderboard: Apple only.
 	buttonPos[X] = MENU_COL_X ;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
 	buttonDim[WIDTH] = MENU_COL_W;
@@ -1167,6 +1192,29 @@ void MENU_Init(void)
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Credits"), 3, Action_ShowCreditsMenu,NULL, buttonPos, buttonDim);
+#else
+	// Round 89: no Game Center off Apple, so no Scores button and no hole --
+	// the grid closes up: Custom | Tutorial, Demo | Credits.
+	buttonPos[X] = MENU_COL_X ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
+	buttonDim[WIDTH] = MENU_COL_W;
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Tutorial"), 3, Action_GoToTutorial,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = -MENU_COL_X;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
+	buttonDim[WIDTH] = MENU_COL_W;
+	buttonDim[HEIGHT] = 64 * 2;
+	actId = calloc(1, sizeof(char));
+	*actId = 13 ;
+	MENU_CreateButtonWithTag(currentMenu, MENU_Tr("Demo"), 3, Action_PlayDemo,actId,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = MENU_COL_X ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 380);
+	buttonDim[WIDTH] = MENU_COL_W;
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Credits"), 3, Action_ShowCreditsMenu,NULL, buttonPos, buttonDim);
+#endif
 //
 //	if (engine.gameCenterPossible)
 //    {

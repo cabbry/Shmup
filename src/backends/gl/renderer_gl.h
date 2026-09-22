@@ -38,6 +38,17 @@ typedef void* (*glr_getproc_t)(const char* name);
 int  GLR_Create(glr_getproc_t getProc, int pixelWidth, int pixelHeight);
 void GLR_Resize(int pixelWidth, int pixelHeight);
 
+// The engine's surface inside the window (round 89): the game keeps a
+// portrait surface of (w, h) pixels whose bottom-left corner sits at (x, y)
+// in GL window coordinates; the rest of the window is the black bands.
+// Everything the backend does in window pixels -- viewport, scissor,
+// readback -- is offset by it. Default: the whole window.
+void GLR_SetSurface(int x, int y, int w, int h);
+
+// A rectangle outline in SURFACE pixels (origin bottom-left), drawn on top of
+// the frame: the keyboard's cursor on the menus. Fixed pipeline, no program.
+void GLR_DrawRectOutline(float x, float y, float w, float h, float r, float g, float b, float a, float width);
+
 // The frame brackets: clear (fog colour or black, depth 1) and the viewport;
 // EndFrame is the platform's SwapBuffers, nothing to do here.
 void GLR_BeginFrame(void);

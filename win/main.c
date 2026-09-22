@@ -34,9 +34,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <GL/gl.h>
 
 #include "dEngine.h"
+#include "commands.h"
 #include "renderer.h"
 #include "renderer_gl.h"
 #include "io_interface.h"
@@ -56,6 +58,11 @@ void SND_MusicProbeTick(void);	// music_mci.c
 // back and written to <writable dir>/shot_<s>.png. The camera of the port,
 // what simctl io screenshot was to the Simulator smokes.
 static int   gClientW, gClientH;	// defined below
+// The engine's surface inside the window (round 89): a portrait rectangle at
+// an iPhone's aspect, centred, black bands around it. The engine renders
+// and reads touches in SURFACE pixels; the window handlers convert.
+#define SURFACE_ASPECT (1179.0f / 2556.0f)
+static int   gSurfX = 0, gSurfTop = 0, gSurfW = 0, gSurfH = 0;	// client coordinates, y down
 static int   gShotAt[16], gShotCount = 0, gShotNext = 0;
 static DWORD gLaunchTick;
 
@@ -76,18 +83,24 @@ static void TakeShotIfDue(void)
 	char path[MAX_PATH * 2];
 	unsigned char* px;
 	int elapsed;
-	if (gShotNext >= gShotCount || gClientW <= 0 || gClientH <= 0)
+	if (gShotNext >= gShotCount || gSurfW <= 0 || gSurfH <= 0)
 		return;
 	elapsed = (int)((GetTickCount() - gLaunchTick) / 1000);
 	if (elapsed < gShotAt[gShotNext])
 		return;
-	px = (unsigned char*)malloc((size_t)gClientW * gClientH * 4);
+	px = (unsigned char*)malloc((size_t)gSurfW * gSurfH * 4);
 	if (!px) return;
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
 	glReadBuffer(GL_BACK);
-	glReadPixels(0, 0, gClientW, gClientH, GL_RGBA, GL_UNSIGNED_BYTE, px);
+	glReadPixels(gSurfX, gClientH - gSurfTop - gSurfH, gSurfW, gSurfH, GL_RGBA, GL_UNSIGNED_BYTE, px);	// the surface only
+	{
+		// the frame buffer's alpha is whatever the blends left (the menu's
+		// background reads 0.75): the picture is opaque, say so
+		size_t k, n = (size_t)gSurfW * gSurfH;
+		for (k = 0; k < n; k++) px[k * 4 + 3] = 255;
+	}
 	snprintf(path, sizeof(path), "%s/shot_%d.png", getenv("WD") ? getenv("WD") : ".", gShotAt[gShotNext]);
-	printf("[shot] t=%d -> %s (%s)\n", simulationTime, path, WIN_SavePNG(path, gClientW, gClientH, px) ? "ok" : "FAILED");
+	printf("[shot] t=%d -> %s (%s)\n", simulationTime, path, WIN_SavePNG(path, gSurfW, gSurfH, px) ? "ok" : "FAILED");
 	free(px);
 	gShotNext++;
 }
@@ -134,7 +147,9 @@ static void WallProbe(void)
 	frames++;
 	if (engine.sceneId != lastScene)
 	{
-		printf("[wall] +%lu ms: scene %d (sim t=%d)\n", (unsigned long)(now - gLaunchTick), engine.sceneId, simulationTime);
+		printf("[wall] +%lu ms: scene %d (sim t=%d) fog=%d (%.2f %.2f %.2f) surface %dx%d at %d,%d in %dx%d\n",
+		       (unsigned long)(now - gLaunchTick), engine.sceneId, simulationTime, engine.fogEnabled,
+		       renderer.fogColor[0], renderer.fogColor[1], renderer.fogColor[2], gSurfW, gSurfH, gSurfX, gSurfTop, gClientW, gClientH);
 		lastScene = engine.sceneId;
 	}
 	if (lastReport == 0) lastReport = now;
@@ -278,7 +293,7 @@ static void FingerPlant(void)
 		PushTouch(IO_EVENT_ENDED, gKeyPos.x, gKeyPos.y, gKeyPos.x, gKeyPos.y);
 	else
 	{
-		gKeyPos.x = gClientW / 2; gKeyPos.y = gClientH / 2;
+		gKeyPos.x = gSurfW / 2; gKeyPos.y = gSurfH / 2;
 	}
 	PushTouch(IO_EVENT_BEGAN, gKeyPos.x, gKeyPos.y, gKeyPos.x, gKeyPos.y);
 	gKeyTouch = 1;
@@ -294,8 +309,15 @@ static void FingerGhost(void)
 static void KeyboardFinger(void)
 {
 	int dx = (gKeyDir[1] - gKeyDir[0]), dy = (gKeyDir[3] - gKeyDir[2]);
-	int step = gClientH / 120;		// about 10 px per frame on a 1183 px tall window: 600 px/s
+	int step = gSurfH / 120;		// about 10 px per frame on a 1183 px tall surface: 600 px/s
 	if (step < 4) step = 4;
+	if (engine.menuVisible)
+	{
+		// on a menu the arrows navigate (WM_KEYDOWN); the finger lifts
+		dx = dy = 0;
+		if (gKeyTouch) { PushTouch(IO_EVENT_ENDED, gKeyPos.x, gKeyPos.y, gKeyPos.x, gKeyPos.y); gKeyTouch = 0; }
+		return;
+	}
 	if (!dx && !dy)
 	{
 		if (gKeyTouch && !gSpaceDown)
@@ -307,14 +329,14 @@ static void KeyboardFinger(void)
 	}
 	if (gDragging)
 		return;						// the mouse has the finger
-	if (!gKeyTouch || gKeyPos.x + dx * step < 8 || gKeyPos.x + dx * step > gClientW - 8 ||
-	    gKeyPos.y + dy * step < 8 || gKeyPos.y + dy * step > gClientH - 8)
+	if (!gKeyTouch || gKeyPos.x + dx * step < 8 || gKeyPos.x + dx * step > gSurfW - 8 ||
+	    gKeyPos.y + dy * step < 8 || gKeyPos.y + dy * step > gSurfH - 8)
 	{
 		// (re)plant the finger at the centre: the swipe control is relative,
 		// so the ship does not move on a plant, only on the drag that follows
 		if (gKeyTouch)
 			PushTouch(IO_EVENT_ENDED, gKeyPos.x, gKeyPos.y, gKeyPos.x, gKeyPos.y);
-		gKeyPos.x = gClientW / 2; gKeyPos.y = gClientH / 2;
+		gKeyPos.x = gSurfW / 2; gKeyPos.y = gSurfH / 2;
 		PushTouch(IO_EVENT_BEGAN, gKeyPos.x, gKeyPos.y, gKeyPos.x, gKeyPos.y);
 		gKeyTouch = 1;
 	}
@@ -332,13 +354,13 @@ static int BackButtonHit(int x, int y)
 {
 	int vpX = renderer.viewPortDimensions[VP_X], vpW = renderer.viewPortDimensions[VP_WIDTH];
 	int vpH = renderer.viewPortDimensions[VP_HEIGHT];
-	int vpTop = gClientH - renderer.viewPortDimensions[VP_Y] - vpH;	// GL's origin is bottom-left
+	int vpTop = gSurfH - renderer.viewPortDimensions[VP_Y] - vpH;	// GL's origin is bottom-left
 	float fx, fy, cy, band;
 	if (!(SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) || TITLE_IsShowing())
 		return 0;
-	if (vpW <= 0 || vpH <= 0) { vpX = 0; vpW = gClientW; vpTop = 0; vpH = gClientH; }
+	if (vpW <= 0 || vpH <= 0) { vpX = 0; vpW = gSurfW; vpTop = 0; vpH = gSurfH; }
 	if (vpW <= 0 || vpH <= 0) return 0;
-	fx = (x - vpX) / (float)vpW;
+	fx = (x - vpX) / (float)vpW;		// x, y in surface pixels
 	fy = (y - vpTop) / (float)vpH;
 	{
 		float orthoPerPx = 2.0f * SS_H / (float)vpH;
@@ -349,18 +371,145 @@ static int BackButtonHit(int x, int y)
 	return (fx > 0.32f && fx < 0.68f && fy > cy - band && fy < cy + band);
 }
 
+// The surface: the largest rectangle at SURFACE_ASPECT inside the client,
+// centred. The engine's dimensions ARE the surface's; the backend offsets.
+static void ComputeSurface(void)
+{
+	if (gClientW <= 0 || gClientH <= 0) return;
+	if (gClientW / (float)gClientH > SURFACE_ASPECT)
+	{
+		gSurfH = gClientH;
+		gSurfW = (int)(gClientH * SURFACE_ASPECT + 0.5f);
+	}
+	else
+	{
+		gSurfW = gClientW;
+		gSurfH = (int)(gClientW / SURFACE_ASPECT + 0.5f);
+	}
+	gSurfX = (gClientW - gSurfW) / 2;
+	gSurfTop = (gClientH - gSurfH) / 2;
+	GLR_SetSurface(gSurfX, gClientH - gSurfTop - gSurfH, gSurfW, gSurfH);	// GL: origin bottom-left
+	renderer.glBuffersDimensions[WIDTH]  = gSurfW;
+	renderer.glBuffersDimensions[HEIGHT] = gSurfH;
+	if (gEngineUp)
+	{
+		SRC_OnResizeScreen(gSurfW, gSurfH);
+		IO_Init();
+	}
+}
+
 static void OnResize(int w, int h)
 {
 	if (w <= 0 || h <= 0) return;
 	gClientW = w; gClientH = h;
-	renderer.glBuffersDimensions[WIDTH]  = w;
-	renderer.glBuffersDimensions[HEIGHT] = h;
 	if (gEngineUp)
-	{
 		GLR_Resize(w, h);
-		SRC_OnResizeScreen(w, h);
-		IO_Init();
+	ComputeSurface();
+}
+
+// Borderless full screen on the window's monitor, and back. F11 or Alt+Enter.
+static int  gFullscreen = 0;
+static RECT gWindowedRect;
+static LONG gWindowedStyle;
+
+static void ToggleFullscreen(void)
+{
+	if (!gFullscreen)
+	{
+		MONITORINFO mi; mi.cbSize = sizeof(mi);
+		GetWindowRect(gWnd, &gWindowedRect);
+		gWindowedStyle = GetWindowLongA(gWnd, GWL_STYLE);
+		GetMonitorInfoA(MonitorFromWindow(gWnd, MONITOR_DEFAULTTONEAREST), &mi);
+		SetWindowLongA(gWnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+		SetWindowPos(gWnd, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top,
+		             mi.rcMonitor.right - mi.rcMonitor.left, mi.rcMonitor.bottom - mi.rcMonitor.top, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+		gFullscreen = 1;
 	}
+	else
+	{
+		SetWindowLongA(gWnd, GWL_STYLE, gWindowedStyle);
+		SetWindowPos(gWnd, NULL, gWindowedRect.left, gWindowedRect.top,
+		             gWindowedRect.right - gWindowedRect.left, gWindowedRect.bottom - gWindowedRect.top,
+		             SWP_FRAMECHANGED | SWP_SHOWWINDOW | SWP_NOZORDER);
+		gFullscreen = 0;
+	}
+}
+
+// The menus at the keyboard (round 89): arrows move a cursor between the
+// current menu's buttons, Enter or Space is the tap. The buttons come from
+// the engine (positions in its 320x480 "iphone" coordinates, y down), the
+// tap goes back through IO_PushEvent like a finger's, the cursor is drawn
+// by the backend after the frame.
+static int gMenuSel = -1, gMenuSelId = -100;
+
+static void MenuSyncSelection(void)
+{
+	int id = MENU_Get();
+	if (id != gMenuSelId) { gMenuSelId = id; gMenuSel = -1; }
+}
+
+static void MenuMove(int dx, int dy)
+{
+	int n, i, best = -1;
+	float bestScore = 1e9f;
+	touch_t* t;
+	MenuSyncSelection();
+	n = MENU_GetNumButtonsTouches();
+	t = MENU_GetCurrentButtonTouches();
+	if (n <= 0 || !t) return;
+	if (gMenuSel < 0 || gMenuSel >= n)
+	{
+		// the first press lands on the top-most button, nearest the centre line
+		for (i = 0; i < n; i++)
+		{
+			float s = t[i].iphone_coo_SysPos[Y] * 4.0f + fabsf(t[i].iphone_coo_SysPos[X] - 160.0f);
+			if (s < bestScore) { bestScore = s; best = i; }
+		}
+		gMenuSel = best;
+		return;
+	}
+	for (i = 0; i < n; i++)
+	{
+		float ex = (float)(t[i].iphone_coo_SysPos[X] - t[gMenuSel].iphone_coo_SysPos[X]);
+		float ey = (float)(t[i].iphone_coo_SysPos[Y] - t[gMenuSel].iphone_coo_SysPos[Y]);
+		float along = ex * dx + ey * dy;
+		float perp  = fabsf(ex * dy) + fabsf(ey * dx);
+		float s;
+		if (i == gMenuSel || along <= 4.0f) continue;
+		s = along + 1.5f * perp;
+		if (s < bestScore) { bestScore = s; best = i; }
+	}
+	if (best >= 0) gMenuSel = best;
+}
+
+static void MenuActivate(void)
+{
+	int n; touch_t* t; int px, py;
+	MenuSyncSelection();
+	n = MENU_GetNumButtonsTouches();
+	t = MENU_GetCurrentButtonTouches();
+	if (gMenuSel < 0 || gMenuSel >= n || !t) { MenuMove(0, 1); return; }
+	px = (int)(t[gMenuSel].iphone_coo_SysPos[X] * gSurfW / 320.0f);
+	py = (int)(t[gMenuSel].iphone_coo_SysPos[Y] * gSurfH / 480.0f);
+	PushTouch(IO_EVENT_BEGAN, px, py, px, py);
+	PushTouch(IO_EVENT_ENDED, px, py, px, py);
+}
+
+static void MenuDrawCursor(void)
+{
+	short x0, y0, x1, y1;
+	float X, Y, W, H, pulse;
+	if (!engine.menuVisible) { gMenuSel = -1; return; }
+	MenuSyncSelection();
+	if (gMenuSel < 0 || !MENU_GetButtonRect(gMenuSel, &x0, &y0, &x1, &y1))
+		return;
+	// SS (centre origin, y up, [-320,320]x[-480,480]) -> surface pixels, origin bottom-left
+	X = (x0 + SS_W) * gSurfW / (2.0f * SS_W);
+	Y = (y0 + SS_H) * gSurfH / (2.0f * SS_H);
+	W = (x1 - x0) * gSurfW / (2.0f * SS_W);
+	H = (y1 - y0) * gSurfH / (2.0f * SS_H);
+	pulse = 0.65f + 0.35f * (float)sin(GetTickCount() * 0.008);
+	GLR_DrawRectOutline(X - 6, Y - 6, W + 12, H + 12, 1.0f, 1.0f, 1.0f, pulse, 3.0f);
 }
 
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -382,8 +531,9 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 			return 0;
 		case WM_LBUTTONDOWN:
 		{
-			int x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
+			int x = GET_X_LPARAM(lParam) - gSurfX, y = GET_Y_LPARAM(lParam) - gSurfTop;	// surface pixels
 			if (!gEngineUp) return 0;
+			gMenuSel = -1;		// the mouse takes over the menu
 			if (BackButtonHit(x, y))
 			{
 				MENU_Set(MENU_HOME);
@@ -399,7 +549,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 		case WM_MOUSEMOVE:
 			if (gDragging && gEngineUp)
 			{
-				int x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
+				int x = GET_X_LPARAM(lParam) - gSurfX, y = GET_Y_LPARAM(lParam) - gSurfTop;
 				if (x != gLastMouse.x || y != gLastMouse.y)
 				{
 					PushTouch(IO_EVENT_MOVED, x, y, gLastMouse.x, gLastMouse.y);
@@ -410,7 +560,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 		case WM_LBUTTONUP:
 			if (gDragging && gEngineUp)
 			{
-				int x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
+				int x = GET_X_LPARAM(lParam) - gSurfX, y = GET_Y_LPARAM(lParam) - gSurfTop;
 				gDragging = 0;
 				ReleaseCapture();
 				PushTouch(IO_EVENT_ENDED, x, y, gLastMouse.x, gLastMouse.y);
@@ -423,10 +573,23 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 			if (wParam == VK_SPACE) gSpaceDown = 0;
 			return 0;
 		}
+		case WM_SYSKEYDOWN:
+			if (wParam == VK_RETURN && (lParam & (1 << 29)) && gEngineUp) { ToggleFullscreen(); return 0; }	// Alt+Enter
+			break;
 		case WM_KEYDOWN:
 		{
 			int k = KeyIndex(wParam);
 			int repeat = (lParam & 0x40000000) != 0;
+			if (wParam == VK_F11 && !repeat && gEngineUp) { ToggleFullscreen(); return 0; }
+			if (gEngineUp && engine.menuVisible)
+			{
+				// the menus at the keyboard
+				if (k == 0) { if (!repeat) MenuMove(-1, 0); return 0; }
+				if (k == 1) { if (!repeat) MenuMove( 1, 0); return 0; }
+				if (k == 2) { if (!repeat) MenuMove(0, -1); return 0; }
+				if (k == 3) { if (!repeat) MenuMove(0,  1); return 0; }
+				if ((wParam == VK_RETURN || wParam == VK_SPACE) && !repeat) { MenuActivate(); return 0; }
+			}
 			if (k >= 0) { gKeyDir[k] = 1; return 0; }
 			if (gEngineUp && !repeat && !gDragging)
 			{
@@ -508,12 +671,13 @@ int main(int argc, char** argv)
 {
 	char rd[MAX_PATH * 2], wd[MAX_PATH * 2], env[MAX_PATH * 2 + 8];
 	const char* dataOverride = NULL;
-	int winW = 0, winH = 0, scene = -1, i;
+	int winW = 0, winH = 0, scene = -1, i, startFullscreen = 0;
 	setvbuf(stdout, NULL, _IONBF, 0);	// the log is read live, or from a redirected file
 
 	for (i = 1; i < argc; i++)
 	{
-		if (!strcmp(argv[i], "--size") && i + 1 < argc)        { sscanf(argv[++i], "%dx%d", &winW, &winH); }
+		if (!strcmp(argv[i], "--fullscreen"))                  { startFullscreen = 1; }
+		else if (!strcmp(argv[i], "--size") && i + 1 < argc)   { sscanf(argv[++i], "%dx%d", &winW, &winH); }
 		else if (!strcmp(argv[i], "--scene") && i + 1 < argc)  { scene = atoi(argv[++i]); }
 		else if (!strcmp(argv[i], "--data") && i + 1 < argc)   { dataOverride = argv[++i]; }
 		else if (!strcmp(argv[i], "--shots") && i + 1 < argc)  { ParseShots(argv[++i]); }
@@ -552,8 +716,7 @@ int main(int argc, char** argv)
 
 	// The engine's surface, in pixels, BEFORE dEngine_Init (the menus place
 	// their titles from it).
-	renderer.glBuffersDimensions[WIDTH]  = gClientW;
-	renderer.glBuffersDimensions[HEIGHT] = gClientH;
+	ComputeSurface();
 	renderer.materialQuality = MATERIAL_QUALITY_HIGH;
 	renderer.safeInsetTopPx = 0;
 	WIN_LoadSettings();
@@ -568,6 +731,8 @@ int main(int argc, char** argv)
 	IO_Init();
 	gEngineUp = 1;
 	ShowWindow(gWnd, SW_SHOW);
+	if (startFullscreen)
+		ToggleFullscreen();
 
 	while (!gQuit)
 	{
@@ -587,6 +752,7 @@ int main(int argc, char** argv)
 		KeyboardFinger();
 		GLR_BeginFrame();
 		dEngine_HostFrame();
+		MenuDrawCursor();
 		GLR_EndFrame();
 		TakeShotIfDue();	// before the swap: the back buffer holds this frame
 		SwapBuffers(gDC);

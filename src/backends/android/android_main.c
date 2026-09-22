@@ -113,6 +113,7 @@
 #include "../../core/menu.h"
 #include "../../core/timer.h"
 #include "../../core/native_URL.h"
+#include "../../core/netchannel.h"	// NET_IsRunning, NET_Free: a match cannot be paused
 
 #include "android_display.h"
 #include "android_filesystem.h"
@@ -284,18 +285,41 @@ static void engine_handle_cmd(struct android_app* state, int32_t cmd) {
             break;
         case APP_CMD_TERM_WINDOW:
         	LOGI("APP_CMD_TERM_WINDOW");
-            // The window is being hidden or closed, clean it up.
-
+        	// Round 90: let go of the surface, keep the context. 2012 left both
+        	// alive and the next APP_CMD_INIT_WINDOW built a whole new display
+        	// system on an empty context -- every texture name in the engine
+        	// then pointed into a context that had gone.
+        	engine_term_window();
             break;
         case APP_CMD_GAINED_FOCUS:
         	LOGI("APP_CMD_GAINED_FOCUS");
         	// Round 90: focus comes back -- the notification shade, the
         	// immersive transition -- so the game resumes; 2012 had quit here.
-        	if (gAndroidPaused) { SND_ResumeSoundTrack(); dEngine_Resume(); gAndroidPaused = 0; }
+        	// dEngine_ResumeGame, as the iOS delegate does: it keeps the world
+        	// and only arms the countdown. dEngine_Resume is the 2010 pair of
+        	// dEngine_Pause and resets the scene; see below.
+        	if (gAndroidPaused) { SND_ResumeSoundTrack(); dEngine_ResumeGame(); gAndroidPaused = 0; }
             break;
         case APP_CMD_LOST_FOCUS:
         	LOGI("APP_CMD_LOST_FOCUS");
-        	if (!gAndroidPaused) { dEngine_Pause(); SND_PauseSoundTrack(); gAndroidPaused = 1; }
+        	// Freeze, do not tear down. dEngine_Pause is the 2010 path: it drops
+        	// to the home menu and sets sceneId = -1, so coming back reloaded
+        	// scene 0 -- and the reload came back with the menu atlas in pieces
+        	// (labels black, then glyph rubble). iOS never calls it: resigning
+        	// active there only pauses the music and stops the render loop.
+        	if (!gAndroidPaused) { SND_PauseSoundTrack(); gAndroidPaused = 1; }
+            break;
+        case APP_CMD_PAUSE:
+        	LOGI("APP_CMD_PAUSE");
+        	// Really backgrounded, not just unfocused. A live match cannot be
+        	// paused -- the peer plays on -- so end it and go to the menu, the
+        	// same call the iOS delegate makes in applicationDidEnterBackground.
+        	if (engine.mode == DE_MODE_MULTIPLAYER && NET_IsRunning())
+        	{
+        		NET_Free();
+        		MENU_Set(MENU_HOME);
+        		dEngine_RequireSceneId(0);
+        	}
             break;
         case APP_CMD_WINDOW_RESIZED:
         case APP_CMD_CONTENT_RECT_CHANGED:

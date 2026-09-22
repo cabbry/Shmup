@@ -525,8 +525,13 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 		case WM_ACTIVATE:
 			if (gEngineUp)
 			{
-				if (LOWORD(wParam) == WA_INACTIVE) { if (!gPaused) { dEngine_Pause(); SND_PauseSoundTrack(); gPaused = 1; } }
-				else if (gPaused) { SND_ResumeSoundTrack(); dEngine_Resume(); gPaused = 0; }
+				// Round 90: freeze, never tear down. dEngine_Pause is the 2010 path
+				// (home menu, sceneId = -1) and its Resume reloads scene 0 -- which
+				// on Android came back with the menu atlas in pieces. Alt-tabbing
+				// would also have thrown away the game in progress. iOS pauses the
+				// music, stops the loop, and resumes with dEngine_ResumeGame.
+				if (LOWORD(wParam) == WA_INACTIVE) { if (!gPaused) { SND_PauseSoundTrack(); gPaused = 1; } }
+				else if (gPaused) { SND_ResumeSoundTrack(); dEngine_ResumeGame(); gPaused = 0; }
 			}
 			return 0;
 		case WM_LBUTTONDOWN:

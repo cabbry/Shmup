@@ -5,6 +5,14 @@ EGLContext engineContext ;
 EGLSurface engineSurface ;
 ANativeWindow* window=0;
 
+// Round 90: what it takes to re-attach to a new window without rebuilding
+// anything. Android destroys the native window whenever the activity goes to
+// the background; the EGL *context* can outlive it, and with it every texture,
+// buffer and shader we uploaded.
+static EGLConfig  engineConfig;
+static EGLint     engineFormat;
+static int        engineDisplayBuilt = 0;
+
 #include "../../core/dEngine.h"
 #include "../../core/log.h"
 #include "../../core/renderer.h"
@@ -16,6 +24,35 @@ ANativeWindow* window=0;
 int engine_init_display(void) {
 
 	uchar engineParameters = 0;
+
+	// The window came back after the activity was backgrounded. Only the
+	// surface died with it, so we hang a new surface on the SAME context and
+	// return. Building a second display system here -- which is what this
+	// function did until round 90 -- left the engine drawing with texture
+	// names from a context that no longer existed: the menu came back in
+	// pieces, then black once the scene was no longer being reloaded over it.
+	if (engineDisplayBuilt && engineContext != EGL_NO_CONTEXT)
+	{
+		EGLSurface surface;
+
+		ANativeWindow_setBuffersGeometry(window, 0, 0, engineFormat);
+		surface = eglCreateWindowSurface(engineDisplay, engineConfig, window, NULL);
+		if (surface == EGL_NO_SURFACE)
+		{
+			Log_Printf("Unable to re-create the window surface (0x%x).\n", eglGetError());
+			return 0;
+		}
+		if (eglMakeCurrent(engineDisplay, surface, surface, engineContext) == EGL_FALSE)
+		{
+			Log_Printf("Unable to re-attach the context (0x%x).\n", eglGetError());
+			eglDestroySurface(engineDisplay, surface);
+			return 0;
+		}
+		engineSurface = surface;
+		Log_Printf("Re-attached to a new window, textures kept.\n");
+		engine_resize_display();
+		return 1;
+	}
 
 
 	// initialize OpenGL ES and EGL
@@ -73,6 +110,7 @@ int engine_init_display(void) {
 	 * guaranteed to be accepted by ANativeWindow_setBuffersGeometry().
 	 * As soon as we picked a EGLConfig, we can safely reconfigure the
 	 * ANativeWindow buffers to match, using EGL_NATIVE_VISUAL_ID. */
+	engineConfig = config;
 	result = eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &format);
 	if (result == EGL_FALSE)
 		{
@@ -81,6 +119,7 @@ int engine_init_display(void) {
 		}
 
 	//Finally tie the window with the format we want.
+	engineFormat = format;
 	ANativeWindow_setBuffersGeometry(window, 0, 0, format);
 
 	surface = eglCreateWindowSurface(display, config, window, NULL);
@@ -117,7 +156,25 @@ int engine_init_display(void) {
 
     renderer.props |= PROP_FOG ;
 
+	engineDisplayBuilt = 1;
+
 	return 1;
+}
+
+// Round 90: the window is going away. The surface goes with it, the context
+// stays, so nothing has to be uploaded again when the window comes back.
+void engine_term_window(void)
+{
+	if (engineDisplay == EGL_NO_DISPLAY)
+		return;
+
+	eglMakeCurrent(engineDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+
+	if (engineSurface != EGL_NO_SURFACE)
+		eglDestroySurface(engineDisplay, engineSurface);
+
+	engineSurface = EGL_NO_SURFACE;
+	window = 0;
 }
 
 
@@ -157,6 +214,7 @@ void engine_resize_display(void) {
 	engineDisplay = EGL_NO_DISPLAY;
 	engineContext = EGL_NO_CONTEXT;
 	engineSurface = EGL_NO_SURFACE;
+	engineDisplayBuilt = 0;
 }
 
 
@@ -167,8 +225,8 @@ void engine_resize_display(void) {
  */
  void engine_draw_frame(void) {
 
-	 // Do we have somewhere to draw ?
-	if (engineDisplay == NULL)
+	 // Do we have somewhere to draw ? (no surface = the window is gone)
+	if (engineDisplay == NULL || engineSurface == EGL_NO_SURFACE)
 	{
 		//Log_Printf("[engine_draw_frame] Cannot draw.\n");
 		return;

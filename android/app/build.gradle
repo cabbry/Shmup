@@ -5,10 +5,10 @@ plugins {
 android {
     namespace 'net.fabiensanglard.shmup'
     compileSdk 34
-
+    ndkVersion "26.3.11579264"
     defaultConfig {
         applicationId "net.fabiensanglard.shmup"
-        minSdk 34
+        minSdk 26
         targetSdk 34
         versionCode 7
         versionName "7.0"
@@ -37,7 +37,7 @@ android {
     sourceSets {
         main {
             assets {
-                srcDirs '../../../data'
+                srcDirs '../../data'   // android/app -> the repository's data/ (round 86 flattened the tree by one level)
             }
         }
     }

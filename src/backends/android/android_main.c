@@ -102,7 +102,7 @@
 #include <errno.h>
 
 #include <EGL/egl.h>
-#include <GLES/gl.h>
+#include <GLES2/gl2.h>
 
 #include <android/sensor.h>
 #include <android/log.h>
@@ -116,6 +116,8 @@
 
 #include "android_display.h"
 #include "android_filesystem.h"
+#include <unistd.h>	// usleep
+void SND_Android_Init(AAssetManager* mgr);	// android_music.c
 
 // ANDROID_LOG_TAG must be defined via a compiler flag in Android.mk. This is done so
 // Shmup and ShmupLite can use the same codebase.
@@ -368,6 +370,19 @@ void android_main(struct android_app* state) {
 
 	FS_AndroidPreInitFileSystem(state);
 
+	// Round 90: the language, the writable folder and the saved settings,
+	// before the engine builds its menus.
+	{
+		extern int  gAndroidFrench;
+		extern char gAndroidWritableDir[512];
+		extern void AND_LoadSettings(void);
+		char lang[3] = "";
+		AConfiguration_getLanguage(state->config, lang);
+		gAndroidFrench = (lang[0] == 'f' && lang[1] == 'r');
+		if (state->activity->internalDataPath)
+			strncpy(gAndroidWritableDir, state->activity->internalDataPath, sizeof(gAndroidWritableDir) - 1);
+		AND_LoadSettings();
+	}
 	//Init everything except for the rendering system.
 
 	renderer.materialQuality = MATERIAL_QUALITY_HIGH;

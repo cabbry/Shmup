@@ -7,6 +7,7 @@
 
 //Logging to stdout with printf in Android doesn't work, we need to use __android_log_vprint
 #if defined (SHMUP_TARGET_ANDROID)
+    #include <android/log.h>	// round 90: declared, the NDK's clang refuses the implicit declaration
     #define vprintf(x,y) __android_log_vprint(4,"net.fabiensanglard",x,y)
 #endif
 

@@ -16,6 +16,83 @@ void Action_ShowGameCenter(void* tag){}
 void Native_UploadScore(unsigned int score){}
 void Native_LoginGameCenter(void){}
 
+// Round 90: what the core has learnt to ask since 2012, answered on Android.
+// No Game Center, no GameKit; the language from the activity's
+// configuration, the version from the build, the settings (loadout and
+// progress) in a key=value file under the app's internal storage.
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "../../core/dEngine.h"
+#include "../../core/player.h"
+
+#ifndef SHMUP_VERSION
+#define SHMUP_VERSION "dev"
+#endif
+
+int  gAndroidFrench = 0;					// set by android_main from AConfiguration
+char gAndroidWritableDir[512] = "";			// the activity's internalDataPath
+
+void Native_StartOnlineMatchmaking(int partySize) { (void)partySize; }
+void Native_CancelOnlineMatchmaking(void) {}
+void Native_GKSendData(const void* data, int len, int reliable) { (void)data; (void)len; (void)reliable; }
+int  Native_IsFrenchLanguage(void) { return gAndroidFrench; }
+
+const char* Native_GetVersionString(void)
+{
+	static char buf[32] = "";
+	if (buf[0] == 0)
+		snprintf(buf, sizeof(buf), "v%s", SHMUP_VERSION);
+	return buf;
+}
+
+char* FS_GameWritableDir(void) { return gAndroidWritableDir; }
+
+static void AND_SaveSettings(void)
+{
+	char path[600];
+	FILE* f;
+	if (!gAndroidWritableDir[0]) return;
+	snprintf(path, sizeof(path), "%s/settings.cfg", gAndroidWritableDir);
+	f = fopen(path, "w");
+	if (!f) { Log_Printf("[settings] cannot write %s\n", path); return; }
+	fprintf(f, "sound=%d\nmusic=%d\ncontrol=%d\nship=%d\ncolor=%d\nhighestAct=%d\n",
+	        engine.soundEnabled, engine.musicEnabled, engine.controlMode, gShipChoice, gBulletColor, gHighestActReached);
+	fclose(f);
+}
+
+// Called by android_main before dEngine_Init, once the writable folder is known.
+void AND_LoadSettings(void)
+{
+	char path[600], line[256];
+	FILE* f;
+	engine.soundEnabled = 1;
+	engine.musicEnabled = 1;
+	engine.controlMode = CONTROL_MODE_SWIP;
+	if (!gAndroidWritableDir[0]) return;
+	snprintf(path, sizeof(path), "%s/settings.cfg", gAndroidWritableDir);
+	f = fopen(path, "r");
+	if (!f) return;
+	while (fgets(line, sizeof(line), f))
+	{
+		int v = atoi(strchr(line, '=') ? strchr(line, '=') + 1 : "0");
+		if      (!strncmp(line, "sound=", 6))       engine.soundEnabled = v ? 1 : 0;
+		else if (!strncmp(line, "music=", 6))       engine.musicEnabled = v ? 1 : 0;
+		else if (!strncmp(line, "control=", 8))     engine.controlMode = (uchar)v;
+		else if (!strncmp(line, "ship=", 5))        gShipChoice = v;
+		else if (!strncmp(line, "color=", 6))       gBulletColor = v;
+		else if (!strncmp(line, "highestAct=", 11)) gHighestActReached = v;
+	}
+	fclose(f);
+	if (gShipChoice  < 0 || gShipChoice  >= NUM_SHIP_CHOICES)  gShipChoice  = 0;
+	if (gBulletColor < 0 || gBulletColor >= NUM_BULLET_COLORS) gBulletColor = 0;
+	if (gHighestActReached < 1) gHighestActReached = 1;
+	if (gHighestActReached > 5) gHighestActReached = 5;
+}
+
+void Native_SaveLoadout(int ship, int color) { gShipChoice = ship; gBulletColor = color; AND_SaveSettings(); }
+void Native_SaveProgress(int highestAct)   { gHighestActReached = highestAct; AND_SaveSettings(); }
+
 
 //ITextureloader.h
 #include "../../core/texture.h"
@@ -112,6 +189,13 @@ void loadNativePNG(texture_t* tmpTex)
 	if (color_type == PNG_COLOR_TYPE_PALETTE) {
 		png_set_palette_to_rgb(png_ptr);
 	}
+	// Round 90: four bytes per pixel whatever the file, as CoreGraphics (iOS)
+	// and WIC (Windows) hand the renderers -- the GL backend uploads RGBA and
+	// forces the fourth byte of an RGB image to opaque.
+	if (!(color_type & PNG_COLOR_MASK_ALPHA) && color_type != PNG_COLOR_TYPE_PALETTE)
+		png_set_filler(png_ptr, 0xff, PNG_FILLER_AFTER);
+	if (color_type == PNG_COLOR_TYPE_PALETTE)
+		png_set_add_alpha(png_ptr, 0xff, PNG_FILLER_AFTER);
 
 	// Update the png info struct.
 	png_read_update_info(png_ptr, info_ptr);
@@ -158,6 +242,22 @@ void loadNativePNG(texture_t* tmpTex)
   //Decompressing PNG to RAW where row_pointers are pointing (tmpTex->data[0])
 	png_read_image(png_ptr, row_pointers);
 
+	// Round 90: premultiplied alpha, as the other two loaders deliver it (the
+	// blends were tuned on it since 2009).
+	if ((color_type & PNG_COLOR_MASK_ALPHA) && tmpTex->bpp == 4)
+	{
+		unsigned char* px = tmpTex->data[0];
+		size_t k, n = (size_t)width * height;
+		for (k = 0; k < n; k++, px += 4)
+		{
+			unsigned a = px[3];
+			if (a == 255) continue;
+			px[0] = (unsigned char)((px[0] * a + 127) / 255);
+			px[1] = (unsigned char)((px[1] * a + 127) / 255);
+			px[2] = (unsigned char)((px[2] * a + 127) / 255);
+		}
+	}
+
   //Last but not least:
 
 
@@ -170,5 +270,3 @@ void loadNativePNG(texture_t* tmpTex)
   FS_CloseFile(file);
 }
 
-int Native_IsFrenchLanguage(void) { return 0; }	// v2: menu localization (EN on Android for now)
-const char* Native_GetVersionString(void) { return "v?"; }	// v5: no bundle to read here

@@ -8,6 +8,7 @@ ANativeWindow* window=0;
 #include "../../core/dEngine.h"
 #include "../../core/log.h"
 #include "../../core/renderer.h"
+#include "../gl/renderer_gl.h"
 
 /**
  * Initialize an EGL context for the current display.
@@ -29,7 +30,8 @@ int engine_init_display(void) {
 			EGL_BLUE_SIZE    ,/*=*/ 5,
 			EGL_GREEN_SIZE   ,/*=*/ 6,
 			EGL_RED_SIZE     ,/*=*/ 5,
-            EGL_DEPTH_SIZE   ,/*=*/ 8,
+            EGL_DEPTH_SIZE   ,/*=*/ 16,
+            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,	// round 90: the GL ES 2 backend
 			EGL_NONE
 	};
 	EGLint w, h, dummy, format;
@@ -83,7 +85,7 @@ int engine_init_display(void) {
 
 	surface = eglCreateWindowSurface(display, config, window, NULL);
 
-	context = eglCreateContext(display, config, NULL, NULL);
+	{ const EGLint ctxAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE }; context = eglCreateContext(display, config, NULL, ctxAttribs); }
 
 	//binds context to the current rendering thread and to the draw and read surfaces
 	// We use the same surface for draw and read
@@ -102,9 +104,14 @@ int engine_init_display(void) {
 	engineSurface = surface;
 
 
-	engineParameters |= GL_11_RENDERER ;
-
-  	dEngine_InitDisplaySystem(engineParameters);
+	// Round 90: the GL ES 2 backend (src/backends/gl); the surface size goes in
+	// BEFORE the display system builds the menus from it.
+	(void)engineParameters;
+	renderer.glBuffersDimensions[WIDTH]  = w;
+	renderer.glBuffersDimensions[HEIGHT] = h;
+	if (!GLR_Create(NULL, w, h))
+		Log_Printf("[GL] backend init failed\n");
+	dEngine_InitDisplaySystem(GL_RENDERER);
 
   	SRC_OnResizeScreen(w,h);
 
@@ -150,6 +157,7 @@ int engine_init_display(void) {
 	}
 
 	//Log_Printf("[engine_draw_frame] Drawing.\n");
+	GLR_BeginFrame();
 	dEngine_HostFrame();
 
 	eglSwapBuffers(engineDisplay, engineSurface);

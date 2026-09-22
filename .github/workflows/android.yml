@@ -1,0 +1,45 @@
+name: Android (APK build)
+
+# Round 90: the Android port compiles and packages on every push, on a Linux
+# runner (the SDK is on the image; the pinned NDK is fetched if missing).
+# The debug APK is kept as an artifact: install it with
+#   adb install -r app-debug.apk
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: The pinned NDK and CMake
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;26.3.11579264" "cmake;3.22.1" "platforms;android-34" "build-tools;34.0.0" > /dev/null
+
+      - name: Build the debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+          ls -l app/build/outputs/apk/debug/
+
+      - name: Keep the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: shmup-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14

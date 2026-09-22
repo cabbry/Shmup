@@ -102,7 +102,7 @@
 #include <errno.h>
 
 #include <EGL/egl.h>
-#include <GLES/gl.h>
+#include <GLES2/gl2.h>
 
 #include <android/sensor.h>
 #include <android/log.h>
@@ -368,6 +368,19 @@ void android_main(struct android_app* state) {
 
 	FS_AndroidPreInitFileSystem(state);
 
+	// Round 90: the language, the writable folder and the saved settings,
+	// before the engine builds its menus.
+	{
+		extern int  gAndroidFrench;
+		extern char gAndroidWritableDir[512];
+		extern void AND_LoadSettings(void);
+		char lang[3] = "";
+		AConfiguration_getLanguage(state->config, lang);
+		gAndroidFrench = (lang[0] == 'f' && lang[1] == 'r');
+		if (state->activity->internalDataPath)
+			strncpy(gAndroidWritableDir, state->activity->internalDataPath, sizeof(gAndroidWritableDir) - 1);
+		AND_LoadSettings();
+	}
 	//Init everything except for the rendering system.
 
 	renderer.materialQuality = MATERIAL_QUALITY_HIGH;

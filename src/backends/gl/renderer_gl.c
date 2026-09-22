@@ -60,6 +60,48 @@
 #include <stddef.h>
 #include <math.h>
 
+// Round 90: the same file serves OpenGL ES 2.0 on Android. The entry points
+// are linked directly (libGLESv2), the shaders lose their version line and
+// gain a precision qualifier, and the two desktop-only calls (the fixed
+// pipeline of the cursor outline, glClearDepth) have ES spellings.
+#if defined(SHMUP_TARGET_ANDROID) || defined(__ANDROID__)
+#define GLR_ES2 1
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+#define GLSL_VS_PREAMBLE ""
+#define GLSL_FS_PREAMBLE "precision mediump float;\n"
+#define pglCreateShader            glCreateShader
+#define pglShaderSource            glShaderSource
+#define pglCompileShader           glCompileShader
+#define pglGetShaderiv             glGetShaderiv
+#define pglGetShaderInfoLog        glGetShaderInfoLog
+#define pglCreateProgram           glCreateProgram
+#define pglAttachShader            glAttachShader
+#define pglBindAttribLocation      glBindAttribLocation
+#define pglLinkProgram             glLinkProgram
+#define pglGetProgramiv            glGetProgramiv
+#define pglGetProgramInfoLog       glGetProgramInfoLog
+#define pglUseProgram              glUseProgram
+#define pglGetUniformLocation      glGetUniformLocation
+#define pglUniform1i               glUniform1i
+#define pglUniform4iv              glUniform4iv
+#define pglUniform4fv              glUniform4fv
+#define pglUniformMatrix4fv        glUniformMatrix4fv
+#define pglEnableVertexAttribArray glEnableVertexAttribArray
+#define pglDisableVertexAttribArray glDisableVertexAttribArray
+#define pglVertexAttribPointer     glVertexAttribPointer
+#define pglGenBuffers              glGenBuffers
+#define pglDeleteBuffers           glDeleteBuffers
+#define pglBindBuffer              glBindBuffer
+#define pglBufferData              glBufferData
+#define pglGenerateMipmap          glGenerateMipmap
+#define pglActiveTexture           glActiveTexture
+#ifndef GL_GENERATE_MIPMAP
+#define GL_GENERATE_MIPMAP    0x8191
+#endif
+#else
+#define GLSL_VS_PREAMBLE "#version 120\n"
+#define GLSL_FS_PREAMBLE "#version 120\n"
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -138,6 +180,7 @@ static PFN_glBindBuffer              pglBindBuffer;
 static PFN_glBufferData              pglBufferData;
 static PFN_glGenerateMipmap          pglGenerateMipmap;		// GL 3.0 / EXT_framebuffer_object; NULL -> GL_GENERATE_MIPMAP
 static PFN_glActiveTexture           pglActiveTexture;
+#endif	// desktop GL
 
 // ---------------------------------------------------------------------------
 //  The programs: one vertex shader per vertex kind, one fragment shader.
@@ -148,7 +191,7 @@ enum { BL_NONE = 0, BL_ALPHA, BL_ADD };
 enum { A_POS = 0, A_NORMAL = 1, A_UV = 2, A_COLOR = 3 };
 
 static const char* kCommonVS =
-"#version 120\n"
+GLSL_VS_PREAMBLE
 "uniform mat4 uMVP; uniform mat4 uMV; uniform mat4 uNormalM;\n"
 "uniform vec4 uColor; uniform vec4 uLightPosEye; uniform vec4 uLightAmbient; uniform vec4 uLightDiffuse; uniform vec4 uLightSpecular;\n"
 "uniform vec4 uMatSpecular; uniform vec4 uParams; uniform ivec4 uFlags;\n"
@@ -193,7 +236,7 @@ static const char* kVS[VK_COUNT] = {
 };
 
 static const char* kFS =
-"#version 120\n"
+GLSL_FS_PREAMBLE
 "uniform sampler2D uTex; uniform vec4 uFogColor; uniform ivec4 uFlags;\n"
 "varying vec2 vUV; varying vec4 vColor; varying float vFogF;\n"
 "void main() {\n"
@@ -507,6 +550,11 @@ void GLR_SetSurface(int x, int y, int w, int h)
 
 void GLR_DrawRectOutline(float x, float y, float w, float h, float r, float g, float b, float a, float width)
 {
+#ifdef GLR_ES2
+	// no fixed pipeline on ES 2, and no keyboard on a phone: nothing to draw
+	(void)x; (void)y; (void)w; (void)h; (void)r; (void)g; (void)b; (void)a; (void)width;
+	return;
+#else
 	if (!gCreated) return;
 	pglUseProgram(0);
 	pglBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -530,6 +578,7 @@ void GLR_DrawRectOutline(float x, float y, float w, float h, float r, float g, f
 	glLineWidth(1.0f);
 	glEnable(GL_TEXTURE_2D);
 	lastTextureIdG = -1;
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -540,6 +589,7 @@ void GLR_DrawRectOutline(float x, float y, float w, float h, float r, float g, f
 int GLR_Create(glr_getproc_t getProc, int pixelWidth, int pixelHeight)
 {
 	const char* version;
+#ifndef GLR_ES2
 	LOAD(glCreateShader); LOAD(glShaderSource); LOAD(glCompileShader); LOAD(glGetShaderiv); LOAD(glGetShaderInfoLog);
 	LOAD(glCreateProgram); LOAD(glAttachShader); LOAD(glBindAttribLocation); LOAD(glLinkProgram); LOAD(glGetProgramiv);
 	LOAD(glGetProgramInfoLog); LOAD(glUseProgram); LOAD(glGetUniformLocation); LOAD(glUniform1i); LOAD(glUniform4iv);
@@ -559,10 +609,13 @@ int GLR_Create(glr_getproc_t getProc, int pixelWidth, int pixelHeight)
 		Log_Printf("[GL] this context has no OpenGL 2.0 entry points.\n");
 		return 0;
 	}
+	glEnable(GL_TEXTURE_2D);
+#else
+	(void)getProc;		// ES 2: the entry points are the library's
+#endif
 	version = (const char*)glGetString(GL_VERSION);
 	if (!BuildPrograms())
 		return 0;
-	glEnable(GL_TEXTURE_2D);
 	glDisable(GL_DITHER);
 	GLR_Resize(pixelWidth, pixelHeight);
 	if (sSurfW == 0) GLR_SetSurface(0, 0, pixelWidth, pixelHeight);
@@ -589,7 +642,11 @@ void GLR_BeginFrame(void)
 	glDisable(GL_SCISSOR_TEST);
 	glViewport(0, 0, sPixelW, sPixelH);
 	glClearColor(0, 0, 0, 1.0f);
+#ifdef GLR_ES2
+	glClearDepthf(1.0f);
+#else
 	glClearDepth(1.0);
+#endif
 	glDepthMask(GL_TRUE);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	if (engine.fogEnabled && sSurfW > 0 && sSurfH > 0)

@@ -57,11 +57,10 @@
 
 engine_info_t engine;
 
-#ifdef SHMUP_TARGET_ANDROID
-    #define CONFIG_PATH "data/configAndroid.cfg"
-#else
-    #define CONFIG_PATH "data/config.cfg"
-#endif
+// Round 90: one config for every platform. Android used to read its own
+// copy (data/configAndroid.cfg), which had stayed at the 2012 scene list
+// and knew nothing of the level packs.
+#define CONFIG_PATH "data/config.cfg"
 
 
 char* screenShotDirectory = "./";//"/Users/fabiensanglard/Pictures/dEngine/";

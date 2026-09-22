@@ -16,6 +16,83 @@ void Action_ShowGameCenter(void* tag){}
 void Native_UploadScore(unsigned int score){}
 void Native_LoginGameCenter(void){}
 
+// Round 90: what the core has learnt to ask since 2012, answered on Android.
+// No Game Center, no GameKit; the language from the activity's
+// configuration, the version from the build, the settings (loadout and
+// progress) in a key=value file under the app's internal storage.
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "../../core/dEngine.h"
+#include "../../core/player.h"
+
+#ifndef SHMUP_VERSION
+#define SHMUP_VERSION "dev"
+#endif
+
+int  gAndroidFrench = 0;					// set by android_main from AConfiguration
+char gAndroidWritableDir[512] = "";			// the activity's internalDataPath
+
+void Native_StartOnlineMatchmaking(int partySize) { (void)partySize; }
+void Native_CancelOnlineMatchmaking(void) {}
+void Native_GKSendData(const void* data, int len, int reliable) { (void)data; (void)len; (void)reliable; }
+int  Native_IsFrenchLanguage(void) { return gAndroidFrench; }
+
+const char* Native_GetVersionString(void)
+{
+	static char buf[32] = "";
+	if (buf[0] == 0)
+		snprintf(buf, sizeof(buf), "v%s", SHMUP_VERSION);
+	return buf;
+}
+
+char* FS_GameWritableDir(void) { return gAndroidWritableDir; }
+
+static void AND_SaveSettings(void)
+{
+	char path[600];
+	FILE* f;
+	if (!gAndroidWritableDir[0]) return;
+	snprintf(path, sizeof(path), "%s/settings.cfg", gAndroidWritableDir);
+	f = fopen(path, "w");
+	if (!f) { Log_Printf("[settings] cannot write %s\n", path); return; }
+	fprintf(f, "sound=%d\nmusic=%d\ncontrol=%d\nship=%d\ncolor=%d\nhighestAct=%d\n",
+	        engine.soundEnabled, engine.musicEnabled, engine.controlMode, gShipChoice, gBulletColor, gHighestActReached);
+	fclose(f);
+}
+
+// Called by android_main before dEngine_Init, once the writable folder is known.
+void AND_LoadSettings(void)
+{
+	char path[600], line[256];
+	FILE* f;
+	engine.soundEnabled = 1;
+	engine.musicEnabled = 1;
+	engine.controlMode = CONTROL_MODE_SWIP;
+	if (!gAndroidWritableDir[0]) return;
+	snprintf(path, sizeof(path), "%s/settings.cfg", gAndroidWritableDir);
+	f = fopen(path, "r");
+	if (!f) return;
+	while (fgets(line, sizeof(line), f))
+	{
+		int v = atoi(strchr(line, '=') ? strchr(line, '=') + 1 : "0");
+		if      (!strncmp(line, "sound=", 6))       engine.soundEnabled = v ? 1 : 0;
+		else if (!strncmp(line, "music=", 6))       engine.musicEnabled = v ? 1 : 0;
+		else if (!strncmp(line, "control=", 8))     engine.controlMode = (uchar)v;
+		else if (!strncmp(line, "ship=", 5))        gShipChoice = v;
+		else if (!strncmp(line, "color=", 6))       gBulletColor = v;
+		else if (!strncmp(line, "highestAct=", 11)) gHighestActReached = v;
+	}
+	fclose(f);
+	if (gShipChoice  < 0 || gShipChoice  >= NUM_SHIP_CHOICES)  gShipChoice  = 0;
+	if (gBulletColor < 0 || gBulletColor >= NUM_BULLET_COLORS) gBulletColor = 0;
+	if (gHighestActReached < 1) gHighestActReached = 1;
+	if (gHighestActReached > 5) gHighestActReached = 5;
+}
+
+void Native_SaveLoadout(int ship, int color) { gShipChoice = ship; gBulletColor = color; AND_SaveSettings(); }
+void Native_SaveProgress(int highestAct)   { gHighestActReached = highestAct; AND_SaveSettings(); }
+
 
 //ITextureloader.h
 #include "../../core/texture.h"

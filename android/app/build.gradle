@@ -5,10 +5,10 @@ plugins {
 android {
     namespace 'net.fabiensanglard.shmup'
     compileSdk 34
-
+    ndkVersion "26.3.11579264"
     defaultConfig {
         applicationId "net.fabiensanglard.shmup"
-        minSdk 34
+        minSdk 26
         targetSdk 34
         versionCode 7
         versionName "7.0"

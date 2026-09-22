@@ -28,8 +28,8 @@
 #if defined(__APPLE__) && defined(SHMUP_TARGET_IOS)
 #include "renderer_metal.h"	// v3
 #endif
-#if defined(SHMUP_TARGET_WINDOWS)
-#include "renderer_gl.h"	// round 87: the desktop OpenGL backend (src/backends/gl)
+#if defined(SHMUP_TARGET_WINDOWS) || defined(SHMUP_TARGET_ANDROID)
+#include "renderer_gl.h"	// round 87: the OpenGL backend (src/backends/gl); round 90: GL ES 2 on Android
 #endif
 #include "stats.h"
 #include "timer.h"
@@ -215,7 +215,7 @@ void SCR_BindMethods(int rendererType)
 		initMetalRenderer(&renderer);
 	}
 #endif
-#if defined(SHMUP_TARGET_WINDOWS)
+#if defined(SHMUP_TARGET_WINDOWS) || defined(SHMUP_TARGET_ANDROID)
 	if (rendererType == GL_RENDERER)
 	{
 		Log_Printf("[Renderer] Running in mode OpenGL\n");

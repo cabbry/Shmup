@@ -15,6 +15,17 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-format-security -DANDROID -DNATIVE_ACTI
 set(BASE "../../../../../src")
 file(GLOB SOURCES ${BASE}/core/*.h ${BASE}/core/*.c)
 file(GLOB ANDROID_BACKENDS ${BASE}/backends/android/*.h ${BASE}/backends/android/*.c)
+# Round 90: the OpenGL backend (GL ES 2 flavour on Android) and the version,
+# from the one place it is kept.
+set(GL_BACKEND ${BASE}/backends/gl/renderer_gl.c ${BASE}/backends/gl/renderer_gl.h)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../ios/shmup.plist" SHMUP_PLIST)
+string(REGEX MATCH "CFBundleShortVersionString</key>[ \t\r\n]*<string>([^<]+)</string>" _m "${SHMUP_PLIST}")
+set(SHMUP_VERSION "${CMAKE_MATCH_1}")
+if(NOT SHMUP_VERSION)
+    set(SHMUP_VERSION "dev")
+endif()
+add_compile_definitions(SHMUP_VERSION="${SHMUP_VERSION}")
+include_directories(${BASE}/core ${BASE}/backends/gl)
 
 add_library( # Sets the name of the library.
         shmup
@@ -43,6 +54,7 @@ add_library( # Sets the name of the library.
         ${BASE}/third_party/libpng/arm/palette_neon_intrinsics.c
         ${SOURCES}
         ${ANDROID_BACKENDS}
+        ${GL_BACKEND}
         )
 
 # Searches for a specified prebuilt library and stores the path as a
@@ -66,7 +78,6 @@ target_link_libraries( # Specifies the target library.
         shmup
         android
         EGL
-        GLESv1_CM
         GLESv2
         z
         OpenSLES

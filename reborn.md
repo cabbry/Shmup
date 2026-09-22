@@ -500,6 +500,27 @@ it ever reached a device — which is why the game looks the same and why
   and stops the track, then a frame later the engine loaded scene 0 and
   started the menu music again — over the home screen, GPU running for a
   window nobody was looking at. Paused, the loop now waits on the looper.
+- **"Les graphismes sont tous défoncés."** Coming back from the home screen,
+  the menu was in pieces: labels black, then glyph rubble, then — once the
+  pause no longer reloaded the scene over it — a black screen. Three faces of
+  one fault, and the morning's APK reproduced it on a freshly booted emulator,
+  which cleared the day's commits and the emulator itself. Android **destroys
+  the native window** when the activity goes to the background, and the 2012
+  glue answered the next APP_CMD_INIT_WINDOW by building a whole new EGL
+  context and a second display system. Every texture the engine knew lived in
+  the context that had just gone; the old pause path hid part of it by
+  reloading the scene, which brought the scene's textures back but never the
+  menu atlas. Now APP_CMD_TERM_WINDOW releases the *surface* only: the context
+  outlives the window with every texture, buffer and shader in it, and the
+  next window gets a fresh surface hung on it ("Re-attached to a new window,
+  textures kept"). Drawing is refused while there is no surface. Checked on
+  the home menu, the difficulty and act menus, and act I in progress — the
+  sky, the neon structures and the HUD all come back untouched.
+- **Windows had the same misuse**, without the punishment: WM_ACTIVATE called
+  the same 2010 pair, so alt-tabbing threw away the game in progress. It now
+  freezes and resumes like iOS. The lesson is one line: dEngine_Pause is not a
+  pause, it is a teardown, and only dEngine_ResumeGame comes back from the
+  background.
 
 ### 2026-09-22 — round 89 (full screen with black bands, the menus at the keyboard)
 - **"Le jeu devient hyper large"**: since v1 the engine fills its whole

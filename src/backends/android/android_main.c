@@ -116,6 +116,8 @@
 
 #include "android_display.h"
 #include "android_filesystem.h"
+#include <unistd.h>	// usleep
+void SND_Android_Init(AAssetManager* mgr);	// android_music.c
 
 // ANDROID_LOG_TAG must be defined via a compiler flag in Android.mk. This is done so
 // Shmup and ShmupLite can use the same codebase.

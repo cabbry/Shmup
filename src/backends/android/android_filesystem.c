@@ -77,7 +77,7 @@ filehandle_t* FS_OpenFile( const char *filename, char* mode  ){
 	if (filename[0] == '/')
 		filename++ ;
 
-	const char* androidFilename[256];
+	char androidFilename[256];	// round 90: was an array of 256 POINTERS used as a string buffer
 	androidFilename[0] = 0;
 //	strcat(androidFilename, "assets/");
 	strcat(androidFilename, filename);

@@ -189,6 +189,13 @@ void loadNativePNG(texture_t* tmpTex)
 	if (color_type == PNG_COLOR_TYPE_PALETTE) {
 		png_set_palette_to_rgb(png_ptr);
 	}
+	// Round 90: four bytes per pixel whatever the file, as CoreGraphics (iOS)
+	// and WIC (Windows) hand the renderers -- the GL backend uploads RGBA and
+	// forces the fourth byte of an RGB image to opaque.
+	if (!(color_type & PNG_COLOR_MASK_ALPHA) && color_type != PNG_COLOR_TYPE_PALETTE)
+		png_set_filler(png_ptr, 0xff, PNG_FILLER_AFTER);
+	if (color_type == PNG_COLOR_TYPE_PALETTE)
+		png_set_add_alpha(png_ptr, 0xff, PNG_FILLER_AFTER);
 
 	// Update the png info struct.
 	png_read_update_info(png_ptr, info_ptr);
@@ -235,6 +242,22 @@ void loadNativePNG(texture_t* tmpTex)
   //Decompressing PNG to RAW where row_pointers are pointing (tmpTex->data[0])
 	png_read_image(png_ptr, row_pointers);
 
+	// Round 90: premultiplied alpha, as the other two loaders deliver it (the
+	// blends were tuned on it since 2009).
+	if ((color_type & PNG_COLOR_MASK_ALPHA) && tmpTex->bpp == 4)
+	{
+		unsigned char* px = tmpTex->data[0];
+		size_t k, n = (size_t)width * height;
+		for (k = 0; k < n; k++, px += 4)
+		{
+			unsigned a = px[3];
+			if (a == 255) continue;
+			px[0] = (unsigned char)((px[0] * a + 127) / 255);
+			px[1] = (unsigned char)((px[1] * a + 127) / 255);
+			px[2] = (unsigned char)((px[2] * a + 127) / 255);
+		}
+	}
+
   //Last but not least:
 
 
@@ -247,5 +270,3 @@ void loadNativePNG(texture_t* tmpTex)
   FS_CloseFile(file);
 }
 
-int Native_IsFrenchLanguage(void) { return 0; }	// v2: menu localization (EN on Android for now)
-const char* Native_GetVersionString(void) { return "v?"; }	// v5: no bundle to read here

@@ -196,7 +196,7 @@ GLSL_VS_PREAMBLE
 "uniform vec4 uColor; uniform vec4 uLightPosEye; uniform vec4 uLightAmbient; uniform vec4 uLightDiffuse; uniform vec4 uLightSpecular;\n"
 "uniform vec4 uMatSpecular; uniform vec4 uParams; uniform ivec4 uFlags;\n"
 "varying vec2 vUV; varying vec4 vColor; varying float vFogF;\n"
-"vec4 gl_light(vec4 eye, vec3 n) {\n"
+"vec4 fixedLight(vec4 eye, vec3 n) {\n"
 "  const vec3 matAmb = vec3(0.2); const vec3 matDif = vec3(0.8); const vec3 globAmb = vec3(0.2);\n"
 "  vec3 L = uLightPosEye.xyz - eye.xyz; float d = length(L); L = L / max(d, 1e-5);\n"
 "  float att = 1.0 / max(uParams.z + uParams.w * d, 1e-5);\n"
@@ -209,7 +209,7 @@ GLSL_VS_PREAMBLE
 "  }\n"
 "  return vec4(clamp(c, 0.0, 1.0), 1.0);\n"
 "}\n"
-"float gl_fog(vec4 eye) {\n"
+"float fixedFog(vec4 eye) {\n"
 "  if (uFlags.z == 0) return 1.0;\n"
 "  float z = -eye.z;\n"
 "  return clamp((uParams.y - z) / max(uParams.y - uParams.x, 1e-5), 0.0, 1.0);\n"
@@ -219,8 +219,8 @@ static const char* kVS[VK_COUNT] = {
 // 3D: vertex_t (pos float3, normal short3 normalized, uv short2 normalized)
 "attribute vec3 aPos; attribute vec3 aNormal; attribute vec2 aUV;\n"
 "void main() { vec4 p = vec4(aPos, 1.0); vec4 eye = uMV * p; gl_Position = uMVP * p; vUV = aUV;\n"
-"  if (uFlags.x != 0) { vec3 n = normalize((uNormalM * vec4(aNormal, 0.0)).xyz); vColor = gl_light(eye, n); } else vColor = uColor;\n"
-"  vFogF = gl_fog(eye); }\n",
+"  if (uFlags.x != 0) { vec3 n = normalize((uNormalM * vec4(aNormal, 0.0)).xyz); vColor = fixedLight(eye, n); } else vColor = uColor;\n"
+"  vFogF = fixedFog(eye); }\n",
 // stars: float3 pos, uchar4 colour
 "attribute vec3 aPos; attribute vec4 aColor;\n"
 "void main() { gl_Position = uMVP * vec4(aPos, 1.0); vUV = vec2(0.0); vColor = aColor * uColor; vFogF = 1.0; }\n",

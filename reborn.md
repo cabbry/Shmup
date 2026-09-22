@@ -384,9 +384,9 @@ order, each step a build:
   first thing to try.
 - **Android** — runs since round 90 on the GL backend's ES 2 flavour; the
   CI builds the APK; menus, act I, music and effects checked on the
-  emulator (effects at -6 dB like the other backends). Open: a real device
-  (the music's crackle on the emulator), the LAN (netchannel stubs on
-  Android), sound pause/resume in the OpenSL backend, the Play Store
+  emulator (effects at -6 dB, the music pausing with the game). The light
+  crackle was measured down to the emulator's own resampling, not our code.
+  Open: a real device, the LAN (netchannel stubs on Android), the Play Store
   question.
 - **Gameplay videos on YouTube** (Fabien's suggestion): the five acts, the Act
   III side-view beat, Rain's storm, a LAN match, an online match. A recording
@@ -480,9 +480,21 @@ it ever reached a device — which is why the game looks the same and why
   OpenSL ES as in 2012. "Les explosions saturées": the 2012 backend played
   every effect at full scale where OpenAL (AL_GAIN 0.5), AVAudioEngine and
   waveOut play them at half — two explosions together clipped; each OpenSL
-  player now carries a volume interface set to -6 dB. The music's light
-  crackle is not Android's: its audio flinger reports zero underruns, the
-  emulator's host path resamples — to judge on a real device.
+  player now carries a volume interface set to -6 dB.
+- **The crackle is the emulator's, and it took three measurements to say so
+  rather than guess.** The audio flinger reports zero underruns, on our
+  track and on every other. Android's own ringtones, all at 48 kHz, play
+  clean. Our menu music — a 22 kHz mono MP3 — crackles *even when Android's
+  own player plays it with the game stopped*, added to the sound picker from
+  the very list that had just played a clean ringtone. And the same file, on
+  the same speakers, plays clean in the Windows build. So: not our code, not
+  the file; what is left is a 22 kHz track resampled to the 48 kHz output
+  inside the emulator. A real device remains the last word.
+- **The music pauses with the game.** Both functions had been left unwritten
+  in 2012, and the core calls them at two places: the activity losing focus
+  and a multiplayer pause. The proof came from the crackle hunt — with the
+  game sent to the home screen, its music went on playing over Android's own.
+  SL_PLAYSTATE_PAUSED keeps the head where it is; STOPPED would rewind.
 
 ### 2026-09-22 — round 89 (full screen with black bands, the menus at the keyboard)
 - **"Le jeu devient hyper large"**: since v1 the engine fills its whole

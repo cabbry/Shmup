@@ -418,7 +418,9 @@ void android_main(struct android_app* state) {
 		// If not animating, we will block forever waiting for events.
 		// If animating, we loop until all events are read, then continue
 		// to draw the next frame of animation.
-		while ((ident = ALooper_pollAll(0, NULL, &events,(void**)&source)) >= 0)
+		// Round 90: paused, the loop waits on the looper instead of spinning;
+		// running, it takes what is pending and goes straight to the frame.
+		while ((ident = ALooper_pollAll(gAndroidPaused ? 100 : 0, NULL, &events,(void**)&source)) >= 0)
 		{
 			// Process this event.
 			if (source != NULL)
@@ -431,6 +433,13 @@ void android_main(struct android_app* state) {
 				gameOn = 0;
 			}
 		}
+
+		// Round 90: a pause is a pause. dEngine_Pause drops to the home menu and
+		// stops the music, but 2012 kept simulating and drawing anyway: a frame
+		// later the engine loaded scene 0 and started the menu music again, over
+		// the home screen, with the GPU running for a window nobody was looking at.
+		if (gAndroidPaused)
+			continue;
 
 		int frameStart = E_Sys_Milliseconds();
 		engine_draw_frame();

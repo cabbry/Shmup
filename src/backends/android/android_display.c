@@ -121,6 +121,24 @@ int engine_init_display(void) {
 }
 
 
+// Round 90: the surface changed size (the system bars hid, immersive):
+// re-read it and tell the engine and the backend.
+void engine_resize_display(void) {
+	EGLint w, h;
+	if (engineDisplay == EGL_NO_DISPLAY || engineSurface == EGL_NO_SURFACE)
+		return;
+	eglQuerySurface(engineDisplay, engineSurface, EGL_WIDTH, &w);
+	eglQuerySurface(engineDisplay, engineSurface, EGL_HEIGHT, &h);
+	if (w <= 0 || h <= 0)
+		return;
+	if (w == renderer.glBuffersDimensions[WIDTH] && h == renderer.glBuffersDimensions[HEIGHT])
+		return;
+	Log_Printf("Rendering surface is now %dx%d.\n", w, h);
+	GLR_Resize(w, h);
+	GLR_SetSurface(0, 0, w, h);
+	SRC_OnResizeScreen(w, h);
+}
+
  void engine_term_display(void) {
 
 	if (engineDisplay != EGL_NO_DISPLAY)

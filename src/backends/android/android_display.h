@@ -9,4 +9,5 @@ extern ANativeWindow* window;
 
 void engine_draw_frame(void);
 int engine_init_display(void);
+void engine_resize_display(void);
 void engine_term_display(void);

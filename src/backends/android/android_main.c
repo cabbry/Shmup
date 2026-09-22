@@ -116,6 +116,7 @@
 
 #include "android_display.h"
 #include "android_filesystem.h"
+#include "../../core/music.h"
 #include <unistd.h>	// usleep
 void SND_Android_Init(AAssetManager* mgr);	// android_music.c
 
@@ -134,6 +135,7 @@ void SND_Android_Init(AAssetManager* mgr);	// android_music.c
 #define printf(fmt,args...) __android_log_print(ANDROID_LOG_INFO  ,LOG_TAG, fmt, ##args)
 
 int gameOn = 0;
+static int gAndroidPaused = 0;	// round 90: focus lost pauses instead of quitting
 void AND_SHMUP_Finish(){
 	engine_term_display();
 	//shutdownAudio();
@@ -287,16 +289,18 @@ static void engine_handle_cmd(struct android_app* state, int32_t cmd) {
             break;
         case APP_CMD_GAINED_FOCUS:
         	LOGI("APP_CMD_GAINED_FOCUS");
+        	// Round 90: focus comes back -- the notification shade, the
+        	// immersive transition -- so the game resumes; 2012 had quit here.
+        	if (gAndroidPaused) { SND_ResumeSoundTrack(); dEngine_Resume(); gAndroidPaused = 0; }
             break;
         case APP_CMD_LOST_FOCUS:
-        	printf("APP_CMD_LOST_FOCUS");
-        	AND_SHMUP_Finish();
+        	LOGI("APP_CMD_LOST_FOCUS");
+        	if (!gAndroidPaused) { dEngine_Pause(); SND_PauseSoundTrack(); gAndroidPaused = 1; }
             break;
         case APP_CMD_WINDOW_RESIZED:
+        case APP_CMD_CONTENT_RECT_CHANGED:
         	LOGI("APP_CMD_WINDOW_RESIZED");
-        	//window = state->window;
-        	//engine_term_display();
-        	//engine_init_display();
+        	engine_resize_display();	// round 90: the bars hid, the surface grew
         	break;
         case APP_CMD_CONFIG_CHANGED:
         	printf("APP_CMD_CONFIG_CHANGED");

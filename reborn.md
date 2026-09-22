@@ -521,6 +521,19 @@ it ever reached a device — which is why the game looks the same and why
   freezes and resumes like iOS. The lesson is one line: dEngine_Pause is not a
   pause, it is a teardown, and only dEngine_ResumeGame comes back from the
   background.
+- **"Je n'arrive pas à sortir du jeu."** Immersive mode hides the navigation
+  bar, so Back is the only way out — and Back did not work. 2012 asked
+  AMotionEvent for the action of a *key* event, the wrong half of the union,
+  and then quit with exit(0) from the input thread. Back is now read as a key
+  and answered like a Back button: leave the act, then leave the sub-menu, then
+  leave the game through ANativeActivity_finish (a live match is ended first).
+  That woke a thirteen-year-old sleeper: the main loop wrote `break` *before*
+  `gameOn = 0`, so android_main never returned, the glue never acknowledged
+  APP_CMD_DESTROY and the activity hung on its way out — "Shmup isn't
+  responding". It had never shown, because nothing had ever asked the activity
+  to finish. Checked: Back from act I lands on the home menu, Back from the
+  difficulty menu lands on the home menu, Back at the home menu closes the app
+  with no dialog and no activity left.
 
 ### 2026-09-22 — round 89 (full screen with black bands, the menus at the keyboard)
 - **"Le jeu devient hyper large"**: since v1 the engine fills its whole

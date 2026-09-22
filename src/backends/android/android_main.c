@@ -455,12 +455,19 @@ void android_main(struct android_app* state) {
 					source->process(state, source);
 
 			// Check if we are exiting.
+			// Round 90: 2012 wrote the break before the assignment, so gameOn
+			// was never cleared: android_main never returned, the glue never
+			// acknowledged APP_CMD_DESTROY, and the activity hung on its way
+			// out -- "Shmup isn't responding". It had no way to show before,
+			// because nothing ever asked the activity to finish.
 			if (state->destroyRequested != 0) {
-
-				break;
 				gameOn = 0;
+				break;
 			}
 		}
+
+		if (!gameOn)
+			break;
 
 		// Round 90: a pause is a pause. dEngine_Pause drops to the home menu and
 		// stops the music, but 2012 kept simulating and drawing anyway: a frame

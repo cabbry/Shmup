@@ -173,37 +173,41 @@ io_event_s shmupEvent;
 int32_t engine_handle_input(struct android_app* app, AInputEvent* event) {
 
 	size_t i;
+	size_t action;
 
-	size_t action = AMotionEvent_getAction(event) & AMOTION_EVENT_ACTION_MASK;
+	// Round 90: the Back key, read as a key event. 2012 asked AMotionEvent for
+	// the action of a key -- the wrong half of the union -- and quit the whole
+	// process with exit(0) from the input thread. With the navigation bar hidden
+	// by immersive mode, Back is the only way out, so it has to be the one the
+	// player expects: leave what is playing, then leave the menus, then leave.
+	if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_KEY)
+	{
+		if (AKeyEvent_getKeyCode(event) != AKEYCODE_BACK)
+			return 0;	// volume and the rest stay the system's business
 
-	//System input (sound control, back home, ...).
-	int32_t keFlags = AKeyEvent_getFlags(event);
-	if (keFlags & AKEY_EVENT_FLAG_FROM_SYSTEM){
-			Log_Printf("AKEY_EVENT_FLAG_FROM_SYSTEM\n");
+		if (AKeyEvent_getAction(event) == AKEY_EVENT_ACTION_UP)
+		{
+			Log_Printf("[back] sceneId=%d menu=%d\n", engine.sceneId, MENU_Get());
 
+			if (NET_IsRunning())				// a match: leave it before anything else
+				NET_Free();
 
-			int32_t keyCode = AKeyEvent_getKeyCode(event);
-			/* The only system input we are interested in is the BACK button:
-			 * - If we are in the action phase it will bring us back to the main
-			 * menu.
-			 * - If we are in the menu, we exit the application
-			 */
-			if (keyCode == AKEYCODE_BACK && action == AMOTION_EVENT_ACTION_UP)
+			if (engine.sceneId != 0)		// an act, the tutorial, the demo: back to the menu
 			{
-				Log_Printf("engine_handle_input keyCode=%d\n",keyCode);
-				if (engine.sceneId == 0){
-					AND_SHMUP_Finish();
-					return 1;
-				}
-				else if (engine.requiredSceneId != 0 && engine.sceneId != 0){
-					MENU_Set(MENU_HOME);
-					engine.requiredSceneId=0;
-					return 1;
-				}
-
+				MENU_Set(MENU_HOME);
+				engine.requiredSceneId = 0;
 			}
-			return 0;
+			else if (MENU_Get() != MENU_HOME)	// a sub-menu: back to the home menu
+				MENU_Set(MENU_HOME);
+			else
+				ANativeActivity_finish(app->activity);	// the home menu: leave the game
+		}
+
+		return 1;	// both down and up, or the system closes us behind our back
 	}
+
+	// From here on the event is a touch, so its action is a motion action.
+	action = AMotionEvent_getAction(event) & AMOTION_EVENT_ACTION_MASK;
 
 
 

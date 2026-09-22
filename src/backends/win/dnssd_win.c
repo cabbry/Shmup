@@ -229,6 +229,13 @@ static void OwnHostName(void)
 	}
 	if (j == 0) gOwnHost[j++] = 'p';
 	gOwnHost[j] = 0;
+	// NOT the machine's own name: Windows answers mDNS for "<pc>.local"
+	// itself, with EVERY adapter's address (a VPN's included), and the
+	// iPhone seated a phantom player on the second one (the first PC-iPhone
+	// match, 2026-09-22). A name only this responder answers for, with the
+	// one LAN address.
+	memmove(gOwnHost + 6, gOwnHost, j + 1);
+	memcpy(gOwnHost, "shmup-", 6);
 	strcat(gOwnHost, ".local.");
 }
 

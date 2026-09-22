@@ -490,11 +490,16 @@ it ever reached a device — which is why the game looks the same and why
   the same speakers, plays clean in the Windows build. So: not our code, not
   the file; what is left is a 22 kHz track resampled to the 48 kHz output
   inside the emulator. A real device remains the last word.
-- **The music pauses with the game.** Both functions had been left unwritten
-  in 2012, and the core calls them at two places: the activity losing focus
-  and a multiplayer pause. The proof came from the crackle hunt — with the
-  game sent to the home screen, its music went on playing over Android's own.
-  SL_PLAYSTATE_PAUSED keeps the head where it is; STOPPED would rewind.
+- **A pause is a pause.** The crackle hunt turned it up: with the game sent
+  to the home screen, its music went on playing over Android's own. Two
+  faults, one behind the other. SND_PauseSoundTrack and SND_ResumeSoundTrack
+  had been left unwritten in 2012 although the core calls them at two places
+  (focus lost, multiplayer pause); they now set the OpenSL play state, PAUSED
+  rather than STOPPED so the head stays where it is. And the main loop drew
+  and simulated whatever the pause said: dEngine_Pause drops to the home menu
+  and stops the track, then a frame later the engine loaded scene 0 and
+  started the menu music again — over the home screen, GPU running for a
+  window nobody was looking at. Paused, the loop now waits on the looper.
 
 ### 2026-09-22 — round 89 (full screen with black bands, the menus at the keyboard)
 - **"Le jeu devient hyper large"**: since v1 the engine fills its whole

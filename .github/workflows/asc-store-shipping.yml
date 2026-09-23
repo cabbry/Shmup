@@ -131,7 +131,9 @@ jobs:
               print(f"  {len(terr)} territories")
               if not terr:
                   raise SystemExit("no territory came back")
-              write("POST", "/v1/appAvailabilitiesV2", {
+              # the relationship is appAvailabilityV2, but the collection lives
+              # under /v2/; try that first, then the older path
+              body = {
                   "data": {"type": "appAvailabilities",
                            "attributes": {"availableInNewTerritories": True},
                            "relationships": {
@@ -141,8 +143,17 @@ jobs:
                   "included": [{"type": "territoryAvailabilities", "id": "${t%s}" % t,
                                 "attributes": {"available": True},
                                 "relationships": {"territory": {"data": {"type": "territories", "id": t}}}}
-                               for t in terr]})
-              print("  available everywhere, and in new territories as they open")
+                               for t in terr]}
+              last = None
+              for path in ("/v2/appAvailabilities", "/v1/appAvailabilities"):
+                  try:
+                      write("POST", path, body)
+                      print("  available everywhere, and in new territories as they open")
+                      return
+                  except SystemExit as e:
+                      print("   ", path, "->", str(e)[:200])
+                      last = e
+              raise last
 
           # ------------------------------------------------------------- privacy
           def privacy():

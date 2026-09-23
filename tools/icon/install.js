@@ -2,7 +2,9 @@ const fs=require("fs"), path=require("path");
 const {render, writePNG} = require(__dirname+"/real.js");
 
 // the chosen picture: three-quarter, night blue, framed so the hull fills the square
-const VIEW  = {yaw:215, pitch:35, roll:14, zoom:1.22, shift:[0.01,0], pad:0.03};
+const VIEW  = {yaw:215, pitch:35, roll:14, zoom:1.12, shift:[-0.06,0], pad:0.03};
+// shifted left: at the old framing the cannon and the right hull -- the
+// front of the ship -- fell outside the square.
 const LIGHT = {amb:0.5, key:1.25, fillK:0.4, rimK:0.35, specK:0.7};
 const GROUND = [26,30,48];                 // the same navy as the render
 const ss = s => s<=192 ? 4 : s<=512 ? 3 : 2;

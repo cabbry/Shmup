@@ -88,12 +88,16 @@ jobs:
                             **{"include": "appPricePoint", "limit": 50})
                   prices = [i["attributes"].get("customerPrice")
                             for i in mp.get("included", []) if i["type"] == "appPricePoints"]
-                  print("  a price schedule already exists; customer price(s):", prices or "none read")
+                  print("  a price schedule already exists; customer price(s):", prices or "none")
                   if prices and all(x in ("0", "0.00", "0.0") for x in prices):
                       print("  already free -- left alone")
-                  else:
-                      print("  ::warning:: not read as free; left alone, set it in the web UI if needed")
-                  return
+                      return
+                  if prices:
+                      print("  ::warning:: priced, not free -- left alone, change it in the web UI")
+                      return
+                  # a schedule with no manual price is an app with no price:
+                  # write one. POST replaces the app schedule whole.
+                  print("  the schedule carries no price -- writing the free one")
               pts = get(f"/v1/apps/{app_id}/appPricePoints",
                         **{"filter[territory]": "USA", "include": "territory", "limit": 200})
               free = [p for p in pts.get("data", [])

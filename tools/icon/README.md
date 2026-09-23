@@ -38,3 +38,18 @@ On the view from above, nose up, tilted six degrees: the silhouette
 is symmetric, the two hull plates are the biggest shapes on screen, and the
 red markings fall where the eye lands. Backface culling halves the triangles
 (3906 to about 1820) and changes nothing on a closed hull.
+
+## The other two scripts
+
+`real.js` is not an icon maker, it is a **render**: per-pixel texture with
+bilinear sampling, vertex normals averaged and then kept hard across a 62
+degree crease, key light plus fill plus rim plus a specular lobe, a depth
+buffer, and supersampling. Use it for a hero picture of the ship, for a store
+page or a press kit. At icon size it turns to mush, which is the whole reason
+the stylised path above exists.
+
+`kanji.js` lifts the game's own Japanese title out of `menu/homeAtlas` and
+composites it over a flat ground. Two things to know. The ink runs from x 10
+to x 666 in the atlas and a neighbouring glyph starts at x 712, so the crop
+has to stop in the gap. And the brush was drawn with a soft alpha, so a
+contrast curve on that alpha firms the edge without killing the taper.

@@ -79,8 +79,19 @@ jobs:
 
           # ---------------------------------------------------------------- price
           def price():
-              cur = soft(f"/v1/apps/{app_id}/appPriceSchedule", **{"include": "baseTerritory"})
+              cur = soft(f"/v1/apps/{app_id}/appPriceSchedule",
+                         **{"include": "baseTerritory,manualPrices", "limit[manualPrices]": 50})
               if cur.get("data"):
+                  # say what it actually costs before leaving it alone
+                  pids = [x["id"] for x in ((cur["data"].get("relationships", {}).get("manualPrices", {}) or {}).get("data") or [])]
+                  for inc in cur.get("included", []):
+                      if inc["type"] == "appPrices" and inc["id"] in pids:
+                          ppid = ((inc.get("relationships", {}).get("appPricePoint", {}) or {}).get("data") or {}).get("id")
+                          pp = soft(f"/v1/appPricePoints/{ppid}") if ppid else {}
+                          a = (pp.get("data") or {}).get("attributes", {})
+                          print("   manual price:", a.get("customerPrice"), "proceeds", a.get("proceeds"))
+                      elif inc["type"] == "territories":
+                          print("   base territory:", inc["id"])
                   print("  a price schedule already exists -- left alone")
                   return
               pts = get(f"/v1/apps/{app_id}/appPricePoints",
@@ -131,7 +142,15 @@ jobs:
 
           # ------------------------------------------------------------- privacy
           def privacy():
-              used = soft(f"/v1/apps/{app_id}/appDataUsages", **{"limit": 50})
+              # App privacy has moved around; ask the app which relationships it
+              # exposes rather than guessing a path.
+              me = get(f"/v1/apps/{app_id}")
+              names = sorted((me.get("data", {}).get("relationships", {}) or {}).keys())
+              print("  app relationships:", ", ".join(names))
+              path = next((n for n in names if "DataUsage" in n or "dataUsage" in n), None)
+              if not path:
+                  raise SystemExit("this app exposes no data-usage relationship; the questionnaire stays a web form")
+              used = soft(f"/v1/apps/{app_id}/{path}", **{"limit": 50})
               rows = used.get("data", [])
               print(f"  {len(rows)} data usage row(s) declared")
               if not rows:
@@ -142,7 +161,8 @@ jobs:
                                    "dataProtection": {"data": {"type": "appDataUsageDataProtections",
                                                                "id": "DATA_NOT_COLLECTED"}}}}})
                   print("  declared: no data collected")
-              st = soft(f"/v1/apps/{app_id}/appDataUsagesPublishState")
+              pub = next((n for n in names if "PublishState" in n), None)
+              st = soft(f"/v1/apps/{app_id}/{pub}") if pub else {}
               sid = (st.get("data") or {}).get("id")
               published = ((st.get("data") or {}).get("attributes", {}) or {}).get("published")
               print("  publish state:", sid, "published =", published)

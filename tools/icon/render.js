@@ -44,21 +44,35 @@ function build(o){
     // of the face: average the centroid and three inner points
     const U=[M.verts[t[0]].u,M.verts[t[1]].u,M.verts[t[2]].u];
     const V=[M.verts[t[0]].v,M.verts[t[1]].v,M.verts[t[2]].v];
-    const bary=[[1/3,1/3,1/3],[0.6,0.2,0.2],[0.2,0.6,0.2],[0.2,0.2,0.6]];
+    // nine samples, and the MEDIAN luminance decides the material: a mean lets
+    // one bright speck flip a whole face to white, which is what made the
+    // stylised hull sparkle like static
+    const bary=[[1/3,1/3,1/3],[0.6,0.2,0.2],[0.2,0.6,0.2],[0.2,0.2,0.6],
+                [0.45,0.45,0.1],[0.45,0.1,0.45],[0.1,0.45,0.45],
+                [0.5,0.3,0.2],[0.2,0.3,0.5]];
+    const S9=[];
     let alb=[0,0,0];   // eslint-disable-line prefer-const
     for(const w of bary){
       const c2 = sample(U[0]*w[0]+U[1]*w[1]+U[2]*w[2], V[0]*w[0]+V[1]*w[1]+V[2]*w[2]);
+      S9.push(c2);
       alb[0]+=c2[0]/bary.length; alb[1]+=c2[1]/bary.length; alb[2]+=c2[2]/bary.length;
     }
+    const lums = S9.map(c2=>(0.299*c2[0]+0.587*c2[1]+0.114*c2[2])/255).sort((a,b)=>a-b);
+    const medianLum = lums[(lums.length-1)>>1];
+    const redVotes = S9.filter(c2 => c2[0] > 1.35*c2[1] && c2[0] > 1.25*c2[2] &&
+                                     Math.max(...c2)-Math.min(...c2) > 18).length;
     // Round 91: the hull texture is dark and busy; an icon needs matter you can
     // read at 60 pixels. Keep WHERE the texture puts its plates, its greebles
     // and its red, remap WHAT they are onto three tones and one accent.
     if (o.stylise){
-      const mx2=Math.max(alb[0],alb[1],alb[2]), mn2=Math.min(alb[0],alb[1],alb[2]);
-      const lum=(0.299*alb[0]+0.587*alb[1]+0.114*alb[2])/255;
-      const red = alb[0] > 1.35*alb[1] && alb[0] > 1.25*alb[2] && mx2-mn2 > 18;
       const PAL = o.palette || {plate:[236,235,240], steel:[150,152,166], dark:[44,46,60], accent:[176,32,46]};
-      alb = red ? PAL.accent : lum > 0.42 ? PAL.plate : lum > 0.17 ? PAL.steel : PAL.dark;
+      const red = redVotes >= 5;                 // a majority of the face, not a speck
+      // a hard threshold makes neighbouring faces flip between two tones and
+      // the hull turns into a checkerboard: ride the ramp instead
+      const mix=(A,B,t)=>[0,1,2].map(i=>A[i]+(B[i]-A[i])*Math.max(0,Math.min(1,t)));
+      alb = red ? PAL.accent
+          : medianLum <= 0.34 ? mix(PAL.dark, PAL.steel, (medianLum-0.10)/0.24)
+          : mix(PAL.steel, PAL.plate, (medianLum-0.34)/0.28);
     }
     const lam = Math.max(0, dot(n, L));
     const rim = Math.pow(1 - Math.abs(n[2]), 3) * (o.rim===undefined?0.35:o.rim);
@@ -85,7 +99,7 @@ function svg(tris, o){
 }
 
 // ---- a tiny rasterizer, so the eye can judge before anyone ships it
-function png(tris, o){
+function raster(tris, o){
   const S=o.size, img=Buffer.alloc(S*S*4);
   const zb=new Float32Array(S*S).fill(-1e9);
   if(o.rgb){ for(let i=0;i<S*S;i++){ img[i*4]=o.rgb[0]; img[i*4+1]=o.rgb[1]; img[i*4+2]=o.rgb[2]; img[i*4+3]=255; } }
@@ -107,7 +121,10 @@ function png(tris, o){
       img[o2]=t.col[0]; img[o2+1]=t.col[1]; img[o2+2]=t.col[2]; img[o2+3]=255;
     }
   }
-  // encode
+  return img;
+}
+function png(tris,o){
+  const S=o.size, img=raster(tris,o);
   const stride=S*4, raw=Buffer.alloc((stride+1)*S);
   for(let y=0;y<S;y++){ raw[y*(stride+1)]=0; img.copy(raw, y*(stride+1)+1, y*stride, (y+1)*stride); }
   const chunk=(type,data)=>{
@@ -128,4 +145,4 @@ function crc32(buf){
   for(const b of buf) c = TB[(c^b)&255] ^ (c>>>8);
   return (c^0xFFFFFFFF)>>>0;
 }
-module.exports={build, svg, png};
+module.exports={build, svg, png, raster};

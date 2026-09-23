@@ -79,20 +79,20 @@ jobs:
 
           # ---------------------------------------------------------------- price
           def price():
-              cur = soft(f"/v1/apps/{app_id}/appPriceSchedule",
-                         **{"include": "baseTerritory,manualPrices", "limit[manualPrices]": 50})
+              # the manualPrices include 404s on this resource, so read the
+              # schedule bare and its prices from their own path
+              cur = soft(f"/v1/apps/{app_id}/appPriceSchedule")
               if cur.get("data"):
-                  # say what it actually costs before leaving it alone
-                  pids = [x["id"] for x in ((cur["data"].get("relationships", {}).get("manualPrices", {}) or {}).get("data") or [])]
-                  for inc in cur.get("included", []):
-                      if inc["type"] == "appPrices" and inc["id"] in pids:
-                          ppid = ((inc.get("relationships", {}).get("appPricePoint", {}) or {}).get("data") or {}).get("id")
-                          pp = soft(f"/v1/appPricePoints/{ppid}") if ppid else {}
-                          a = (pp.get("data") or {}).get("attributes", {})
-                          print("   manual price:", a.get("customerPrice"), "proceeds", a.get("proceeds"))
-                      elif inc["type"] == "territories":
-                          print("   base territory:", inc["id"])
-                  print("  a price schedule already exists -- left alone")
+                  sid = cur["data"]["id"]
+                  mp = soft(f"/v1/appPriceSchedules/{sid}/manualPrices",
+                            **{"include": "appPricePoint", "limit": 50})
+                  prices = [i["attributes"].get("customerPrice")
+                            for i in mp.get("included", []) if i["type"] == "appPricePoints"]
+                  print("  a price schedule already exists; customer price(s):", prices or "none read")
+                  if prices and all(x in ("0", "0.00", "0.0") for x in prices):
+                      print("  already free -- left alone")
+                  else:
+                      print("  ::warning:: not read as free; left alone, set it in the web UI if needed")
                   return
               pts = get(f"/v1/apps/{app_id}/appPricePoints",
                         **{"filter[territory]": "USA", "include": "territory", "limit": 200})
@@ -149,7 +149,9 @@ jobs:
               print("  app relationships:", ", ".join(names))
               path = next((n for n in names if "DataUsage" in n or "dataUsage" in n), None)
               if not path:
-                  raise SystemExit("this app exposes no data-usage relationship; the questionnaire stays a web form")
+                  print("  no data-usage relationship on this app: App Privacy is a web form only.")
+                  print("  App Store Connect > the app > App Privacy > Data Not Collected")
+                  return
               used = soft(f"/v1/apps/{app_id}/{path}", **{"limit": 50})
               rows = used.get("data", [])
               print(f"  {len(rows)} data usage row(s) declared")

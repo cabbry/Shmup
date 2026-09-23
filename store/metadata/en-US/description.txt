@@ -1,6 +1,6 @@
 SHMUP is the 3D shoot'em up Fabien Sanglard wrote in 2009, inspired by Treasure's Ikaruga. Reborn brings it back to today's iPhones and iPads: full screen, Metal rendering, Game Center, and multiplayer for up to four ships.
 
-Fly through five acts on rails. Dawn, Hope, Dusk, Rain and the Final act each have their own city, their own waves and their own tricks: a side-view beat in the middle of Dusk, a storm to cross in Rain, and at the end a boss with two living, skeletal arms that reach for you like a pincer. Tear an arm off and it fights on with the other.
+Five acts, five cities, and the old pleasure of a shoot'em up that asks something of you. You go in, you die, you go back in, and one evening your hands know the way through. No open world, nothing to unlock for hours, no cutscene to sit through: a ship, a screen filling with bullets, and the one line through it you have to find. Every act keeps something for those who get that far.
 
 Nothing is random. Every wave, every bullet and every boss move is deterministic, so the same run plays the same way twice. Learn the patterns, then beat them.
 

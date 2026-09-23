@@ -391,12 +391,25 @@ order, each step a build:
 - **Gameplay videos on YouTube** (Fabien's suggestion): the five acts, the Act
   III side-view beat, Rain's storm, a LAN match, an online match. A recording
   session away.
-- **App Store release — in preparation (round 85).** The listing is in
-  `store/` and two workflows read and write App Store Connect; the record
-  is written: 5.0.10, both languages, category, age rating, review notes,
-  build 270 attached. Waiting for Fabien's word. Then: screenshots from the
-  devices into `store/screenshots` (and a push), the three clicks in App
-  Store Connect (privacy, price, contact), Submit.
+- **App Store release — the author has said yes (2026-09-23).** Fabien, by
+  mail: "Je valide." He also asks for videos of the evolution, and has a Mac
+  patch to send. The listing is in `store/` and three workflows read and
+  write App Store Connect. Written and read back: version 5.0.10 in
+  preparation with build 270 attached, both languages, category Games /
+  Action, age rating 9+, review notes, copyright, manual release — and now
+  **free** (price schedule, base territory USA) and **available in all 175
+  territories**, new ones included, through `asc-store-shipping`.
+  What is left is what no key can write:
+    * **Screenshots** — from the tester's own iPhone, into
+      `store/screenshots/<locale>/APP_IPHONE_67/`, then `asc-store-push`.
+      That folder's README says what to photograph and in what order.
+    * **App Privacy** — "Data Not Collected". Not an oversight: the app
+      exposes no data-usage relationship at all (the workflow asks the API
+      and prints the list), so the questionnaire is a web form, full stop.
+    * **App Review contact** — name, phone, e-mail. Personal data, so it goes
+      neither in this public repository nor through a workflow input, whose
+      logs are public. The web UI, or repository secrets.
+    * **Submit for review**, then release by hand on the chosen day.
   iMessage invites and SharePlay only light up once the app is on the store.
 - **Small things**, triaged by the tester (2026-09-18): the fade under the act
   title card on Metal stays, on purpose; the menu buttons touching the screen

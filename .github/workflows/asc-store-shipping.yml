@@ -1,0 +1,162 @@
+name: ASC — price, availability, privacy
+
+# The three answers App Store Connect wants that are not text in store/:
+#   * price: free, everywhere, base territory USA
+#   * availability: every territory, and new ones as Apple adds them
+#   * app privacy: "Data Not Collected", then published
+# Each section stands on its own: one failing prints its error and the others
+# still run. It NEVER submits for review, and it writes no personal data --
+# the App Review contact stays out of this repository and out of these logs.
+#
+# Inputs: dry_run (print the plan, write nothing).
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "true = print what would change, write nothing"
+        default: "true"
+
+jobs:
+  shipping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Price, availability, privacy
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          pip install --quiet pyjwt cryptography requests
+          python3 - <<'EOF'
+          import os, time, jwt, requests, json
+          DRY = (os.environ.get("DRY_RUN") or "true").lower() != "false"
+          token = jwt.encode(
+              {"iss": os.environ["ISSUER_ID"], "iat": int(time.time()) - 30,
+               "exp": int(time.time()) + 1200, "aud": "appstoreconnect-v1"},
+              os.environ["PRIVATE_KEY"], algorithm="ES256",
+              headers={"kid": os.environ["KEY_ID"]})
+          H = {"Authorization": "Bearer " + token, "Content-Type": "application/json"}
+          base = "https://api.appstoreconnect.apple.com"
+          failures = []
+
+          def call(method, path, body=None, params=None, ok=(200, 201, 204)):
+              r = requests.request(method, base + path, headers=H, params=params,
+                                   data=json.dumps(body) if body is not None else None)
+              j = {}
+              if r.text:
+                  try: j = r.json()
+                  except Exception: j = {"text": r.text[:500]}
+              if r.status_code not in ok:
+                  raise SystemExit(f"{method} {path} -> {r.status_code}: {json.dumps(j)[:1200]}")
+              return j
+          def get(path, **params): return call("GET", path, params=params)
+          def soft(path, **params):
+              # a 404 here means "not set yet", which is what we are here to fix
+              try: return get(path, **params)
+              except SystemExit as e:
+                  print("   (read:", str(e)[:200], ")")
+                  return {}
+          def write(method, path, body):
+              print(f"  {'(dry) ' if DRY else ''}{method} {path} {json.dumps(body)[:400]}")
+              return {"data": {"id": "dry"}} if DRY else call(method, path, body)
+          def section(name, fn):
+              print(f"\n== {name.upper()}")
+              try: fn()
+              except SystemExit as e:
+                  print("  ! ", str(e)[:1200]); failures.append(name)
+              except Exception as e:
+                  print("  ! ", repr(e)[:400]); failures.append(name)
+
+          apps = get("/v1/apps", **{"filter[bundleId]": "com.cabbry.shmup"})
+          app_id = apps["data"][0]["id"]
+          print("app", app_id, apps["data"][0]["attributes"]["name"], "| dry run", DRY)
+
+          # ---------------------------------------------------------------- price
+          def price():
+              cur = soft(f"/v1/apps/{app_id}/appPriceSchedule", **{"include": "baseTerritory"})
+              if cur.get("data"):
+                  print("  a price schedule already exists -- left alone")
+                  return
+              pts = get(f"/v1/apps/{app_id}/appPricePoints",
+                        **{"filter[territory]": "USA", "include": "territory", "limit": 200})
+              free = [p for p in pts.get("data", [])
+                      if (p["attributes"].get("customerPrice") or "") in ("0", "0.00", "0.0")]
+              print(f"  {len(pts.get('data', []))} price points for USA, {len(free)} of them free")
+              if not free:
+                  raise SystemExit("no free price point for USA")
+              pp = free[0]["id"]
+              write("POST", "/v1/appPriceSchedules", {
+                  "data": {"type": "appPriceSchedules",
+                           "relationships": {
+                               "app": {"data": {"type": "apps", "id": app_id}},
+                               "baseTerritory": {"data": {"type": "territories", "id": "USA"}},
+                               "manualPrices": {"data": [{"type": "appPrices", "id": "${price}"}]}}},
+                  "included": [{"type": "appPrices", "id": "${price}",
+                                "attributes": {"startDate": None, "endDate": None},
+                                "relationships": {"appPricePoint": {"data": {"type": "appPricePoints", "id": pp}}}}]})
+              print("  free, base territory USA")
+
+          # --------------------------------------------------------- availability
+          def availability():
+              cur = soft(f"/v1/apps/{app_id}/appAvailabilityV2")
+              if cur.get("data"):
+                  print("  availability already set -- left alone")
+                  return
+              terr, path = [], "/v1/territories?limit=200"
+              while path:
+                  page = call("GET", path.replace(base, ""))
+                  terr += [t["id"] for t in page.get("data", [])]
+                  path = (page.get("links", {}) or {}).get("next")
+              print(f"  {len(terr)} territories")
+              if not terr:
+                  raise SystemExit("no territory came back")
+              write("POST", "/v1/appAvailabilitiesV2", {
+                  "data": {"type": "appAvailabilities",
+                           "attributes": {"availableInNewTerritories": True},
+                           "relationships": {
+                               "app": {"data": {"type": "apps", "id": app_id}},
+                               "territoryAvailabilities": {
+                                   "data": [{"type": "territoryAvailabilities", "id": "${t%s}" % t} for t in terr]}}},
+                  "included": [{"type": "territoryAvailabilities", "id": "${t%s}" % t,
+                                "attributes": {"available": True},
+                                "relationships": {"territory": {"data": {"type": "territories", "id": t}}}}
+                               for t in terr]})
+              print("  available everywhere, and in new territories as they open")
+
+          # ------------------------------------------------------------- privacy
+          def privacy():
+              used = soft(f"/v1/apps/{app_id}/appDataUsages", **{"limit": 50})
+              rows = used.get("data", [])
+              print(f"  {len(rows)} data usage row(s) declared")
+              if not rows:
+                  write("POST", "/v1/appDataUsages", {
+                      "data": {"type": "appDataUsages",
+                               "relationships": {
+                                   "app": {"data": {"type": "apps", "id": app_id}},
+                                   "dataProtection": {"data": {"type": "appDataUsageDataProtections",
+                                                               "id": "DATA_NOT_COLLECTED"}}}}})
+                  print("  declared: no data collected")
+              st = soft(f"/v1/apps/{app_id}/appDataUsagesPublishState")
+              sid = (st.get("data") or {}).get("id")
+              published = ((st.get("data") or {}).get("attributes", {}) or {}).get("published")
+              print("  publish state:", sid, "published =", published)
+              if sid and not published:
+                  write("PATCH", f"/v1/appDataUsagesPublishStates/{sid}", {
+                      "data": {"type": "appDataUsagesPublishStates", "id": sid,
+                               "attributes": {"published": True}}})
+                  print("  published")
+
+          section("price", price)
+          section("availability", availability)
+          section("privacy", privacy)
+
+          print("\ndone" + (" (dry run: nothing written)" if DRY else ""))
+          if failures:
+              raise SystemExit("unfinished: " + ", ".join(failures))
+          EOF

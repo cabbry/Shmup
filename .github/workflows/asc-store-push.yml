@@ -258,8 +258,18 @@ jobs:
                   r = requests.request(op["method"], op["url"], headers=hdrs, data=chunk)
                   if r.status_code not in (200, 201, 204):
                       raise SystemExit(f"upload chunk of {path} -> {r.status_code}")
-              call("PATCH", f"/v1/appScreenshots/{shot['id']}", {"data": {"type": "appScreenshots", "id": shot["id"],
-                   "attributes": {"uploaded": True, "sourceFileChecksum": hashlib.md5(data).hexdigest()}}})
+              # Apple answers this one with a 500 now and then; it is the commit of
+              # an upload that already went through, so it is worth asking again.
+              body = {"data": {"type": "appScreenshots", "id": shot["id"],
+                      "attributes": {"uploaded": True, "sourceFileChecksum": hashlib.md5(data).hexdigest()}}}
+              for attempt in range(4):
+                  try:
+                      call("PATCH", f"/v1/appScreenshots/{shot['id']}", body)
+                      break
+                  except SystemExit as e:
+                      if attempt == 3 or " 500" not in str(e): raise
+                      print(f"   (500 on commit of {os.path.basename(path)}, retrying in {5*(attempt+1)}s)")
+                      time.sleep(5*(attempt+1))
           for locale, lid in loc_ids.items():
               root = os.path.join("store/screenshots", locale)
               if not os.path.isdir(root): continue

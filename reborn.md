@@ -391,25 +391,30 @@ order, each step a build:
 - **Gameplay videos on YouTube** (Fabien's suggestion): the five acts, the Act
   III side-view beat, Rain's storm, a LAN match, an online match. A recording
   session away.
-- **App Store release — the author has said yes (2026-09-23).** Fabien, by
-  mail: "Je valide." He also asks for videos of the evolution, and has a Mac
-  patch to send. The listing is in `store/` and three workflows read and
-  write App Store Connect. Written and read back: version 5.0.10 in
-  preparation with build 270 attached, both languages, category Games /
-  Action, age rating 9+, review notes, copyright, manual release — and now
-  **free** (price schedule, base territory USA) and **available in all 175
-  territories**, new ones included, through `asc-store-shipping`.
-  What is left is what no key can write:
-    * **Screenshots** — from the tester's own iPhone, into
-      `store/screenshots/<locale>/APP_IPHONE_67/`, then `asc-store-push`.
-      That folder's README says what to photograph and in what order.
-    * **App Privacy** — "Data Not Collected". Not an oversight: the app
-      exposes no data-usage relationship at all (the workflow asks the API
-      and prints the list), so the questionnaire is a web form, full stop.
-    * **App Review contact** — name, phone, e-mail. Personal data, so it goes
-      neither in this public repository nor through a workflow input, whose
-      logs are public. The web UI, or repository secrets.
-    * **Submit for review**, then release by hand on the chosen day.
+- **App Store — submitted for review, 2026-09-24.** Version 5.0.11 with build
+  271, state WAITING_FOR_REVIEW, release set to manual so the day is chosen.
+  Fabien said yes by mail on the 23rd ("Je valide"); he also asked for videos
+  of the evolution and has a Mac patch to send.
+  What it took, beyond the text in `store/`:
+    * **The icon had to ship inside a build.** The App Store shows the icon
+      that is *in the binary*, so the new one meant a new build: hence 5.0.11.
+    * **Written through the API** (`asc-store-shipping`): free, base territory
+      USA; available in all 175 territories, new ones included; content rights
+      declared as no third-party content.
+    * **Left to the web form**, because the API exposes no relationship for
+      them on this app: App Privacy ("Data Not Collected"), the Game Center
+      checkbox a build with the entitlement requires, and the review contact,
+      which is personal data and stays out of this repository and its logs.
+    * **Screenshots**: four per language from the tester's iPhone, scaled from
+      1179x2556 to the 1290x2796 Apple asks for (the aspects differ by 0.02 %,
+      so nothing is cropped), and three per language of act I from a 13-inch
+      iPad simulator at 2064x2752 -- the app targets both families, so Apple
+      demands an iPad set. All written without an alpha channel, which App
+      Store Connect refuses.
+    * Two traps on the way: Apple answers 500 now and then when committing a
+      screenshot upload (the push now asks again), and `shots.yml` sent every
+      device name that was not exactly "iPad" into the iPhone branch, so a
+      13-inch iPad quietly photographed a phone.
   iMessage invites and SharePlay only light up once the app is on the store.
 - **Small things**, triaged by the tester (2026-09-18): the fade under the act
   title card on Metal stays, on purpose; the menu buttons touching the screen

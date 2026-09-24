@@ -189,6 +189,29 @@ jobs:
                                "attributes": {"published": True}}})
                   print("  published")
 
+          # ------------------------------------------------------- content rights
+          def rights():
+              # "Does this app contain third-party content?" -- no: the engine, the
+              # art and the two music tracks are all Fabien's own 2009 release.
+              cur = (get(f"/v1/apps/{app_id}").get("data") or {}).get("attributes", {}).get("contentRightsDeclaration")
+              print("  declared:", cur)
+              if cur == "DOES_NOT_USE_THIRD_PARTY_CONTENT":
+                  print("  already answered -- left alone")
+                  return
+              write("PATCH", f"/v1/apps/{app_id}", {"data": {"type": "apps", "id": app_id,
+                     "attributes": {"contentRightsDeclaration": "DOES_NOT_USE_THIRD_PARTY_CONTENT"}}})
+
+          # --------------------------------------------------------- game center
+          def gamecenter():
+              # the build carries the Game Center entitlement, so the version has to
+              # say so. Read what this app exposes before trying to write anything.
+              d = soft(f"/v1/apps/{app_id}/gameCenterDetail")
+              print("  gameCenterDetail:", json.dumps(d.get("data") or {})[:300])
+              v = soft(f"/v1/apps/{app_id}/gameCenterEnabledVersions", **{"limit": 5})
+              print("  gameCenterEnabledVersions:", len(v.get("data") or []))
+
+          section("content rights", rights)
+          section("game center", gamecenter)
           section("price", price)
           section("availability", availability)
           section("privacy", privacy)

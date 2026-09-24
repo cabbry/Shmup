@@ -67,15 +67,26 @@ jobs:
         id: sim
         run: |
           DEV="${{ inputs.device || 'iPhone' }}"
-          if [ "$DEV" = "iPad" ]; then
-            UDID=$(xcrun simctl list devices available | grep -E "iPad" | head -1 | grep -oE "[0-9A-F-]{36}")
-          else
-            UDID=$(xcrun simctl list devices available | grep -E "iPhone (1[5-9]|SE)" | head -1 | grep -oE "[0-9A-F-]{36}")
-          fi
+          # Round 91: anything that was not exactly "iPad" used to fall into the
+          # iPhone branch, so asking for a 13-inch iPad quietly photographed a
+          # phone. A name now picks a device, and "iPad" prefers the largest one
+          # -- the App Store asks for the 13-inch set.
+          case "$DEV" in
+            iPad)   PATTERNS="iPad Pro 13|iPad Pro .12.9|iPad Air 13|iPad" ;;
+            iPhone) PATTERNS="iPhone (1[5-9]|SE)" ;;
+            *)      PATTERNS="$DEV" ;;
+          esac
+          LINE=""
+          IFS='|' read -ra PARTS <<< "$PATTERNS"
+          for pat in "${PARTS[@]}"; do
+            LINE=$(xcrun simctl list devices available | grep -E "$pat" | head -1)
+            [ -n "$LINE" ] && break
+          done
+          UDID=$(echo "$LINE" | grep -oE "[0-9A-F-]{36}")
           if [ -z "$UDID" ]; then
-            UDID=$(xcrun simctl list devices available | grep "$DEV" | head -1 | grep -oE "[0-9A-F-]{36}")
+            echo "no simulator matched '$DEV'"; exit 1
           fi
-          echo "Using simulator $UDID"
+          echo "Using simulator: $LINE"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"

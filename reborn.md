@@ -391,6 +391,20 @@ order, each step a build:
 - **Gameplay videos on YouTube** (Fabien's suggestion): the five acts, the Act
   III side-view beat, Rain's storm, a LAN match, an online match. A recording
   session away.
+- **App Store — 5.0.12 resubmitted, 2026-10-08.** Build 272, state
+  READY_FOR_REVIEW, release still manual. The reply to App Review was posted
+  in the resolution centre first: the switches were mine, they were never
+  meant to ship, intent is not a guarantee, here is the compile-time flag and
+  the pipeline check -- and the source is public, verify it.
+  Two mechanics worth remembering for the next refusal:
+    * **Apple refuses a second version while one is in flight**
+      (`You cannot create a new version of the App in the current state`,
+      409 on POST /v1/appStoreVersions). A refused version is editable again,
+      so the move is to **rename it** -- 5.0.11 became 5.0.12 in the web form
+      -- and then let `asc-store-push` find it and attach the new build.
+    * The archive check earns its place on the first run:
+      `clean: no SHMUP_* switch name in the archived binary`, printed between
+      the archive and the upload.
 - **App Store — refused under guideline 5.6, 2026-10-08.** Fourteen days in the
   queue, then: *"the app contains features that appear to have been
   intentionally hidden during the review process"*. No specifics, as always

@@ -24,6 +24,7 @@
  */
 
 #include "player.h"
+#include "ci_hooks.h"
 #include <stdlib.h>	// getenv: the SHMUP_AUTOFIRE CI probe
 #include "renderer.h"
 #include "camera.h"
@@ -734,7 +735,7 @@ void P_Update(void)
 				static int autofire = -1;
 				if (autofire < 0)
 				{
-					char* e = getenv("SHMUP_AUTOFIRE");
+					char* e = CI_GETENV("SHMUP_AUTOFIRE");
 					autofire = (e && e[0] == '1') ? 1 : 0;
 				}
 				// singleplayer-only: firing from LOCAL env state inside the

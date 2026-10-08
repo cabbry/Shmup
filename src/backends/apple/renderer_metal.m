@@ -37,6 +37,7 @@
  */
 
 #import <Metal/Metal.h>
+#include "../../core/ci_hooks.h"
 #import <QuartzCore/CAMetalLayer.h>
 #import <simd/simd.h>
 
@@ -1159,7 +1160,7 @@ static void RenderEntitiesM(void)
 	sCullBack = 1;			// glEnable(GL_CULL_FACE): ships and enemies are culled
 
 	if (cullDebug < 0)
-		cullDebug = getenv("SHMUP_CULL_DEBUG") ? 1 : 0;
+		cullDebug = CI_GETENV("SHMUP_CULL_DEBUG") ? 1 : 0;
 	if (cullDebug || gRuntimeCullMap)
 	{
 		if (cullDebug && ++cullLogTick >= 60)

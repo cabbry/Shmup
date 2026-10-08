@@ -54,6 +54,7 @@ jobs:
             -project dEngine.xcodeproj \
             -target Shmup \
             -configuration Release \
+            GCC_PREPROCESSOR_DEFINITIONS='$(inherited) SHMUP_CI_HOOKS=1' \
             -sdk iphonesimulator \
             -arch arm64 \
             SYMROOT="$PWD/build" \

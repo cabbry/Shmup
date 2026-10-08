@@ -30,6 +30,7 @@
 // enemy->parameters[], HP) so it stays deterministic in lockstep multiplayer.
 
 #include <string.h>
+#include "ci_hooks.h"
 #include <stdlib.h>	// v5: getenv (the CI-only SHMUP_ARMS_FREEZE switch)
 
 #include "lofb.h"
@@ -519,7 +520,7 @@ static void LOFB_PoseArms(enemy_t* enemy)
 		// CI-only A/B switch: SHMUP_ARMS_FREEZE=1 leaves the mesh in its rest
 		// skin (the rig loaded, the poses never applied).
 		static int freeze = -1;
-		if (freeze < 0) freeze = getenv("SHMUP_ARMS_FREEZE") ? 1 : 0;
+		if (freeze < 0) freeze = CI_GETENV("SHMUP_ARMS_FREEZE") ? 1 : 0;
 		if (freeze) return;
 	}
 	if (!gPoseBonesValid)
@@ -591,7 +592,7 @@ static void LOFB_PoseArms(enemy_t* enemy)
 			// left Pince tilted 12 deg about X, right Pince swung 30 deg about Y --
 			// so one Simulator frame shows what each axis does on screen.
 			static int test = -1;
-			if (test < 0) test = getenv("SHMUP_ARMS_TEST") ? 1 : 0;
+			if (test < 0) test = CI_GETENV("SHMUP_ARMS_TEST") ? 1 : 0;
 			if (test) { blocSwing = blocTilt = 0; pinceSwing = (k == 1) ? 30.0f : 0.0f; pinceTilt = (k == 0) ? 12.0f : 0.0f; }
 		}
 

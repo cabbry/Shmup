@@ -132,6 +132,7 @@
 
 
 #include <stdlib.h>	// getenv (CI smoke invulnerability switch)
+#include "ci_hooks.h"
 #include "collisions.h"
 #include "player.h"
 #include "enemy.h"
@@ -415,7 +416,7 @@ void COLL_CheckPlayers(void)
 	// never affect a real device or lockstep play.
 	static int smokeInvuln = -1;
 	if (smokeInvuln < 0)
-		smokeInvuln = getenv("SHMUP_INVULN") ? 1 : 0;
+		smokeInvuln = CI_GETENV("SHMUP_INVULN") ? 1 : 0;
 	if (smokeInvuln)
 		return;
 
@@ -767,7 +768,7 @@ void COLL_CheckEnemies(void)
 	{
 		static int smokeInvuln = -1;
 		if (smokeInvuln < 0)
-			smokeInvuln = getenv("SHMUP_INVULN") ? 1 : 0;
+			smokeInvuln = CI_GETENV("SHMUP_INVULN") ? 1 : 0;
 		if (smokeInvuln)
 			return;
 	}

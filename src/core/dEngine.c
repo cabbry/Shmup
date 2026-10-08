@@ -24,6 +24,7 @@
  */
 
 #include "dEngine.h"
+#include "ci_hooks.h"
 #include <stdlib.h>
 
 #include "globals.h"
@@ -374,7 +375,7 @@ void dEngine_WriteScreenshot(char* directory)
 // P_InitPlayers quietly take it back.
 static void dEngine_ApplyFakePlayers(void)
 {
-	char* fake = getenv("SHMUP_FAKE_PLAYERS");
+	char* fake = CI_GETENV("SHMUP_FAKE_PLAYERS");
 	if (fake && engine.mode == DE_MODE_SINGLEPLAYER)
 	{
 		int n = atoi(fake), i;
@@ -561,7 +562,7 @@ bool dEngine_Init(void)
 	// the rail (visibility bake included) and saves the .cp2b to the writable
 	// dir -- run in the iOS Simulator, where the file is easy to extract.
 	{
-		char* bakeScene = getenv("SHMUP_BAKE_SCENE");
+		char* bakeScene = CI_GETENV("SHMUP_BAKE_SCENE");
 		if (bakeScene)
 			dEngine_RequireSceneId(atoi(bakeScene));
 	}
@@ -873,7 +874,7 @@ void dEngine_CheckState(void)
 		static int replayed = 0;
 		if (replayScene == -2)
 		{
-			char* e = getenv("SHMUP_REPLAY_SCENE");
+			char* e = CI_GETENV("SHMUP_REPLAY_SCENE");
 			replayScene = e ? atoi(e) : 0;
 		}
 		if (replayScene > 0 && !replayed &&

@@ -24,6 +24,7 @@
  */
 
 #include "preproc.h"
+#include "ci_hooks.h"
 #include "filesystem.h"
 #include "lexer.h"
 #include "collisions.h"
@@ -554,7 +555,7 @@ prec_camera_frame_t* PREPROC_ReadFrameFromFile(void)
 	// reads on screen as "the level starts in the void"). Dump what the lexer
 	// actually produced when SHMUP_CULL_DEBUG is set.
 	if (preprocKeyframeDebug < 0)
-		preprocKeyframeDebug = getenv("SHMUP_CULL_DEBUG") ? 1 : 0;
+		preprocKeyframeDebug = CI_GETENV("SHMUP_CULL_DEBUG") ? 1 : 0;
 	if (preprocKeyframeDebug)
 		Log_Printf("[cp keyframe] t=%d pos=(%.0f,%.0f,%.0f) quat=(%.3f,%.3f,%.3f,%.3f)\n",
 				   frame->time,

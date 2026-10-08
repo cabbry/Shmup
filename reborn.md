@@ -392,7 +392,12 @@ order, each step a build:
   III side-view beat, Rain's storm, a LAN match, an online match. A recording
   session away.
 - **App Store — 5.0.12 resubmitted, 2026-10-08.** Build 272, state
-  READY_FOR_REVIEW, release still manual. The reply to App Review was posted
+  WAITING_FOR_REVIEW, release still manual. **`READY_FOR_REVIEW` means staged,
+  not sent**: attaching the version to the submission leaves it there, and a
+  second button on the submission page -- *Soumettre à nouveau à l'équipe de
+  vérification des apps* -- actually sends it. The tester spotted the button I
+  had read as residual. Only `WAITING_FOR_REVIEW` means Apple has it.
+  The reply to App Review was posted
   in the resolution centre first: the switches were mine, they were never
   meant to ship, intent is not a guarantee, here is the compile-time flag and
   the pipeline check -- and the source is public, verify it.

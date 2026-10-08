@@ -24,6 +24,7 @@
  */
 
 #include <stdlib.h>	// getenv (offline visibility bake switch)
+#include "ci_hooks.h"
 #include "camera.h"
 #include "renderer.h"
 #include "timer.h"
@@ -927,7 +928,7 @@ void CAM_LoadPath(void)
 		// visibility set and write the .cp2b out to be committed.
 		// NOTE: this used to be keyed on gRuntimeCullMap, which now starts OFF --
 		// so every text rail silently took the slow bake at load time.
-		if (getenv("SHMUP_BAKE_VIS"))
+		if (CI_GETENV("SHMUP_BAKE_VIS"))
 		{
 			PREPROC_SetSkipVis(0);
 			memset(binPath, 0, 256);

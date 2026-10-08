@@ -24,6 +24,7 @@
  */
 
 #include "menu.h"
+#include "ci_hooks.h"
 #include "renderer.h"
 #include <limits.h>
 #include "dEngine.h"
@@ -1737,8 +1738,8 @@ int MENU_ScrollTouch(int eventType, short touchY)
 // home scene, SHMUP_MENU_SCROLL=<n> presets its scroll (0 = top, up to scrollMax).
 void MENU_ApplyEnvHooks(void)
 {
-	char* mid = getenv("SHMUP_MENU");
-	char* sc  = getenv("SHMUP_MENU_SCROLL");
+	char* mid = CI_GETENV("SHMUP_MENU");
+	char* sc  = CI_GETENV("SHMUP_MENU_SCROLL");
 	if (mid && SCENE_IS(SCENE_KIND_INTRO))
 	{
 		int id = atoi(mid);

@@ -40,6 +40,7 @@
  */
 
 #include "config.h"
+#include "../../core/ci_hooks.h"
 #include "renderer_gl.h"
 #include "dEngine.h"
 #include "camera.h"
@@ -1192,7 +1193,7 @@ static void RenderEntitiesG(void)
 	sCullBack = 1;			// glEnable(GL_CULL_FACE): ships and enemies are culled
 
 	if (cullDebug < 0)
-		cullDebug = getenv("SHMUP_CULL_DEBUG") ? 1 : 0;
+		cullDebug = CI_GETENV("SHMUP_CULL_DEBUG") ? 1 : 0;
 	if (cullDebug || gRuntimeCullMap)
 	{
 		if (cullDebug && ++cullLogTick >= 60)

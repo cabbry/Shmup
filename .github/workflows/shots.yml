@@ -54,6 +54,7 @@ jobs:
             -project dEngine.xcodeproj \
             -target Shmup \
             -configuration Release \
+            GCC_PREPROCESSOR_DEFINITIONS='$(inherited) SHMUP_CI_HOOKS=1' \
             -sdk iphonesimulator \
             -arch arm64 \
             SYMROOT="$PWD/build" \
@@ -72,12 +73,15 @@ jobs:
           # phone. A name now picks a device, and "iPad" prefers the largest one
           # -- the App Store asks for the 13-inch set.
           case "$DEV" in
-            iPad)   PATTERNS="iPad Pro 13|iPad Pro .12.9|iPad Air 13|iPad" ;;
+            iPad)   PATTERNS="iPad Pro 13;iPad Pro .12.9;iPad Air 13;iPad" ;;
             iPhone) PATTERNS="iPhone (1[5-9]|SE)" ;;
             *)      PATTERNS="$DEV" ;;
           esac
           LINE=""
-          IFS='|' read -ra PARTS <<< "$PATTERNS"
+          # ';' separates the alternatives, not '|': the iPhone pattern has an
+          # alternation of its own, and splitting on '|' handed grep the
+          # fragment "iPhone (1[5-9]" -- parentheses not balanced, exit 1.
+          IFS=';' read -ra PARTS <<< "$PATTERNS"
           for pat in "${PARTS[@]}"; do
             LINE=$(xcrun simctl list devices available | grep -E "$pat" | head -1)
             [ -n "$LINE" ] && break

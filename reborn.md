@@ -391,6 +391,56 @@ order, each step a build:
 - **Gameplay videos on YouTube** (Fabien's suggestion): the five acts, the Act
   III side-view beat, Rain's storm, a LAN match, an online match. A recording
   session away.
+- **App Store — 5.0.12 resubmitted, 2026-10-08.** Build 272, state
+  READY_FOR_REVIEW, release still manual. The reply to App Review was posted
+  in the resolution centre first: the switches were mine, they were never
+  meant to ship, intent is not a guarantee, here is the compile-time flag and
+  the pipeline check -- and the source is public, verify it.
+  Two mechanics worth remembering for the next refusal:
+    * **Apple refuses a second version while one is in flight**
+      (`You cannot create a new version of the App in the current state`,
+      409 on POST /v1/appStoreVersions). A refused version is editable again,
+      so the move is to **rename it** -- 5.0.11 became 5.0.12 in the web form
+      -- and then let `asc-store-push` find it and attach the new build.
+    * The archive check earns its place on the first run:
+      `clean: no SHMUP_* switch name in the archived binary`, printed between
+      the archive and the upload.
+- **App Store — refused under guideline 5.6, 2026-10-08.** Fourteen days in the
+  queue, then: *"the app contains features that appear to have been
+  intentionally hidden during the review process"*. No specifics, as always
+  with 5.6 -- the Developer Code of Conduct, which is the serious end of the
+  guidelines: it is about honesty, not about a bug.
+  What we actually shipped, and should not have:
+    * Fifteen `getenv()` calls, in nine files the iOS target compiles (a
+      sixteenth sits in the GL renderer Android uses), read on every build.
+      `SHMUP_INVULN` (collisions.c) made the ship invulnerable,
+      `SHMUP_AUTOFIRE` fired for the player, `SHMUP_FAKE_PLAYERS` put four
+      ships on screen, `SHMUP_REPLAY_SCENE` replayed an act, `SHMUP_MENU`
+      opened any menu. Each was written for the CI smoke, each carried a
+      comment saying so, and every one of them was in the binary Apple
+      scanned -- names and all, sitting next to a `getenv`. Read from outside,
+      that is a cheat menu wired to a switch the reviewer was not told about.
+      The comment "env-gated, so it can never affect a real device" stated an
+      intention; the binary stated a capability.
+    * What was *not* there, checked in the same pass: no remote configuration,
+      no network call beyond the LAN match, no date-dependent behaviour, no
+      hidden entry point. The only other env reads are `RD`/`WD`, which
+      `ios/main.m` sets itself from the bundle paths -- 2009 design, nothing
+      outside can reach them.
+  The fix, by construction rather than by promise:
+    * `src/core/ci_hooks.h`: `CI_GETENV(name)` is `getenv(name)` when
+      `SHMUP_CI_HOOKS` is defined and `((char*)0)` when it is not. Nothing
+      defines it by default, so the lookup folds away **and the compiler drops
+      the string literal with it** -- proved locally on both binaries: zero
+      occurrences of `SHMUP_` in the off build, all four names in the on build.
+    * The eight smoke workflows pass
+      `GCC_PREPROCESSOR_DEFINITIONS='$(inherited) SHMUP_CI_HOOKS=1'` on the xcodebuild
+      line. `testflight.yml` passes nothing, and now greps the archived binary
+      for `SHMUP_[A-Z_]+` and fails the build if a name survives. The default
+      is clean; only an explicit flag adds the hooks back.
+  Lesson worth keeping: a test-only switch is only test-only if the shipping
+  binary cannot express it. A comment is not a compile-time guarantee, and
+  App Review reads the binary, not the comment.
 - **App Store — submitted for review, 2026-09-24.** Version 5.0.11 with build
   271, state WAITING_FOR_REVIEW, release set to manual so the day is chosen.
   Fabien said yes by mail on the 23rd ("Je valide"); he also asked for videos

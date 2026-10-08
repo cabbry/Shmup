@@ -1,4 +1,5 @@
 #include "log.h"
+#include "ci_hooks.h"
 #include "filesystem.h"
 #include <stdarg.h>
 #include <stdio.h>
@@ -25,7 +26,7 @@ int Log_ProbesEnabled(void)
 {
 	static int flag = -1;
 	if (flag < 0)
-		flag = getenv("SHMUP_CULL_DEBUG") ? 1 : 0;
+		flag = CI_GETENV("SHMUP_CULL_DEBUG") ? 1 : 0;
 	return flag;
 }
 
@@ -39,7 +40,7 @@ static int logToFile = 0;
 
 void Log_Init(void)
 {
-	logToFile = (getenv("SHMUP_LOG_FILE") != NULL);
+	logToFile = (CI_GETENV("SHMUP_LOG_FILE") != NULL);
 
 	if (logToFile)
 		logFile_Handle = FS_OpenFile("shmup_log.txt","w");

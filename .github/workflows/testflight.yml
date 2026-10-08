@@ -107,6 +107,23 @@ jobs:
             IPHONEOS_DEPLOYMENT_TARGET=15.0 \
             archive 2>&1 | tee "$RUNNER_TEMP/archive.log"
 
+      # Guideline 5.6 refused 5.0.11: the CI smoke switches (invulnerability,
+      # autofire, replayed scene, forced menu) were read with getenv() in every
+      # build, so the shipping binary carried functionality a reviewer could not
+      # see. They now live behind SHMUP_CI_HOOKS, which only the smoke workflows
+      # define. This step is the proof: no test-only switch may reach the store.
+      - name: No test-only switch in the shipping binary
+        run: |
+          BIN="$RUNNER_TEMP/Shmup.xcarchive/Products/Applications/Shmup.app/Shmup"
+          test -f "$BIN" || { echo "binary not found: $BIN"; exit 1; }
+          FOUND=$(grep -a -o -E "SHMUP_[A-Z_]+" "$BIN" | sort -u || true)
+          if [ -n "$FOUND" ]; then
+            echo "::error::test-only switch names found in the shipping binary:"
+            echo "$FOUND"
+            exit 1
+          fi
+          echo "clean: no SHMUP_* switch name in the archived binary"
+
       - name: Export IPA
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST

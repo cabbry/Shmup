@@ -391,6 +391,46 @@ order, each step a build:
 - **Gameplay videos on YouTube** (Fabien's suggestion): the five acts, the Act
   III side-view beat, Rain's storm, a LAN match, an online match. A recording
   session away.
+- **App Store — 5.0.12 refused again under 5.6, 2026-10-23; one-pass
+  remediation.** The second refusal was byte-identical to the first, and for
+  a plain reason: between the two tags `ios/` and `data/` had not changed by
+  one byte. The 5.0.12 fix took the switches out of the executable, the
+  pipeline only grepped the executable, and the review notes were never
+  re-read. The rule that actually applies is 2.5.19 -- *hidden, dormant, or
+  undocumented* -- with 2.3.1(a): every feature described in the notes, and
+  reachable.
+  Eight read-only audits, run without knowing what had been found before,
+  listed what a reviewer could not see. The tester decided four things: all
+  five acts open from the first launch; controls, sound and music in an
+  in-game **Others > Options** screen (the iOS Settings page, with six rows
+  hidden behind misspelt types, is gone); a visible **pause button** "II"
+  instead of the five-finger gesture; and the music rights asked of Fabien
+  before anything is declared. Then everything else went: the test level and
+  the switch names in `config.cfg`, the 2010 Lite trial, the replay screen,
+  the button parked off-screen, the test hooks as whole `#ifdef` blocks, every
+  `getenv`. `tools/ci/check_shipping_app.sh` now looks at the whole app.
+  A second round of five fresh-eyes audits on that candidate -- one of them a
+  code review of the remediation itself -- found what a reviewer would have
+  met next:
+    * **Both tutorials still taught the five-finger gesture** the notes said
+      was gone. They now point to the [ BACK ] button shown at the top.
+    * **The virtual pad never worked on iOS since 2012**: a button acted only
+      when the finger lifted, so the stick did nothing held, and fire, once
+      released, fired for good. It now holds from press to release; a bench
+      of 28 touch sequences fails 17 times on the old code, none on the new.
+    * **The pause had bugs of its own**: quitting a match left the seat
+      behind (the next solo game wrote into a buffer nothing drained), the
+      pause flag outlived its scene, a finger lifted as the menu opened could
+      land on Quit, and an act's epilogue left running under Quit started the
+      next act from the home menu. One exit path now, a scene load clears the
+      title and the pause, a menu button needs its own press.
+    * Silent failures: a refused Local Network access, an online match that
+      cannot start. Both say so now; the waiting screen speaks French.
+    * Dormant code and data: a 2010 time jump nothing triggered, an input
+      recorder that never wrote, a frame grabber, 36 files no scene loads.
+  Still to settle before the next submission: the music line, the merge into
+  `master` (the privacy URL and the source the notes cite serve it), the
+  screenshots (none shows "II"), and the age rating's violence answer.
 - **App Store — 5.0.12 resubmitted, 2026-10-08.** Build 272, state
   WAITING_FOR_REVIEW, release still manual. **`READY_FOR_REVIEW` means staged,
   not sent**: attaching the version to the submission leaves it there, and a

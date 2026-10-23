@@ -54,7 +54,6 @@
 	net_channel_t net;
 #else
 
-#define DNSServiceRefDeallocate(x)Log_Printf("DNSServiceRefDeallocate(" #x ")\n"); DNSServiceRefDeallocate(x) 
 
 
 #define MESSAGE_NETMYIP 1
@@ -455,6 +454,11 @@ static unsigned int	gLanIps[MAX_NUM_PLAYERS];		// host byte order, sorted ascend
 static int			gLanCount = 0;
 static int			gLanChangedAt = 0;				// simulationTime of the last roster change
 static int			gLanLocked = 0;					// match started: roster frozen for good
+static int			gLanDenied = 0;					// iOS: the player refused Local Network access
+
+// kDNSServiceErr_PolicyDenied: what Bonjour answers once Local Network access
+// is refused (iOS 14 and later). Spelled out: the Windows shim does not have it.
+#define LAN_POLICY_DENIED (-65570)
 static int			gPartyTarget = 2;				// how many players this party is for
 static int			gAnnouncedScene = 0;			// v4.0.9: what the host last told the party to load
 static struct sockaddr_in gSeatAddr[MAX_NUM_PLAYERS];	// LAN: seat -> udp address
@@ -475,6 +479,7 @@ static void LAN_ResetRoster(void)
 	gLanCount = 0;
 	gLanChangedAt = 0;
 	gLanLocked = 0;
+	gLanDenied = 0;
 	memset(gSeatAddr, 0, sizeof(gSeatAddr));
 }
 
@@ -569,8 +574,8 @@ static void LAN_AddRosterIp(unsigned int ip)
 		net.serverAddResolved = 1;
 	}
 
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Players found: %d -> you are P%d%s",
-			gLanCount, net.ownSeat + 1, (net.ownSeat == 0 && gLanCount >= 2) ? " (HOST - your act plays)" : "");
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), MENU_Translate("%d players - you are Player %d%s"),
+			gLanCount, net.ownSeat + 1, (net.ownSeat == 0 && gLanCount >= 2) ? MENU_Translate(" (host)") : "");
 }
 
 // Deterministic N-way colour dedupe, ascending seats: a seat whose colour
@@ -755,15 +760,15 @@ void NET_StartOnlineMatch(int mySeat, int numSeats)
 	net.lastReceivedSequenceNumber = 0;
 	net.lastSentSequenceNumber     = 1;
 
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Online - you are Player %d of %d%s", mySeat + 1, numSeats,
-		(mySeat == 0) ? " (HOST - your act plays)" : "");
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   MENU_Translate("Online - Player %d of %d%s"), mySeat + 1, numSeats,
+		(mySeat == 0) ? MENU_Translate(" (host)") : "");
 	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Starting match...");
+	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "%s", MENU_Translate("Starting match..."));
 }
 
 void NET_AbortOnlineMatch(void)
 {
-	NET_Free();				// resets transport back to LAN, clears state
+	dEngine_LeaveMultiplayer();	// the session (transport back to LAN) and the mode
 	MENU_Set(MENU_MULTI_MODE);	// v2: multiplayer lives under Game Multi now
 }
 
@@ -787,9 +792,10 @@ void NET_Free(void)
 		Native_CancelOnlineMatchmaking();
 
 	// unregister
-	DNSServiceRefDeallocate(browseRef); browseRef=0;
-	DNSServiceRefDeallocate(registerRef);registerRef=0;
-	DNSServiceRefDeallocate(resolveRef);resolveRef=0;
+	if (browseRef)   DNSServiceRefDeallocate(browseRef);
+	if (registerRef) DNSServiceRefDeallocate(registerRef);
+	if (resolveRef)  DNSServiceRefDeallocate(resolveRef);
+	browseRef = registerRef = resolveRef = 0;
 	
 	net.type=NET_UNKNOWN;
 	net.serverAddResolved = 0;
@@ -955,6 +961,8 @@ void DNSServiceRegisterReplyCallback (
 									  void *context ) {
 	
 	Log_Printf("DNSServiceRegisterReplyCallback err=%d\n", errorCode);
+	if ( errorCode == LAN_POLICY_DENIED )
+		gLanDenied = 1;
 	// The role is NO LONGER decided here. We register with auto-rename so BOTH devices
 	// stay advertised and can discover each other; the role is then elected by IP
 	// comparison once we resolve the peer (see DNSServiceQueryRecordReplyCallback).
@@ -1028,7 +1036,14 @@ int NET_CheckServerAvailability(void)
 	{
 		DNSServiceErrorType	berr = DNSServiceBrowse( &browseRef, 0, 0, serviceName, NULL,
 		                                             DNSServiceBrowseReplyCallback, NULL );
-		if ( berr != kDNSServiceErr_NoError ) { Log_Printf("DNSServiceBrowse error\n"); browseRef = 0; return 0; }
+		if ( berr != kDNSServiceErr_NoError )
+		{
+			Log_Printf("DNSServiceBrowse error %d\n", (int)berr);
+			if ( berr == LAN_POLICY_DENIED )
+				gLanDenied = 1;
+			browseRef = 0;
+			return 0;
+		}
 		lastBrowseTime = simulationTime;
 	}
 
@@ -1050,19 +1065,28 @@ int NET_CheckServerAvailability(void)
 	{
 		// v2 P4: the roster view. The party can still grow until the settle
 		// window closes; then the JOIN/barrier handshake fires by itself.
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), "Party of %d - you are Player %d",
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE), MENU_Translate("Party of %d - you are Player %d"),
 		        gLanCount, net.ownSeat + 1);
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2),
-		        LAN_RosterSettled() ? "Starting..." : "Waiting for more players...");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "%s",
+		        MENU_Translate(LAN_RosterSettled() ? "Starting..." : "Waiting for more players..."));
 		MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE)[0] = '\0';	// clear the "other device" hint
+	}
+	else if (gLanDenied)
+	{
+		// Without this the search ran on forever in silence: nothing is ever
+		// found once the access is refused.
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "%s", MENU_Translate("Local network access is off."));
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "%s", MENU_Translate("Settings > Privacy and Security"));
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "%s", MENU_Translate("> Local Network > Shmup"));
 	}
 	else
 	{
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Looking for the other player...");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "%s", MENU_Translate("Looking for players..."));
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Open Game Multi > Local");
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "on the other device.");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), MENU_Translate("Open %s > Local"), MENU_Translate("Game Multi"));
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "%s", MENU_Translate("on the other devices."));
 	}
 
 	return 1;
@@ -1162,7 +1186,7 @@ void DNSServiceResolveReplyCallback (
 													 );  	
 	if ( err != kDNSServiceErr_NoError )
 	{
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Local network unavailable.");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "%s", MENU_Translate("Local network unavailable."));
 	}
 	else
 	{
@@ -1183,7 +1207,12 @@ void DNSServiceBrowseReplyCallback(
 								   const char *replyDomain, 
 								   void *context ) {
 	
-	Log_Printf("DNSServiceBrowseReplyCallback\n");
+	Log_Printf("DNSServiceBrowseReplyCallback err=%d\n", (int)errorCode);
+	if ( errorCode == LAN_POLICY_DENIED )
+	{
+		gLanDenied = 1;
+		return;
+	}
 	
 	//Log_Printf( "DNSServiceBrowseReplyCallback %s: interface:%i name:%s regtype:%s domain:%s\n", (flags & kDNSServiceFlagsAdd) ? "ADD" : "REMOVE",interfaceIndex, serviceName, regtype, replyDomain );
 	
@@ -1229,7 +1258,7 @@ void DNSServiceBrowseReplyCallback(
 														 );
 
 			if ( err != kDNSServiceErr_NoError ) {
-				sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Local network unavailable.");
+				sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "%s", MENU_Translate("Local network unavailable."));
 
 			} else {
 				// bounded wait: a ghost record would otherwise hang the menu here
@@ -1278,7 +1307,7 @@ int NET_ResolveNetworkServer( )
 												NULL				/* context */
 												);
 	if ( err != kDNSServiceErr_NoError ) {
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Local network unavailable.");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "%s", MENU_Translate("Local network unavailable."));
 		browseRef = 0;
 		return 0;
 	}
@@ -1498,9 +1527,9 @@ void NET_OnPeerLost(void)
 	dEngine_CheckState();			// load the menu scene now (sets the HOME menu)
 
 	MENU_Set(MENU_MULTIPLAYER);		// then show the notice over it
-	sprintf(MENU_GetMultiplayerTextLine(0), "Connection lost !");
-	sprintf(MENU_GetMultiplayerTextLine(2), "The other player");
-	sprintf(MENU_GetMultiplayerTextLine(3), "left the game.");
+	sprintf(MENU_GetMultiplayerTextLine(0), "%s", MENU_Translate("Connection lost !"));
+	sprintf(MENU_GetMultiplayerTextLine(2), "%s", MENU_Translate("The other player"));
+	sprintf(MENU_GetMultiplayerTextLine(3), "%s", MENU_Translate("left the game."));
 }
 
 // v2 P2: ONE seat is gone mid-match -- the match continues for everyone else.
@@ -1567,7 +1596,7 @@ void NET_OnSeatLost(int seat)
 		DYN_TEXT_AddText(from, to, 3000, 2.2f, line);
 	}
 
-	sprintf(MENU_GetMultiplayerTextLine(4), "Player %d left the game.", seat + 1);
+	sprintf(MENU_GetMultiplayerTextLine(4), MENU_Translate("Player %d left the game."), seat + 1);
 }
 
 // v2 P2: the handshake as a COUNTING BARRIER. The old machine was four
@@ -1773,7 +1802,7 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 	// Identity and protocol at the door (v2 P2).
 	if (packet->protoVersion != NET_PROTO)
 	{
-		Log_Printf("Setup packet with foreign protocol %d dropped (v1 build?).\n", packet->protoVersion);
+		Log_Printf("Setup packet with foreign protocol %d dropped.\n", packet->protoVersion);
 		return;
 	}
 
@@ -1855,7 +1884,7 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 	if (!NET_IsHost() && setupSeat == NET_HostSeat() && packet->command.type == NET_CMD_WAITING)
 	{
 		packetConsumed = 1;
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Waiting for the other players...");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "%s", MENU_Translate("Waiting for the other players..."));
 	}
 
 	if (!NET_IsHost() && setupSeat == NET_HostSeat() && net.state == NET_STARTED &&
@@ -1865,13 +1894,18 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 
 		NET_ApplyActiveMask(packet->activeMask);	// the host's party view is the truth
 		{
-			// v4.0.9: the host said where to go, so go there. The old guess is
-			// kept only as a fallback for a peer that does not say.
+			// v4.0.9: the host said where to go, so go there.
 			int want = (int)packet->command.delta[0];
-			// Only an act: a match never plays anything else, so a demo, a tutorial or
-			// an empty slot from the wire falls back to the next scene like a bad id.
+			// Only an act: a match never plays anything else. Anything else from
+			// the wire -- a demo, a tutorial, an empty slot, a bad id -- and the
+			// two sides would fly different levels: leave the match instead of
+			// guessing (the old guess, the next scene, desynced in silence).
 			if (want <= 0 || want >= MAX_NUM_SCENES || SCENE_KIND(want) != SCENE_KIND_ACT)
-				want = (engine.sceneId + 1) % engine.numScenes;
+			{
+				Log_Printf("Host announced scene %d, not an act: leaving the match.\n", want);
+				NET_OnPeerLost();
+				return;
+			}
 			dEngine_RequireSceneId(want);
 		}
 		numPlayers = net.numSeats;
@@ -2024,10 +2058,10 @@ void NET_Setup(void)
 	
 	if (!NET_IsOnline() && net.type == NET_UNKNOWN && !NET_IsNetworkAvailable())
 	{
-		sprintf(MENU_GetMultiplayerTextLine(0), "No WIFI network available !");
+		sprintf(MENU_GetMultiplayerTextLine(0), "%s", MENU_Translate("No Wi-Fi network."));
 		sprintf(MENU_GetMultiplayerTextLine(1), " ");
-		sprintf(MENU_GetMultiplayerTextLine(2), "Make sure WIFI is enabled" );
-		sprintf(MENU_GetMultiplayerTextLine(3), "and the device is connected." );
+		sprintf(MENU_GetMultiplayerTextLine(2), "%s", MENU_Translate("Make sure Wi-Fi is on"));
+		sprintf(MENU_GetMultiplayerTextLine(3), "%s", MENU_Translate("and the device is connected."));
 	
 		return;	
 	}
@@ -2039,7 +2073,7 @@ void NET_Setup(void)
 	{
 		if (!NET_CheckServerAvailability() && net.type == NET_UNKNOWN)
 		{
-			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETMYIP), "Local network unavailable.");
+			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETMYIP), "%s", MENU_Translate("Local network unavailable."));
 			return ;
 		}
 	}
@@ -2049,10 +2083,10 @@ void NET_Setup(void)
 	{
 		if (!NET_ResolveNetworkServer())
 		{
-			sprintf(MENU_GetMultiplayerTextLine(0),   "No game found.");
-			sprintf(MENU_GetMultiplayerTextLine(1),   " ");
-			sprintf(MENU_GetMultiplayerTextLine(2), "Open Game Multi > Local");
-			sprintf(MENU_GetMultiplayerTextLine(3), "on the other device first.");
+			sprintf(MENU_GetMultiplayerTextLine(0), "%s", MENU_Translate("No game found."));
+			sprintf(MENU_GetMultiplayerTextLine(1), " ");
+			sprintf(MENU_GetMultiplayerTextLine(2), MENU_Translate("Open %s > Local"), MENU_Translate("Game Multi"));
+			sprintf(MENU_GetMultiplayerTextLine(3), "%s", MENU_Translate("on the other devices first."));
 			return ;
 		}
 		//sprintf(MENU_GetMultiplayerTextLine(0), "Resolved server :) !\n");

@@ -51,7 +51,9 @@
 #include "titles.h"	// TITLE_IsShowing: the BACK hit-test yields to the title card
 #include "log.h"	// Log_ProbesEnabled / Log_Printf: the [music] probes
 
+#ifdef SHMUP_CI_HOOKS
 void SND_MusicProbeTick(void);
+#endif
 
 EAGLView *eaglview;
 
@@ -189,7 +191,9 @@ EAGLView *eaglview;
 	MTL_BeginFrame();
 	dEngine_HostFrame();
 	MTL_EndFrame();
+#ifdef SHMUP_CI_HOOKS
 	SND_MusicProbeTick();	// audio bench: a soundtrack position sample every ~5 s
+#endif
 }
 
 
@@ -365,10 +369,15 @@ void loadNativePNG(texture_t* tmpTex)
     [self stopAnimation];
 }
 
-- (void) handleTouches:(UIEvent*)event 
+// Each callback hands over the touches of ITS phase only. Walking [event
+// allTouches] instead pushed a touch once per callback of the same event (a
+// finger lifting while another moved ended twice), and a cancelled touch --
+// a system gesture, a call -- never ended at all: fire stayed held.
+- (void) handleTouches:(NSSet*)phaseTouches
 {
 
     io_event_s shmupEvent;
+    memset(&shmupEvent, 0, sizeof(shmupEvent));
 
 
     // v3.0.1: UIKit reports touches in points; the engine maps them against its
@@ -380,8 +389,7 @@ void loadNativePNG(texture_t* tmpTex)
     CGFloat toSurface = self.bounds.size.width > 0
         ? renderer.glBuffersDimensions[WIDTH] / self.bounds.size.width : 1;
 
-    NSSet *iPhonetouches = [event allTouches];
-    for (UITouch *myTouch in iPhonetouches)
+    for (UITouch *myTouch in phaseTouches)
     {
         CGPoint touchLocation = [myTouch locationInView:nil];
         CGPoint prevTouchLocation = [myTouch previousLocationInView:nil];
@@ -391,7 +399,7 @@ void loadNativePNG(texture_t* tmpTex)
         shmupEvent.position[X] = touchLocation.x;
         shmupEvent.position[Y] = touchLocation.y;
         
-        if (myTouch.phase == UITouchPhaseEnded){
+        if (myTouch.phase == UITouchPhaseEnded || myTouch.phase == UITouchPhaseCancelled){
             shmupEvent.type = IO_EVENT_ENDED;
             IO_PushEvent(&shmupEvent);
         }
@@ -415,22 +423,22 @@ void loadNativePNG(texture_t* tmpTex)
 
 - (void) touchesBegan:(NSSet*)touches withEvent:(UIEvent*)event {
 	//	printf( "touchesBegan\n" );
-	[self handleTouches:event];
+	[self handleTouches:touches];
 }
 
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
 	//	printf( "touchesMoved\n" );
-	[self handleTouches:event];
+	[self handleTouches:touches];
 }
 
 - (void) touchesEnded:(NSSet*)touches withEvent:(UIEvent*)event {
 	//	printf( "touchesEnded\n" );
-	[self handleTouches:event];
+	[self handleTouches:touches];
 }
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
 	//	printf( "touchesCancelled\n" );
-	[self handleTouches:event];
+	[self handleTouches:touches];
 }
 
 

@@ -49,7 +49,6 @@
  *  TODO: X Build sound system with OpenSL EL
  *  TODO: X Change package to have net.fabiensanglard.shmup.
  *  TODO: X Fix inputs, the ship is not moving fast enough on Android
- *  TODO:   On Android Lite, add a link to the full version.
  *  TODO:   Fix bug when demo is requested and it starts a new game.
  *  TODO:   Fix score bug.
  *  TODO:   Increase scores.
@@ -64,7 +63,6 @@
  *  Fixed issues: Rely on historicalEvent in order to trace move gesture is really really a BAD IDEA. I am tracing movement myself now.
  *  TODO: X Fix user input (I though I was missing events but actually I was using the wrong API method to trace mouvments.
  *  TODO:   Lower sound effects or Increase music sound volume
- *  TODO: X Build Shmup Lite
  *
  *
  *
@@ -93,7 +91,7 @@
  *
  *
  *
- *  TODO: X Create icons for Android Shmup and Android Shmup Lite
+ *  TODO: X Create icons for Android Shmup
  *
  *
 */
@@ -114,6 +112,7 @@
 #include "../../core/timer.h"
 #include "../../core/native_URL.h"
 #include "../../core/netchannel.h"	// NET_IsRunning, NET_Free: a match cannot be paused
+#include "../../core/player.h"		// P_PauseButtonShown: Back is the pause button
 
 #include "android_display.h"
 #include "android_filesystem.h"
@@ -121,13 +120,7 @@
 #include <unistd.h>	// usleep
 void SND_Android_Init(AAssetManager* mgr);	// android_music.c
 
-// ANDROID_LOG_TAG must be defined via a compiler flag in Android.mk. This is done so
-// Shmup and ShmupLite can use the same codebase.
-#ifdef SHMUP_VERSION_LIMITED
-	#define ANDROID_LOG_TAG "net.fabiensanglard.shmupLite"
-#else
-	#define ANDROID_LOG_TAG "net.fabiensanglard.shmup"
-#endif
+#define ANDROID_LOG_TAG "net.fabiensanglard.shmup"
 
 #define  LOG_TAG    		ANDROID_LOG_TAG
 #define  LOGI(...)  		__android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
@@ -189,13 +182,18 @@ int32_t engine_handle_input(struct android_app* app, AInputEvent* event) {
 		{
 			Log_Printf("[back] sceneId=%d menu=%d\n", engine.sceneId, MENU_Get());
 
-			if (NET_IsRunning())				// a match: leave it before anything else
-				NET_Free();
-
-			if (engine.sceneId != 0)		// an act, the tutorial, the demo: back to the menu
+			// As Escape on Windows: during an act Back is the pause button, and
+			// on the pause menu it resumes.
+			if (P_PauseButtonShown())
+				dEngine_PauseByPlayer();
+			else if (MENU_Get() == MENU_PAUSE)
+				dEngine_ResumeByPlayer();
+			else if (engine.sceneId != 0)	// the tutorial, the demo: back to the menu (a match is left)
+				dEngine_QuitByPlayer();
+			else if (engine.mode == DE_MODE_MULTIPLAYER)	// a lobby: leave it
 			{
+				dEngine_LeaveMultiplayer();
 				MENU_Set(MENU_HOME);
-				engine.requiredSceneId = 0;
 			}
 			else if (MENU_Get() != MENU_HOME)	// a sub-menu: back to the home menu
 				MENU_Set(MENU_HOME);
@@ -302,7 +300,7 @@ static void engine_handle_cmd(struct android_app* state, int32_t cmd) {
         	// dEngine_ResumeGame, as the iOS delegate does: it keeps the world
         	// and only arms the countdown. dEngine_Resume is the 2010 pair of
         	// dEngine_Pause and resets the scene; see below.
-        	if (gAndroidPaused) { SND_ResumeSoundTrack(); dEngine_ResumeGame(); gAndroidPaused = 0; }
+        	if (gAndroidPaused) { dEngine_ResumeGame(); gAndroidPaused = 0; }
             break;
         case APP_CMD_LOST_FOCUS:
         	LOGI("APP_CMD_LOST_FOCUS");

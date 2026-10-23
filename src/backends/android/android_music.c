@@ -89,6 +89,7 @@ void SND_Android_Init(AAssetManager* mgr)
 }
 
 #include "../../core/music.h"
+#include "../../core/dEngine.h"	// engine.musicEnabled / soundEnabled: the Options screen
 #include "../../core/sounds.h"
 #include "../../core/sound_backend.h"
 
@@ -176,6 +177,10 @@ void SND_InitSoundTrack(char* filename,unsigned int startAt)
 {
 	 SLresult result;
 
+	 // The Options screen, as on the other platforms: with the music off a
+	 // track is neither loaded, started nor resumed.
+	 if (!engine.musicEnabled)
+		 return;
 
 	 if (musicPlayerInterface)
 		 (*musicPlayerInterface)->Destroy(musicPlayerInterface);
@@ -235,6 +240,9 @@ void SND_StartSoundTrack(void){
 
 
 	SLresult result;
+
+	if (!engine.musicEnabled)
+		return;
 
 	Log_Printf("[SND_StartSoundTrack]\n");
 
@@ -302,6 +310,9 @@ void SND_ResumeSoundTrack(void){
 
 	SLPlayItf playerInterface;
 	SLresult result;
+
+	if (!engine.musicEnabled)
+		return;
 
 	Log_Printf("[SND_ResumeSoundTrack]\n");
 
@@ -455,6 +466,8 @@ void SND_BACKEND_Upload(sound_t* sound, int soundID){
 
 void SND_BACKEND_Play(int soundID){
 
+	if (!engine.soundEnabled)	// the Options screen
+		return;
 
 	//Log_Printf("[SND_BACKEND_Play] %d.\n",soundID);
 
@@ -576,7 +589,8 @@ void SND_BACKEND_Upload(sound_t* sound, int soundID){
 
 void SND_BACKEND_Play(int soundID){
 
-
+	if (!engine.soundEnabled)	// the Options screen
+		return;
 
 	SLObjectItf player =  openES_players[soundID];
 	SLPlayItf playerInterface;

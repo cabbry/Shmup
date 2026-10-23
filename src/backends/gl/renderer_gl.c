@@ -40,7 +40,6 @@
  */
 
 #include "config.h"
-#include "../../core/ci_hooks.h"
 #include "renderer_gl.h"
 #include "dEngine.h"
 #include "camera.h"
@@ -807,10 +806,8 @@ static void UpLoadEntityToGPUG(entity_t* entity)
 		return;
 	mesh = entity->model;
 	mesh->vboId = UploadVerticesToGPUG(mesh->vertexArray, mesh->numVertices * sizeof(vertex_t));
-#ifndef GENERATE_VIDEO
 	free(mesh->vertexArray);
 	mesh->vertexArray = 0;
-#endif
 	mesh->memLocation = MD5_MEMLOC_VRAM;
 }
 

@@ -896,6 +896,9 @@ void PREPROC_PopulateRawFaceSet(prec_camera_frame_t* frame)
 }
 
 
+#ifdef SHMUP_CI_HOOKS
+// The offline bake's output (bake-boss-rail.yml, SHMUP_BAKE_VIS): the .cp2b to
+// commit next to its .cp. A shipped game only reads rails.
 void PREPROC_SaveFramesToCP2Binary(char* filename, camera_frame_t* firstFrame)
 {
 	filehandle_t* fileHandle;
@@ -1007,6 +1010,7 @@ void PREPROC_SaveFramesToCP2Binary(char* filename, camera_frame_t* firstFrame)
 	Timer_resetTime();
 	Log_Printf("[PREPROC_SaveFramesToCP2Binary] Wrote %u keyFrames and %u deltaFrames.\n",keyFrameCounter,nonKeyFrameCounter);
 }
+#endif
 
 
 
@@ -1611,8 +1615,10 @@ camera_frame_t* PREPROC_ConvertCp1Tocp2b(char* cpFilename, char* cp2bFilename, c
 	
 	
 	// NULL = in-memory load (runtime-culled scenes): nothing to write.
+#ifdef SHMUP_CI_HOOKS
 	if (cp2bFilename)
 		PREPROC_SaveFramesToCP2Binary(cp2bFilename,rootRunTimeFrame.next);
+#endif
 
 
 	//free face <-> indice indexes

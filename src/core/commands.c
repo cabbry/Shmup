@@ -31,6 +31,7 @@
 #include "filesystem.h"
 #include "dEngine.h"
 #include "titles.h"
+#include "io_interface.h"
 
 command_buffer_t commandsBuffers[MAX_NUM_PLAYERS];
 
@@ -219,7 +220,7 @@ void COM_Init(void)
 	memset(&toSend,0, sizeof(command_t));
 	
 	
-	touches[BUTTON_FIRE].down = 0;
+	COM_ResetTouchesBuffer();
 }
 
 
@@ -312,9 +313,14 @@ void COM_ConvertLocalTouchsToCommands(void)
 	//Need to copy cmd to send to netchannel.c
 	memcpy(&toSend, command, sizeof(command_t));
 	
-	touches[BUTTON_MOVE].down = 0;
-	touches[BUTTON_MOVE].dist[X] = 0;
-	touches[BUTTON_MOVE].dist[Y] = 0;
+	// A swipe is a delta, consumed once. The pad stick is held: io_interface.c
+	// lets go of it when the finger lifts.
+	if (engine.controlMode == CONTROL_MODE_SWIP)
+	{
+		touches[BUTTON_MOVE].down = 0;
+		touches[BUTTON_MOVE].dist[X] = 0;
+		touches[BUTTON_MOVE].dist[Y] = 0;
+	}
 
 	touches[BUTTON_GHOST].down = 0;
 }
@@ -591,35 +597,6 @@ void COM_ExecCommand(command_t* command)
 	
 }
 
-void COM_UpdateRecord(void)
-{
-	int i;
-	int numCmds;
-	command_t* command;
-	
-	if (!engine.playback.record)
-		return;
-		
-	if (lastRecordCommand < currentRecordCommand)
-	{
-		Log_Printf("Command buffer overflow: stop recording !!\n");
-		engine.playback.record = 0;
-		return;
-	}
-	
-			
-	for(i = 0 ; i < numPlayers ; i++)
-	for (numCmds=0; numCmds < commandsBuffers[i].numCommands; numCmds++) 
-	{
-		command = &commandsBuffers[i].cmds[numCmds];
-		memcpy(currentRecordCommand, command, sizeof(command_t));
-		currentRecordCommand++;
-	}
-			
-			
-	
-}
-
 void COM_Update(void)
 {
 	int i;
@@ -662,9 +639,6 @@ void COM_Update(void)
 		}
 	}
 
-	//If recording, write commands to buffer
-	COM_UpdateRecord();
-	
 	//Need to invalidate bufferCommand numCmd=0
 	//Empty command buffer
 	for(i = 0 ; i < numPlayers ; i++)
@@ -692,55 +666,10 @@ void COM_ClearBuffers(void)
 	touches[BUTTON_GHOST].down=0;
 }
 
-void COM_StopRecording(void)
-{
-	
-	if (!engine.playback.record)
-		return;
-		
-	engine.playback.record = 0;
-	
-    Log_Printf("[COM_StopRecording] recording stopped\n");
-    
-	/*
-	Log_Printf("[COM_StopRecording] Writing command record to disk.\n");
-	//printf("[COM_StartScene] Allocating %lu kb for inputs recording.\n",NUM_RECORD_FRAMES*sizeof(commandHistoryElem_t)/1024);
-	
-    
-    
-	ioFileHandle = FS_OpenFile(engine.playback.filename,"wb");
-	FS_UploadToRAM(ioFileHandle);
-
-	if (!ioFileHandle)
-	{
-		Log_Printf("[COM_StopRecording] Unable to create commandHistory file: %s.\n",engine.playback.filename);
-		return;
-	}
-	
-	int_numPlayers = numPlayers;
-	Log_Printf("Writing numPlayer=%d to file record\n",int_numPlayers);
-	FS_Write(&int_numPlayers,sizeof(int),1, ioFileHandle);
-	FS_Write(recordCommands, sizeof(command_t), NUM_RECORD_FRAMES, ioFileHandle);
-	FS_CloseFile(ioFileHandle);
-*/
-	
-	
-}
-
-
-
 void COM_StartScene(void)
 {
 	filehandle_t* ioFileHandle;
 	static char filename[1024];
-	//Check if we need to play or record
-
-	if (engine.playback.play && engine.playback.record)
-	{
-		Log_Printf("[COM_StartScene] Unable to play and record at the same time: Giving priority to playback.\n");
-		engine.playback.record=0;
-	}
-	
 	if (engine.playback.play)
 	{
 		
@@ -774,14 +703,6 @@ void COM_StartScene(void)
 		
 		FS_CloseFile(ioFileHandle);
 	}
-	
-	if (engine.playback.record)
-	{
-		//recordCommands = calloc(NUM_RECORD_FRAMES, sizeof(command_t));
-		currentRecordCommand = recordCommands;
-		
-		lastRecordCommand = currentRecordCommand + NUM_RECORD_FRAMES-1 ;
-	}	
 }
 
 void COM_EndtScene(void)
@@ -802,6 +723,7 @@ void COM_ResetTouchesBuffer(void)
 		touches[i].dist[X] = 0;
 		touches[i].dist[Y] = 0;
 	}
+	IO_ReleasePad();
 }
 
 

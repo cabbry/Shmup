@@ -80,23 +80,124 @@ static int IO_HudTouch(const io_event_s* e)
 	return 1;
 }
 
+// ---- The menus --------------------------------------------------------------
+// A tap selects the button whose drawn rectangle holds the finger (the closest
+// one if two do); off every rectangle, the closest button within 64 units, as
+// in 2009 -- a wide button used to answer only around its centre.
+static int IO_MenuButtonAt(float tx, float ty, const touch_t* set, int numButton)
+{
+	int		i, best = -1, inRect = 0;
+	int		bestDist = 64 * 64;
+	int		dist;
+	short	x0, y0, x1, y1;
+	float	sx = 2 * tx - SS_W;		// touch space -> screen space
+	float	sy = SS_H - 2 * ty;
+
+	for (i = 0; i < numButton; i++)
+	{
+		dist = SQUARE(set[i].iphone_coo_SysPos[X] - tx) + SQUARE(set[i].iphone_coo_SysPos[Y] - ty);
+		if (MENU_GetButtonRect(i, &x0, &y0, &x1, &y1) && sx >= x0 && sx <= x1 && sy >= y0 && sy <= y1)
+		{
+			if (!inRect || dist < bestDist)
+			{
+				inRect = 1;
+				bestDist = dist;
+				best = i;
+			}
+		}
+		else if (!inRect && dist < bestDist)
+		{
+			bestDist = dist;
+			best = i;
+		}
+	}
+	return best;
+}
+
+// A menu button acts when a finger pressed it AND lifted on it, both while
+// that menu was up. A release alone used to be enough: a finger already down
+// when the pause menu opened (steering, the other hand on "II") could lift
+// on Quit and end the game.
+static int			gMenuArmed = -1;
+static signed char	gMenuArmedOn = -1;
+
+// ---- The virtual pad --------------------------------------------------------
+// A pad button is held from the moment a finger lands on it until that finger
+// lifts (or the system cancels it), wherever it slides in between: the stick
+// keeps steering, fire keeps firing. Events carry no finger identity, so a
+// finger is known by where its last event left it -- a MOVED event's previous
+// position, an ENDED event's position. The special shot is one press, one shot.
+static char  gPadHeld[NUM_BUTTONS];
+static float gPadLastPos[NUM_BUTTONS][2];
+
+void IO_ReleasePad(void)
+{
+	memset(gPadHeld, 0, sizeof(gPadHeld));
+}
+
+static float IO_Clamp1(float v) { return v < -1 ? -1 : (v > 1 ? 1 : v); }
+
+static void IO_PadTouch(const io_event_s* e)
+{
+	int		i, button = -1;
+	float	d, bestD = 64 * 64;
+	const float* at = (e->type == IO_EVENT_MOVED) ? e->previousPosition : e->position;
+
+	if (e->type == IO_EVENT_BEGAN)
+	{
+		for (i = 0; i < NUM_BUTTONS; i++)
+		{
+			d = SQUARE(touches[i].iphone_coo_SysPos[X] - e->position[X]) + SQUARE(touches[i].iphone_coo_SysPos[Y] - e->position[Y]);
+			if (d < bestD)
+			{
+				bestD = d;
+				button = i;
+			}
+		}
+		if (button < 0)
+			return;
+		gPadHeld[button] = 1;
+	}
+	else
+	{
+		for (i = 0; i < NUM_BUTTONS; i++)
+		{
+			if (!gPadHeld[i])
+				continue;
+			d = SQUARE(gPadLastPos[i][X] - at[X]) + SQUARE(gPadLastPos[i][Y] - at[Y]);
+			if (button < 0 || d < bestD)
+			{
+				bestD = d;
+				button = i;
+			}
+		}
+		if (button < 0)
+			return;
+		if (e->type == IO_EVENT_ENDED)
+		{
+			gPadHeld[button] = 0;
+			if (button != BUTTON_GHOST)		// the special shot's press has already fired
+			{
+				touches[button].down = 0;
+				touches[button].dist[X] = 0;
+				touches[button].dist[Y] = 0;
+			}
+			return;
+		}
+		if (button == BUTTON_GHOST)
+			return;		// sliding on the special button fires nothing more
+	}
+
+	gPadLastPos[button][X] = e->position[X];
+	gPadLastPos[button][Y] = e->position[Y];
+	touches[button].down = 1;
+	touches[button].dist[X] = IO_Clamp1((e->position[X] - touches[button].iphone_coo_SysPos[X]) / touches[button].iphone_size);
+	touches[button].dist[Y] = IO_Clamp1((touches[button].iphone_coo_SysPos[Y] - e->position[Y]) / touches[button].iphone_size);
+}
+
 void IO_PushEvent(io_event_s* event_in){
 	
-
-
-	
-	
-	touch_t *touch, *t2;
-	int		minDist = 64 * 64  ;	// allow up to 64 unit moves to be drags
-	int		minIndex = -1;
-
-	//Button analysis variables
-	int     i;
-	int     dist;
-
-	//Buttons in shmup
-	int numButton;
-	touch_t* currentTouchSet;
+	int		button;
 
 	//Perform a defensive copy
 	io_event_s event = *event_in;
@@ -104,86 +205,40 @@ void IO_PushEvent(io_event_s* event_in){
 	if (!engine.menuVisible && IO_HudTouch(&event))
 		return;
 
-
+	//Transforming from whatever screen resolution we have to the original iPHone 320*480
+	event.position[X] = ( event.position[X] - renderer.viewPortDimensions[VP_X] ) * commScale[X] ;
+	event.position[Y] = ( event.position[Y] - renderer.viewPortDimensions[VP_Y] ) * commScale[Y] ;
+	if (event.type == IO_EVENT_MOVED)
+	{
+		event.previousPosition[X] = ( event.previousPosition[X] - renderer.viewPortDimensions[VP_X] ) * commScale[X] ;
+		event.previousPosition[Y] = ( event.previousPosition[Y] - renderer.viewPortDimensions[VP_Y] ) * commScale[Y] ;
+	}
 
 	if (engine.menuVisible)
 	{
-		numButton = MENU_GetNumButtonsTouches();
-		currentTouchSet = MENU_GetCurrentButtonTouches();
-	}
-	else 
-	{
-		numButton = NUM_BUTTONS;
-		currentTouchSet = touches;
-	}
-	
-	if (engine.menuVisible || engine.controlMode == CONTROL_MODE_VIRT_PAD)
-	{
-	
-       // CGPoint touchLocation = [myTouch locationInView:nil];
-		
-		//Transforming from whatever screen resolution we have to the original iPHone 320*480
-		event.position[X] = ( event.position[X] - renderer.viewPortDimensions[VP_X] ) * commScale[X] ;//* renderer.resolution ;
-		event.position[Y] = ( event.position[Y] - renderer.viewPortDimensions[VP_Y] ) * commScale[Y] ;//* renderer.resolution;
-
-
 		// Round 41: on a scrolling menu a vertical drag scrolls it, and its release is not a tap.
-		if (engine.menuVisible && MENU_ScrollTouch(event.type, event.position[Y]))
+		if (MENU_ScrollTouch(event.type, event.position[Y]))
 			return;
 
-		// find which one it is closest to
-		t2 = currentTouchSet;
-		for (i  = 0 ; i < numButton ; i++ ) 
+		button = IO_MenuButtonAt(event.position[X], event.position[Y], MENU_GetCurrentButtonTouches(), MENU_GetNumButtonsTouches());
+		if (event.type == IO_EVENT_BEGAN)
 		{
-			
-			dist = SQUARE( t2->iphone_coo_SysPos[X] - event.position[X] )  + SQUARE( t2->iphone_coo_SysPos[Y] - event.position[Y] ) ;
-			
-			
-			if ( dist < minDist ) {
-				minDist = dist;
-				minIndex = i;
-				touch = t2;
-			}
-		//	printf("button:%d x=%hd, y =%.hd. dist=%.2f, minDist=%.2f\n",i,t2->iphone_coo_SysPos[X],t2->iphone_coo_SysPos[Y],(float)dist,(float)minDist);
-			t2++;
+			gMenuArmed = button;
+			gMenuArmedOn = MENU_Get();
 		}
-		
-		if ( minIndex != -1 ) 
+		else if (event.type == IO_EVENT_ENDED)
 		{
-			//printf("HIT ! %d.\n",minIndex);
-			if (event.type == IO_EVENT_ENDED) 
-			{
-				//touch->down = 0;
-				//printf("%d UP\n",minIndex);
-                touch->down = 1;
-				touch->dist[X] = MIN(1,(event.position[X] - touches[minIndex].iphone_coo_SysPos[X])/touches[minIndex].iphone_size);
-				touch->dist[Y] = MIN(1,(touches[minIndex].iphone_coo_SysPos[Y] - event.position[Y])/touches[minIndex].iphone_size);
-			}
-			else 
-			{
-				if (event.type == IO_EVENT_BEGAN) 
-				{
-				
-                }
-			}
+			if (button >= 0 && button == gMenuArmed && MENU_Get() == gMenuArmedOn)
+				MENU_GetCurrentButtonTouches()[button].down = 1;
+			gMenuArmed = -1;
 		}
-	
+	}
+	else if (engine.controlMode == CONTROL_MODE_VIRT_PAD)
+	{
+		IO_PadTouch(&event);
 	}
 	else
 	{
-		
-		
-		
-			//CGPoint touchLocation = [myTouch locationInView:nil];
-			//CGPoint prevTouchLocation = [myTouch previousLocationInView:nil];
-			
-			//Transforming from whatever screen resolution we have to the original iPHone 320*480
-			event.position[X] = ( event.position[X]- renderer.viewPortDimensions[VP_X] ) * commScale[X] ;//* renderer.resolution ;
-			event.position[Y] = ( event.position[Y]- renderer.viewPortDimensions[VP_Y] ) * commScale[Y] ;//* renderer.resolution;
-			
-			
-			
-			
 			if (event.type == IO_EVENT_ENDED) 
 			{
 				//if (touchCount == 1) //Last finger ended
@@ -196,11 +251,6 @@ void IO_PushEvent(io_event_s* event_in){
 			
 				if (event.type == IO_EVENT_MOVED) 
 				{
-                    
-                    event.previousPosition[X] = ( event.previousPosition[X]- renderer.viewPortDimensions[VP_X] ) * commScale[X] ;//* renderer.resolution ;
-                    event.previousPosition[Y] = ( event.previousPosition[Y]- renderer.viewPortDimensions[VP_Y] ) * commScale[Y] ;//* renderer.resolution;
-                    
-                    
 					//printf("m\n");
 					touches[BUTTON_MOVE].down = 1;
                     //Used to be +80 for X and -80 for Y

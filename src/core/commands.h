@@ -79,7 +79,6 @@ void COM_Init(void);
 void COM_StartScene(void);
 void COM_EndtScene(void);
 void COM_Update(void) ;
-void COM_StopRecording(void);
 void COM_InitPlayback(char* filename);
 
 #define COMMAND_BUFFER_SIZE 16

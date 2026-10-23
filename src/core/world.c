@@ -659,8 +659,8 @@ void World_OpenScene(char* filename)
 				else 
 				if (!strcmp("record", LE_getCurrentToken()))
 				{
-					
-					engine.playback.record = LE_readReal();
+					// 2010's input recorder, gone; the scenes still say "record 0".
+					LE_readReal();
 				}
 				if (!strcmp("play", LE_getCurrentToken()))
 				{

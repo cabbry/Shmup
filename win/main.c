@@ -505,7 +505,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 				// would also have thrown away the game in progress. iOS pauses the
 				// music, stops the loop, and resumes with dEngine_ResumeGame.
 				if (LOWORD(wParam) == WA_INACTIVE) { if (!gPaused) { SND_PauseSoundTrack(); gPaused = 1; } }
-				else if (gPaused) { SND_ResumeSoundTrack(); dEngine_ResumeGame(); gPaused = 0; }
+				else if (gPaused) { dEngine_ResumeGame(); gPaused = 0; }
 			}
 			return 0;
 		case WM_LBUTTONDOWN:
@@ -570,7 +570,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 				if (wParam == 'X' || wParam == VK_CONTROL) { FingerGhost(); return 0; }
 			}
 		}
-			if (wParam == VK_ESCAPE && gEngineUp)
+			if (wParam == VK_ESCAPE && gEngineUp && !(lParam & 0x40000000))	// not the auto-repeat
 			{
 				// During an act Escape is the pause button, and on the pause menu it
 				// resumes. Elsewhere: back to the home menu, then quit.
@@ -579,10 +579,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 				else if (MENU_Get() == MENU_PAUSE)
 					dEngine_ResumeByPlayer();
 				else if (engine.sceneId != 0 || engine.requiredSceneId != 0)
-				{
-					MENU_Set(MENU_HOME);
-					dEngine_RequireSceneId(0);
-				}
+					dEngine_QuitByPlayer();
 				else
 					gQuit = 1;
 			}

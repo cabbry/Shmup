@@ -230,10 +230,22 @@ void MENU_CreateButton(menu_screen_t* screen,const char* text,float fontSize, bu
 	MENU_CreateButtonWithTag(screen,text,fontSize,action,NULL,update,pos,dimensions);
 }
 
+// Every solo entry -- an act, the tutorial, the demo -- starts from one local
+// player in seat 0, whatever a match left behind.
+static void MENU_EnterSolo(void)
+{
+	if (engine.mode == DE_MODE_MULTIPLAYER)
+		dEngine_LeaveMultiplayer();
+	numPlayers = 1;
+	controlledPlayer = 0;
+	engine.mode = DE_MODE_SINGLEPLAYER;
+}
+
 void Action_GoToTutorial(void* tag)
 {
 	int i;
 	
+	MENU_EnterSolo();
 	PL_ResetPlayersScore();
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = numPlayerRespawn[DIFFICULTY_NORMAL];
@@ -311,6 +323,7 @@ void Action_PlayDemo(void* tag)
 	int i;
 	char* actId = (char*)tag;
 	
+	MENU_EnterSolo();
 	PL_ResetPlayersScore();
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = numPlayerRespawn[DIFFICULTY_NORMAL];
@@ -435,9 +448,8 @@ void Action_startNewGameAtAct(void* tag)
 	MENU_Set(MENU_NONE);
 	dEngine_RequireSceneId(sceneId);
 
-	engine.mode = DE_MODE_SINGLEPLAYER;
+	MENU_EnterSolo();
 	PL_ResetPlayersScore();
-	numPlayers = 1;
 
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = numPlayerRespawn[gPickedDifficulty];
@@ -565,14 +577,6 @@ void Action_PickPartySize(void* tag)
 	MENU_UpdateActButtons();
 	MENU_Set(MENU_SELECT_ACT);
 }
-
-#ifdef SHMUP_TARGET_ANDROID  
-#include "native_URL.h"
-void Action_GoBuyFullVersion(void* tag)
-{
-    goToURL("market://details?id=net.fabiensanglard.shmup");
-}
-#endif
 
 
 void Action_ShowCreditsMenu(void* tag)
@@ -718,24 +722,21 @@ void Action_QuitFromPause(void* tag)
 
 void Action_BackToHome(void* tag)
 {
-	NET_Free();
+	dEngine_LeaveMultiplayer();
 	MENU_Set(MENU_HOME);
 }
 
 void Action_BackToMultiMode(void* tag)
 {
-	NET_Free();
+	dEngine_LeaveMultiplayer();
 	MENU_Set(MENU_MULTI_MODE);	// v2: multiplayer lives under Game Multi now
 }
 
 void Action_BackToHomeAfterGameOver(void* tag)
 {
-	
-	
-	NET_Free();
+	dEngine_LeaveMultiplayer();
 	MENU_Set(MENU_HOME);
 	dEngine_RequireSceneId(0);
-	
 }
 
 
@@ -771,7 +772,6 @@ static const menu_tr_t gMenuTr[] = {
 	{ "Game Multi",          "Jeu Multi" },
 	{ "Others",              "Autres" },
 	{ "Back",                "Retour" },
-	{ "New Game",            "Lancer" },
 	{ "Credits",             "Cr\xE9" "dits" },
 	{ "Tutorial",            "Tutoriel" },
 	{ "Scores",              "Scores" },
@@ -814,12 +814,38 @@ static const menu_tr_t gMenuTr[] = {
 	{ "On",                   "Oui" },
 	{ "Off",                  "Non" },
 	{ "Swipe: one finger flies and fires.", "Glisser : un doigt pilote et tire." },
-	{ "Pad: stick at left, fire at right.", "Pad : manette \xE0 gauche, tir \xE0 droite." },
+	{ "Pad: stick at left, two fire buttons at right.", "Pad : manette \xE0 gauche, deux tirs \xE0 droite." },
 	{ "The tutorial follows this choice.", "Le tutoriel suit ce choix." },
 	{ "Red",                 "Rouge" },
 	{ "Blue",                "Bleu" },
 	{ "Invisible",           "Invisible" },
 	{ "Yellow",              "Jaune" },
+	// the waiting screen (netchannel.c and the iOS delegate write it; size 2 holds 40 characters)
+	{ "%d players - you are Player %d%s", "%d joueurs - vous : joueur %d%s" },
+	{ " (host)",                         " (h\xF4te)" },
+	{ "Online - Player %d of %d%s",       "En ligne - joueur %d sur %d%s" },
+	{ "Starting match...",                "La partie commence..." },
+	{ "Party of %d - you are Player %d",  "Groupe de %d - vous : joueur %d" },
+	{ "Starting...",                      "D\xE9part..." },
+	{ "Waiting for more players...",      "En attente d'autres joueurs..." },
+	{ "Looking for players...",           "Recherche de joueurs..." },
+	{ "Open %s > Local",                  "Ouvrez %s > Local" },
+	{ "on the other devices.",            "sur les autres appareils." },
+	{ "on the other devices first.",      "sur les autres appareils d'abord." },
+	{ "Local network access is off.",     "Acc\xE8s au r\xE9seau local refus\xE9." },
+	{ "Settings > Privacy and Security",  "R\xE9glages > Confidentialit\xE9 et" },
+	{ "> Local Network > Shmup",          "s\xE9" "curit\xE9 > R\xE9seau local > Shmup" },
+	{ "Local network unavailable.",       "R\xE9seau local indisponible." },
+	{ "No game found.",                   "Aucune partie trouv\xE9" "e." },
+	{ "Connection lost !",                "Connexion perdue !" },
+	{ "The other player",                 "L'autre joueur" },
+	{ "left the game.",                   "a quitt\xE9 la partie." },
+	{ "Player %d left the game.",         "Le joueur %d a quitt\xE9 la partie." },
+	{ "Waiting for the other players...", "En attente des autres joueurs..." },
+	{ "No Wi-Fi network.",                "Pas de r\xE9seau Wi-Fi." },
+	{ "Make sure Wi-Fi is on",            "V\xE9rifiez que le Wi-Fi est activ\xE9" },
+	{ "and the device is connected.",     "et l'appareil connect\xE9." },
+	{ "Joining a friend's game...",       "Connexion \xE0 la partie d'un ami..." },
 };
 
 static char* MENU_Tr(const char* en)
@@ -830,6 +856,11 @@ static char* MENU_Tr(const char* en)
 			if (!strcmp(gMenuTr[i].en, en))
 				return (char*)gMenuTr[i].fr;
 	return (char*)en;
+}
+
+const char* MENU_Translate(const char* en)
+{
+	return MENU_Tr(en);
 }
 
 char menuCreated = 0;
@@ -1260,7 +1291,7 @@ void MENU_Init(void)
 	MENU_CreateButton(currentMenu, gOptMusicLabel, 2.5f, Action_ToggleMusic, NULL, buttonPos, buttonDim);
 
 	MENU_CreateText(currentMenu, 0, -200, 1.6f, TEXT_CENTERED, MENU_Tr("Swipe: one finger flies and fires."));
-	MENU_CreateText(currentMenu, 0, -240, 1.6f, TEXT_CENTERED, MENU_Tr("Pad: stick at left, fire at right."));
+	MENU_CreateText(currentMenu, 0, -240, 1.6f, TEXT_CENTERED, MENU_Tr("Pad: stick at left, two fire buttons at right."));
 	MENU_CreateText(currentMenu, 0, -280, 1.6f, TEXT_CENTERED, MENU_Tr("The tutorial follows this choice."));
 
 	buttonPos[X] = 0 ;
@@ -1669,11 +1700,11 @@ int MENU_ScrollTouch(int eventType, short touchY)
 	return dy;
 }
 
+#ifdef SHMUP_CI_HOOKS
 // CI hooks (the camera cannot tap): SHMUP_MENU=<id> opens that menu on the
 // home scene, SHMUP_MENU_SCROLL=<n> presets its scroll (0 = top, up to scrollMax).
 void MENU_ApplyEnvHooks(void)
 {
-#ifdef SHMUP_CI_HOOKS
 	char* mid = CI_GETENV("SHMUP_MENU");
 	char* sc  = CI_GETENV("SHMUP_MENU_SCROLL");
 	if (mid && SCENE_IS(SCENE_KIND_INTRO))
@@ -1684,8 +1715,8 @@ void MENU_ApplyEnvHooks(void)
 	}
 	if (sc && currentMenuId != MENU_NONE && menuScreens[currentMenuId].scrollable)
 		MENU_SetScroll(&menuScreens[currentMenuId], atoi(sc));
-#endif
 }
+#endif
 
 touch_t* MENU_GetCurrentButtonTouches(void)
 {

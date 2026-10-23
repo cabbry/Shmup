@@ -65,8 +65,6 @@ typedef struct sound_t
 
 
 int SND_Init(void);
-void SND_UpdateRecord(void);
-void SND_FinalizeRecord(void);
 void SND_PlaySound(int sndId);
 
 #endif

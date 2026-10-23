@@ -77,6 +77,8 @@
 #define Log_Printf                     PS(Log_Printf)
 #define MENU_Set                       PS(MENU_Set)
 #define MENU_GetMultiplayerTextLine    PS(MENU_GetMultiplayerTextLine)
+#define MENU_Translate                 PS(MENU_Translate)
+#define dEngine_LeaveMultiplayer       PS(dEngine_LeaveMultiplayer)
 #define SND_PauseSoundTrack            PS(SND_PauseSoundTrack)
 #define SND_ResumeSoundTrack           PS(SND_ResumeSoundTrack)
 #define Timer_Pause                    PS(Timer_Pause)
@@ -112,6 +114,16 @@ int               gMPBulletColor[MAX_NUM_PLAYERS] = {0,1,2,3};
 
 static char gMpText[8][256];
 char* MENU_GetMultiplayerTextLine(int i) { return gMpText[(i < 0 || i > 7) ? 0 : i]; }
+const char* MENU_Translate(const char* en) { return en; }
+
+/* dEngine.c's, line for line: the session, then the mode. */
+void dEngine_LeaveMultiplayer(void)
+{
+	NET_Free();
+	numPlayers = 1;
+	controlledPlayer = 0;
+	engine.mode = DE_MODE_SINGLEPLAYER;
+}
 
 int Log_Printf(const char* fmt, ...)
 {

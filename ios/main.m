@@ -27,22 +27,15 @@
 
 int main(int argc, char *argv[]) {
     
-	char rd[256];
+	const char* rd;
 	const char* wd;
 	
 	
 	@autoreleasepool {	// v3: ARC
 	
-	strcpy( rd, argv[0] );
-	int len = (int)strlen( rd );
-	for( int i = len-1; i >= 0; i-- ) {
-		if ( rd[i] == '/' ) {
-			rd[i] = 0;
-			break;
-		}
-		rd[i] = 0;
-	}
-	
+	// The game reads its files from the bundle and writes to Documents. (The
+	// bundle used to be argv[0] cut at its last slash, copied into 256 bytes.)
+	rd = [[[NSBundle mainBundle] bundlePath] UTF8String];
 	wd = [[NSSearchPathForDirectoriesInDomains(  NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0] UTF8String];
 	
 	FS_SetDirectories( rd, wd );

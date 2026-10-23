@@ -84,9 +84,6 @@ static void P_ApplyShipTint(int playerId, int shipChoice)
 	players[playerId].entity.color[3] = t[3];
 }
 
-// Diagnostic: basename of the ship model actually loaded for the solo player, shown
-// in-game so we can confirm the Custom ship choice is applied (vs. the art just looking alike).
-char gLoadedShipDebug[64] = "";
 
 // Solo bullet colour (Others -> Ship). Selects the colour COLUMN of the bullet atlas
 // (spritesBullets.png); the player index already does this in multiplayer, so in solo
@@ -361,15 +358,6 @@ void P_LoadPlayer(int playerIdToLoad)
 		ENT_LoadEntity(currentEntity, modelToLoad, ENT_FULL_DRAW);
 		P_ApplyShipTint(playerIdToLoad,
 			(engine.mode == DE_MODE_SINGLEPLAYER) ? gShipChoice : 0);
-
-		// Diagnostic: record the basename of what player 0 (the solo ship) actually loaded.
-		if (playerIdToLoad == 0)
-		{
-			const char* base = modelToLoad;
-			const char* s;
-			for (s = modelToLoad; *s; s++) if (*s == '/') base = s + 1;
-			snprintf(gLoadedShipDebug, sizeof(gLoadedShipDebug), "SHIP c%d %s", gShipChoice, base);
-		}
 	}
 	
 
@@ -1184,15 +1172,23 @@ short P_HudRowY(void)
 	return (short)(SS_H - renderer.safeInsetTopPx * orthoPerPx - 30.0f);
 }
 
+// The HUD row is drawn only while the ships fly with the camera, and never
+// over the end-of-game card (PL_RenderPlayerPointers). A button answers only
+// when it is drawn.
+static int P_HudRowDrawn(void)
+{
+	return entitiesAttachedToCamera && !TITLE_IsEndOfGameScreen() && !engine.menuVisible;
+}
+
 int P_PauseButtonShown(void)
 {
-	return SCENE_IS(SCENE_KIND_ACT) && !engine.menuVisible;
+	return SCENE_IS(SCENE_KIND_ACT) && P_HudRowDrawn();
 }
 
 int P_BackButtonShown(void)
 {
 	// Not while an act title card is up: its band covers this very zone.
-	return (SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) && !TITLE_IsShowing() && !engine.menuVisible;
+	return (SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) && !TITLE_IsShowing() && P_HudRowDrawn();
 }
 
 void P_PauseButtonPos(short* x, short* y) { *x = HUD_PAUSE_X; *y = P_HudRowY(); }

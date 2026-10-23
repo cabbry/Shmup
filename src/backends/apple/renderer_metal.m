@@ -37,7 +37,6 @@
  */
 
 #import <Metal/Metal.h>
-#include "../../core/ci_hooks.h"
 #import <QuartzCore/CAMetalLayer.h>
 #import <simd/simd.h>
 
@@ -529,7 +528,7 @@ int MTL_Create(void* caMetalLayer, int pixelWidth, int pixelHeight)
 	gLayer = layer;
 	gLayer.device = gDevice;
 	gLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-	gLayer.framebufferOnly = NO;			// the [cull] probe and screenshots read the drawable back
+	gLayer.framebufferOnly = NO;			// the [cull] probe reads the drawable back; every build alike, so the smokes render what ships
 	gLayer.opaque = YES;
 
 	gLibrary = [gDevice newLibraryWithSource:[NSString stringWithUTF8String:kShaderSource] options:nil error:&err];
@@ -780,10 +779,8 @@ static void UpLoadEntityToGPUM(entity_t* entity)
 		return;
 	mesh = entity->model;
 	mesh->vboId = UploadVerticesToGPUM(mesh->vertexArray, mesh->numVertices * sizeof(vertex_t));
-#ifndef GENERATE_VIDEO
 	free(mesh->vertexArray);
 	mesh->vertexArray = 0;
-#endif
 	mesh->memLocation = MD5_MEMLOC_VRAM;
 }
 

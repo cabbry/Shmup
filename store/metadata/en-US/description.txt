@@ -1,4 +1,4 @@
-SHMUP is the 3D shoot'em up Fabien Sanglard wrote in 2009, inspired by Treasure's Ikaruga. Reborn brings it back to today's iPhones and iPads: full screen, Metal rendering, Game Center, and multiplayer for up to four ships.
+SHMUP is the 3D shoot'em up Fabien Sanglard wrote in 2009, in the tradition of the Japanese arcade shooters. Reborn brings it back to today's iPhones and iPads: full screen, Metal rendering, Game Center, and multiplayer for up to four ships.
 
 Five acts, and the old pleasure of a shoot'em up that asks something of you. You go in, you die, you go back in, and one evening your hands know the way through. No open world, no cutscene to sit through, every act open from the first launch: a ship, a screen filling with bullets, and the one line through it you have to find.
 

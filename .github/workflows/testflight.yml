@@ -118,9 +118,15 @@ jobs:
       # nothing a reviewer cannot see -- no test switch, no probe, no test
       # level, no hidden settings row, no trial code -- and its executable
       # reads no environment variable. The rules live in the script, which
-      # also runs on any local folder.
+      # also runs on any local folder. The compile lines say it too: no test
+      # flag was passed to this build.
       - name: The shipping app holds nothing hidden
-        run: bash tools/ci/check_shipping_app.sh "$RUNNER_TEMP/Shmup.xcarchive/Products/Applications/Shmup.app"
+        run: |
+          if grep -q 'SHMUP_CI_HOOKS' "$RUNNER_TEMP/archive.log"; then
+            echo "::error::the archive was compiled with SHMUP_CI_HOOKS"
+            exit 1
+          fi
+          bash tools/ci/check_shipping_app.sh "$RUNNER_TEMP/Shmup.xcarchive/Products/Applications/Shmup.app"
 
       - name: Check only -- stop here
         if: ${{ inputs.check_only == 'true' }}
@@ -149,6 +155,16 @@ jobs:
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -exportPath "$RUNNER_TEMP/export" 2>&1 | tee "$RUNNER_TEMP/export.log"
           ls -lh "$RUNNER_TEMP/export"
+
+      # The same rules on what actually leaves: the app inside the exported,
+      # re-signed .ipa.
+      - name: The exported app holds nothing hidden
+        if: ${{ inputs.check_only != 'true' }}
+        run: |
+          IPA=$(find "$RUNNER_TEMP/export" -name "*.ipa" | head -1)
+          rm -rf "$RUNNER_TEMP/ipa" && mkdir -p "$RUNNER_TEMP/ipa"
+          unzip -q "$IPA" -d "$RUNNER_TEMP/ipa"
+          bash tools/ci/check_shipping_app.sh "$RUNNER_TEMP/ipa/Payload/Shmup.app"
 
       - name: Upload to TestFlight
         if: ${{ inputs.check_only != 'true' }}

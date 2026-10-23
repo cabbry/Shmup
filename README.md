@@ -1,21 +1,22 @@
-SHMUP
-=====
+SHMUP Reborn
+============
 
-This is the source code of "SHMUP" a 3D Shoot 'em up that I wrote in 2009.  It
-is very inspired of Treasure Ikaruga, the engine runs on iOS, Android, Windows
-and MacOS X.  It has also been ported to Linux by "xevz".
-
-The main project page is at [http://fabiensanglard.net/shmup/](http://fabiensanglard.net/shmup/)
+SHMUP is the 3D shoot 'em up Fabien Sanglard wrote in 2009; his page is at
+[http://fabiensanglard.net/shmup/](http://fabiensanglard.net/shmup/). SHMUP
+Reborn is its modernization for today's iPhones and iPads, free and open source
+(GNU GPLv3), released with his agreement: five acts and a final boss, two
+control schemes, multiplayer for two to four over the local network or Game
+Center. The game is the same on Windows; Android builds from the same sources.
 
 ![SHMUP Reborn -- the home screen](docs/images/home.png)
 
 Technical side
 ==============
 
-It is written in ANSI C with wrapper for the specific platforms, rendition is
-done with OpenGL ES 1.1 and there is even an experimental rendition path based
-on OpenGL ES 2.0 that uses the dEngine source ( which can be found here:
-[http://fabiensanglard.net/dEngineSourceCodeRelease/index.php](http://fabiensanglard.net/dEngineSourceCodeRelease/index.php)).
+ANSI C, with a thin wrapper per platform. On iOS the game renders with Metal;
+the Windows port uses desktop OpenGL. In 2009 it rendered with OpenGL ES 1.1,
+with an experimental ES 2.0 path based on the dEngine source
+([http://fabiensanglard.net/dEngineSourceCodeRelease/index.php](http://fabiensanglard.net/dEngineSourceCodeRelease/index.php)).
 
 Repository layout
 =================
@@ -40,4 +41,4 @@ Repository layout
 
 Enjoy
 
-Copyright (C) 2009 Fabien Sanglard
+Copyright (C) 2009 Fabien Sanglard; SHMUP Reborn (C) 2026 Jr Cabbry

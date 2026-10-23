@@ -170,9 +170,11 @@ jobs:
                       write("POST", "/v1/appInfoLocalizations", {"data": {"type": "appInfoLocalizations", "attributes": attrs,
                              "relationships": {"appInfo": {"data": {"type": "appInfos", "id": iid}}}}})
 
-          # ---- age rating: a 2009 space shooter. Cartoon violence, infrequent;
-          # everything else none. Non-fatal: a refused field is printed, the
-          # rest of the listing still goes through.
+          # ---- age rating: a space shooter -- you fire at ships the whole game,
+          # so cartoon or fantasy violence is FREQUENT (5.0.11 and 5.0.12 said
+          # infrequent, which undersold it; guideline 2.3.6 wants the honest
+          # answer). Everything else none. Non-fatal: a refused field is
+          # printed, the rest of the listing still goes through.
           if info:
               ard = get(f"/v1/appInfos/{iid}/ageRatingDeclaration")
               if ard.get("data"):
@@ -182,7 +184,7 @@ jobs:
                           "medicalOrTreatmentInformation", "alcoholTobaccoOrDrugUseOrReferences",
                           "sexualContentOrNudity", "sexualContentGraphicAndNudity", "gamblingSimulated",
                           "gunsOrOtherWeapons", "contests")}
-                  freq["violenceCartoonOrFantasy"] = "INFREQUENT_OR_MILD"
+                  freq["violenceCartoonOrFantasy"] = "FREQUENT_OR_INTENSE"
                   flags = {k: False for k in ("gambling", "unrestrictedWebAccess", "lootBox", "advertising",
                            "parentalControls", "userGeneratedContent", "messagingAndChat", "socialMedia",
                            "healthOrWellnessTopics", "ageAssurance", "socialMediaAgeRestricted")}

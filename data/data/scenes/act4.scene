@@ -2,34 +2,6 @@
 
 defaultMenu -1
 
-# Act IV -- "Rain". THE FIRST ACT OF THE GAME THAT IS NOT ON A CLOCK.
-#
-# Acts I to III are timelines: every wave has an hour, and the level lasts what
-# the author decided. This one is a CHAIN OF REACTIONS -- one seed wave in the
-# enemies block, and after that each wave waits for the one before it to be
-# gone. The consequence is the point: a party of four kills a wave faster than
-# a lone player, so the act does not become a waiting room when there are more
-# guns; it stays dense. Nobody tuned that. It falls out of writing "next" as a
-# condition rather than a time.
-#
-# Its signature is the RED RAIN: three falls of homing seekers (enemyType 6),
-# until now the finale boss's private weapon. They steer toward the nearest
-# ship at a capped turn rate, so they are dodgeable, and they carry four points
-# of hull, so they can be shot out of the sky instead. They tint themselves
-# red-hot -- which against this act's grey-blue weather is the act's whole
-# look. Each fall arrives in beats, from two or three rules sharing one
-# trigger with different delays.
-#
-# It is also the exit test of the v4 pack format: written in data only, read by
-# tools/packlint the way the game reads it, and it ends with a rule (endAct)
-# rather than with a number.
-#
-# Decor, with no new asset: act 2's city and its shipped baked rail. The rail
-# and the map are a PAIR -- a .cp2b stores per-frame face indices into that
-# map's entities, so act 3's map (act 1's city) with act 3's rail (baked in
-# 2009 for act 2's city, and 35 s long) would have culled the wrong faces on
-# the wrong geometry. Act 2's flight is also the only one that shows this city
-# in full: the finale spends nine seconds of it and then hovers.
 
 map
 {
@@ -62,24 +34,10 @@ camera
 	zFar:	22000
 
 	attachAt: 09000
-	# No detachAt (4.0.2): the ships park at the end and stay visible under the
-	# epilog card, like every other act.
 
-	# driftAtEnd 2 -- the LEVEL patrol, and the one made for THIS rail. Round 63
-	# removed the patrol because the camera pivoted under the epilog card; the
-	# pivot was act 2's rail RUNNING OUT (it ends pitched, camera.c says so),
-	# and the act reached it only because a parser bug had every wave living
-	# 15 s. The act is shorter than the rail now. Mode 2 is the backstop for
-	# a run slow enough to outlast it anyway: it keeps the rail's altitude,
-	# never turns, and shuttles back over the city -- built in 4.0.4 for act
-	# 2's rail, where mode 1 climbed past the fog and turned on a black card.
 	driftAtEnd: 2
 }
 
-# Rain: the city seen through weather. Same ramp start as acts 1/2 (starting it
-# at the camera is what made the old act 3 needlessly dark), but the fog CLOSES
-# EARLIER -- 300 against their 405 -- so the far towers dissolve and the near
-# ones stay hard. Grey-blue, on the way down to the finale's deep water.
 fog
 {
 	enabled 1
@@ -124,18 +82,6 @@ playback
 
 music
 {
-	# EVEN ACT -- the same track, cued at 2:02. Far enough into a 6:07 piece to
-	# be another section entirely, so starting a game at act II does not open
-	# on the same bars as act I.
-	#
-	# This cue only applies WHEN THE GAME TRACK STARTS -- coming in from the
-	# home screen, which plays the other theme. Reaching act II by finishing
-	# act I changes no track, so the music plays on and this number is not
-	# consulted. That is deliberate (tester's spec, round 60): the cue belongs
-	# to the start of a run, not to a level change.
-	#
-	# No `alternate`: with none declared the player LOOPS, so a long run cannot
-	# run the music out -- which is what used to leave the boss in silence.
 	startMusicAt 122
 	trackname data/music/UNREALPM.mp3
 }
@@ -145,26 +91,16 @@ title
 	titleName  data/titles/rainTitle.png
 	prolog start 2000 duration 6000
 
-	# THE BACKSTOP, NOT THE SCHEDULE. The act normally ends on the last rule
-	# (endAct, below), whenever that is. But a chain of "cleared" conditions has
-	# one failure mode -- a wave that never clears -- and a level that cannot be
-	# finished is worse than one that ends early. Four minutes is far past any
-	# honest run of seven waves; if this fires, something is wrong, and the
-	# player still gets their score screen. Whichever ending arrives first wins:
-	# endAct is a one-shot and it refuses to start on top of a running epilog.
 	at 240000 movePlayersToDefautlSSLocation
 	epilog start 243000 duration 6000
 
 }
 
-# The seed, and the ONLY thing here with a time on it. Everything after it is
-# in the rules block, waiting on this.
 enemies
 {
 	settime 9000
 	setttl 6000
 
-	# Eighteen divers, criss-crossing, one every 200 ms. The act opens busy.
 	at 0    spawnEnemy mouvement 1 enemyType 1 startPos -0.7 1.3 endPos  0.5 -1.3 controlPoint -0.7 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
 	at 200  spawnEnemy mouvement 1 enemyType 1 startPos  0.7 1.3 endPos -0.5 -1.3 controlPoint  0.7 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
 	at 400  spawnEnemy mouvement 1 enemyType 1 startPos -0.3 1.3 endPos  0.3 -1.3 controlPoint -0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 group r1
@@ -186,44 +122,8 @@ enemies
 }
 
 
-# The act, as a chain of reactions: each rule waits for the group before it to
-# be GONE -- shot down, or expired on its ttl.
-#
-# THE BLACK HEDGEHOGS ARE ARCHITECTURE, NOT TARGETS. subType 2 multiplies an
-# FHT's energy by FORTY (event.c) and paints it 0.2 grey: forty hits from a
-# bullet that deals one. You are not meant to clear them, you are meant to
-# find the lane -- and the lane is where the act wants you rather than where
-# you want to be. Their ttl is what advances the chain, so a wall is an
-# obstacle and never a lock.
-#
-# TTL IS THE TEMPO OF THE WHOLE ACT. A wall lives its full ttl (nobody clears
-# forty-hit hulls), and the next wave waits for it: every second on a wall's
-# ttl is a second on the act. Round 64 found every rule here had been living
-# on the block's FIRST setttl (15 s) -- setttl between rules was swallowed by
-# the parser -- which is where the dead time between waves came from, and
-# why the act outran act 2's 142 s rail and the camera pivoted and froze at
-# the end. setttl is a rule boundary now, and the numbers below are real.
-#
-# Two things to know before adding more. MAX_NUM_ENEMIES is 64, all types
-# together, and the pool does not grow -- past it the engine logs "Enemy pool
-# exhausted" and hands out a dummy. And NOTHING tests one enemy against
-# another: a hedgehog and a Devil fly straight through each other, so a wall
-# inconveniences the player and nobody else.
-#
-# The formation coordinates are GENERATED, not typed (tools/rain/gen_walls.awk,
-# gen_storm.awk): every hull in a shape has to travel the same distance in the
-# same ttl, or the ones that start higher move faster and the shape shears
-# apart on the way down.
 rules
 {
-	# --- A: THE LONG CORRIDOR ------------------------------------------------
-	# Eight hulls a side, a lane 0.64 wide, nearly two units tall, 0.43 u/s:
-	# the head is on the player about 5.5 s after it appears and the tail is
-	# gone at 11. Everything that harasses him inside it is timed to THAT --
-	# the two silver Devils park either side once he is committed to the lane
-	# (round 64: "une fois que l'on est engage"), the crossers cut straight
-	# through it at his height while he is in it, and six weavers come down the
-	# lane itself.
 	setttl 11000
 	rule cA when cleared r1 after 800
 	        spawnEnemy mouvement 1 enemyType 1 startPos -0.32 1.35 endPos -0.32 -3.35 controlPoint -0.32 -1.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
@@ -265,12 +165,6 @@ rules
 	        spawnEnemy mouvement 2 xOffset 0.00 xWidth 0.26 enemyType 1 startPos 0.50 3.70 endPos 0.00 0.60 controlPoint 0.00 2.15 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        group cA
 
-	# --- THE RED RAIN, first fall: FOUR BEATS, TWENTY-FOUR -------------------
-	# Homing seekers (enemyType 6), the finale boss's own weapon: a capped turn
-	# rate so they can be juked, four points of hull so they can be shot down,
-	# and a red-hot tint they paint on themselves every frame. Four rules on
-	# one trigger, 800 ms apart. A single rule fires all its spawns on one tick,
-	# and six seekers together is weather; twenty-four is a wall.
 	setttl 5500
 	rule m1a when cleared cA after 200
 	        spawnEnemy mouvement 1 enemyType 6 startPos -0.95 1.25 endPos -0.95 -1.3 controlPoint -0.95 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
@@ -305,11 +199,6 @@ rules
 	        spawnEnemy mouvement 1 enemyType 6 startPos  0.90 1.25 endPos  0.90 -1.3 controlPoint  0.90 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        group m1
 
-	# --- B: THE DIAGONAL, STRAIGHT AFTER, AND NO WAY ROUND IT ----------------
-	# A lane whose SHAPE runs bottom-left to top-right: as its rows pass, the
-	# safe x slides from -0.56 to +0.63, so you drift left-to-right the whole
-	# way down a 0.64 lane. Two GHOST Devils park where you would slip past --
-	# the left it starts from, the right it heads to -- once you are in it.
 	setttl 11000
 	rule cB when cleared m1 after 300
 	        spawnEnemy mouvement 1 enemyType 1 startPos -0.88 1.35 endPos -0.88 -3.35 controlPoint -0.88 -1.00 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
@@ -335,11 +224,6 @@ rules
 	        spawnEnemy mouvement 1 enemyType 0 startPos  1.6 0.90 endPos  0.98 0.75 controlPoint  1.25 0.85 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
 	        group cB
 
-	# --- D: THE CHICANE, UNDER FIRE ------------------------------------------
-	# The first bank fills the right half, so you go left. The second is 0.85
-	# behind it and fills the left, so the gap between the two banks is exactly
-	# the time you have to cross the whole screen. Three turrets orbit over it
-	# and two falls of seekers drop in while you cross.
 	setttl 9000
 	rule cD when cleared cB after 400
 	        spawnEnemy mouvement 1 enemyType 1 startPos 0.13 1.35 endPos 0.13 -2.45 controlPoint 0.13 -0.55 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
@@ -383,11 +267,6 @@ rules
 	        spawnEnemy mouvement 1 enemyType 6 startPos  0.00 1.55 endPos  0.00 -1.30 controlPoint  0.00 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        group cD
 
-	# --- THREE STEALTH DEVILS, UNDER ACT I'S COLUMNS -------------------------
-	# Three anthracite Devils -- the stealth costume, 55 points each, the lasso
-	# -- and, AT THE SAME TIME, act I's two fast weaving columns down both
-	# flanks, fourteen ordinary hulls. The Devils are the target; the columns
-	# are the reason you cannot stand still to hit them.
 	setttl 7000
 	rule d1 when cleared cD after 600
 	        spawnEnemy mouvement 1 enemyType 0 startPos -1.6 0.75 endPos -0.55 0.55 controlPoint -1.0 0.65 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
@@ -412,12 +291,6 @@ rules
 	        spawnEnemy mouvement 2 xOffset 0.72 xWidth 0.22 enemyType 1 startPos 0.50 2.81 endPos 0.72 0.01 controlPoint 0.72 1.41 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        group d1
 
-	# --- SECOND FALL, TIGHT, WITH TWO SWEEPERS -------------------------------
-	# Fourteen seekers in two beats 800 ms apart, and two THA sweepers on the
-	# first beat, one high, one low. The THA's screen-right drift while it
-	# fires is 2010 behaviour (tha.c, 0.4 u/s, no sign in the data), so a THA
-	# parked on the RIGHT leaves the screen at once -- round 63's high one did.
-	# Both enter from the LEFT now and rake the whole width before they go.
 	setttl 5500
 	rule m2a when cleared d1 after 300
 	        spawnEnemy mouvement 1 enemyType 6 startPos -0.98 1.25 endPos -0.98 -1.3 controlPoint -0.98 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
@@ -443,11 +316,6 @@ rules
 	        spawnEnemy mouvement 1 enemyType 5 startPos -1.7 -0.55 endPos -0.95 -0.60 controlPoint -1.3 -0.58 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection  1 firingTime 5500
 	        group m2
 
-	# --- P: THE PILLAR, WITH FANS ON BOTH FLANKS ------------------------------
-	# Two straight columns side by side down the middle, six tall, no lane
-	# between: you pick a side. Two SHAB turrets sit on the flanks firing
-	# downward FANS -- a bounded arc, no rotation -- because a spiral here would
-	# close the only two ways past.
 	setttl 10000
 	rule cP when cleared m2 after 400
 	        spawnEnemy mouvement 1 enemyType 1 startPos -0.14 1.35 endPos -0.14 -2.75 controlPoint -0.14 -0.70 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
@@ -469,7 +337,6 @@ rules
 	        spawnEnemy mouvement 1 enemyType 3 startPos  2 0.85 endPos  0.70 0.62 controlPoint  1.3 0.75 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 225 firingAngle2 315 numThread 5 rotAngle 0
 	        group cP
 
-	# --- the four elites: two stealth, two ghost -----------------------------
 	setttl 7000
 	rule d2 when cleared cP after 600
 	        spawnEnemy mouvement 1 enemyType 0 startPos -1.6 0.60 endPos -0.42 0.45 controlPoint -1.0 0.55 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
@@ -478,28 +345,6 @@ rules
 	        spawnEnemy mouvement 1 enemyType 0 startPos  1.6 0.95 endPos  0.20 0.85 controlPoint  0.9 0.90 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
 	        group d2
 
-	# =========================================================================
-	# THE STORM. The biggest wave in the game -- a scatter, not a formation.
-	#
-	# Round 65, the tester's brief after the eight-band version: no more ranks.
-	# THREE THIRDS. A third goes ULTRA FAST: 1.4 u/s, three and a half times
-	# act I's charging columns, straight down. A third takes IMPROBABLE paths:
-	# steep diagonals from off both edges crossing each other, and crossers at
-	# the player's own height cutting the road from the side. A third descends
-	# at the columns' speed but scattered -- neither in rows nor in columns.
-	#
-	# THE VERTICALITY. A rule fires all its spawns on one tick, but a hull that
-	# STARTS HIGHER arrives later, at the same speed; so each band spreads its
-	# start heights over up to two screen units, and the vertical stagger IS
-	# the temporal stagger. Positions are golden-ratio stepped, not gridded, so
-	# nothing lines up within a band or across bands. Deterministic: the scene
-	# is data and lockstep needs every peer to read the same file.
-	#
-	# THE PEAK IS COMPUTED (tools/rain/gen_storm.awk): 105 spawned, 60 alive
-	# at once, against a cap of 64 with the multiplayer squall's 4 beside it.
-	# The first cut came out at 63 -- the second rain landed where every band
-	# overlapped -- and moved 800 ms later. Past 64 ENE_Get hands out a shared
-	# dummy and the spawn stops existing, so this is arithmetic, not optimism.
 	setttl 6500
 	rule s1 when cleared d2 after 300
 	        spawnEnemy mouvement 1 enemyType 1 startPos -0.63 2.46 endPos -0.63 -0.84 controlPoint -0.63 0.81 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
@@ -645,19 +490,11 @@ rules
 	        spawnEnemy mouvement 1 enemyType 1 startPos 1.55 -0.39 endPos -1.55 -0.54 controlPoint 0.00 -0.47 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	        group storm
 
-	# --- more guns, more rain ------------------------------------------------
-	# A party of three or four gets squalls the solo player never sees. Four
-	# hulls, not six: the storm peaks at 60 and the pool holds 64, so this is
-	# sized to fit beside it.
 	setttl 6000
 	rule squall when players 3 every 18000 after 18000
 	        spawnEnemyWave circle enemyNum 4 enemyType 1 percentageInvulnerable 0 angleoffset 40 defaultType 1
 	        group squall
 
-	# --- the ending, as a rule -----------------------------------------------
-	# Two seconds of clear sky after the storm's last hull falls, then the
-	# ships park and the card comes up. No time appears in this line, and that
-	# is the whole point of the act.
 	rule finish when cleared storm after 2000
 	        endAct
 }

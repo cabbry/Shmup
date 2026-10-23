@@ -428,9 +428,13 @@ order, each step a build:
       cannot start. Both say so now; the waiting screen speaks French.
     * Dormant code and data: a 2010 time jump nothing triggered, an input
       recorder that never wrote, a frame grabber, 36 files no scene loads.
-  Still to settle before the next submission: the music line, the merge into
-  `master` (the privacy URL and the source the notes cite serve it), the
-  screenshots (none shows "II"), and the age rating's violence answer.
+  The tester's calls on what was left: the developer comments of the frozen
+  acts III and IV go (the game's own lexer reads the same 3,500 and 6,818
+  tokens before and after), with act III's two unused rails; cartoon violence
+  is declared *frequent* -- you fire at ships the whole game -- where 5.0.11
+  and 5.0.12 said infrequent; the screenshots are retaken on his iPhone and
+  iPad from the TestFlight build; `master` is merged right before the
+  submission. Still to settle: the music line, once Fabien answers.
 - **App Store — 5.0.12 resubmitted, 2026-10-08.** Build 272, state
   WAITING_FOR_REVIEW, release still manual. **`READY_FOR_REVIEW` means staged,
   not sent**: attaching the version to the submission leaves it there, and a

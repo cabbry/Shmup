@@ -52,6 +52,14 @@ for pat in 'SHMUP_[A-Z_]+' 'test_rules' 'Rules_bench' 'Disabled[A-Za-z]*Specifie
 	[ -n "$files" ] && bad "'$pat' found in: $(echo $files)"
 done
 
+# 3b. The game's text files carry no developer notes about hidden things or
+#     test runs. (Not the executable: UIKit's own selectors say "Hidden".)
+if [ -d "$APP/data" ]; then
+	files=$(grep -r -l -i -E 'hidden|simulator|cheat' "$APP/data" \
+	        --include='*.scene' --include='*.cfg' --include='*.mtl' --include='*.lbr' --include='*.map' 2>/dev/null | head -5)
+	[ -n "$files" ] && bad "a developer note in the game's data: $(echo $files)"
+fi
+
 # 4. Files that have no place in the app.
 for f in Settings.bundle Entitlements.plist; do
 	[ -e "$APP/$f" ] && bad "$f is inside the app"

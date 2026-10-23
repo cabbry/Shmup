@@ -2,30 +2,9 @@
 
 defaultMenu -1
 
-# Act III -- the TTB act (homage to *Tokyo Toy Box*). The beat: fly the city as
-# usual, then the camera ROLLS 90 degrees onto its side and the vertical shooter
-# reads as a side-scroller for half a minute, then it rolls back up. The ship
-# keeps flying forward the whole time; nothing ever scrolls backwards.
-#
-# Timeline (the user's spec: 30s top-down / 30s side / 30s top-down):
-#   0- 10s  prolog, camera attaches at 10s
-#  10- 40s  top-down, the usual view
-#  40- 43s  roll to the side view (ttbRoll 90, 3s -- live culling on for the beat)
-#  43- 73s  side view
-#  73- 76s  roll back upright (live culling hands back to the bake)
-#  76-106s  top-down again
-# 106-115s  ships to rest position, epilog, then on to Act IV (the boss).
-#
-# NO ENEMIES yet, by design: the level flies empty so the TTB beat can be judged
-# on device first. Waves come in a later round, authored for each view.
 
 map
 {
-	# act1.map with ONE change: all three sky-dome slots use the blue dawn dome.
-	# Act 1 fades dawn -> evening -> night along the flight; top-down that sky is
-	# never seen, but the TTB side view looks straight at it -- and the evening/
-	# night domes are near-black up high ("fond bleu puis noir" on device).
-	# Same entities, same order, so the rail's baked visibility stays aligned.
 	filename: data/map/act3.map
 }
 
@@ -48,38 +27,21 @@ light
 
 camera
 {
-	# Act 1's shipped BAKED rail: 142s of city with its visibility set -- known
-	# good on device, and long enough that the rail never runs out under the
-	# 115s act (no end-of-rail patrol needed here, hence no driftAtEnd).
 	path:  data/cameraPath/act1.cp.cp2b
 
 	fov:	55
 	zNear:	10
 	zFar:	22000
 
-	# No detachAt since 4.0.2 (user call): the ships park at
-	# movePlayersToDefautlSSLocation (106 s) and stay in formation under the
-	# epilog card, as in the boss act. (Until 4.0.1 a detach at 107 s played
-	# the "fonce tout droit" outro rush: the ship froze in world space and the
-	# camera swept past it -- it read as the ship vanishing before the card.)
 	attachAt: 10000
 }
 
-# Dusk: the act sits between act 2's night city and the boss's deep-blue haze.
 fog
 {
 	enabled 1
 	density 0.1
-	# startAt 70 like acts 1/2 -- starting the ramp at the camera is what made
-	# the old act 3 needlessly dark (measured on device, see act4.scene).
 	startAt 70
-	# endAt is 6x the other acts' 405 ON PURPOSE: the side view stands 420 units
-	# off the corridor (pose B) -- with the stock 405 the whole city would sit
-	# past the fog's end, a flat wall of fog colour. 2500 keeps the near facades
-	# readable and stages the depth; verified in the ttb_harness renders.
 	endAt   2500.0
-	# Tuned to sit between the city's far fade and the dome skirt's navy, so the
-	# clear colour (= fog colour since round 22) blends the horizon seam away.
 	color:  0.04  0.035  0.15
 }
 
@@ -118,23 +80,12 @@ playback
 
 music
 {
-	# ODD ACT -- the game track from the top. ONE track for the whole game
-	# (UNREALPM, 6:07); UNREALTH belongs to the home screen and nowhere else.
-	#
-	# The cue applies WHEN THE GAME TRACK STARTS -- entering from the home
-	# screen. Between acts the file does not change, so the music plays on and
-	# is not rewound (tester's spec, round 60).
-	#
-	# No `alternate`: with none declared the player LOOPS, so however long the
-	# run takes the music cannot run out.
 	startMusicAt 0
 	trackname data/music/UNREALPM.mp3
 }
 
 title
 {
-	# The act's own card ("Yuu -Dusk / Act III", generated in the style of the
-	# other cards -- Yu Gothic kanji + Brush Script, white on transparent).
 	titleName  data/titles/duskTitle.png
 	prolog start 2000 duration 6000
 
@@ -144,27 +95,10 @@ title
 }
 
 
-# Empty on purpose -- see the header comment. (An act with zero scripted spawns
-# is fine: the "Enemy cleared" stat guards the zero denominator.)
 enemies
 {
-	#define ENEMY_HAB	0
-	#define ENEMY_FHT	1
-	#define ENEMY_LEE	2
-	#define ENEMY_SHAB	3
-	#define ENEMY_THA	5
-	#
-	# Act III's signature (user brief): MIXED waves -- combos acts 1/2 never
-	# did (they run one type at a time) -- plus a few classics, and a PACKED
-	# side view (the tall screen is the whole corridor there).
-	# Timeline: 12-38s top-down / 40-43 swing (breather) / 45-71 SIDE VIEW
-	# (enemies cross right->left) / 73-76 return (breather) / 78-104 finale.
-	# Enemy pool is 64 live at once; ttls keep the densest overlaps under ~30.
 
-	# ---------- PHASE 1 (top-down, 10-39s) -- user's design, round 2 ----------
 
-	# P1-V1 (10s): the classic three LEE columns PLUS a turret parked top-center
-	# -- the opening bell that says "this act mixes everything, all along".
 	settime 10000
 	setttl 7000
 	at 0    spawnEnemy mouvement 1 enemyType 3 startPos 2 1.1 endPos 0.0 0.6 controlPoint 1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 5 rotAngle -200
@@ -172,18 +106,12 @@ enemies
 	at 800  spawnEnemy mouvement 0 startAngle 120 fireFrequency 50 enemyType 2 startPos  0.0 1.2 endPos  0.0 -1.2 controlPoint  0.0 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
 	at 1200 spawnEnemy mouvement 0 startAngle 240 fireFrequency 50 enemyType 2 startPos  0.6 1.2 endPos  0.6 -1.2 controlPoint  0.6 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
 
-	# P1-V2 (16s): THE THREE DEVILS -- one of each costume. Fabien's hidden
-	# enemy, first spawn since 2009: barrel-roll in, 4s of menace (it rams, it
-	# never shoots), barrel-roll out. subType = the SKIN (see event.c): 0 the
-	# resurrected original, 1 the anthracite stealth, 2 the translucent ghost.
 	settime 16000
 	setttl 5600
 	at 0    spawnEnemy mouvement 1 enemyType 0 startPos -1.6 0.7  endPos -0.55 0.55 controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 0
 	at 500  spawnEnemy mouvement 1 enemyType 0 startPos  1.6 0.8  endPos  0.55 0.6  controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
 	at 1000 spawnEnemy mouvement 1 enemyType 0 startPos  0.0 1.5  endPos  0.0  0.75 controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
 
-	# P1-V3 (22.5s): FOUR sweepers in a pincer (two high firing down, two low
-	# firing up) while ~20 FHT rain through the middle in staggered volleys.
 	settime 22500
 	setttl 6000
 	at 0    spawnEnemy mouvement 1 enemyType 5 startPos -1.8  0.65 endPos  0.7  0.6  controlPoint -1  0.6  zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection -1 firingTime 5200
@@ -212,9 +140,6 @@ enemies
 	at 3420 spawnEnemy mouvement 1 enemyType 1 startPos -0.3 1.2 endPos -0.3 -1.2 controlPoint -0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	at 3420 spawnEnemy mouvement 1 enemyType 1 startPos  0.3 1.2 endPos  0.3 -1.2 controlPoint  0.3 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 
-	# P1-V4 (28.5s): ONE spiral turret (the aimed-fan twin was cut -- user
-	# call) while two FHT columns CONVERGE toward the middle on their way
-	# down, act-1 style: the safe lane narrows as you thread it.
 	settime 28500
 	setttl 7000
 	at 0    spawnEnemy mouvement 1 enemyType 3 startPos -2 0.5 endPos -0.45 0.4 controlPoint -1 1 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 5 rotAngle -180
@@ -228,10 +153,6 @@ enemies
 	at 2600 spawnEnemy mouvement 1 enemyType 1 startPos -0.85 1.2 endPos -0.1 -1.2 controlPoint -0.55 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	at 2600 spawnEnemy mouvement 1 enemyType 1 startPos  0.85 1.2 endPos  0.1 -1.2 controlPoint  0.55 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 
-	# P1-V5 (34s): TWO Devils flank the screen -- the stealth on the LEFT
-	# (that side was empty, user call), the ghost rippling on the RIGHT --
-	# with two sweepers raking up from BEHIND the player: the ambush before
-	# the camera tips over.
 	settime 34000
 	setttl 5600
 	at 0    spawnEnemy mouvement 1 enemyType 0 startPos -1.6 0.3 endPos -0.45 0.3 controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
@@ -240,14 +161,8 @@ enemies
 	at 300  spawnEnemy mouvement 1 enemyType 5 startPos -1.8 -0.75 endPos  0.7 -0.7  controlPoint -1 -0.7  zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection 1 firingTime 4500
 	at 700  spawnEnemy mouvement 1 enemyType 5 startPos  1.8 -0.9  endPos -0.7 -0.85 controlPoint  1 -0.85 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 fireDirection 1 firingTime 4500
 
-	# ---------- 40-43s: the camera tips over. Nobody shoots at a cutscene. ----------
 
-	# ---------- SIDE VIEW (45-71s): the packed stretch. Everything enters ----------
-	# ---------- from the RIGHT and crosses left, at many heights.          ----------
 
-	# V5 -- OPENING RAIN (45s): hedgehog lances from EVERY height, dead
-	# straight, shuffled lanes so no corridor stays safe twice. The Original
-	# Devil barrel-rolls in mid-rain and opens with his red trident.
 	settime 45000
 	setttl 5500
 	at 0    spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.80 endPos -1.3  0.80 controlPoint 0  0.80 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
@@ -273,8 +188,6 @@ enemies
 	setttl 5600
 	at 2500 spawnEnemy mouvement 1 enemyType 0 startPos 1.4 0.45 endPos 0.5 0.4 controlPoint 1 0.42 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 0
 
-	# X-CROSS (51.5s): straight diagonals crossing mid-screen -- lances from
-	# every direction at once, no curve anywhere.
 	addtime 6500
 	setttl 5000
 	at 0    spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.85 endPos -1.3 -0.55 controlPoint 0  0.15 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
@@ -286,9 +199,6 @@ enemies
 	at 1500 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.05 endPos -1.3  0.75 controlPoint 0  0.40 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
 	at 1750 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.05 endPos -1.3 -0.75 controlPoint 0 -0.40 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
 
-	# V6 -- BEAMS AND THE FIRST CLIMB (53.5s): two LEE firing lines frame the
-	# rain; the balayeur enters low and SWEEPS UP the whole screen, curtain
-	# streaming left. The Anthracite Devil slips in behind, lasso whipping.
 	addtime 2000
 	setttl 9000
 	at 0    spawnEnemy mouvement 0 startAngle 0   fireFrequency 55 enemyType 2 startPos 1.2  0.6 endPos -1.2  0.6 controlPoint 0  0.6 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
@@ -306,10 +216,6 @@ enemies
 	setttl 5600
 	at 2000 spawnEnemy mouvement 1 enemyType 0 startPos 1.4 -0.05 endPos 0.45 0.0 controlPoint 1 -0.02 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
 
-	# V7 -- THE WALL (60.5s): the 3/4-tilted spiral turret parks mid-sky, a
-	# second balayeur climbs from the floor, straight lances everywhere --
-	# only two gentle arcs in the whole stretch, everything else flies true.
-	# The Ghost Devil shimmers in low, rippling yellow rings.
 	addtime 7000
 	setttl 10000
 	at 0    spawnEnemy mouvement 1 enemyType 3 startPos 2 0.3 endPos 0.3 0.3 controlPoint 1 0.6 zAxisRot 280 xAxisRot 0 yAxisRot 0 subType 0 firingAngle1 0 firingAngle2 360 numThread 6 rotAngle -180
@@ -334,8 +240,6 @@ enemies
 	setttl 5600
 	at 3000 spawnEnemy mouvement 1 enemyType 0 startPos 1.4 -0.4 endPos 0.5 -0.35 controlPoint 1 -0.37 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
 
-	# V8 -- CLOSING WALLS (67.5s): two five-lane hedgehog walls, offset lanes,
-	# then a fast trickle. All dead straight, all fast.
 	addtime 7000
 	setttl 5000
 	at 0    spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.80 endPos -1.3  0.80 controlPoint 0  0.80 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
@@ -357,14 +261,8 @@ enemies
 	at 4700 spawnEnemy mouvement 1 enemyType 1 startPos 1.3  0.10 endPos -1.3  0.10 controlPoint 0  0.10 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0
 	at 4950 spawnEnemy mouvement 1 enemyType 1 startPos 1.3 -0.70 endPos -1.3 -0.70 controlPoint 0 -0.70 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 2
 
-	# ---------- 73-76s: tipping back. Breather. ----------
 
-	# ---------- FINALE (78-104s, top-down): combos at full tilt ----------
 
-	# COMBO 5: circle waves AROUND the stealth Devil (user call, 4.0.2: the hard
-	# spinner that sat here became the anthracite -- its lasso whips from the
-	# centre while the hedgehogs ring it). A Devil's life is fixed by enemy.c
-	# (0.7s roll in, 4s of guns, 0.7s roll out): its ttl is always 5600.
 	settime 78000
 	setttl 5600
 	at 0    spawnEnemy mouvement 1 enemyType 0 startPos 1.6 0.3 endPos 0.0 0.3 controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 1
@@ -372,9 +270,6 @@ enemies
 	at 800  spawnEnemyWave circle enemyNum 12 enemyType 1 percentageInvulnerable 20 angleoffset 0 defaultType 0
 	at 4500 spawnEnemyWave circle enemyNum 10 enemyType 1 percentageInvulnerable 20 angleoffset 45 defaultType 0
 
-	# COMBO 6: TWO GHOST Devils side by side (user call, 4.0.2: the twin
-	# aimed-fan SHABs became the translucent pair -- their ripples cross)
-	# WITH LEE columns between them.
 	addtime 10500
 	setttl 5600
 	at 0    spawnEnemy mouvement 1 enemyType 0 startPos  1.6 0.55 endPos  0.5 0.55 controlPoint 0 0 zAxisRot 360 xAxisRot 0 yAxisRot 0 subType 2
@@ -383,7 +278,6 @@ enemies
 	at 1000 spawnEnemy mouvement 0 startAngle 0   fireFrequency 55 enemyType 2 startPos -0.2 1.2 endPos -0.2 -1.2 controlPoint -0.2 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
 	at 1600 spawnEnemy mouvement 0 startAngle 180 fireFrequency 55 enemyType 2 startPos  0.2 1.2 endPos  0.2 -1.2 controlPoint  0.2 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 0 1 bulletSpeed 3.5
 
-	# Classic closer, act-2 flavor: sine FHT weave, one side then the other.
 	addtime 9000
 	setttl 4500
 	at 0    spawnEnemy mouvement 2 xOffset 0 xWidth 1 enemyType 1 startPos -1 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
@@ -391,10 +285,6 @@ enemies
 	at 1200 spawnEnemy mouvement 2 xOffset 0 xWidth 1 enemyType 1 startPos -1 1.2 endPos -1 -1.2 controlPoint -1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
 	at 1800 spawnEnemy mouvement 2 xOffset 0 xWidth 1 enemyType 1 startPos  1 1.2 endPos  1 -1.2 controlPoint  1 0 zAxisRot 0 xAxisRot 0 yAxisRot 0 subType 1
 
-	# (The old "last word" circle at 104s was CUT -- device verdict on 202:
-	# its 6s ttl outlived the 106s control lock, hedgehogs still attacking
-	# a frozen ship in front of the stats card. The sine weave now closes
-	# the act with ~2s of clear sky before the epilog.)
 }
 
 texts_events
@@ -405,8 +295,6 @@ texts_events
 
 events
 {
-	# The TTB beat. Angles are absolute (0 = upright), so a missed edit cannot
-	# accumulate; each roll takes 3s, smoothstepped in camera.c.
 	at 40000  ttbRoll angle 90 duration 3000
 	at 73000  ttbRoll angle 0  duration 3000
 

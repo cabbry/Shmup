@@ -16,6 +16,9 @@ on:
       dry_run:
         description: "true = print what would change, write nothing"
         default: "true"
+      content_rights:
+        description: "uses / does_not_use third-party content, or skip to leave it as it is"
+        default: "skip"
 
 jobs:
   shipping:
@@ -31,6 +34,7 @@ jobs:
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
           DRY_RUN: ${{ inputs.dry_run }}
+          CONTENT_RIGHTS: ${{ inputs.content_rights }}
         run: |
           pip install --quiet pyjwt cryptography requests
           python3 - <<'EOF'
@@ -191,15 +195,22 @@ jobs:
 
           # ------------------------------------------------------- content rights
           def rights():
-              # "Does this app contain third-party content?" -- no: the engine, the
-              # art and the two music tracks are all Fabien's own 2009 release.
+              # "Does this app contain third-party content?" The answer is chosen
+              # at run time (input content_rights), never assumed: the two music
+              # tracks are credited to Future Crew in the game, so whether they are
+              # third-party content is a question of rights, not of code.
+              want = {"uses": "USES_THIRD_PARTY_CONTENT",
+                      "does_not_use": "DOES_NOT_USE_THIRD_PARTY_CONTENT"}.get(os.environ.get("CONTENT_RIGHTS") or "skip")
               cur = (get(f"/v1/apps/{app_id}").get("data") or {}).get("attributes", {}).get("contentRightsDeclaration")
               print("  declared:", cur)
-              if cur == "DOES_NOT_USE_THIRD_PARTY_CONTENT":
-                  print("  already answered -- left alone")
+              if not want:
+                  print("  content_rights=skip -- left as it is")
+                  return
+              if cur == want:
+                  print("  already", want, "-- left alone")
                   return
               write("PATCH", f"/v1/apps/{app_id}", {"data": {"type": "apps", "id": app_id,
-                     "attributes": {"contentRightsDeclaration": "DOES_NOT_USE_THIRD_PARTY_CONTENT"}}})
+                     "attributes": {"contentRightsDeclaration": want}}})
 
           # --------------------------------------------------------- game center
           def gamecenter():

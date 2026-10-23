@@ -396,9 +396,23 @@ void Native_UploadScore(uint score) {
 		}];
 	}
 }
+// Scores and Online need a Game Center player. Someone who declined the
+// sign-in sheet at launch used to tap either button and see nothing at all;
+// now they are told where to sign in.
+static void ShowGameCenterSignInHint(void) {
+	NSString* msg = Native_IsFrenchLanguage()
+		? @"Connectez-vous à Game Center dans l’app Réglages pour voir le classement et jouer en ligne."
+		: @"Sign in to Game Center in the Settings app to see the leaderboard and play online.";
+	MENU_ClearButtonStates();	// the tapped button must not stay pressed
+	if (!vc) return;
+	UIAlertController* a = [UIAlertController alertControllerWithTitle:@"Game Center" message:msg preferredStyle:UIAlertControllerStyleAlert];
+	[a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+	[vc presentViewController:a animated:YES completion:nil];
+}
+
 void Action_ShowGameCenter(void* tag) {
 	if (!this || !vc) return;
-	if (![GKLocalPlayer local].isAuthenticated) return;
+	if (![GKLocalPlayer local].isAuthenticated) { ShowGameCenterSignInHint(); return; }
 
 	// v3: the deployment target is iOS 15, so the pre-14 viewState branch was
 	// dead code -- and deprecated. The iOS 14 initializer stands alone.
@@ -439,8 +453,9 @@ void Native_SaveOptions(void) {
 void Native_StartOnlineMatchmaking(int partySize) {
 	if (!this || !vc) return;
 	if (![GKLocalPlayer local].isAuthenticated) {
-		// Not signed into Game Center: cannot matchmake -- bounce back to the menu.
+		// Not signed into Game Center: cannot matchmake -- back to the menu, and say why.
 		NET_AbortOnlineMatch();
+		ShowGameCenterSignInHint();
 		return;
 	}
 

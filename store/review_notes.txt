@@ -1,9 +1,25 @@
-SHMUP Reborn is the modernization of "SHMUP", an open-source (GNU GPLv3) 3D shoot'em up written in 2009 by Fabien Sanglard, who published it on the App Store at the time and later released the full source (https://fabiensanglard.net/shmup/, https://github.com/fabiensanglard/Shmup). This release is made with the original author's knowledge and agreement; he follows the project and is credited in the app and in the description. The modernized source is public at https://github.com/cabbry/Shmup.
+SHMUP Reborn is a free, open-source (GNU GPLv3) modernization of SHMUP, the 3D shoot'em up Fabien Sanglard wrote and published on the App Store in 2009 (https://github.com/fabiensanglard/Shmup). He agreed to this release. Our source: https://github.com/cabbry/Shmup.
 
-No account is needed. On first launch the app asks to sign in to Game Center; declining is fine, everything except the online leaderboard and online matches works without it.
+WHAT CHANGED SINCE THE 5.6 REJECTIONS OF 5.0.11 AND 5.0.12
+We went through the whole app for anything a reviewer could not see, and removed it:
+- The switches our simulator test scripts used (invulnerability, autofire, scene jump, forced menu) and their diagnostic output are no longer compiled into App Store builds. A test level only those scripts could open is no longer in the app.
+- The page in the iOS Settings app is gone. It held three player options, a developer statistics overlay, a Game Center switch that did nothing, and six 2009 renderer settings hidden by misspelt row types. Controls, sound and music are now in the game: Others > Options.
+- Code for a 2010 "Lite" trial, an unused replay/upload screen and a button placed off-screen are removed.
+- All five acts are open from the first launch; they used to unlock one by one.
+- A visible pause button replaces an undocumented five-finger gesture.
+Nothing in the app is hidden, remotely configured, or date- or region-dependent. Our release pipeline now checks every archive for test switches, diagnostic output, test data and hidden settings before it is uploaded.
 
-How to play: tap "Game", pick a ship, then the acts play on rails. Controls: slide a finger to move the ship (default) or use the virtual pad ("Others" > "Custom"). Two short tutorials are available from "Others" > "Tutorial".
+HOW TO REACH EVERYTHING (no account needed)
+Home: Game Solo / Game Multi / Others.
+- Game Solo > Easy / Normal / Insane (6 / 3 / 1 lives) > any act: Dawn, Hope, Dusk, Rain, Final (the boss with arms).
+- In an act: one finger moves the ship and fires while it touches the screen; a double tap launches the special shot. The "II" next to the score pauses the game: Resume / Quit.
+- Others > Options: controls (swipe or virtual pad), sound, music. With the pad: move at bottom left, fire at bottom right.
+- Others > Custom: 4 ships (Falcon, Viper, Phoenix, Ghost; Ghost is the Falcon hull drawn translucent) and 4 bullet colours (Red, Blue, Invisible, Yellow; Invisible does not draw your shots, a challenge option).
+- Others > Tutorial: a short tutorial for the control scheme chosen in Options. Others > Demo: act Dawn playing itself. Others > Scores: the Game Center leaderboard. Others > Credits.
+- Game Multi > Local (same Wi-Fi; asks for Local Network access; the Bonjour service is named _DodgeServer, the game's 2009 code name) or Online (Game Center) > 2 / 3 / 4 Players > act. Lives are shared (3 per player) and the score is a team score; a fallen ship returns at the next act. Enemies are tougher with more ships, and act Rain adds one extra wave for parties of three or more. A single device reaches the waiting screen; a match needs the other devices. The first iPhone screenshot was taken during a two-device match.
 
-Multiplayer needs at least two devices: "Multi" > "Network" plays over the local Wi-Fi (this is why the app requests Local Network access), "Multi" > "Online" uses Game Center matchmaking. Both can be reviewed on a single device up to the waiting screen; a full match needs a second device on the same network or signed in to Game Center.
+GAME CENTER is offered at launch. If it is declined, Scores and Online show where to sign in (iOS Settings > Game Center).
 
-The app contains no purchases, no ads, no user-generated content and no chat. The only network traffic is Game Center (scores, matchmaking) and peer-to-peer game data on the local network. Encryption: none beyond the OS (ITSAppUsesNonExemptEncryption = NO).
+No purchases, ads, user-generated content, chat, web views or analytics. Network traffic: Game Center, and game data between the players' devices during a match.
+
+MUSIC: [to complete once the rights are confirmed]

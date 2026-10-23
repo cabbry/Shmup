@@ -1,6 +1,6 @@
 SHMUP est le shoot'em up 3D écrit par Fabien Sanglard en 2009, inspiré d'Ikaruga de Treasure. Reborn le ramène sur les iPhone et iPad d'aujourd'hui : plein écran, rendu Metal, Game Center et du multijoueur jusqu'à quatre vaisseaux.
 
-Cinq actes, cinq villes, et le plaisir un peu oublié d'un shoot'em up qui vous demande quelque chose. On entre, on meurt, on recommence, et un soir les mains connaissent le chemin. Pas de monde ouvert, rien à débloquer pendant des heures, pas de cinématique à subir : un vaisseau, un écran qui se remplit de balles, et la seule ligne à trouver au milieu. Chaque acte garde quelque chose pour ceux qui vont jusque-là.
+Cinq actes, et le plaisir un peu oublié d'un shoot'em up qui vous demande quelque chose. On entre, on meurt, on recommence, et un soir les mains connaissent le chemin. Pas de monde ouvert, pas de cinématique à subir, tous les actes ouverts dès le premier lancement : un vaisseau, un écran qui se remplit de balles, et la seule ligne à trouver au milieu.
 
 Rien n'est aléatoire. Chaque vague, chaque balle et chaque mouvement du boss est déterministe : une même partie se rejoue à l'identique. Apprenez les motifs, puis battez-les.
 
@@ -10,11 +10,12 @@ JOUEZ ENSEMBLE
 - Un pot commun de vies et un score d'équipe. Un vaisseau tombé revient à l'acte suivant.
 
 VOTRE VAISSEAU
-- Trois vaisseaux au choix et quatre couleurs de tir.
-- Deux modes de pilotage, glissé ou pad virtuel, chacun avec son tutoriel.
+- Quatre vaisseaux (Falcon, Viper, Phoenix et Ghost) et quatre couleurs de tir, dont une Invisible, pour qui veut voler à l'aveugle.
+- Deux modes de pilotage, glissé ou pad virtuel, chacun avec son tutoriel. On passe de l'un à l'autre dans Autres > Options, à côté du son et de la musique.
+- Un bouton pause pendant chaque acte.
 - Vos meilleurs scores sur un classement Game Center.
 
 LOGICIEL LIBRE
-SHMUP est un logiciel libre sous licence GNU GPLv3. Le moteur d'origine et cette modernisation sont tous deux sur GitHub. Pas de publicité, pas d'achat, pas de pistage, rien de collecté : la seule donnée qui quitte votre appareil est le score que vous envoyez à Game Center.
+SHMUP est un logiciel libre sous licence GNU GPLv3. Le moteur d'origine et cette modernisation sont tous deux sur GitHub. Pas de publicité, pas d'achat, pas de pistage, rien de collecté : votre score part vers Game Center, et pendant une partie à plusieurs, les mouvements de votre vaisseau partent vers les appareils des autres joueurs.
 
 Crédits : SHMUP par Fabien Sanglard (2009). Reborn par Jr Cabbry (2026).

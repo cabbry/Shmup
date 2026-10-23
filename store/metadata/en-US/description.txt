@@ -1,6 +1,6 @@
 SHMUP is the 3D shoot'em up Fabien Sanglard wrote in 2009, inspired by Treasure's Ikaruga. Reborn brings it back to today's iPhones and iPads: full screen, Metal rendering, Game Center, and multiplayer for up to four ships.
 
-Five acts, five cities, and the old pleasure of a shoot'em up that asks something of you. You go in, you die, you go back in, and one evening your hands know the way through. No open world, nothing to unlock for hours, no cutscene to sit through: a ship, a screen filling with bullets, and the one line through it you have to find. Every act keeps something for those who get that far.
+Five acts, and the old pleasure of a shoot'em up that asks something of you. You go in, you die, you go back in, and one evening your hands know the way through. No open world, no cutscene to sit through, every act open from the first launch: a ship, a screen filling with bullets, and the one line through it you have to find.
 
 Nothing is random. Every wave, every bullet and every boss move is deterministic, so the same run plays the same way twice. Learn the patterns, then beat them.
 
@@ -10,11 +10,12 @@ PLAY TOGETHER
 - A shared pool of lives and a team score. A fallen ship comes back at the next act.
 
 YOUR SHIP
-- Three ships to choose from and four bullet colours.
-- Two control schemes, swipe or virtual pad, each with its own tutorial.
+- Four ships (Falcon, Viper, Phoenix and Ghost) and four bullet colours, one of them Invisible, for those who want to fly blind.
+- Two control schemes, swipe or virtual pad, each with its own tutorial. Switch between them in Others > Options, next to sound and music.
+- A pause button during every act.
 - Your best scores on a Game Center leaderboard.
 
 OPEN SOURCE
-SHMUP is free software under the GNU GPLv3. The original engine and this modernization are both on GitHub. No ads, no purchases, no tracking, nothing collected: the only data that leaves your device is the score you send to Game Center.
+SHMUP is free software under the GNU GPLv3. The original engine and this modernization are both on GitHub. No ads, no purchases, no tracking, nothing collected: your score goes to Game Center, and during a multiplayer match your ship's moves go to the other players' devices.
 
 Credits: SHMUP by Fabien Sanglard (2009). Reborn by Jr Cabbry (2026).

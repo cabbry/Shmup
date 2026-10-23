@@ -1,0 +1,2 @@
+/* The Local Network prompt, in French. */
+"NSLocalNetworkUsageDescription" = "SHMUP utilise le réseau local pour trouver des joueurs à proximité et jouer avec eux en Wi-Fi.";

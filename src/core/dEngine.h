@@ -104,8 +104,6 @@ typedef struct engine_info_t
 {
 	uchar soundEnabled;
 	uchar musicEnabled;
-	uchar gameCenterEnabled;
-	uchar gameCenterPossible;
 	
 	int numScenes;
 	int numActs;		// v4: how many scenes are of kind ACT
@@ -158,6 +156,7 @@ void dEngine_WriteScreenshot(char* directory);
 void dEngine_Pause(void);
 void dEngine_Resume(void);
 void dEngine_ResumeGame(void);
+void dEngine_SetMusicEnabled(int on);	// the Options screen: stop or restart the scene's track now
 void dEngine_RenderCountdown(void);
 extern int gCountdownMs;
 void dEngine_GoToNextScene(void);

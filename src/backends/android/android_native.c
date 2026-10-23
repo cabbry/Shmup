@@ -89,6 +89,7 @@ void AND_LoadSettings(void)
 
 void Native_SaveLoadout(int ship, int color) { gShipChoice = ship; gBulletColor = color; AND_SaveSettings(); }
 void Native_SaveProgress(int highestAct)   { gHighestActReached = highestAct; AND_SaveSettings(); }
+void Native_SaveOptions(void)              { AND_SaveSettings(); }
 
 
 //ITextureloader.h

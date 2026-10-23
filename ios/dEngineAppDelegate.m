@@ -418,6 +418,17 @@ void Native_SaveLoadout(int ship, int color) {
 	[d synchronize];
 }
 
+// The Options screen. The keys are the ones checkEngineSettings (EAGLView.m)
+// reads at launch and on every return to the foreground, written as strings
+// like the values it parses with intValue.
+void Native_SaveOptions(void) {
+	NSUserDefaults* d = [NSUserDefaults standardUserDefaults];
+	[d setObject:(engine.soundEnabled ? @"1" : @"0") forKey:@"SoundEffectsEnabled"];
+	[d setObject:(engine.musicEnabled ? @"1" : @"0") forKey:@"MusicEnabled"];
+	[d setObject:[NSString stringWithFormat:@"%d", (int)engine.controlMode] forKey:@"controlType"];
+	[d synchronize];
+}
+
 // Persist the furthest act ever reached (gates the act-select screen); restored
 // at launch in EAGLView's checkEngineSettings.
 void Native_SaveProgress(int highestAct) {

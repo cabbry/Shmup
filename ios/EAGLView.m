@@ -41,7 +41,6 @@
 #include "material.h"
 
 #include <sys/types.h>
-#include <sys/sysctl.h>
 
 #include "player.h"
 #include "music.h"
@@ -83,33 +82,17 @@ EAGLView *eaglview;
 
 - (void) checkEngineSettings
 {
-	//Set stats enabled
+	// The three switches of the in-game Options screen (Native_SaveOptions in
+	// dEngineAppDelegate.m writes them). Absent on a fresh install: sound and
+	// music on, swipe controls.
 	NSUserDefaults *standardUserDefaults = [NSUserDefaults standardUserDefaults];
-	[standardUserDefaults synchronize];
-	
-	NSString* statEnabledString = [standardUserDefaults stringForKey:@"StatisticsEnabled"];
-	
-	NSLog(@"StatisticsEnabled string = %@",statEnabledString);
-	renderer.statsEnabled = [@"1" isEqualToString:statEnabledString];
-
-	
-	NSLog(@"SoundEffectsEnabled='%@'",[[NSUserDefaults standardUserDefaults] stringForKey:@"SoundEffectsEnabled"]);
-	if ([[NSUserDefaults standardUserDefaults] stringForKey:@"SoundEffectsEnabled"] == nil)
-		engine.soundEnabled = 1;
-	else 
-	{
-		engine.soundEnabled = [[[NSUserDefaults standardUserDefaults] stringForKey:@"SoundEffectsEnabled"] intValue] ;
-	}
-	NSLog(@"engine.soundEnabled=%d",engine.soundEnabled);
-	
-	NSLog(@"MusicEnabled='%@'",[[NSUserDefaults standardUserDefaults] stringForKey:@"MusicEnabled"]);
-	if ([[NSUserDefaults standardUserDefaults] stringForKey:@"MusicEnabled"] == nil)
-		engine.musicEnabled = 1;
-	else 
-	{
-		engine.musicEnabled = [[[NSUserDefaults standardUserDefaults] stringForKey:@"MusicEnabled"] intValue] ;
-	}
-	NSLog(@"engine.musicEnabled=%d",engine.musicEnabled);
+	NSString* sound   = [standardUserDefaults stringForKey:@"SoundEffectsEnabled"];
+	NSString* music   = [standardUserDefaults stringForKey:@"MusicEnabled"];
+	NSString* control = [standardUserDefaults stringForKey:@"controlType"];
+	engine.soundEnabled = sound ? ([sound intValue] ? 1 : 0) : 1;
+	engine.musicEnabled = music ? ([music intValue] ? 1 : 0) : 1;
+	engine.controlMode  = (control && [control intValue] == CONTROL_MODE_VIRT_PAD) ? CONTROL_MODE_VIRT_PAD : CONTROL_MODE_SWIP;
+	renderer.statsEnabled = 0;
 
 	// Persisted solo loadout (Custom screen): restore the chosen ship + bullet colour.
 	if ([standardUserDefaults objectForKey:@"ShipChoice"] != nil)
@@ -147,41 +130,6 @@ EAGLView *eaglview;
 	NSLog(@"highestAct=%d", gHighestActReached);
 
 
-	engine.gameCenterEnabled = 0;
-//	NSLog(@"GameCenterEnabled='%@'",[[NSUserDefaults standardUserDefaults] stringForKey:@"GameCenterEnabled"]);
-//	if ([[NSUserDefaults standardUserDefaults] stringForKey:@"GameCenterEnabled"] == nil)
-//		engine.gameCenterEnabled = 0;
-//	else 
-//	{
-//		engine.gameCenterEnabled = [[[NSUserDefaults standardUserDefaults] stringForKey:@"GameCenterEnabled"] intValue] ;
-//	}
-//	NSLog(@"gameCenterEnabled=%d",engine.gameCenterEnabled);
-	
-	NSLog(@"controlType='%@'",[[NSUserDefaults standardUserDefaults] stringForKey:@"controlType"]);
-	if ([[NSUserDefaults standardUserDefaults] stringForKey:@"controlType"] == nil)
-		engine.controlMode = CONTROL_MODE_SWIP;
-	else 
-	{
-		engine.controlMode = [[[NSUserDefaults standardUserDefaults] stringForKey:@"controlType"] intValue] ;
-	}
-	NSLog(@"controlType=%d",engine.controlMode);
-	
-	
-	
-	
-	//Also check the iOS version, if version > 4.0 gamecenter is possible.
-	CGFloat systemVersion = [[[ UIDevice currentDevice ] systemVersion ] floatValue ];
-	if( systemVersion >= 4.1 )
-	{
-		engine.gameCenterPossible=1;
-		printf("GameCenter possible.\n");
-	}
-	else {
-		engine.gameCenterPossible=0;
-		printf("GameCenter NOT possible.\n");
-	}
-
-	
 }
 
 //void AudioInterruptionListenerCallback(void* user_data, UInt32 interruption_state)
@@ -210,16 +158,7 @@ EAGLView *eaglview;
 		// v3 (round 37): the layer is a CAMetalLayer (+layerClass); OpenGL ES
 		// retired once the device round confirmed Metal.
 
-		//Set the texture quality
-		renderer.materialQuality = [[[NSUserDefaults standardUserDefaults] stringForKey:@"MaterialQuality"] intValue];
-		
-		//#ifndef GENERATE_VIDEO
-		renderer.materialQuality = MATERIAL_QUALITY_LOW;
-		//#else
 		renderer.materialQuality = MATERIAL_QUALITY_HIGH;
-		//#endif
-
-		UIDevice* thisDevice = [UIDevice currentDevice];
 
 		// The engine's surface, in pixels, BEFORE dEngine_Init: the menus are
 		// built in there and place their titles with a formula that divides by
@@ -248,57 +187,16 @@ EAGLView *eaglview;
 		renderer.props |= PROP_FOG;		
 		
 		
-		if(thisDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad)
-		{
-			// iPad
-			 
-            //Disable fog only on iPad1 machines, iPad2 have enough fillarate
-            size_t size;
-			sysctlbyname("hw.machine", NULL, &size, NULL, 0);
-			char *machine = malloc(size);
-			sysctlbyname("hw.machine", machine, &size, NULL, 0);
-			
-			
-			if (!strcmp(machine, "iPad1,1"))
-				renderer.props &= ~PROP_FOG ;
-			
-		}
 		
 		
 	//	printf("renderer.resolution =%.2f\n",renderer.resolution );
 				
-		//Set shadow enabled/disabled
-		//Set shadow type
-		if ([[[NSUserDefaults standardUserDefaults] stringForKey:@"ShadowType"] intValue])
-			renderer.props |= PROP_SHADOW ;
-		else 
-			renderer.props &= ~PROP_SHADOW ;
-
-		
-		if ([[[NSUserDefaults standardUserDefaults] stringForKey:@"NormalMappingEnabled"] intValue])
-			renderer.props |= PROP_BUMP ;
-		else 
-			renderer.props &= ~PROP_BUMP ;
-
-		
-		if ([[[NSUserDefaults standardUserDefaults] stringForKey:@"SpecularMappingEnabled"] intValue])
-			renderer.props |= PROP_SPEC ;		
-		else
-			renderer.props &= ~PROP_SPEC ;
+		renderer.props &= ~(PROP_SHADOW | PROP_BUMP | PROP_SPEC);	// the 2009 GL pipeline's; Metal draws none of them
 
 		
         
 		animating = FALSE;
-		displayLinkSupported = FALSE;
 		displayLink = nil;
-		animationTimer = nil;
-		
-		// A system version of 3.1 or greater is required to use CADisplayLink. The NSTimer
-		// class is used as fallback when it isn't available.
-		NSString *reqSysVer = @"3.1";
-		NSString *currSysVer = [[UIDevice currentDevice] systemVersion];
-		if ([currSysVer compare:reqSysVer options:NSNumericSearch] != NSOrderedAscending)
-			displayLinkSupported = TRUE;
         
 			
 		
@@ -389,80 +287,21 @@ EAGLView *eaglview;
 - (void)startAnimation {
     if (!animating)
 	{
-		
-		if (displayLinkSupported)
-		{
-			// CADisplayLink is API new to iPhone SDK 3.1. Compiling against earlier versions will result in a warning, but can be dismissed
-			// if the system version runtime check for CADisplayLink exists in -initWithCoder:. The runtime check ensures this code will
-			// not be called in system versions earlier than 3.1.
-			
-			displayLink = [NSClassFromString(@"CADisplayLink") displayLinkWithTarget:self selector:@selector(drawView:)];
-			
-			/*
-			 Platforms
-			 iPhone1,1 -> iPhone 1G
-			 iPhone1,2 -> iPhone 3G 
-			 iPod1,1   -> iPod touch 1G 
-			 iPod2,1   -> iPod touch 2G 
-			 */
-			
-			size_t size;
-			sysctlbyname("hw.machine", NULL, &size, NULL, 0);
-			char *machine = malloc(size);
-			sysctlbyname("hw.machine", machine, &size, NULL, 0);
-			
-			
-			if (!strcmp(machine, "iPhone1,1") || !strcmp(machine, "iPod1,1"))
-				animationFrameInterval = 2;
-			else
-				animationFrameInterval = 1;
-			/*
-			 #ifdef _ARM_ARCH_7
-			 NSLog(@"Running on _ARM_ARCH_7");
-			 
-			 #else
-			 NSLog(@"Running on _ARM_ARCH_6");
-			 animationFrameInterval = 2;
-			 #endif
-*/			 
-			
-			free(machine);
-				
-				
-			// v3: preferredFramesPerSecond replaces the deprecated setFrameInterval: (and the typed receiver ends the "multiple methods named" ambiguity)
-			((CADisplayLink*)displayLink).preferredFramesPerSecond = (animationFrameInterval > 0) ? (NSInteger)(60 / animationFrameInterval) : 60;
-			[displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-		}
-		else
-		{
-			NSLog(@"CADisplayLink is unavailable, failing back to NSTimer");
-			animationTimer = [NSTimer scheduledTimerWithTimeInterval:(NSTimeInterval)((MAX_FPS) * animationFrameInterval) target:self selector:@selector(drawView:) userInfo:nil repeats:TRUE];
-		}	
+		displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(drawView:)];
+		((CADisplayLink*)displayLink).preferredFramesPerSecond = (animationFrameInterval > 0) ? (NSInteger)(60 / animationFrameInterval) : 60;
+		[displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
 		animating = TRUE;
 	}
-	
 }
-
 
 - (void)stopAnimation {
 	if (animating)
 	{
-		if (displayLinkSupported)
-		{
-			[displayLink invalidate];
-			displayLink = nil;
-		}
-		else
-		{
-			[animationTimer invalidate];
-			animationTimer = nil;
-		}
-		
+		[displayLink invalidate];
+		displayLink = nil;
 		animating = FALSE;
 	}
 }
-
-
 
 
 - (void)  loadTexture:(texture_t*)text

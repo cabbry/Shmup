@@ -42,7 +42,7 @@
 
 static char* MENU_Tr(const char* en);	// v2: menu localization (table below)
 
-menu_screen_t menuScreens[12];	// v2 P4: + MENU_ONLINE_SIZE; v2: + MENU_MULTI_MODE
+menu_screen_t menuScreens[13];	// v2 P4: + MENU_ONLINE_SIZE; v2: + MENU_MULTI_MODE; + MENU_OPTIONS
 int currentMenuId;
 
 texture_t textureAtlas;
@@ -655,6 +655,53 @@ void Action_SelectBulletColor(void* tag)
 #endif
 }
 
+// ---- The Options screen (Others -> Options) ---------------------------------
+// Controls, sound and music used to live only in the iOS Settings app, outside
+// the game, where nobody playing it would look. Each tap flips one switch,
+// saves it (Native_SaveOptions) and stays on the screen.
+static char gOptControlsLabel[48];
+static char gOptSoundLabel[48];
+static char gOptMusicLabel[48];
+
+static void MENU_UpdateOptionsLabels(void)
+{
+	sprintf(gOptControlsLabel, MENU_Tr("%s: %s"), MENU_Tr("Controls"),
+	        MENU_Tr(engine.controlMode == CONTROL_MODE_VIRT_PAD ? "Pad" : "Swipe"));
+	sprintf(gOptSoundLabel, MENU_Tr("%s: %s"), MENU_Tr("Sound"), MENU_Tr(engine.soundEnabled ? "On" : "Off"));
+	sprintf(gOptMusicLabel, MENU_Tr("%s: %s"), MENU_Tr("Music"), MENU_Tr(engine.musicEnabled ? "On" : "Off"));
+}
+
+void Action_ShowOptionsMenu(void* tag)
+{
+	MENU_UpdateOptionsLabels();
+	MENU_Set(MENU_OPTIONS);
+}
+
+static void MENU_OptionChanged(void)
+{
+	MENU_UpdateOptionsLabels();
+	MENU_ClearButtonStates();	// stay here, and let the same button be tapped again
+	Native_SaveOptions();
+}
+
+void Action_ToggleControls(void* tag)
+{
+	engine.controlMode = (engine.controlMode == CONTROL_MODE_VIRT_PAD) ? CONTROL_MODE_SWIP : CONTROL_MODE_VIRT_PAD;
+	MENU_OptionChanged();
+}
+
+void Action_ToggleSound(void* tag)
+{
+	engine.soundEnabled = !engine.soundEnabled;
+	MENU_OptionChanged();
+}
+
+void Action_ToggleMusic(void* tag)
+{
+	dEngine_SetMusicEnabled(!engine.musicEnabled);
+	MENU_OptionChanged();
+}
+
 
 
 
@@ -664,7 +711,7 @@ void Action_BackToHome(void* tag)
 	MENU_Set(MENU_HOME);
 }
 
-void Action_BackToOptions(void* tag)
+void Action_BackToMultiMode(void* tag)
 {
 	NET_Free();
 	MENU_Set(MENU_MULTI_MODE);	// v2: multiplayer lives under Game Multi now
@@ -743,6 +790,20 @@ static const menu_tr_t gMenuTr[] = {
 	{ "%s - the host's act plays",   "%s - l'acte de l'h\xF4te fait foi" },
 	{ "Finding %d players for %s...", "Recherche de %d joueurs pour %s..." },
 	{ "(the host's act plays)",       "(l'acte de l'h\xF4te fait foi)" },
+	// the Options screen
+	{ "Options",              "Options" },
+	{ "OPTIONS",              "OPTIONS" },
+	{ "%s: %s",               "%s : %s" },
+	{ "Controls",             "Contr\xF4les" },
+	{ "Swipe",                "Glisser" },
+	{ "Pad",                  "Pad" },
+	{ "Sound",                "Son" },
+	{ "Music",                "Musique" },
+	{ "On",                   "Oui" },
+	{ "Off",                  "Non" },
+	{ "Swipe: one finger flies and fires.", "Glisser : un doigt pilote et tire." },
+	{ "Pad: stick at left, fire at right.", "Pad : manette \xE0 gauche, tir \xE0 droite." },
+	{ "The tutorial follows this choice.", "Le tutoriel suit ce choix." },
 	{ "Red",                 "Rouge" },
 	{ "Blue",                "Bleu" },
 	{ "Invisible",           "Invisible" },
@@ -937,7 +998,7 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_BackToOptions,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_BackToMultiMode,NULL, buttonPos, buttonDim);
 	
 	
 	
@@ -990,7 +1051,7 @@ void MENU_Init(void)
 	
 	
 	// v2 layout (user's order): row 1 Custom | Scores, row 2 Tutorial | Demo,
-	// row 3 Credits (centred), Back centred at the bottom.
+	// row 3 Options | Credits, Back centred at the bottom.
 	buttonPos[X] = -MENU_COL_X;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
 	buttonDim[WIDTH] = MENU_COL_W;
@@ -1019,9 +1080,15 @@ void MENU_Init(void)
 	*actId = 13 ;
 	MENU_CreateButtonWithTag(currentMenu, MENU_Tr("Demo"), 3, Action_PlayDemo,actId,NULL, buttonPos, buttonDim);
 
-	buttonPos[X] = 0 ;
+	buttonPos[X] = -MENU_COL_X;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
-	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[WIDTH] = MENU_COL_W;
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Options"), 3, Action_ShowOptionsMenu,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = MENU_COL_X;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
+	buttonDim[WIDTH] = MENU_COL_W;
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Credits"), 3, Action_ShowCreditsMenu,NULL, buttonPos, buttonDim);
 #else
@@ -1046,6 +1113,12 @@ void MENU_Init(void)
 	buttonDim[WIDTH] = MENU_COL_W;
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Credits"), 3, Action_ShowCreditsMenu,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Options"), 3, Action_ShowOptionsMenu,NULL, buttonPos, buttonDim);
 #endif
 
 	
@@ -1148,6 +1221,31 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_SpecifyDifficulty,NULL, buttonPos, buttonDim);
 
+
+	// --- Options (Others -> Options): controls, sound, music, one tap each ---
+	currentMenu = &menuScreens[MENU_OPTIONS];
+	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, MENU_Tr("OPTIONS"));
+	MENU_UpdateOptionsLabels();
+
+	buttonDim[WIDTH] = (240 * 2);	// room for the longest label, the French controls one
+	buttonDim[HEIGHT] = 64 * 2;
+	buttonPos[X] = 0;
+	buttonPos[Y] = 170;
+	MENU_CreateButton(currentMenu, gOptControlsLabel, 2.5f, Action_ToggleControls, NULL, buttonPos, buttonDim);
+	buttonPos[Y] = 40;
+	MENU_CreateButton(currentMenu, gOptSoundLabel, 2.5f, Action_ToggleSound, NULL, buttonPos, buttonDim);
+	buttonPos[Y] = -90;
+	MENU_CreateButton(currentMenu, gOptMusicLabel, 2.5f, Action_ToggleMusic, NULL, buttonPos, buttonDim);
+
+	MENU_CreateText(currentMenu, 0, -200, 1.6f, TEXT_CENTERED, MENU_Tr("Swipe: one finger flies and fires."));
+	MENU_CreateText(currentMenu, 0, -240, 1.6f, TEXT_CENTERED, MENU_Tr("Pad: stick at left, fire at right."));
+	MENU_CreateText(currentMenu, 0, -280, 1.6f, TEXT_CENTERED, MENU_Tr("The tutorial follows this choice."));
+
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowOthersMenu,NULL, buttonPos, buttonDim);
 
 	// --- Loadout menu (solo: Others -> Ship): pick ship (left) + bullet colour (right) ---
 	currentMenu = &menuScreens[MENU_SELECT_SHIP];

@@ -204,8 +204,6 @@ void WIN_LoadSettings(void)
 	engine.soundEnabled = 1;
 	engine.musicEnabled = 1;
 	engine.controlMode = CONTROL_MODE_SWIP;
-	engine.gameCenterEnabled = 0;
-	engine.gameCenterPossible = 0;
 	snprintf(path, sizeof(path), "%s/settings.cfg", getenv("WD") ? getenv("WD") : ".");
 	f = fopen(path, "r");
 	if (!f)
@@ -243,6 +241,8 @@ void Native_SaveProgress(int highestAct)
 	gHighestActReached = highestAct;
 	SaveSettings();
 }
+
+void Native_SaveOptions(void) { SaveSettings(); }
 
 // ---------------------------------------------------------------------------
 //  The rest of native_services.h

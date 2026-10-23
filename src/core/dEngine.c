@@ -526,9 +526,9 @@ bool dEngine_Init(void)
 	engine.musicStartAt = 0;
 	engine.playback.filename[0] = '\0';
 	
-	engine.soundEnabled = 1;
-	engine.musicEnabled = 1;
-	engine.gameCenterEnabled = 0;
+	// Sound, music and the control mode are NOT set here: every platform loads
+	// the player's saved options (the Options screen) before calling dEngine_Init,
+	// and this used to overwrite sound and music back to "on" right after.
 	
 	ENPAR_Init();
 	
@@ -597,6 +597,31 @@ int gHighestActReached = 1;
 // v2: the soundtrack file currently loaded in the native player, so a scene
 // change to the SAME track lets the music play on (see dEngine_LoadScene).
 static char gPlayingTrack[256] = "";
+
+// The Options screen switches the music live. The music backends do nothing
+// while the switch is off -- stopping included -- so stop BEFORE switching
+// off; switching back on restarts the current scene's own track from its cue.
+void dEngine_SetMusicEnabled(int on)
+{
+	if (!on && engine.musicEnabled)
+	{
+		SND_StopSoundTrack();
+		gPlayingTrack[0] = '\0';
+		engine.musicEnabled = 0;
+	}
+	else if (on && !engine.musicEnabled)
+	{
+		engine.musicEnabled = 1;
+		gPlayingTrack[0] = '\0';
+		if (engine.musicFilename[0] != '\0')
+		{
+			SND_InitSoundTrack(engine.musicFilename, engine.musicStartAt);
+			SND_StartSoundTrack();
+			strncpy(gPlayingTrack, engine.musicFilename, sizeof(gPlayingTrack)-1);
+			gPlayingTrack[sizeof(gPlayingTrack)-1] = '\0';
+		}
+	}
+}
 
 void dEngine_LoadScene(int sceneId)
 {

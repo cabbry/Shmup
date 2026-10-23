@@ -80,7 +80,7 @@ player
 playback
 {
 	play 0
-	record 1
+	record 0
 	filename 02act2.scene.io
 }
 
@@ -280,7 +280,7 @@ enemies
 
 									
 					
-	#Test THA
+	#THA WAVE
 	#NORMAL SPINNING SHAB
 	addtime 8000
 	setttl 8000
@@ -288,7 +288,7 @@ enemies
 	at 200 spawnEnemy mouvement 1 enemyType 5 startPos  -1.8 0.7 endPos -0.2 0.7 controlPoint -1 0.7 zAxisRot  280 xAxisRot 0 yAxisRot 0   subType 0  fireDirection -1 firingTime 6000
 	at 200 spawnEnemy mouvement 1 enemyType 5 startPos  -1.8 0.7 endPos  0.6 0.7 controlPoint -1 0.7 zAxisRot  280 xAxisRot 0 yAxisRot 0   subType 0 fireDirection -1 firingTime 6000
 
-	#Test THA
+	#THA WAVE
 	#NORMAL SPINNING SHAB
 	addtime 8000
 	setttl 7000

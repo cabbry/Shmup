@@ -183,7 +183,7 @@ Rules are evaluated once per simulation tick, after the timeline, as pure
 functions of the clock and the enemy list — every peer computes the same
 answer, so lockstep holds. `rules.c` prints `[rule] t=<sim> fire <name> …`
 behind the probe gate; `smoke-rules.yml` reads it on the bench scene
-(`data/levels/test_rules`, scene 12, CI only): three waves chained by rules,
+(`tools/ci/levels/test_rules`, scene 12, added to simulator builds by `smoke-rules.yml` only): three waves chained by rules,
 fired in order, the second one only after the last ship of the first is
 dead, the clock rule at 60 s.
 

@@ -33,7 +33,9 @@
 
 /* Engine services the loader touches, stubbed. */
 int  Log_Printf(const char* fmt, ...) { va_list ap; va_start(ap, fmt); int n = vprintf(fmt, ap); va_end(ap); return n; }
+#ifndef Log_ProbesEnabled	/* outside the test builds it is a macro, the literal 0 (log.h) */
 int  Log_ProbesEnabled(void) { return 0; }
+#endif
 void Log_Init(void) {}
 renderer_t renderer;
 
@@ -61,6 +63,7 @@ int main(void)
 	float maxPos = 0, maxDist = 0, seamBand = 0;
 	int maxNrm = 0;
 
+	FS_SetDirectories(getenv("RD"), getenv("WD"));	/* the rig is a tool: it may read its folders from the environment */
 	FS_InitFilesystem();
 	memset(&orig, 0, sizeof(orig));
 	memset(&rig, 0, sizeof(rig));

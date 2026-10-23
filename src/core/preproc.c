@@ -42,7 +42,6 @@ int logPreproc;
 // preproc.h). Declared here because the expansion/conversion helpers above
 // PREPROC_SetSkipVis read it.
 static int preprocSkipVis = 0;
-static int preprocKeyframeDebug = -1;	// -1 = env not read yet
 
 
 
@@ -554,9 +553,7 @@ prec_camera_frame_t* PREPROC_ReadFrameFromFile(void)
 	// mis-parses leaves every frame at t=0 and the camera at the origin, which
 	// reads on screen as "the level starts in the void"). Dump what the lexer
 	// actually produced when SHMUP_CULL_DEBUG is set.
-	if (preprocKeyframeDebug < 0)
-		preprocKeyframeDebug = CI_GETENV("SHMUP_CULL_DEBUG") ? 1 : 0;
-	if (preprocKeyframeDebug)
+	if (Log_ProbesEnabled())
 		Log_Printf("[cp keyframe] t=%d pos=(%.0f,%.0f,%.0f) quat=(%.3f,%.3f,%.3f,%.3f)\n",
 				   frame->time,
 				   frame->position[0], frame->position[1], frame->position[2],

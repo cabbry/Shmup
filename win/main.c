@@ -680,10 +680,6 @@ int main(int argc, char** argv)
 	printf("SHMUP Reborn %s -- data root %s, writable %s\n", Native_GetVersionString(), rd, wd);
 	if (!HasData(rd[0] ? rd : ".") && GetFileAttributesA(rd) == INVALID_FILE_ATTRIBUTES)
 		printf("warning: no data folder found at %s (use --data <repo root>)\n", rd);
-	if (scene >= 0)
-	{
-		snprintf(env, sizeof(env), "SHMUP_BAKE_SCENE=%d", scene); _putenv(env);
-	}
 
 	timeBeginPeriod(1);
 	if (!CreateGLWindow(winW, winH))
@@ -699,6 +695,8 @@ int main(int argc, char** argv)
 	renderer.safeInsetTopPx = 0;
 	WIN_LoadSettings();
 	dEngine_Init();
+	if (scene >= 0)	// --scene: boot straight into a scene (a desktop convenience, not a test switch)
+		dEngine_RequireSceneId(scene);
 	if (!GLR_Create(GetGLProc, gClientW, gClientH))
 	{
 		MessageBoxA(NULL, "This OpenGL driver has no shader support (OpenGL 2.0 needed).", "SHMUP Reborn", MB_ICONERROR);

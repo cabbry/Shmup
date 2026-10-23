@@ -1027,7 +1027,6 @@ static void RenderEntitiesM(void)
 	matrix_t	cullView, cullProj, cullPV;
 	vec3_t		cullLookat;
 	int			cullDrawn = 0;
-	static int	cullDebug = -1;
 	static int	cullLogTick = 0;
 	static char	cullIds[160] = "";
 	static int	cullTris = 0;
@@ -1090,7 +1089,7 @@ static void RenderEntitiesM(void)
 				entity->matrix[12] = camera.position[0];
 				entity->matrix[14] = camera.position[2];
 				cullDrawn++;
-				if (cullDebug == 1)
+				if (Log_ProbesEnabled())
 				{
 					char idbuf[16];
 					sprintf(idbuf, "%d,", i);
@@ -1119,7 +1118,7 @@ static void RenderEntitiesM(void)
 	if (gRuntimeCullMap)
 	{
 		sDepthWrite = 1;
-		if (cullDebug == 1 && cullLogTick + 1 >= 60)
+		if (Log_ProbesEnabled() && cullLogTick + 1 >= 60)
 		{
 			uchar spx[16*16*4];
 			int   sk, ssum = 0;
@@ -1141,7 +1140,7 @@ static void RenderEntitiesM(void)
 			if (COLL_CheckBoxAgainstFrustrum(entity->worldSpacebbox,cullFrustrum) == INT_OUT)
 				continue;
 			cullDrawn++;
-			if (cullDebug == 1)
+			if (Log_ProbesEnabled())
 			{
 				char idbuf[16];
 				sprintf(idbuf, "%d,", i);
@@ -1159,11 +1158,9 @@ static void RenderEntitiesM(void)
 	}
 	sCullBack = 1;			// glEnable(GL_CULL_FACE): ships and enemies are culled
 
-	if (cullDebug < 0)
-		cullDebug = CI_GETENV("SHMUP_CULL_DEBUG") ? 1 : 0;
-	if (cullDebug || gRuntimeCullMap)
+	if (Log_ProbesEnabled() || gRuntimeCullMap)
 	{
-		if (cullDebug && ++cullLogTick >= 60)
+		if (Log_ProbesEnabled() && ++cullLogTick >= 60)
 		{
 			uchar px[16*16*4];
 			int   k, sum = 0;
@@ -1191,7 +1188,7 @@ static void RenderEntitiesM(void)
 					   cullDrawn, num_map_entities, cullIds, cullTris, skyLuma, decorLuma, topLuma,
 					   players[0].ss_position[X], players[0].ss_position[Y], players[0].autopilot.enabled);
 		}
-		if (cullDebug)
+		if (Log_ProbesEnabled())
 		{
 			cullIds[0] = '\0';
 			cullTris = 0;

@@ -375,6 +375,7 @@ void dEngine_WriteScreenshot(char* directory)
 // P_InitPlayers quietly take it back.
 static void dEngine_ApplyFakePlayers(void)
 {
+#ifdef SHMUP_CI_HOOKS
 	char* fake = CI_GETENV("SHMUP_FAKE_PLAYERS");
 	if (fake && engine.mode == DE_MODE_SINGLEPLAYER)
 	{
@@ -387,6 +388,7 @@ static void dEngine_ApplyFakePlayers(void)
 			players[i].respawnCounter = (char)(n * numPlayerRespawn[DIFFICULTY_NORMAL]);	// the MP pool, N x 3
 		Log_Printf("[fake] %d ships in a solo game (CI).\n", n);
 	}
+#endif
 }
 
 // v4 stage 1: read a level pack's manifest into scenes[sceneId]. The block:
@@ -561,11 +563,13 @@ bool dEngine_Init(void)
 	// With the scene pointing at a .cp TEXT camera path, loading it recompiles
 	// the rail (visibility bake included) and saves the .cp2b to the writable
 	// dir -- run in the iOS Simulator, where the file is easy to extract.
+#ifdef SHMUP_CI_HOOKS
 	{
 		char* bakeScene = CI_GETENV("SHMUP_BAKE_SCENE");
 		if (bakeScene)
 			dEngine_RequireSceneId(atoi(bakeScene));
 	}
+#endif
 
 
 	return true;
@@ -875,6 +879,7 @@ void dEngine_CheckState(void)
 	// scene burned the one shot before scene n ever ran, silently coupling
 	// this to SHMUP_BAKE_SCENE). Singleplayer only: a local env jump inside
 	// a lockstep match would desync the peers.
+#ifdef SHMUP_CI_HOOKS
 	{
 		static int replayScene = -2;
 		static int replayed = 0;
@@ -893,6 +898,7 @@ void dEngine_CheckState(void)
 			dEngine_RequireSceneId(replayScene);
 		}
 	}
+#endif
 }
 
 // ---------------------------------------------------------------------------

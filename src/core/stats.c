@@ -64,10 +64,9 @@ void STATS_AddBlendingSwitch(){blendingSwitchCount++;}
 #define STATS_FONT_SIZE 2
 void STATS_Render(void)
 {
-		if (!renderer.statsEnabled)
-	{
+	// A developer's overlay: compiled into the test builds only.
+	if (!Log_ProbesEnabled() || !renderer.statsEnabled)
 		return;
-	}
 	
 	
 	sprintf( fpsText,"Fps: %d" ,fps );

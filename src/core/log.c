@@ -22,6 +22,7 @@ filehandle_t* logFile_Handle;
 // [devil], [replay]): they only speak when SHMUP_CULL_DEBUG is set (the CI
 // smoke sets it; a player's device never does). Cached once -- getenv is not
 // free and some probes sit near per-frame code.
+#ifdef SHMUP_CI_HOOKS
 int Log_ProbesEnabled(void)
 {
 	static int flag = -1;
@@ -29,29 +30,31 @@ int Log_ProbesEnabled(void)
 		flag = CI_GETENV("SHMUP_CULL_DEBUG") ? 1 : 0;
 	return flag;
 }
+#endif
 
 // File logging, off unless SHMUP_LOG_FILE is set in the environment. It writes
 // shmup_log.txt in the FS writable dir (Documents on iOS) and flushes every
 // line, so the log survives a crash and can be pulled off a device or a CI
 // Simulator container -- the console channel alone proved unreliable to capture
 // (simctl's pty capture came back empty on some runs, leaving us blind).
+#ifdef SHMUP_CI_HOOKS
 static int logToFile = 0;
+#else
+#define logToFile 0	// no log file outside the test builds, and no code for one
+#endif
 
 
 void Log_Init(void)
 {
+#ifdef SHMUP_CI_HOOKS
 	logToFile = (CI_GETENV("SHMUP_LOG_FILE") != NULL);
+#endif
 
 	if (logToFile)
 		logFile_Handle = FS_OpenFile("shmup_log.txt","w");
 
 	Log_Printf("\n\n");
 
-	if (LOG_TO_CONSOLE)
-		Log_Printf("****[Warning, logging to console   . This should be disabled in prod.]\n");
-
-	if (logToFile)
-		Log_Printf("****[Warning, logging to filesystem. This should be disabled in prod.]\n");
 }
 
 

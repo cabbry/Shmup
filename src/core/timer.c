@@ -30,7 +30,7 @@
 int forcedTimeIncrement=0;
 void Timer_ForceTimeIncrement(int ms)
 {
-	Log_Printf("[Timer] !! WARNING !! Time increment is forced !! WARNING !!.\n");
+	Log_Printf("[Timer] fixed time step: %d ms\n", ms);
 	forcedTimeIncrement = ms;
 }
 

@@ -700,7 +700,7 @@ void COM_StopRecording(void)
 		
 	engine.playback.record = 0;
 	
-    Log_Printf("[COM_StopRecording] WARNING Writing command record to disk is DISABLED !!!\n");
+    Log_Printf("[COM_StopRecording] recording stopped\n");
     
 	/*
 	Log_Printf("[COM_StopRecording] Writing command record to disk.\n");

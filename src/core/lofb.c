@@ -516,6 +516,7 @@ static void LOFB_PoseArms(enemy_t* enemy)
 
 	if (!mesh || mesh->numBones != LOFB_NUM_BONES || mesh->memLocation == MD5_MEMLOC_VRAM || !mesh->vertexArray)
 		return;
+#ifdef SHMUP_CI_HOOKS
 	{
 		// CI-only A/B switch: SHMUP_ARMS_FREEZE=1 leaves the mesh in its rest
 		// skin (the rig loaded, the poses never applied).
@@ -523,6 +524,7 @@ static void LOFB_PoseArms(enemy_t* enemy)
 		if (freeze < 0) freeze = CI_GETENV("SHMUP_ARMS_FREEZE") ? 1 : 0;
 		if (freeze) return;
 	}
+#endif
 	if (!gPoseBonesValid)
 	{
 		memcpy(gPoseBones, mesh->bones, sizeof(gPoseBones));
@@ -587,6 +589,7 @@ static void LOFB_PoseArms(enemy_t* enemy)
 				pinceSwing += LOFB_ARM_TREMOR_DEG * sinf(t * 0.01257f + 3.0f * k);	// 2 Hz
 		}
 
+#ifdef SHMUP_CI_HOOKS
 		{
 			// CI-only calibration: SHMUP_ARMS_TEST=1 forces a constant pose --
 			// left Pince tilted 12 deg about X, right Pince swung 30 deg about Y --
@@ -595,6 +598,7 @@ static void LOFB_PoseArms(enemy_t* enemy)
 			if (test < 0) test = CI_GETENV("SHMUP_ARMS_TEST") ? 1 : 0;
 			if (test) { blocSwing = blocTilt = 0; pinceSwing = (k == 1) ? 30.0f : 0.0f; pinceTilt = (k == 0) ? 12.0f : 0.0f; }
 		}
+#endif
 
 		// The Bloc: its own rotation about the tube.
 		LOFB_QuatAxisAngle(0, 1, 0, blocSwing * mirror, qy);

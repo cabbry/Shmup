@@ -731,6 +731,7 @@ void P_Update(void)
 			// frame and the smoke's dome/sky luma assertions sample a REAL
 			// frame mix -- the client-state lottery (builds 207/208) never
 			// reproduced on an idle run because no polluting pass ever drew.
+#ifdef SHMUP_CI_HOOKS
 			{
 				static int autofire = -1;
 				if (autofire < 0)
@@ -743,6 +744,7 @@ void P_Update(void)
 				if (autofire && engine.mode == DE_MODE_SINGLEPLAYER)
 					P_FireTwoBullet(player);
 			}
+#endif
 
 			if (player->autopilot.enabled)
 			{

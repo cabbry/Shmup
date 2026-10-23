@@ -897,7 +897,9 @@ void CAM_LoadPath(void)
 {	
 	//Check extension
 	char* extension;
-	char binPath[256];
+#ifdef SHMUP_CI_HOOKS
+	char binPath[256];	// the offline bake writes the .cp2b here
+#endif
 
 	cameraVisMemSize = 0;
 	
@@ -928,6 +930,7 @@ void CAM_LoadPath(void)
 		// visibility set and write the .cp2b out to be committed.
 		// NOTE: this used to be keyed on gRuntimeCullMap, which now starts OFF --
 		// so every text rail silently took the slow bake at load time.
+#ifdef SHMUP_CI_HOOKS
 		if (CI_GETENV("SHMUP_BAKE_VIS"))
 		{
 			PREPROC_SetSkipVis(0);
@@ -936,6 +939,7 @@ void CAM_LoadPath(void)
 			camera.path = PREPROC_ConvertCp1Tocp2b(camera.pathFilename,binPath,0);
 		}
 		else
+#endif
 		{
 			PREPROC_SetSkipVis(1);
 			camera.path = PREPROC_ConvertCp1Tocp2b(camera.pathFilename,NULL,0);

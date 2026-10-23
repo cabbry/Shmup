@@ -1,33 +1,22 @@
 #ifndef DE_CI_HOOKS
 #define DE_CI_HOOKS
 
-// The CI smoke tests need switches the camera cannot press: invulnerability
-// for an unattended ship, autofire, a replayed scene, a forced menu. They were
-// read straight from getenv(), which put them -- and their names -- inside
-// every build, the App Store one included. App Review read that as
-// functionality hidden from the reviewer (guideline 5.6) and refused 5.0.11.
+// Test switches for the simulator smoke tests: an unattended ship that cannot
+// die, autofire, a scene to boot into or replay, a menu to open. They exist
+// only in builds compiled with SHMUP_CI_HOOKS, which the smoke and screenshot
+// workflows pass on the xcodebuild line and nothing else does.
 //
-// Now a single compile-time switch decides. SHMUP_CI_HOOKS is defined ONLY on
-// the xcodebuild command line of the smoke workflows; no build defines it by
-// default, so a shipping binary holds neither the lookups nor the literals.
+// Each switch is a whole block inside #ifdef SHMUP_CI_HOOKS -- the lookup, what
+// it does, and its log lines -- so a build without the flag holds none of it.
+// CI_GETENV has no definition outside those builds on purpose: a test switch
+// written anywhere else does not compile.
 //
-// Rule for anything added later: a test-only switch goes through CI_GETENV,
-// never through getenv(). testflight.yml greps the archived binary for
-// "SHMUP_" and fails if a name survives.
+// The diagnostic probes follow the same rule through Log_ProbesEnabled (log.h).
+// testflight.yml checks the archived app for what must not be in it.
 
 #ifdef SHMUP_CI_HOOKS
 	#include <stdlib.h>
 	#define CI_GETENV(name)	getenv(name)
-#else
-	// A plain ((char*)0) would be simpler, and wrong: clang then proves the
-	// "found" half of every `CI_GETENV(x) ? 1 : 0` dead, and this project
-	// builds with -Wunreachable-code -Werror. A static inline is opaque to
-	// that check -- it runs on the syntax tree, before inlining -- while the
-	// optimiser still drops the call, its unused argument, and the string
-	// literal with it. At -O0 the literal survives -- Debug is never shipped,
-	// and the guard reads the Release archive. Verified, not assumed.
-	static __inline char* ci_no_hook(const char* name) { (void)name; return 0; }
-	#define CI_GETENV(name)	ci_no_hook(name)
 #endif
 
 #endif

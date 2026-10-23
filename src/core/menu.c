@@ -1673,6 +1673,7 @@ int MENU_ScrollTouch(int eventType, short touchY)
 // home scene, SHMUP_MENU_SCROLL=<n> presets its scroll (0 = top, up to scrollMax).
 void MENU_ApplyEnvHooks(void)
 {
+#ifdef SHMUP_CI_HOOKS
 	char* mid = CI_GETENV("SHMUP_MENU");
 	char* sc  = CI_GETENV("SHMUP_MENU_SCROLL");
 	if (mid && SCENE_IS(SCENE_KIND_INTRO))
@@ -1683,6 +1684,7 @@ void MENU_ApplyEnvHooks(void)
 	}
 	if (sc && currentMenuId != MENU_NONE && menuScreens[currentMenuId].scrollable)
 		MENU_SetScroll(&menuScreens[currentMenuId], atoi(sc));
+#endif
 }
 
 touch_t* MENU_GetCurrentButtonTouches(void)

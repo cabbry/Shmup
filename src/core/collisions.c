@@ -414,11 +414,13 @@ void COLL_CheckPlayers(void)
 	// (SHMUP_BAKE_SCENE) -- now that the TTB act has enemies, that ship would
 	// die and drop to the menu before the probes fire. Env-gated, so it can
 	// never affect a real device or lockstep play.
+#ifdef SHMUP_CI_HOOKS
 	static int smokeInvuln = -1;
 	if (smokeInvuln < 0)
 		smokeInvuln = CI_GETENV("SHMUP_INVULN") ? 1 : 0;
 	if (smokeInvuln)
 		return;
+#endif
 
 	// User in invulnerable
 	if (players[controlledPlayer].invulnerableFor > 0)
@@ -765,6 +767,7 @@ void COLL_CheckEnemies(void)
 	// waves -- ramming deaths live HERE, not in COLL_CheckPlayers, which is how
 	// the enemies smoke silently game-overed to the menu at ~20s (the 'scene 0
 	// at sim-t 20min' mystery: the timer never resets on the way out).
+#ifdef SHMUP_CI_HOOKS
 	{
 		static int smokeInvuln = -1;
 		if (smokeInvuln < 0)
@@ -772,6 +775,7 @@ void COLL_CheckEnemies(void)
 		if (smokeInvuln)
 			return;
 	}
+#endif
 
 	// User in invulnerable
 	if (players[controlledPlayer].invulnerableFor > 0)

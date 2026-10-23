@@ -47,9 +47,6 @@
 #define CONTROL_MODE_SWIP 0
 #define CONTROL_MODE_VIRT_PAD 1
 
-#define LICENSE_LIMITED 0
-#define LICENSE_FULL 1
-
 #include "globals.h"
 #include "renderer.h"
 
@@ -138,8 +135,6 @@ typedef struct engine_info_t
 	uchar showFingers;
 	
 	uchar controlMode;
-	
-	uchar licenseType;
 	
 	uchar difficultyLevel ;
 	

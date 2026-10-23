@@ -206,7 +206,6 @@ void WIN_LoadSettings(void)
 	engine.controlMode = CONTROL_MODE_SWIP;
 	engine.gameCenterEnabled = 0;
 	engine.gameCenterPossible = 0;
-	engine.licenseType = 1;
 	snprintf(path, sizeof(path), "%s/settings.cfg", getenv("WD") ? getenv("WD") : ".");
 	f = fopen(path, "r");
 	if (!f)
@@ -248,29 +247,8 @@ void Native_SaveProgress(int highestAct)
 // ---------------------------------------------------------------------------
 //  The rest of native_services.h
 // ---------------------------------------------------------------------------
-int Native_RetrieveListOf(char replayList[10][256])
-{
-	char pattern[MAX_OSPATH * 2];
-	WIN32_FIND_DATAA fd;
-	HANDLE h;
-	int n = 0;
-	snprintf(pattern, sizeof(pattern), "%s/*.io", FS_GameWritableDir());
-	h = FindFirstFileA(pattern, &fd);
-	if (h == INVALID_HANDLE_VALUE)
-		return 0;
-	do
-	{
-		if (n < 10)
-			strncpy(replayList[n++], fd.cFileName, 255);
-	} while (FindNextFileA(h, &fd));
-	FindClose(h);
-	return n;
-}
-
-void Native_UploadFileTo(char path[256]) { (void)path; }
 void Action_ShowGameCenter(void* tag) { (void)tag; }
 void Native_UploadScore(uint score) { Log_Printf("[score] %u (no leaderboard on this platform)\n", score); }
-void Native_LoginGameCenter(void) {}
 void Native_StartOnlineMatchmaking(int partySize) { (void)partySize; }
 void Native_CancelOnlineMatchmaking(void) {}
 void Native_GKSendData(const void* data, int len, int reliable) { (void)data; (void)len; (void)reliable; }

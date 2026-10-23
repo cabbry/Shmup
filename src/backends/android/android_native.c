@@ -10,11 +10,8 @@ void SND_ResumeSoundTrack(void){}
 
 
 // native_service.h
-int  Native_RetrieveListOf(char replayList[10][256]){ return 0;}
-void Native_UploadFileTo(char path[256]){}
 void Action_ShowGameCenter(void* tag){}
 void Native_UploadScore(unsigned int score){}
-void Native_LoginGameCenter(void){}
 
 // Round 90: what the core has learnt to ask since 2012, answered on Android.
 // No Game Center, no GameKit; the language from the activity's

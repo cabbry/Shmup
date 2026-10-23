@@ -421,7 +421,6 @@ void android_main(struct android_app* state) {
 	renderer.statsEnabled = 0;
 
 
-	engine.licenseType = LICENSE_FULL;
 
 
     LOGE("[android_main] INIT\n");

@@ -600,8 +600,6 @@ static char gPlayingTrack[256] = "";
 
 void dEngine_LoadScene(int sceneId)
 {
-	event_t* ev;
-
 	COM_StopRecording();
 
 	engine.showFingers=0;
@@ -724,13 +722,6 @@ void dEngine_LoadScene(int sceneId)
 		
 	VIS_Update();
 	
-	if (SCENE_IS(SCENE_KIND_ACT) && engine.scenes[engine.sceneId].actIndex == 1 && engine.licenseType == LICENSE_LIMITED)
-	{
-		ev = calloc(1, sizeof(event_t));
-		ev->time = 130000;
-		ev->type = EV_LIMITED_EVENT;
-		EV_AddEvent(ev);
-	}
     
     //We are back to main menu, init a few things
     if (SCENE_KIND(sceneId) == SCENE_KIND_INTRO)

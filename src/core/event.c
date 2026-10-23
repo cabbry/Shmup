@@ -375,113 +375,6 @@ void EV_SaveScore(event_t* event)
 }
 
 
-void EV_LimitedEdition_Action(event_t* event)
-{
-	enemy_t* enemy;
-	event_t* toDelete;
-	vec2short_t ss_start_pos;
-	vec2short_t ss_end_pos;
-	event_req_scene_t* payloadScene;
-	event_req_menu_t* payloadMenu;
-	
-	
-	
-	
-	// Destroy all enemies
-	enemy = ENE_GetFirstEnemy();
-	while (enemy) 
-	{
-		// spawn an explosion
-		FX_GetExplosion(enemy->ss_position,IMPACT_TYPE_YELLOW,1,0);
-		//enemy->ss_position[X] += (rand() - (RAND_MAX >> 1)) / (float)(RAND_MAX >> 1) * 0.1 ;
-		//enemy->ss_position[Y] += (rand() - (RAND_MAX >> 1)) / (float)(RAND_MAX >> 1) * 0.1 ;
-		//FX_GetExplosion(enemy);
-		
-		
-		
-		Spawn_EntityParticules(enemy->ss_position);
-		// spwan smoke
-		
-		FX_GetSmoke(enemy->ss_position, 0.3, 0.3);
-		enemy->ss_position[X] += (rand() - (RAND_MAX >> 1)) / (float)(RAND_MAX >> 1) * 0.1 ;
-		enemy->ss_position[Y] += (rand() - (RAND_MAX >> 1)) / (float)(RAND_MAX >> 1) * 0.1 ;
-		FX_GetSmoke(enemy->ss_position, 0.2, 0.2);
-		
-		ENE_Release(enemy);
-		
-		SND_PlaySound(SND_EXPLOSION);
-		
-		enemy= enemy->next;
-	}
-	
-	
-	// Remove all bullets
-	partLib.numParticules = 0;
-	
-	// Autopilot & Move to position
-	EV_AutoPilotPls(event);
-	
-	 
-	 
-	/// TEXT VERIFIED GOOD
-	// Display text
-	ss_start_pos[X] = ss_end_pos[X] = 0 ;
-	ss_end_pos[Y] = ss_start_pos[Y] = 150;
-	DYN_TEXT_AddText(ss_start_pos, ss_end_pos, 10000,2.5f,"Thanks for trying:");
-
-	ss_start_pos[X] = ss_end_pos[X] = 0 ;
-	ss_end_pos[Y] = ss_start_pos[Y] = 80;
-	DYN_TEXT_AddText(ss_start_pos, ss_end_pos, 10000,2.5f,"\"Shmup Lite\"");
-	
-	
-	ss_start_pos[X] = ss_end_pos[X] = 0 ;
-	ss_end_pos[Y] = ss_start_pos[Y] = -10;
-	DYN_TEXT_AddText(ss_start_pos, ss_end_pos, 10000,2.5f,"Check out the full version.");
-	
-	
-	
-	
-	//Add a return to main menu even set at simulationTime+10000
-	payloadScene = calloc(1, sizeof(event_req_scene_t));
-	payloadScene->sceneId = 0;
-	event = calloc(1, sizeof(event_t));
-	event->time = simulationTime+10000;
-	event->type = EV_REQUEST_SCENE;
-	event->payload = payloadScene;
-	EV_AddEvent(event);
-	
-	payloadMenu = calloc(1, sizeof(event_req_menu_t));
-	payloadMenu->menuId = MENU_HOME;
-	event = calloc(1, sizeof(event_t));
-	event->time = simulationTime+10000;
-	event->type = EV_REQUEST_MENU;
-	event->payload = payloadMenu;
-	EV_AddEvent(event);	
-	
-	
-	
-	//Remove all futur enemy spawning events.
-	event = EV_GetNextEvent();
-	
-	while (event != NULL) 
-	{			
-		while (event->next != NULL && event->next->type == EV_SPAWN_ENEMY)
-		{
-			//Log_Printf("[dEngine_JumpInTime] Cleaning EV_SPAWN_ENEMY events t=%d.\n",event->next->time);
-			
-			toDelete = event->next;
-			event->next = event->next->next;
-			
-			free(toDelete->payload);
-			free(toDelete);
-		}
-		
-		
-		event = event->next;
-	}
-	 
-}
-
 void EV_ClearTitle(event_t* event){
     TITLE_Clear();
 }
@@ -519,7 +412,7 @@ eventProcessor_ft eventToFunction[32] =
 	EV_RequestMenu,
 	EV_AutoPilotPls,
 	EV_SaveScore,
-	EV_LimitedEdition_Action,
+	EV_RootEvent,		// 0xE: retired (the 2010 Lite trial cut-off); the slot keeps the indices
     EV_ClearTitle,
 	EV_TTBRoll
 };

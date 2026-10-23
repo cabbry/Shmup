@@ -105,7 +105,7 @@ typedef struct menu_screen_t
 #define MENU_ABOUT 2
 #define MENU_MULTIPLAYER 3
 #define MENU_GAMEOVER 4
-#define MENU_REPLAY 5
+// 5: retired (the replay/upload screen)
 #define MENU_OTHERS 6
 #define MENU_SELECT_DIFFICULTY 7
 #define MENU_SELECT_SHIP 8

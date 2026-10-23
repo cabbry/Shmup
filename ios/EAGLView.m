@@ -167,12 +167,6 @@ EAGLView *eaglview;
 	NSLog(@"controlType=%d",engine.controlMode);
 	
 	
-	//pList
-	NSString *path = [[NSBundle mainBundle] bundlePath];
-	NSString *finalPath = [path stringByAppendingPathComponent:@"Info.plist"];
-	NSDictionary *plistData = [NSDictionary dictionaryWithContentsOfFile:finalPath];
-	NSString* version = [plistData objectForKey:@"License"];
-	engine.licenseType = [version intValue];
 	
 	
 	//Also check the iOS version, if version > 4.0 gamecenter is possible.
@@ -652,30 +646,5 @@ void loadNativePNG(texture_t* tmpTex)
 }
 
 
-extern char*	FS_GameWritableDir(void);
-int Native_RetrieveListOf(char replayList[10][256])
-{
-	NSFileManager* fileManager = [NSFileManager defaultManager];
-	
-	NSString* pathToList = [NSString stringWithFormat:@"%s", FS_GameWritableDir()];
-	
-	NSDirectoryEnumerator *dirEnum = [fileManager enumeratorAtPath:pathToList];
-	
-	int numFile = 0;
-	
-	NSLog(@"[Native_RetrieveListOf]:");
-	NSString *file;
-	while (file = [dirEnum nextObject]) {
-//		printf("File extension %s\n",[[file pathExtension] cStringUsingEncoding:NSASCIIStringEncoding] );
-		if ([[file pathExtension] isEqualToString: @"io"]) {
-			
-			strcpy(replayList[numFile],[file cStringUsingEncoding:NSASCIIStringEncoding]);
-			printf("	- Listing %d [%s]\n",numFile,replayList[numFile]);
-			numFile++;
-		}
-	}
-	
-	return numFile;
-}
 
 @end

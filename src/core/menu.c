@@ -253,103 +253,6 @@ void Action_GoToTutorial(void* tag)
 }
 
 
-void Action_ReplayAct(void* tag)
-{
-	menu_button_t* button;
-	int actToPlay;
-	int* buttonPressed = (int*)tag;
-	
-	button = &menuScreens[currentMenuId].buttons[*buttonPressed];
-	
-	actToPlay = '0' - button->text[5];
-	
-	engine.playback.play = 1;
-	
-	dEngine_RequireSceneId(actToPlay);
-//	engine.requiredSceneId = actToPlay;
-	MENU_Set(MENU_NONE);	
-	//Use lastButtonPressed
-}
-
-void Action_UploadAct(void* tag)
-{
-	Native_UploadFileTo((char*)tag);
-}
-
-
-char replayList[10][256];
-int numReplayers=0;
-void MENU_UpdateReplayList(void)
-{
-	int i;
-	menu_screen_t* screen;
-	vec2short_t buttonPos;
-	vec2short_t buttonDim;
-	int* buttonId;
-	int actId;
-	screen = &menuScreens[MENU_REPLAY];
-	
-	numReplayers = Native_RetrieveListOf(replayList);
-	
-	//Free all texts char* for buttons
-	Log_Printf("[MENU_UpdateReplayList] MEMORY LEAK HERE !!\n");
-	/*
-	if (screen->numButtons > 2 )
-	{
-		for (i=2; i< screen->numButtons ; i++) {
-			free(screen->buttons[i].text);
-		}
-		screen->numButtons = 2;
-	}
-	*/
-	
-	//Check if the name should be changed
-	/*
-	if (engine.playback.record)
-		strcpy(screen->buttons[1].text,"Disable Recording");
-	else
-		strcpy(screen->buttons[1].text,"Enable Recording");
-	*/
-	
-	buttonPos[X] = 0; 
-	buttonPos[Y] = (SS_COO_SYST_HEIGHT - 30);
-	buttonDim[WIDTH] = (120 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	
-	for (i=0; i <numReplayers; i++) 
-	{
-		buttonId = calloc(1, sizeof(int));
-		*buttonId = i;
-		
-		buttonPos[Y] = SS_COO_SYST_HEIGHT - 200 -  i * 100; 
-		buttonPos[X] = 150; 
-
-		
-		actId = (replayList[i][0] -48)*10 + (replayList[i][1] -48)  ;
-		Log_Printf("actId=%d\n",actId);
-		if (actId >= engine.numScenes)
-			continue;
-		
-		//MENU_CreateText(screen,-40, buttonPos[Y],TEXT_NOT_CENTERED,engine.scenes[actId].name);
-		
-		
-		MENU_CreateButtonWithTag(screen,"Replay", 3, Action_ReplayAct, buttonId ,NULL, buttonPos, buttonDim);
-
-		buttonPos[Y] += 50; 
-		buttonPos[X] = 150 ;
-		MENU_CreateButtonWithTag(screen,"Upload", 3, Action_UploadAct,replayList[i],NULL, buttonPos, buttonDim);
-
-		
-
-	}
-}
-
-void Action_ChangeReplayRecordingState(void* tag)
-{
-	engine.playback.record = !engine.playback.record;
-	Log_Printf("[Action_ChangeReplayRecordingState] engine.playback.record=%d\n",engine.playback.record);
-	MENU_UpdateReplayList();
-}
 
 
 
@@ -419,40 +322,12 @@ void Action_PlayDemo(void* tag)
     
 }
 
-void Action_GoToAct(void* tag)
-{
-	char* actId = (char*)tag;
-	dEngine_RequireSceneId(*actId);
-	MENU_Set(MENU_NONE);
-}
 
 
 // Difficulty picked on the SELECT_DIFFICULTY screen, applied when an act is
 // chosen on the SELECT_ACT screen that follows.
 static uchar gPickedDifficulty = 1;
 
-void Action_startNewGame(void* tag)
-{
-	int i;
-	uchar difficultyLevel;
-
-	difficultyLevel = *(char*)tag;
-
-	MENU_Set(MENU_NONE);
-	dEngine_RequireSceneId(1);
-
-	//Parameter set the difficulty level
-
-	engine.mode = DE_MODE_SINGLEPLAYER;
-	PL_ResetPlayersScore();
-	numPlayers = 1;
-
-
-	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
-		players[i].respawnCounter = numPlayerRespawn[difficultyLevel];
-
-	engine.difficultyLevel = difficultyLevel;
-}
 
 // New Game flow: pick a difficulty, then pick the starting act (full lives
 // either way). Act select makes practicing an act -- and reaching the final
@@ -598,23 +473,6 @@ void Action_SpecifyDifficulty(void* tag)
 	MENU_Set(MENU_SELECT_DIFFICULTY);
 }
 
-void Action_startMultiplayerGame(void* tag)
-{
-	
-}
-
-void Action_PreGoToGameCenter(void* tag)
-{
-	MENU_Set(MENU_OTHERS);
-	
-	if (engine.gameCenterEnabled)
-		Action_ShowGameCenter(tag);
-	else 
-	{
-		Native_LoginGameCenter();
-	}
-
-}
 
 
 void Action_ConfigureMultiplayer(void* tag)
@@ -726,8 +584,6 @@ void Action_GoBuyFullVersion(void* tag)
 }
 #endif
 
-void replayLastGame(void){}
-void doNothing(void){}
 
 void Action_ShowCreditsMenu(void* tag)
 {
@@ -800,10 +656,6 @@ void Action_SelectBulletColor(void* tag)
 }
 
 
-void Action_GoToReplayScreen(void* tag)
-{
-	MENU_Set(MENU_REPLAY);
-}
 
 
 void Action_BackToHome(void* tag)
@@ -1087,11 +939,6 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_BackToOptions,NULL, buttonPos, buttonDim);
 	
-	buttonPos[X] = 0 ; 
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT - 120);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, MENU_Tr("New Game"), 3, Action_startMultiplayerGame,NULL, buttonPos, buttonDim);
 	
 	
 	
@@ -1125,22 +972,6 @@ void MENU_Init(void)
 	MENU_CreateText(currentMenu, 0, -150, 3.0f, TEXT_CENTERED, "SCORE: 0");
 
 
-	currentMenu = &menuScreens[MENU_REPLAY];
-	currentMenu->numImages = 0;
-	currentMenu->numTexts = 0;
-	currentMenu->numButtons = 0;
-	
-	buttonPos[X] = 0 ; 
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 90);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
-	
-	buttonPos[X] = 0 ; 
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 260);
-	buttonDim[WIDTH] = (220 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	//MENU_CreateButton(currentMenu, recordUpdatableString, 2.5f, Action_ChangeReplayRecordingState,MENU_UpdateReplayList, buttonPos, buttonDim);
 	
 	
 	
@@ -1216,17 +1047,6 @@ void MENU_Init(void)
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Credits"), 3, Action_ShowCreditsMenu,NULL, buttonPos, buttonDim);
 #endif
-//
-//	if (engine.gameCenterPossible)
-//    {
-//        buttonPos[X] = 160 ; 
-//        buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 370);
-//        buttonDim[WIDTH] = (159 * 2);
-//        buttonDim[HEIGHT] = 64 * 2;
-//        MENU_CreateButton(currentMenu, "GameCenter", 3, Action_PreGoToGameCenter,NULL, buttonPos, buttonDim);
-//    }
-    
-//On Android and limited edition we have a button to help go to the game.    
 
 	
 	
@@ -1238,11 +1058,6 @@ void MENU_Init(void)
 	*actId = 15 ;
 	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
 
-	buttonPos[X] = -MENU_COL_X ; 
-	buttonPos[Y] = (-SS_H + 220);
-	buttonDim[WIDTH] = MENU_COL_W;
-	buttonDim[HEIGHT] = 64 * 2;
-	//MENU_CreateButton(currentMenu, "Replays", 3, Action_GoToReplayScreen,MENU_UpdateReplayList, buttonPos, buttonDim);
 	
 	
 	currentMenu = &menuScreens[MENU_SELECT_DIFFICULTY];

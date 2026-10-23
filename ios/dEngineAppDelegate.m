@@ -357,21 +357,10 @@ static void MatchPollStop(void) {
 #pragma mark - Native services (platform stubs)
 
 /*
- The engine (event.c, menu.c, player.c) calls these C entry points through
- native_services.h. Every other platform backend (win32, linux, macOS,
- Android) implements them as no-ops -- see e.g. engine/win32/native.c.
-
- The original iOS implementations were removed during modernization:
-   - Game Center (GKLeaderboardViewController / GKScore) : APIs removed/
-     deprecated in current SDKs, and the feature was already disabled at
-     runtime (engine.gameCenterEnabled is forced to 0).
-   - "Buy the full version" cross-promo (UIAlertView)    : deprecated, and
-     the linked App Store page no longer exists.
-   - Replay telemetry upload to fabiensanglard.net       : dead endpoint,
-     and plain-HTTP POSTs are blocked by App Transport Security.
-
- Native_RetrieveListOf (the replay file listing) is still implemented for
- real in EAGLView.m -- it uses NSFileManager and needs no modernization.
+ The engine (event.c, menu.c, player.c) reaches the platform through these C
+ entry points, declared in native_services.h: Game Center scores and the
+ leaderboard sheet, the menu language, the version string, the saved loadout
+ and options, and the online-match bridge further down.
 */
 
 // v2: menu localization -- French menus when the user's preferred language is
@@ -407,7 +396,6 @@ void Native_UploadScore(uint score) {
 		}];
 	}
 }
-void Native_LoginGameCenter(void) {}
 void Action_ShowGameCenter(void* tag) {
 	if (!this || !vc) return;
 	if (![GKLocalPlayer local].isAuthenticated) return;
@@ -420,7 +408,6 @@ void Action_ShowGameCenter(void* tag) {
 	gcvc.gameCenterDelegate = this;
 	[vc presentViewController:gcvc animated:YES completion:nil];
 }
-void Native_UploadFileTo(char path[256]) {}
 
 // Persist the solo loadout (ship + bullet colour) in NSUserDefaults; restored at
 // launch in EAGLView's checkEngineSettings.

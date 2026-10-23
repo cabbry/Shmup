@@ -23,7 +23,7 @@
  *
  */
 
-#include <stdlib.h>	// getenv (offline visibility bake switch)
+#include <stdlib.h>
 #include "ci_hooks.h"
 #include "camera.h"
 #include "renderer.h"

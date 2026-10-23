@@ -23,6 +23,7 @@
 //
 
 #import <UIKit/UIKit.h>
+#include "filesystem.h"
 
 int main(int argc, char *argv[]) {
     
@@ -41,11 +42,10 @@ int main(int argc, char *argv[]) {
 		}
 		rd[i] = 0;
 	}
-	setenv( "RD", rd, 1 );
 	
 	wd = [[NSSearchPathForDirectoriesInDomains(  NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0] UTF8String];
 	
-	setenv( "WD", wd, 1 );
+	FS_SetDirectories( rd, wd );
 	
 
 	return UIApplicationMain(argc, argv, nil, nil);

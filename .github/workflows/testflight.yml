@@ -5,6 +5,8 @@ name: Build and Upload to TestFlight
 # then upload with the App Store Connect API key.
 #
 # Trigger: manual (workflow_dispatch) or a v* tag ONLY — never on branch push.
+# A manual run with check_only=true archives and checks the app, then stops:
+# no export, no upload, no TestFlight build.
 #
 # Required repo secrets:
 #   APP_STORE_CONNECT_KEY_ID / _ISSUER_ID / _PRIVATE_KEY  (upload)
@@ -14,6 +16,10 @@ name: Build and Upload to TestFlight
 
 on:
   workflow_dispatch:
+    inputs:
+      check_only:
+        description: "true = archive and check the app, upload nothing"
+        default: "false"
   push:
     tags: ['v*']
 
@@ -105,26 +111,23 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
             CODE_SIGN_ENTITLEMENTS=Entitlements.plist \
             IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+            DEAD_CODE_STRIPPING=YES \
             archive 2>&1 | tee "$RUNNER_TEMP/archive.log"
 
-      # Guideline 5.6 refused 5.0.11: the CI smoke switches (invulnerability,
-      # autofire, replayed scene, forced menu) were read with getenv() in every
-      # build, so the shipping binary carried functionality a reviewer could not
-      # see. They now live behind SHMUP_CI_HOOKS, which only the smoke workflows
-      # define. This step is the proof: no test-only switch may reach the store.
-      - name: No test-only switch in the shipping binary
-        run: |
-          BIN="$RUNNER_TEMP/Shmup.xcarchive/Products/Applications/Shmup.app/Shmup"
-          test -f "$BIN" || { echo "binary not found: $BIN"; exit 1; }
-          FOUND=$(grep -a -o -E "SHMUP_[A-Z_]+" "$BIN" | sort -u || true)
-          if [ -n "$FOUND" ]; then
-            echo "::error::test-only switch names found in the shipping binary:"
-            echo "$FOUND"
-            exit 1
-          fi
-          echo "clean: no SHMUP_* switch name in the archived binary"
+      # Before anything leaves for App Store Connect: the archived app holds
+      # nothing a reviewer cannot see -- no test switch, no probe, no test
+      # level, no hidden settings row, no trial code -- and its executable
+      # reads no environment variable. The rules live in the script, which
+      # also runs on any local folder.
+      - name: The shipping app holds nothing hidden
+        run: bash tools/ci/check_shipping_app.sh "$RUNNER_TEMP/Shmup.xcarchive/Products/Applications/Shmup.app"
+
+      - name: Check only -- stop here
+        if: ${{ inputs.check_only == 'true' }}
+        run: echo "check_only=true: archive checked, nothing exported or uploaded."
 
       - name: Export IPA
+        if: ${{ inputs.check_only != 'true' }}
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
@@ -148,6 +151,7 @@ jobs:
           ls -lh "$RUNNER_TEMP/export"
 
       - name: Upload to TestFlight
+        if: ${{ inputs.check_only != 'true' }}
         env:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}

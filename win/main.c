@@ -676,7 +676,8 @@ int main(int argc, char** argv)
 	FindDataRoot(rd, sizeof(rd), dataOverride);
 	FindWritableDir(wd, sizeof(wd));
 	snprintf(env, sizeof(env), "RD=%s", rd); _putenv(env);
-	snprintf(env, sizeof(env), "WD=%s", wd); _putenv(env);
+	snprintf(env, sizeof(env), "WD=%s", wd); _putenv(env);	// native_win.c still reads WD
+	FS_SetDirectories(rd, wd);
 	printf("SHMUP Reborn %s -- data root %s, writable %s\n", Native_GetVersionString(), rd, wd);
 	if (!HasData(rd[0] ? rd : ".") && GetFileAttributesA(rd) == INVALID_FILE_ATTRIBUTES)
 		printf("warning: no data folder found at %s (use --data <repo root>)\n", rd);

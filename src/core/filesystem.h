@@ -77,6 +77,9 @@ typedef struct
 
 
 
+// The platform hands over the folder holding data/ and a writable folder
+// before dEngine_Init runs FS_InitFilesystem.
+void	FS_SetDirectories(const char* gameDir, const char* writableDir);
 bool	FS_InitFilesystem(void);
 
 char*	FS_Gamedir(void);

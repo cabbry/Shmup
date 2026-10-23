@@ -25,7 +25,7 @@
 
 #include "player.h"
 #include "ci_hooks.h"
-#include <stdlib.h>	// getenv: the SHMUP_AUTOFIRE CI probe
+#include <stdlib.h>
 #include "renderer.h"
 #include "camera.h"
 #include "timer.h"

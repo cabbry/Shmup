@@ -31,7 +31,7 @@
 
 #include <string.h>
 #include "ci_hooks.h"
-#include <stdlib.h>	// v5: getenv (the CI-only SHMUP_ARMS_FREEZE switch)
+#include <stdlib.h>
 
 #include "lofb.h"
 #include "globals.h"

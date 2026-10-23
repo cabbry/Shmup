@@ -131,7 +131,7 @@
 
 
 
-#include <stdlib.h>	// getenv (CI smoke invulnerability switch)
+#include <stdlib.h>
 #include "ci_hooks.h"
 #include "collisions.h"
 #include "player.h"

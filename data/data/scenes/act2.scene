@@ -344,7 +344,6 @@ enemies
 	addtime 7000
 	at  0000 spawnEnemyWave circle enemyNum 16 enemyType 1  percentageInvulnerable 50 angleoffset 90 defaultType 0
 	at  4000 spawnEnemyWave circle enemyNum 16 enemyType 1  percentageInvulnerable 50 angleoffset 120 defaultType 0
-	#at  10000 spawnEnemyWave circle enemyNum 16 enemyType 1  percentageInvulnerable 70 angleoffset 100 defaultType 0
 
 	
 	
@@ -372,7 +371,6 @@ enemies
 texts_events
 {
 	settime 0
-	#at 10000 display To_Be_Continued... size 2.5  for 5000 starting 0 -100 ending  0 -100
 }
 
 events

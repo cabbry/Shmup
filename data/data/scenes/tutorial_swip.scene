@@ -121,8 +121,8 @@ texts_events
 	
 	settime 6000
 	at 0 display You_can_return_to_the_main		size 2.5 for 3500 starting 0   200 ending  0 200               	
-	at 0 display menu_at_any_time_by_pressing		size 2.5 for 3500 starting 0   150 ending  0 150				 
-	at 0 display five_fingers_on_the_screen.				size 2.5 for 3500 starting 0   100 ending  0 100
+	at 0 display menu_at_any_time_with_the		size 2.5 for 3500 starting 0   150 ending  0 150				 
+	at 0 display [_BACK_]_button_at_the_top.				size 2.5 for 3500 starting 0   100 ending  0 100
 				
 	
 	settime 10500

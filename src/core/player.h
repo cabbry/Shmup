@@ -274,6 +274,11 @@ void P_UpdateGhosts(player_t* player);
 void P_PrepareGhostSprites(void);
 void P_FireGhosts(player_t* player);
 
+short P_HudRowY(void);				// the HUD's top row (score, lives, pause), below the safe area
+int  P_PauseButtonShown(void);
+int  P_BackButtonShown(void);
+void P_PauseButtonPos(short* x, short* y);
+void P_BackButtonPos(short* x, short* y);
 int  P_LivesLeftForHud(void);	// the HUD label: hits left after the current hull (0 = the next one ends it)
 int  P_EnemyHealthPct(void);	// v4.1.1: enemy health scaled to the hulls still flying, in percent
 extern int gPartyChangeStamp;	// the HOST's clock for the death being applied (0 = use ours)

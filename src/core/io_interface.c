@@ -2,6 +2,7 @@
 #include "menu.h"
 #include "dEngine.h"
 #include "timer.h"
+#include "player.h"
 
 int lastTouchBegan=0;
 
@@ -13,6 +14,70 @@ float commScale[2];
 void IO_Init(void){
 	commScale[X] = SS_W/ (float)renderer.viewPortDimensions[VP_WIDTH];
 	commScale[Y] = SS_H/ (float)renderer.viewPortDimensions[VP_HEIGHT];
+}
+
+// ---- The HUD's buttons: pause during an act, [ BACK ] in the demo and the ---
+// tutorials. Drawn by player.c, hit-tested HERE, on every platform, from the
+// very position the HUD draws them at (P_PauseButtonPos / P_BackButtonPos).
+// A tap is a press and a release on the same button; everything in between is
+// swallowed, so the press neither fires nor steers the ship.
+#define HUD_NONE  0
+#define HUD_PAUSE 1
+#define HUD_BACK  2
+static int gHudPressed = HUD_NONE;
+
+static float IO_Abs(float v) { return v < 0 ? -v : v; }
+
+// tx, ty: touch space (0..SS_W, 0..SS_H, top-down), as the menus use.
+// SS -> touch space is MENU_CreateButtonWithTag's conversion.
+static int IO_HudButtonAt(float tx, float ty)
+{
+	short x, y;
+	if (P_PauseButtonShown())
+	{
+		P_PauseButtonPos(&x, &y);
+		if (IO_Abs(tx - (x + SS_W) / 2.0f) < 24 && IO_Abs(ty - (SS_H - (y + SS_H) / 2.0f)) < 24)
+			return HUD_PAUSE;
+	}
+	if (P_BackButtonShown())
+	{
+		P_BackButtonPos(&x, &y);
+		if (IO_Abs(tx - (x + SS_W) / 2.0f) < 56 && IO_Abs(ty - (SS_H - (y + SS_H) / 2.0f)) < 26)
+			return HUD_BACK;
+	}
+	return HUD_NONE;
+}
+
+// 1 when the event belongs to a HUD button (and is consumed).
+static int IO_HudTouch(const io_event_s* e)
+{
+	float tx = (e->position[X] - renderer.viewPortDimensions[VP_X]) * commScale[X];
+	float ty = (e->position[Y] - renderer.viewPortDimensions[VP_Y]) * commScale[Y];
+	int pressed;
+
+	if (e->type == IO_EVENT_BEGAN)
+	{
+		gHudPressed = IO_HudButtonAt(tx, ty);
+		return gHudPressed != HUD_NONE;
+	}
+	if (gHudPressed == HUD_NONE)
+		return 0;
+	if (e->type == IO_EVENT_ENDED)
+	{
+		pressed = gHudPressed;
+		gHudPressed = HUD_NONE;
+		if (IO_HudButtonAt(tx, ty) == pressed)
+		{
+			if (pressed == HUD_PAUSE)
+				dEngine_PauseByPlayer();
+			else
+			{
+				MENU_Set(MENU_HOME);
+				dEngine_RequireSceneId(0);
+			}
+		}
+	}
+	return 1;
 }
 
 void IO_PushEvent(io_event_s* event_in){
@@ -35,6 +100,9 @@ void IO_PushEvent(io_event_s* event_in){
 
 	//Perform a defensive copy
 	io_event_s event = *event_in;
+
+	if (!engine.menuVisible && IO_HudTouch(&event))
+		return;
 
 
 

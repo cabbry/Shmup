@@ -1168,6 +1168,34 @@ static void P_SetBarQuad(xf_textureless_sprite_t* q, short l, short r, short top
 	q[3].color[R] = botRed; q[3].color[G] = botGreen; q[3].color[B] = botBlue; q[3].color[A] = alpha;
 }
 
+// ---- The HUD's buttons -------------------------------------------------------
+// The top row -- score, lives, pause -- sits just below the safe area (status
+// bar, notch, Dynamic Island); on a 2:3 screen it lands about where the 2009
+// score was. Drawing (P_RenderHud below) and hit-testing (io_interface.c) both
+// read their positions here, so the two cannot drift apart.
+#define HUD_PAUSE_X  110	// between the score and the lives
+#define HUD_BACK_DY  100	// [ BACK ] sits this far under the row
+
+short P_HudRowY(void)
+{
+	float orthoPerPx = (2.0f * SS_H) / (float)renderer.glBuffersDimensions[HEIGHT];
+	return (short)(SS_H - renderer.safeInsetTopPx * orthoPerPx - 30.0f);
+}
+
+int P_PauseButtonShown(void)
+{
+	return SCENE_IS(SCENE_KIND_ACT) && !engine.menuVisible;
+}
+
+int P_BackButtonShown(void)
+{
+	// Not while an act title card is up: its band covers this very zone.
+	return (SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) && !TITLE_IsShowing() && !engine.menuVisible;
+}
+
+void P_PauseButtonPos(short* x, short* y) { *x = HUD_PAUSE_X; *y = P_HudRowY(); }
+void P_BackButtonPos(short* x, short* y)  { *x = 0;           *y = (short)(P_HudRowY() - HUD_BACK_DY); }
+
 static void P_RenderBossHealthBar(int hp, int maxHp, short barY)
 {
 	static xf_textureless_sprite_t quads[12];
@@ -1336,8 +1364,7 @@ void PL_RenderPlayerPointers(void)
 	// Island). On a 2:3 device (vScale=1, safeInsetTopPx=0) this lands at ~the
 	// legacy SCORE_POS_Y, so other platforms are unaffected.
 	{
-		float orthoPerPx = (2.0f * SS_H) / (float)renderer.glBuffersDimensions[HEIGHT];
-		short scoreY = (short)(SS_H - renderer.safeInsetTopPx * orthoPerPx - 30.0f);
+		short scoreY = P_HudRowY();
 		int bossHp = 0, bossMaxHp = 0, bossFight;
 		short bossBarY = 0;
 		SCR_ConvertTextToVertices(stringScore,SCORE_FONT_SIZE,SCORE_POS_X,scoreY,TEXT_NOT_CENTERED);
@@ -1355,12 +1382,20 @@ void PL_RenderPlayerPointers(void)
 			sprintf(livesStr, "x%d", pool);
 			SCR_ConvertTextToVertices(livesStr, MP_LIVES_FONT_SIZE, livesTextX, scoreY, TEXT_NOT_CENTERED);
 		}
-		// Tutorial (scenes 14 = swipe, 15 = virtual pad) and Demo (scene 13): a
-		// BACK button at the top-centre to leave. Hit-tested in EAGLView.
-		// Not while the act title card is up: the card's band covers this
-		// very zone and the two used to print over each other (round 38).
-		if ((SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) && !TITLE_IsShowing())	// v4: by kind
-			SCR_ConvertTextToVertices("[ BACK ]",SCORE_FONT_SIZE,0,(short)(scoreY - 100),TEXT_CENTERED);
+		// The HUD's buttons. Their positions and their hit-test live together
+		// (P_PauseButtonPos / P_BackButtonPos, io_interface.c).
+		if (P_PauseButtonShown())
+		{
+			short px, py;
+			P_PauseButtonPos(&px, &py);
+			SCR_ConvertTextToVertices("II", SCORE_FONT_SIZE, px, py, TEXT_CENTERED);
+		}
+		if (P_BackButtonShown())
+		{
+			short bx, by;
+			P_BackButtonPos(&bx, &by);
+			SCR_ConvertTextToVertices("[ BACK ]", SCORE_FONT_SIZE, bx, by, TEXT_CENTERED);
+		}
 		// Boss health bar (act 3), just under the score line while the fight is
 		// on. Only the "BOSS" label is font text (letters are proven on-screen);
 		// the bar itself is drawn after the text pass as solid colored quads.

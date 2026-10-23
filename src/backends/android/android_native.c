@@ -53,8 +53,8 @@ static void AND_SaveSettings(void)
 	snprintf(path, sizeof(path), "%s/settings.cfg", gAndroidWritableDir);
 	f = fopen(path, "w");
 	if (!f) { Log_Printf("[settings] cannot write %s\n", path); return; }
-	fprintf(f, "sound=%d\nmusic=%d\ncontrol=%d\nship=%d\ncolor=%d\nhighestAct=%d\n",
-	        engine.soundEnabled, engine.musicEnabled, engine.controlMode, gShipChoice, gBulletColor, gHighestActReached);
+	fprintf(f, "sound=%d\nmusic=%d\ncontrol=%d\nship=%d\ncolor=%d\n",
+	        engine.soundEnabled, engine.musicEnabled, engine.controlMode, gShipChoice, gBulletColor);
 	fclose(f);
 }
 
@@ -78,17 +78,13 @@ void AND_LoadSettings(void)
 		else if (!strncmp(line, "control=", 8))     engine.controlMode = (uchar)v;
 		else if (!strncmp(line, "ship=", 5))        gShipChoice = v;
 		else if (!strncmp(line, "color=", 6))       gBulletColor = v;
-		else if (!strncmp(line, "highestAct=", 11)) gHighestActReached = v;
 	}
 	fclose(f);
 	if (gShipChoice  < 0 || gShipChoice  >= NUM_SHIP_CHOICES)  gShipChoice  = 0;
 	if (gBulletColor < 0 || gBulletColor >= NUM_BULLET_COLORS) gBulletColor = 0;
-	if (gHighestActReached < 1) gHighestActReached = 1;
-	if (gHighestActReached > 5) gHighestActReached = 5;
 }
 
 void Native_SaveLoadout(int ship, int color) { gShipChoice = ship; gBulletColor = color; AND_SaveSettings(); }
-void Native_SaveProgress(int highestAct)   { gHighestActReached = highestAct; AND_SaveSettings(); }
 void Native_SaveOptions(void)              { AND_SaveSettings(); }
 
 

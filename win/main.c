@@ -43,6 +43,7 @@
 #include "renderer_gl.h"
 #include "io_interface.h"
 #include "menu.h"
+#include "player.h"
 #include "music.h"
 #include "timer.h"
 #include "titles.h"
@@ -344,33 +345,6 @@ static void KeyboardFinger(void)
 	gKeyPos.x += dx * step; gKeyPos.y += dy * step;
 }
 
-// The tutorial / demo BACK button, as EAGLView hit-tests it.
-// player.c draws "[ BACK ]" centred at SS y = scoreY - 100 with
-// scoreY = SS_H - safeInset - 30, in the ortho that maps [-SS_H, SS_H] onto the
-// viewport's height. EAGLView hard-coded the resulting band for an iPhone
-// (whose notch pushes the score down); here it is computed, so a window
-// without inset -- or a letterboxed one -- hits the same glyphs.
-static int BackButtonHit(int x, int y)
-{
-	int vpX = renderer.viewPortDimensions[VP_X], vpW = renderer.viewPortDimensions[VP_WIDTH];
-	int vpH = renderer.viewPortDimensions[VP_HEIGHT];
-	int vpTop = gSurfH - renderer.viewPortDimensions[VP_Y] - vpH;	// GL's origin is bottom-left
-	float fx, fy, cy, band;
-	if (!(SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) || TITLE_IsShowing())
-		return 0;
-	if (vpW <= 0 || vpH <= 0) { vpX = 0; vpW = gSurfW; vpTop = 0; vpH = gSurfH; }
-	if (vpW <= 0 || vpH <= 0) return 0;
-	fx = (x - vpX) / (float)vpW;		// x, y in surface pixels
-	fy = (y - vpTop) / (float)vpH;
-	{
-		float orthoPerPx = 2.0f * SS_H / (float)vpH;
-		float scoreY = SS_H - renderer.safeInsetTopPx * orthoPerPx - 30.0f;
-		cy = (SS_H - (scoreY - 100.0f)) / (2.0f * SS_H);	// fraction from the top
-		band = 0.055f;
-	}
-	return (fx > 0.32f && fx < 0.68f && fy > cy - band && fy < cy + band);
-}
-
 // The surface: the largest rectangle at SURFACE_ASPECT inside the client,
 // centred. The engine's dimensions ARE the surface's; the backend offsets.
 static void ComputeSurface(void)
@@ -539,12 +513,6 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 			int x = GET_X_LPARAM(lParam) - gSurfX, y = GET_Y_LPARAM(lParam) - gSurfTop;	// surface pixels
 			if (!gEngineUp) return 0;
 			gMenuSel = -1;		// the mouse takes over the menu
-			if (BackButtonHit(x, y))
-			{
-				MENU_Set(MENU_HOME);
-				dEngine_RequireSceneId(0);
-				return 0;
-			}
 			SetCapture(hWnd);
 			gDragging = 1;
 			gLastMouse.x = x; gLastMouse.y = y;
@@ -604,8 +572,13 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 		}
 			if (wParam == VK_ESCAPE && gEngineUp)
 			{
-				// Back to the home menu, as the five-finger touch does on iOS.
-				if (engine.sceneId != 0 || engine.requiredSceneId != 0)
+				// During an act Escape is the pause button, and on the pause menu it
+				// resumes. Elsewhere: back to the home menu, then quit.
+				if (P_PauseButtonShown())
+					dEngine_PauseByPlayer();
+				else if (MENU_Get() == MENU_PAUSE)
+					dEngine_ResumeByPlayer();
+				else if (engine.sceneId != 0 || engine.requiredSceneId != 0)
 				{
 					MENU_Set(MENU_HOME);
 					dEngine_RequireSceneId(0);

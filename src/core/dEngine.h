@@ -145,7 +145,6 @@ extern engine_info_t engine;
 
 
 // Progression: furthest act (scene 1..3) ever reached; gates the act select.
-extern int gHighestActReached;
 
 bool dEngine_Init(void);
 void dEngine_InitDisplaySystem(uchar rendererType);
@@ -159,6 +158,10 @@ void dEngine_ResumeGame(void);
 void dEngine_SetMusicEnabled(int on);	// the Options screen: stop or restart the scene's track now
 void dEngine_RenderCountdown(void);
 extern int gCountdownMs;
+extern int gPausedByPlayer;	// the pause button: the world frozen behind the pause menu
+void dEngine_PauseByPlayer(void);
+void dEngine_ResumeByPlayer(void);
+void dEngine_QuitByPlayer(void);
 void dEngine_GoToNextScene(void);
 
 #endif

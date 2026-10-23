@@ -851,7 +851,7 @@ struct sockaddr_in NET_GetAddressForInterfaceName( const char *ifname )
 		return s;
 	}
 	ip = (uchar*)&s.sin_addr;
-	sprintf(MENU_GetMultiplayerTextLine(1),"My IP: %i.%i.%i.%i",ip[0], ip[1], ip[2], ip[3]);
+	Log_Printf("[net] local address %i.%i.%i.%i\n", ip[0], ip[1], ip[2], ip[3]);
 	return s;
 }
 int NET_InterfaceIndexForInterfaceName( const char *ifname ) { (void)ifname; return 0; }
@@ -915,7 +915,7 @@ struct sockaddr_in NET_GetAddressForInterfaceName( const char *ifname )
                    (ifa->ifa_flags & IFF_UP) != 0, 
                    (ifa->ifa_flags & IFF_RUNNING) != 0);
 //			Log_Printf( "AddressForInterfaceName( %s ) = ifa_name: %s ifa_flags: %i sa_family: %i=AF_INET ip: %i.%i.%i.%i\n", ifname, ifa->ifa_name, ifa->ifa_flags,ina->sin_family, ip[0], ip[1], ip[2], ip[3]  );
-			sprintf(MENU_GetMultiplayerTextLine(1),"My IP: %i.%i.%i.%i",ip[0], ip[1], ip[2], ip[3]);
+			Log_Printf("[net] local address %i.%i.%i.%i\n", ip[0], ip[1], ip[2], ip[3]);
 			freeifaddrs( ifap );
 			return *ina;
 		}
@@ -1055,14 +1055,14 @@ int NET_CheckServerAvailability(void)
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2),
 		        LAN_RosterSettled() ? "Starting..." : "Waiting for more players...");
-		MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE)[0] = '\0';	// clear the "second device" hint
+		MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE)[0] = '\0';	// clear the "other device" hint
 	}
 	else
 	{
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE),   "Looking for the other player...");
 		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+1), " ");
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Open Others > Network");
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "on the second device.");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETYPE+2), "Open Game Multi > Local");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "on the other device.");
 	}
 
 	return 1;
@@ -1162,7 +1162,7 @@ void DNSServiceResolveReplyCallback (
 													 );  	
 	if ( err != kDNSServiceErr_NoError )
 	{
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceQueryRecord error");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Local network unavailable.");
 	}
 	else
 	{
@@ -1229,7 +1229,7 @@ void DNSServiceBrowseReplyCallback(
 														 );
 
 			if ( err != kDNSServiceErr_NoError ) {
-				sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceResolve error");
+				sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Local network unavailable.");
 
 			} else {
 				// bounded wait: a ghost record would otherwise hang the menu here
@@ -1278,7 +1278,7 @@ int NET_ResolveNetworkServer( )
 												NULL				/* context */
 												);
 	if ( err != kDNSServiceErr_NoError ) {
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "DNSServiceBrowse error");
+		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Local network unavailable.");
 		browseRef = 0;
 		return 0;
 	}
@@ -1663,9 +1663,7 @@ static void NET_HostTryPreload(void)
 	net.state = NET_PRELOADED;
 	gLanLocked = 1;			// v2 P4: the LAN roster is final for this match (no-op online)
 	NET_ArmSetupFrames();	// fresh window for the "loaded" phase
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_PRELOADED.\n");
 	NET_SendSetupCmd(NET_CMD_LOAD_NEXT_LEVEL);
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_LOAD_NEXT_LEVEL");
 }
 
 // HOST barrier, gate 2: everyone is staged behind the curtain -> finalize the
@@ -1683,7 +1681,6 @@ static void NET_HostTryStart(void)
 	P_ReloadShip();
 
 	net.state = NET_RUNNING;
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_RUNNING.\n");
 	SND_ResumeSoundTrack();
 	Timer_resetTime();
 	Timer_Resume();
@@ -1691,7 +1688,6 @@ static void NET_HostTryStart(void)
 	MENU_Set(MENU_NONE);
 
 	NET_SendSetupCmd(NET_CMD_START_LEVEL);	// carries the final table + party mask
-	sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_START_LEVEL");
 }
 
 // CLIENT side: adopt the host's view of who is still in the party. Clients never
@@ -1813,7 +1809,6 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 	gPeers[setupSeat].lastPacketTime = simulationTime;
 	gPeers[setupSeat].lastSetupFrame = gSetupFrames;	// proof of life, handshake clock
 
-	sprintf(MENU_GetMultiplayerTextLine(4),"Setup cmd %d from seat %d.\n",packet->command.type, setupSeat);
 
 	// v2 P4: LAN -- the host doesn't act on JOINs until the roster settles
 	// (a 3rd/4th device may still be resolving; the JOIN is resent anyway).
@@ -1873,7 +1868,9 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 			// v4.0.9: the host said where to go, so go there. The old guess is
 			// kept only as a fallback for a peer that does not say.
 			int want = (int)packet->command.delta[0];
-			if (want <= 0 || want >= MAX_NUM_SCENES)
+			// Only an act: a match never plays anything else, so a demo, a tutorial or
+			// an empty slot from the wire falls back to the next scene like a bad id.
+			if (want <= 0 || want >= MAX_NUM_SCENES || SCENE_KIND(want) != SCENE_KIND_ACT)
 				want = (engine.sceneId + 1) % engine.numScenes;
 			dEngine_RequireSceneId(want);
 		}
@@ -1887,11 +1884,9 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 		net.state = NET_PRELOADED;
 		gLanLocked = 1;	// v2 P4: the LAN roster is final for this match (no-op online)
 		NET_ArmSetupFrames();	// fresh window while we wait for the GO
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_PRELOADED.\n");
 
 		gLastNotifySentFrame = gSetupFrames;
 		NET_SendSetupCmd(NET_CMD_NOTIFY_LOADED);
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETLASTSENT), "LAST SENT=NET_CMD_NOTIFY_LOADED");
 	}
 
 	if (!NET_IsHost() && setupSeat == NET_HostSeat() && net.state == NET_PRELOADED &&
@@ -1927,7 +1922,6 @@ static void NET_HandleSetupPacket(net_packet_t* packet, int setupSeat, const str
 		}
 		NET_ArmLiveness();
 		MENU_Set(MENU_NONE);
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETSTATE), "state=NET_RUNNING.\n");
 	}
 
 	if (!packetConsumed)
@@ -1984,7 +1978,7 @@ void Net_ProcessSetupPacket(void)
 		if (byteReceived == -1)
 		{
 			if (errno != EAGAIN )
-				sprintf(MENU_GetMultiplayerTextLine(4),"Error recvfrom:%d %s.\n",errno,strerror( errno ));
+				Log_Printf("[net] recvfrom error %d %s\n", errno, strerror( errno ));
 			return;					// nothing left in the queue
 		}
 
@@ -2007,7 +2001,6 @@ void Net_ProcessSetupPacket(void)
 void NET_Setup(void)
 {
 	net_packet_t registerPacket;
-	struct sockaddr_in localAddress;
 	
 	//Log_Printf("NET_Setup\n");
 	
@@ -2046,7 +2039,7 @@ void NET_Setup(void)
 	{
 		if (!NET_CheckServerAvailability() && net.type == NET_UNKNOWN)
 		{
-			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETMYIP), "Error while NET_CheckServerAvailability.\n");
+			sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETMYIP), "Local network unavailable.");
 			return ;
 		}
 	}
@@ -2056,23 +2049,16 @@ void NET_Setup(void)
 	{
 		if (!NET_ResolveNetworkServer())
 		{
-			sprintf(MENU_GetMultiplayerTextLine(0),   "Unable to find the server !");
+			sprintf(MENU_GetMultiplayerTextLine(0),   "No game found.");
 			sprintf(MENU_GetMultiplayerTextLine(1),   " ");
-			sprintf(MENU_GetMultiplayerTextLine(2), "Restart the server then try");
-			sprintf(MENU_GetMultiplayerTextLine(3), "connecting again.");
+			sprintf(MENU_GetMultiplayerTextLine(2), "Open Game Multi > Local");
+			sprintf(MENU_GetMultiplayerTextLine(3), "on the other device first.");
 			return ;
 		}
 		//sprintf(MENU_GetMultiplayerTextLine(0), "Resolved server :) !\n");
 		//sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETPEERPIP), "Server IP: %s !",inet_ntoa(net.peerAddr.sin_addr));
 	}
 	
-
-	if (!NET_IsOnline() && MENU_GetMultiplayerTextLine(MESSAGE_NETMYIP)[0] == '\0')
-	{
-		localAddress =  NET_GetAddressForInterfaceName(INTERFACE_NAME);
-		sprintf(MENU_GetMultiplayerTextLine(MESSAGE_NETMYIP),"Local IP @:'%s'",inet_ntoa(localAddress.sin_addr));
-	}
-
 
 	if (!NET_IsOnline() && net.udpSocket == 0)
 	{
@@ -2167,7 +2153,7 @@ void NET_Receive(void)
 		if (byteReceived == -1)
 		{
 			if (errno != EAGAIN )
-				sprintf(MENU_GetMultiplayerTextLine(4),"Error recvfrom:%d %s.\n",errno,strerror( errno ));
+				Log_Printf("[net] recvfrom error %d %s\n", errno, strerror( errno ));
 			break;
 		}
 

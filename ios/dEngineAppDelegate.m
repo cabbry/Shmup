@@ -429,13 +429,6 @@ void Native_SaveOptions(void) {
 	[d synchronize];
 }
 
-// Persist the furthest act ever reached (gates the act-select screen); restored
-// at launch in EAGLView's checkEngineSettings.
-void Native_SaveProgress(int highestAct) {
-	NSUserDefaults* d = [NSUserDefaults standardUserDefaults];
-	[d setInteger:highestAct forKey:@"HighestAct"];
-	[d synchronize];
-}
 
 #pragma mark - Online multiplayer bridge (engine -> GameKit)
 

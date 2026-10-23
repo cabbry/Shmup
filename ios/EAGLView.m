@@ -103,31 +103,6 @@ EAGLView *eaglview;
 	if (gBulletColor < 0 || gBulletColor >= NUM_BULLET_COLORS) gBulletColor = 0;
 	NSLog(@"loadout ship=%d color=%d", gShipChoice, gBulletColor);
 
-	// Progression: restore the furthest act reached (gates the act-select screen).
-	if ([standardUserDefaults objectForKey:@"HighestAct"] != nil)
-		gHighestActReached = (int)[standardUserDefaults integerForKey:@"HighestAct"];
-	if (gHighestActReached < 1) gHighestActReached = 1;
-
-	// v4: an act was INSERTED before the boss, which moved from act 4 to act 5.
-	// A saved 4 meant "reached the boss"; left alone it would now mean "reached
-	// the new act 4" and would take the finale AWAY from a player who had
-	// already got there. Carry the old top over, once, and stamp the layout so
-	// this never runs twice (a player who legitimately stops at act 4 in the
-	// new layout must keep act 5 locked).
-	if ([standardUserDefaults objectForKey:@"ActLayout"] == nil)
-	{
-		if (gHighestActReached >= 4)
-			gHighestActReached = 5;
-		[standardUserDefaults setInteger:2 forKey:@"ActLayout"];
-		[standardUserDefaults setInteger:gHighestActReached forKey:@"HighestAct"];
-		[standardUserDefaults synchronize];
-		NSLog(@"progress migrated to the 5-act layout: highestAct=%d", gHighestActReached);
-	}
-
-	// 5 playable acts (scenes 1..5). engine.numScenes is not parsed yet at this
-	// point, hence the literal -- keep it in step with config.cfg.
-	if (gHighestActReached > 5) gHighestActReached = 5;
-	NSLog(@"highestAct=%d", gHighestActReached);
 
 
 }
@@ -393,9 +368,7 @@ void loadNativePNG(texture_t* tmpTex)
 - (void) handleTouches:(UIEvent*)event 
 {
 
-    int touchCount = 0;
     io_event_s shmupEvent;
-    static int previousTouchCount;
 
 
     // v3.0.1: UIKit reports touches in points; the engine maps them against its
@@ -410,27 +383,10 @@ void loadNativePNG(texture_t* tmpTex)
     NSSet *iPhonetouches = [event allTouches];
     for (UITouch *myTouch in iPhonetouches)
     {
-        touchCount++;
         CGPoint touchLocation = [myTouch locationInView:nil];
         CGPoint prevTouchLocation = [myTouch previousLocationInView:nil];
         touchLocation.x *= toSurface;  touchLocation.y *= toSurface;
         prevTouchLocation.x *= toSurface;  prevTouchLocation.y *= toSurface;
-
-        // Tutorial (scenes 14 = swipe, 15 = virtual pad) and Demo (scene 13): a
-        // top-centre BACK button to leave and return to the main menu. Swallow
-        // the touch.
-        if ((SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) && myTouch.phase == UITouchPhaseBegan && !TITLE_IsShowing())	// v4: by kind
-        {
-            CGPoint local = [myTouch locationInView:self];
-            CGFloat fx = local.x / self.bounds.size.width;
-            CGFloat fy = local.y / self.bounds.size.height;
-            if (fx > 0.32f && fx < 0.68f && fy > 0.17f && fy < 0.29f)
-            {
-                MENU_Set(MENU_HOME);
-                dEngine_RequireSceneId(0);
-                continue;
-            }
-        }
 
         shmupEvent.position[X] = touchLocation.x;
         shmupEvent.position[Y] = touchLocation.y;
@@ -454,13 +410,6 @@ void loadNativePNG(texture_t* tmpTex)
     }
 	
 	
-	if ( touchCount == 5 && previousTouchCount != 5 )
-	{
-		MENU_Set(MENU_HOME);
-		engine.requiredSceneId=0;
-	}
-	
-	previousTouchCount = touchCount;
 	
 }
 

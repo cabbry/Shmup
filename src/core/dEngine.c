@@ -592,7 +592,6 @@ void dEngine_InitDisplaySystem(uchar rendererType)
 // Progression: the furthest act (scene 1..3) ever reached. Gates the act-select
 // screen -- an act is only selectable once it has been reached in play. Persisted
 // on iOS (NSUserDefaults) and restored at launch.
-int gHighestActReached = 1;
 
 // v2: the soundtrack file currently loaded in the native player, so a scene
 // change to the SAME track lets the music play on (see dEngine_LoadScene).
@@ -661,15 +660,6 @@ void dEngine_LoadScene(int sceneId)
 	// black: the sky domes enclose the camera and no per-entity test can reject them.
 	gRuntimeCullMap = 0;
 
-	// Progression: remember the furthest act ever reached (solo or multiplayer).
-	// v4: an act is a scene of kind ACT; its 1-based actIndex is the progression unit.
-	if (SCENE_KIND(sceneId) == SCENE_KIND_ACT && engine.scenes[sceneId].actIndex > gHighestActReached)
-	{
-		gHighestActReached = engine.scenes[sceneId].actIndex;
-#if defined(__APPLE__) || defined(SHMUP_TARGET_WINDOWS)
-		Native_SaveProgress(gHighestActReached);	// round 87: Windows persists it too (native_win.c)
-#endif
-	}
 
 	engine.musicStartAt= 0;
 
@@ -1035,18 +1025,22 @@ void dEngine_HostFrame(void)
 	dEngine_CheckState();
 
 
-	if (gCountdownMs > 0)
+	if (gCountdownMs > 0 || gPausedByPlayer)
 	{
-		// Returning from the background: keep the WHOLE game frozen and run the
+		// Paused by the player (the pause menu is up), or returning from the
+		// background: keep the WHOLE game frozen and run the
 		// 3-2-1-SHMUP countdown. We deliberately skip every simulation, input and
 		// collision step below, so nothing moves, fires, scores, dies or spawns
 		// (no more leaking explosions, sounds, sparks or stray shots). We only
 		// re-prepare the player sprites from the unchanged state and redraw, with
 		// the countdown overlay on top. timediff is 0, so the muzzle flash -- the
 		// one animated thing left in the render-prep path -- stays hidden.
-		gCountdownMs -= 16;
-		if (gCountdownMs < 0)
-			gCountdownMs = 0;
+		if (gCountdownMs > 0)
+		{
+			gCountdownMs -= 16;
+			if (gCountdownMs < 0)
+				gCountdownMs = 0;
+		}
 		timediff = 0;
 
 		diverSpriteLib.numVertices = 0;   // rebuilt by PL_RenderPlayerPointers
@@ -1058,6 +1052,8 @@ void dEngine_HostFrame(void)
 		P_PreparePointerSprites();
 
 		SCR_RenderFrame();
+		if (engine.menuVisible)
+			MENU_HandleTouches();	// the pause menu: Resume / Quit
 		return;
 	}
 
@@ -1195,6 +1191,53 @@ void dEngine_ResumeGame(void)
 	// used to print over it (a Known issue since round 8, closed in round 42).
 	if (entitiesAttachedToCamera && engine.mode == DE_MODE_SINGLEPLAYER && !engine.menuVisible)
 		gCountdownMs = RESUME_COUNTDOWN_MS;
+}
+
+// --- The pause button ---------------------------------------------------------
+// A visible "II" on the HUD row during an act (player.c draws it, io_interface.c
+// hit-tests it). Solo: the world freezes on the same frozen frame the return
+// from the background shows, the music pauses, and Resume runs the 3-2-1.
+// Multiplayer: the other players fly on, so the menu opens over a live match --
+// Quit leaves it cleanly, Resume closes the menu.
+int gPausedByPlayer = 0;
+
+void dEngine_PauseByPlayer(void)
+{
+	int frozen = (engine.mode == DE_MODE_SINGLEPLAYER);
+
+	COM_ResetTouchesBuffer();
+	if (frozen)
+	{
+		gPausedByPlayer = 1;
+		gCountdownMs = 0;
+		SND_PauseSoundTrack();
+	}
+	MENU_ShowPause(frozen);
+	Log_Printf("[pause] on (%s)\n", frozen ? "frozen" : "live match");
+}
+
+void dEngine_ResumeByPlayer(void)
+{
+	MENU_Set(MENU_NONE);
+	COM_ResetTouchesBuffer();
+	if (gPausedByPlayer)
+	{
+		gPausedByPlayer = 0;
+		SND_ResumeSoundTrack();
+		gCountdownMs = RESUME_COUNTDOWN_MS;
+	}
+	Log_Printf("[pause] off\n");
+}
+
+void dEngine_QuitByPlayer(void)
+{
+	Log_Printf("[pause] quit\n");
+	gPausedByPlayer = 0;
+	gCountdownMs = 0;
+	if (NET_IsRunning())
+		NET_Free();
+	MENU_Set(MENU_HOME);
+	dEngine_RequireSceneId(0);
 }
 
 void dEngine_RenderCountdown(void)

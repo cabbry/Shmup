@@ -42,7 +42,7 @@
 
 static char* MENU_Tr(const char* en);	// v2: menu localization (table below)
 
-menu_screen_t menuScreens[13];	// v2 P4: + MENU_ONLINE_SIZE; v2: + MENU_MULTI_MODE; + MENU_OPTIONS
+menu_screen_t menuScreens[14];	// v2 P4: + MENU_ONLINE_SIZE; v2: + MENU_MULTI_MODE; + MENU_OPTIONS; + MENU_PAUSE
 int currentMenuId;
 
 texture_t textureAtlas;
@@ -331,8 +331,8 @@ static uchar gPickedDifficulty = 1;
 
 // New Game flow: pick a difficulty, then pick the starting act (full lives
 // either way). Act select makes practicing an act -- and reaching the final
-// boss -- possible without clearing the whole game in one run. Acts are only
-// selectable once they have been REACHED in play (gHighestActReached).
+// boss -- possible without clearing the whole game in one run. Every act is
+// open from the first launch.
 
 // v4.0.9 -- the act a MULTIPLAYER party starts on. Both devices pick one, and
 // the HOST's pick is the one that happens: the act must be identical on every
@@ -399,34 +399,20 @@ static int MENU_NumActButtons(void)
 	return n;
 }
 
-// texts[1] of the act-select screen is its status line; the buttons are the acts.
-static void MENU_UpdateActLockStatus(int lockedActTried)
+// The act buttons carry their acts' names, set each time the screen opens.
+static void MENU_UpdateActButtons(void)
 {
 	menu_screen_t* screen = &menuScreens[MENU_SELECT_ACT];
-	char* line = screen->texts[1].text;
 	int n = MENU_NumActButtons();
 	int act;
-
-	// "Grey out" locked acts: swap the button label (button text is a pointer,
-	// so swapping between the name and the literal is safe; the font is
-	// single-colour). Pack names live in engine.scenes[] for the whole run.
 	for (act = 1; act <= n; act++)
-		screen->buttons[act - 1].text = (act <= gHighestActReached)
-			? (char*)MENU_ActName(act)
-			: MENU_Tr("Locked");
-
-	if (lockedActTried > 1)
-		sprintf(line, MENU_Tr("Locked - finish %s first"), MENU_ActName(lockedActTried - 1));
-	else if (gHighestActReached >= 2)
-		sprintf(line, MENU_Tr("Unlocked up to %s"), MENU_ActName(gHighestActReached));
-	else
-		line[0] = '\0';
+		screen->buttons[act - 1].text = (char*)MENU_ActName(act);
 }
 
 void Action_PickDifficulty(void* tag)
 {
 	gPickedDifficulty = *(char*)tag;
-	MENU_UpdateActLockStatus(0);
+	MENU_UpdateActButtons();
 	MENU_Set(MENU_SELECT_ACT);
 }
 
@@ -435,15 +421,6 @@ void Action_startNewGameAtAct(void* tag)
 	int i;
 	int act = *(char*)tag;		// 1-based act index, NOT a scene id (v4)
 	int sceneId;
-
-	// Progression gate: the act must have been reached in play at least once.
-	// (Multiplayer comes through here too -- see MENU_ActPickedForParty.)
-	if (act > gHighestActReached)
-	{
-		MENU_UpdateActLockStatus(act);
-		MENU_ClearButtonStates();
-		return;
-	}
 
 	if (gPickingActForMP)
 	{
@@ -468,9 +445,22 @@ void Action_startNewGameAtAct(void* tag)
 	engine.difficultyLevel = gPickedDifficulty;
 }
 
+// Game Solo. The act screen also serves the multiplayer flow; leaving that
+// flow by Back used to leave gPickingActForMP set, and the next solo act
+// picked opened a multiplayer lobby instead. Entering the solo flow clears it.
 void Action_SpecifyDifficulty(void* tag)
 {
+	gPickingActForMP = 0;
 	MENU_Set(MENU_SELECT_DIFFICULTY);
+}
+
+// Back from the act screen goes back the way the player came.
+void Action_BackFromActSelect(void* tag)
+{
+	if (gPickingActForMP)
+		MENU_Set(MENU_ONLINE_SIZE);
+	else
+		MENU_Set(MENU_SELECT_DIFFICULTY);
 }
 
 
@@ -572,7 +562,7 @@ void Action_PickPartySize(void* tag)
 {
 	gPendingPartySize = tag ? *(int*)tag : 2;
 	gPickingActForMP = 1;
-	MENU_UpdateActLockStatus(0);
+	MENU_UpdateActButtons();
 	MENU_Set(MENU_SELECT_ACT);
 }
 
@@ -702,6 +692,27 @@ void Action_ToggleMusic(void* tag)
 	MENU_OptionChanged();
 }
 
+// ---- The pause menu (the HUD's "II" during an act) ---------------------------
+void MENU_ShowPause(int frozen)
+{
+	// texts[1]: in a match nothing stops for one player, so say so.
+	strcpy(menuScreens[MENU_PAUSE].texts[1].text, frozen ? "" : MENU_Tr("The match goes on."));
+	MENU_Set(MENU_PAUSE);
+	// Shown at once: a menu fades in with the frame time, and the frozen world
+	// runs with none (dEngine_HostFrame), so it would stay transparent.
+	menuScreens[MENU_PAUSE].alpha = 1;
+}
+
+void Action_ResumeFromPause(void* tag)
+{
+	dEngine_ResumeByPlayer();
+}
+
+void Action_QuitFromPause(void* tag)
+{
+	dEngine_QuitByPlayer();
+}
+
 
 
 
@@ -775,7 +786,6 @@ static const menu_tr_t gMenuTr[] = {
 	{ "Act II",              "Acte II" },
 	{ "Act III",             "Acte III" },
 	{ "Act IV",              "Acte IV" },
-	{ "Locked",              "Bloqu\xE9" },
 	{ "2 Players",           "2 Joueurs" },
 	{ "3 Players",           "3 Joueurs" },
 	{ "4 Players",           "4 Joueurs" },
@@ -783,13 +793,15 @@ static const menu_tr_t gMenuTr[] = {
 	{ "How many players ?",  "Combien de joueurs ?" },
 	{ "SELECT ACT",          "CHOISIR L'ACTE" },
 	{ "CUSTOM",              "CUSTOM" },
-	// v4: the %s is the act's own name, from its pack ("Act III", "Final").
-	{ "Locked - finish %s first", "Bloqu\xE9 - finis d'abord %s" },
-	{ "Unlocked up to %s",        "D\xE9" "bloqu\xE9 jusqu'\xE0 %s" },
 	// round 88: the multiplayer waiting lines, short enough for the screen
 	{ "%s - the host's act plays",   "%s - l'acte de l'h\xF4te fait foi" },
 	{ "Finding %d players for %s...", "Recherche de %d joueurs pour %s..." },
 	{ "(the host's act plays)",       "(l'acte de l'h\xF4te fait foi)" },
+	// the pause menu
+	{ "PAUSE",               "PAUSE" },
+	{ "Resume",              "Reprendre" },
+	{ "Quit",                "Quitter" },
+	{ "The match goes on.",  "La partie continue." },
 	// the Options screen
 	{ "Options",              "Options" },
 	{ "OPTIONS",              "OPTIONS" },
@@ -1185,8 +1197,6 @@ void MENU_Init(void)
 	currentMenu = &menuScreens[MENU_SELECT_ACT];
 
 	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, MENU_Tr("SELECT ACT"));
-	// texts[1]: lock/progress status line (filled by MENU_UpdateActLockStatus).
-	MENU_CreateText(currentMenu, 0, (SS_H - 230), 2.0f, TEXT_CENTERED, "");
 
 	// Two columns, 150 apart, same cell geometry as the Custom screen -- one
 	// column would put the last act on top of the Back button (the overlap that
@@ -1209,8 +1219,7 @@ void MENU_Init(void)
 			buttonDim[HEIGHT] = 64 * 2;
 			actId = calloc(1, sizeof(char));
 			*actId = a + 1;
-			// The label is set for real by MENU_UpdateActLockStatus, which runs
-			// every time the screen is entered (locked acts read "Locked").
+			// MENU_UpdateActButtons sets the label again each time the screen opens.
 			MENU_CreateButtonWithTag(currentMenu, (char*)MENU_ActName(a + 1), 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
 		}
 	}
@@ -1219,8 +1228,21 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_SpecifyDifficulty,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_BackFromActSelect,NULL, buttonPos, buttonDim);
 
+
+	// --- Pause (the HUD's "II" during an act): Resume / Quit ---
+	currentMenu = &menuScreens[MENU_PAUSE];
+	MENU_CreateText(currentMenu, 0, (SS_H - 200), 3.0f, TEXT_CENTERED, MENU_Tr("PAUSE"));
+	MENU_CreateText(currentMenu, 0, (SS_H - 290), 2.0f, TEXT_CENTERED, "");	// texts[1]: set by MENU_ShowPause
+
+	buttonPos[X] = 0;
+	buttonPos[Y] = 60;
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Resume"), 3, Action_ResumeFromPause, NULL, buttonPos, buttonDim);
+	buttonPos[Y] = -90;
+	MENU_CreateButton(currentMenu, MENU_Tr("Quit"), 3, Action_QuitFromPause, NULL, buttonPos, buttonDim);
 
 	// --- Options (Others -> Options): controls, sound, music, one tap each ---
 	currentMenu = &menuScreens[MENU_OPTIONS];

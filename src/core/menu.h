@@ -111,11 +111,13 @@ typedef struct menu_screen_t
 #define MENU_SELECT_SHIP 8
 #define MENU_SELECT_ACT 9
 #define MENU_ONLINE_SIZE 10	// v2 P4: pick the party size (2/3/4)
+#define MENU_PAUSE 13	// the HUD's "II" during an act: Resume / Quit
 #define MENU_OPTIONS 12	// Others -> Options: controls, sound, music
 #define MENU_MULTI_MODE 11	// v2: Game Multi -> Local / Online / Back
 
 void MENU_Init(void);
 void MENU_Set(signed char menuId);
+void MENU_ShowPause(int frozen);	// frozen = solo; in a match the game goes on
 signed char MENU_Get(void);
 void MENU_Render(void);
 // Round 41: scrolling menus. ScrollTouch takes the input layer's event type (IO_EVENT_*) and the

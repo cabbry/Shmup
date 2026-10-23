@@ -124,7 +124,7 @@ jobs:
 
       - name: Check only -- stop here
         if: ${{ inputs.check_only == 'true' }}
-        run: echo "check_only=true: archive checked, nothing exported or uploaded."
+        run: echo "check_only is set -- the archive is checked, nothing is exported or uploaded."
 
       - name: Export IPA
         if: ${{ inputs.check_only != 'true' }}

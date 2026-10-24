@@ -36,8 +36,9 @@ static int IO_HudButtonAt(float tx, float ty)
 	if (P_PauseButtonShown())
 	{
 		P_PauseButtonPos(&x, &y);
-		// "[ II ]": as wide as its brackets, as tall as [ BACK ].
-		if (IO_Abs(tx - (x + SS_W) / 2.0f) < 40 && IO_Abs(ty - (SS_H - (y + SS_H) / 2.0f)) < 26)
+		// "[II]": a square as tall as [ BACK ]'s band, wider than the glyphs
+		// (about 64 points on a phone, Apple asks for 44).
+		if (IO_Abs(tx - (x + SS_W) / 2.0f) < 26 && IO_Abs(ty - (SS_H - (y + SS_H) / 2.0f)) < 26)
 			return HUD_PAUSE;
 	}
 	if (P_BackButtonShown())

@@ -1163,11 +1163,17 @@ static void P_SetBarQuad(xf_textureless_sprite_t* q, short l, short r, short top
 // bar, notch, Dynamic Island); on a 2:3 screen it lands about where the 2009
 // score was. Drawing (P_RenderHud below) and hit-testing (io_interface.c) both
 // read their positions here, so the two cannot drift apart.
-// "[ II ]", bracketed like "[ BACK ]" so it reads as a button (a bare "II"
+// "[II]", bracketed like "[ BACK ]" so it reads as a button (a bare "II"
 // did not, tester's feedback on 5.0.14). Centred in the gap between the
-// score's last digit and the lives icon: at the score's size the brackets
-// make it about 150 units wide.
+// score's last digit and the lives icon.
 #define HUD_PAUSE_X  86
+// The font is monospaced -- one cell per glyph, spaces included -- and every
+// glyph sits centred in its cell, so the string "[ II ]" spread four thin
+// glyphs over six cells, about 130 units (tester's feedback on 5.0.15). The
+// glyphs are placed one by one instead, packed like a pause icon: at
+// SCORE_FONT_SIZE the same 6-unit gap between the bars and the brackets.
+static const char  hudPauseGlyphs[4]  = { '[', 'I', 'I', ']' };
+static const short hudPauseGlyphDx[4] = { -16, -5, 5, 16 };
 #define HUD_BACK_DY  100	// [ BACK ] sits this far under the row
 
 short P_HudRowY(void)
@@ -1389,8 +1395,14 @@ void PL_RenderPlayerPointers(void)
 		if (P_PauseButtonShown())
 		{
 			short px, py;
+			char glyph[2] = { 0, 0 };
+			int g;
 			P_PauseButtonPos(&px, &py);
-			SCR_ConvertTextToVertices("[ II ]", SCORE_FONT_SIZE, px, py, TEXT_CENTERED);
+			for (g = 0; g < 4; g++)
+			{
+				glyph[0] = hudPauseGlyphs[g];
+				SCR_ConvertTextToVertices(glyph, SCORE_FONT_SIZE, (short)(px + hudPauseGlyphDx[g]), py, TEXT_CENTERED);
+			}
 		}
 		if (P_BackButtonShown())
 		{

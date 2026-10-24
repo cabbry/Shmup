@@ -73,15 +73,11 @@ void EV_AttachToCamera(event_t* event)
 	Log_Printf("[EV_AttachToCamera]\n");
 	P_AttachToCamera(globalMatrix);
 	ENE_AttachToCamera(globalMatrix);
-	
-	engine.controlVisible = 1;
 }
 
 void EV_DetachCamera(event_t* event)
 {
 	P_DetachToCamera();
-	
-	engine.controlVisible = 0;
 }
 
 

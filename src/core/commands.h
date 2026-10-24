@@ -95,13 +95,6 @@ extern command_t toSend;
 
 extern touch_t touches[NUM_BUTTONS];
 
-#define NUM_CIRCLES 3
-#define NUM_VERTICES_PER_CIRCLES 12
-//extern  ushort controlIndices[NUM_CIRCLES*NUM_VERTICES_PER_CIRCLES*6] ;
-extern ushort controlIndices[16] ;
-extern ushort controlNumIndices;
-#define NUM_CONTROL_VERTICES (NUM_CIRCLES*NUM_VERTICES_PER_CIRCLES)
-extern xf_textureless_sprite_t controlVertices[NUM_CONTROL_VERTICES];
 extern command_t lastLocalCommand;
 
 

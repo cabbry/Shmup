@@ -7,8 +7,8 @@
 SHMUP Reborn is a free, open-source game (GNU GPLv3). It has no server of its
 own, no analytics, no advertising and no tracking.
 
-**What the app stores on your device**: your options (sound, music, control
-scheme) and your ship and bullet colour. This data never leaves the device.
+**What the app stores on your device**: your options (sound, music) and your
+ship and bullet colour. This data never leaves the device.
 
 **Game Center**: if you are signed in to Game Center, the app submits your
 score to the "High Scores" leaderboard as you play (at the end of an act, of
@@ -30,9 +30,8 @@ another. Nothing is sent to a server.
 SHMUP Reborn est un jeu gratuit et libre (GNU GPLv3). Il n'a aucun serveur en
 propre, aucune mesure d'audience, aucune publicité et aucun pistage.
 
-**Ce que l'app garde sur votre appareil** : vos options (son, musique, mode
-de pilotage), votre vaisseau et votre couleur de tir. Ces données ne quittent
-jamais l'appareil.
+**Ce que l'app garde sur votre appareil** : vos options (son, musique), votre
+vaisseau et votre couleur de tir. Ces données ne quittent jamais l'appareil.
 
 **Game Center** : si vous êtes connecté à Game Center, l'app envoie votre
 score au classement « High Scores » en cours de jeu (à la fin d'un acte, d'une

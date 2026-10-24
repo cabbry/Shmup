@@ -84,16 +84,14 @@ EAGLView *eaglview;
 
 - (void) checkEngineSettings
 {
-	// The three switches of the in-game Options screen (Native_SaveOptions in
+	// The two switches of the in-game Options screen (Native_SaveOptions in
 	// dEngineAppDelegate.m writes them). Absent on a fresh install: sound and
-	// music on, swipe controls.
+	// music on.
 	NSUserDefaults *standardUserDefaults = [NSUserDefaults standardUserDefaults];
 	NSString* sound   = [standardUserDefaults stringForKey:@"SoundEffectsEnabled"];
 	NSString* music   = [standardUserDefaults stringForKey:@"MusicEnabled"];
-	NSString* control = [standardUserDefaults stringForKey:@"controlType"];
 	engine.soundEnabled = sound ? ([sound intValue] ? 1 : 0) : 1;
 	engine.musicEnabled = music ? ([music intValue] ? 1 : 0) : 1;
-	engine.controlMode  = (control && [control intValue] == CONTROL_MODE_VIRT_PAD) ? CONTROL_MODE_VIRT_PAD : CONTROL_MODE_SWIP;
 	renderer.statsEnabled = 0;
 
 	// Persisted solo loadout (Custom screen): restore the chosen ship + bullet colour.

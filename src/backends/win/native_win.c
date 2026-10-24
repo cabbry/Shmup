@@ -190,8 +190,8 @@ static void SaveSettings(void)
 		Log_Printf("[settings] cannot write %s\n", path);
 		return;
 	}
-	fprintf(f, "sound=%d\nmusic=%d\ncontrol=%d\nship=%d\ncolor=%d\n",
-	        engine.soundEnabled, engine.musicEnabled, engine.controlMode, gShipChoice, gBulletColor);
+	fprintf(f, "sound=%d\nmusic=%d\nship=%d\ncolor=%d\n",
+	        engine.soundEnabled, engine.musicEnabled, gShipChoice, gBulletColor);
 	fclose(f);
 }
 
@@ -203,7 +203,6 @@ void WIN_LoadSettings(void)
 	FILE* f;
 	engine.soundEnabled = 1;
 	engine.musicEnabled = 1;
-	engine.controlMode = CONTROL_MODE_SWIP;
 	snprintf(path, sizeof(path), "%s/settings.cfg", getenv("WD") ? getenv("WD") : ".");
 	f = fopen(path, "r");
 	if (!f)
@@ -213,15 +212,14 @@ void WIN_LoadSettings(void)
 		int v = atoi(strchr(line, '=') ? strchr(line, '=') + 1 : "0");
 		if      (!strncmp(line, "sound=", 6))      engine.soundEnabled = v ? 1 : 0;
 		else if (!strncmp(line, "music=", 6))      engine.musicEnabled = v ? 1 : 0;
-		else if (!strncmp(line, "control=", 8))    engine.controlMode = (uchar)v;
 		else if (!strncmp(line, "ship=", 5))       gShipChoice = v;
 		else if (!strncmp(line, "color=", 6))      gBulletColor = v;
 	}
 	fclose(f);
 	if (gShipChoice  < 0 || gShipChoice  >= NUM_SHIP_CHOICES)  gShipChoice  = 0;
 	if (gBulletColor < 0 || gBulletColor >= NUM_BULLET_COLORS) gBulletColor = 0;
-	Log_Printf("[settings] sound=%d music=%d control=%d ship=%d color=%d\n",
-	           engine.soundEnabled, engine.musicEnabled, engine.controlMode, gShipChoice, gBulletColor);
+	Log_Printf("[settings] sound=%d music=%d ship=%d color=%d\n",
+	           engine.soundEnabled, engine.musicEnabled, gShipChoice, gBulletColor);
 }
 
 void WIN_SaveSettings(void) { SaveSettings(); }

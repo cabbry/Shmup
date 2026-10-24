@@ -11,7 +11,7 @@ JOUEZ ENSEMBLE
 
 VOTRE VAISSEAU
 - Quatre vaisseaux (Falcon, Viper, Phoenix et Ghost) et quatre couleurs de tir, dont une Invisible, pour qui veut voler à l'aveugle.
-- Deux modes de pilotage, glissé ou pad virtuel, chacun avec son tutoriel. On passe de l'un à l'autre dans Autres > Options, à côté du son et de la musique.
+- Un doigt pour piloter et tirer, un double tap pour le tir spécial, et un tutoriel qui montre tout. Le son et la musique dans Autres > Options.
 - Un bouton pause pendant chaque acte.
 - Vos meilleurs scores sur un classement Game Center.
 

@@ -3,7 +3,7 @@ Première sortie de SHMUP Reborn sur l'App Store.
 - Cinq actes, tous ouverts dès le premier lancement : Dawn, Hope, Dusk, Rain et l'acte Final.
 - Le boss final a des bras squelettiques : ils respirent, reculent, pincent. Arrachez-en un.
 - Multijoueur en réseau local et via Game Center, de deux à quatre vaisseaux.
-- Quatre vaisseaux, quatre couleurs de tir, deux modes de pilotage avec tutoriels, un écran Options.
+- Quatre vaisseaux, quatre couleurs de tir, un pilotage à un doigt avec son tutoriel, un écran Options.
 - Un bouton pause pendant chaque acte.
 - Classement Game Center.
 - Menus en anglais et en français.

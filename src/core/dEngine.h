@@ -44,9 +44,6 @@
 #define DIFFICULTY_NORMAL 1
 #define DIFFICULTY_INSANE 2
 
-#define CONTROL_MODE_SWIP 0
-#define CONTROL_MODE_VIRT_PAD 1
-
 #include "globals.h"
 #include "renderer.h"
 
@@ -125,15 +122,11 @@ typedef struct engine_info_t
 	int requiredSceneId;
 	int sceneId;			//Valid for both mode.
 	
-	char controlVisible;
-	
 	uchar mode;
 	
 	uchar fogEnabled;
 	
 	uchar showFingers;
-	
-	uchar controlMode;
 	
 	uchar difficultyLevel ;
 	

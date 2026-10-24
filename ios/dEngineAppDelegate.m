@@ -475,7 +475,6 @@ void Native_SaveOptions(void) {
 	NSUserDefaults* d = [NSUserDefaults standardUserDefaults];
 	[d setObject:(engine.soundEnabled ? @"1" : @"0") forKey:@"SoundEffectsEnabled"];
 	[d setObject:(engine.musicEnabled ? @"1" : @"0") forKey:@"MusicEnabled"];
-	[d setObject:[NSString stringWithFormat:@"%d", (int)engine.controlMode] forKey:@"controlType"];
 	[d synchronize];
 }
 

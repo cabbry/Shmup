@@ -1358,21 +1358,6 @@ static void RenderFXSpritesM(void)
 	RenderColoredSprites(enFxLib.ss_vertices, enFxLib.num_indices, enFxLib.indices);
 }
 
-static void DrawControlsM(void)
-{
-	if (engine.controlMode == CONTROL_MODE_SWIP)
-		return;
-	sTextured = 0;
-	{
-		int i, maxIdx = 0;
-		for (i = 0; i < controlNumIndices; i++)
-			if (controlIndices[i] > maxIdx) maxIdx = controlIndices[i];
-		DrawIndexedClient(VK_2DT, controlVertices, (NSUInteger)(maxIdx + 1) * sizeof(xf_textureless_sprite_t), controlIndices, controlNumIndices, MTLPrimitiveTypeTriangleStrip);
-		STATS_AddTriangles(controlNumIndices/2);
-	}
-	sTextured = 1;
-}
-
 static void StartCleanFrameM(void)
 {
 	// Nothing to do: the texture matrix is the Short2Normalized attribute, and
@@ -1461,7 +1446,6 @@ void initMetalRenderer(renderer_t* r)
 	r->RenderString = RenderStringM;
 	r->GetColorBuffer = GetColorBufferM;
 	r->RenderFXSprites = RenderFXSpritesM;
-	r->DrawControls = DrawControlsM;
 	r->FreeGPUTexture = FreeGPUTextureM;
 	r->FreeGPUBuffer = FreeGPUBufferM;
 	r->UploadVerticesToGPU = UploadVerticesToGPUM;

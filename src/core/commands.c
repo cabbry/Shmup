@@ -31,7 +31,6 @@
 #include "filesystem.h"
 #include "dEngine.h"
 #include "titles.h"
-#include "io_interface.h"
 
 command_buffer_t commandsBuffers[MAX_NUM_PLAYERS];
 
@@ -46,12 +45,6 @@ command_t toSend;
 touch_t touches[NUM_BUTTONS];
 
 
-//    0 2            4  6            8  10
-//    1 3            5  7            9  11
-ushort controlIndices[16] = {0,1,2,3,3,4,4,5,6,7,7,8,8,9,10,11};
-//ushort controlIndices[NUM_CIRCLES*NUM_VERTICES_PER_CIRCLES*6] ;
-ushort controlNumIndices;
-xf_textureless_sprite_t controlVertices[NUM_CONTROL_VERTICES];
 
 
 
@@ -102,117 +95,10 @@ static float COM_ResyncStep(float current, float target)
 /* --- RESYNC-ARITHMETIC-END --- */
 void COM_Init(void)
 {
-	xf_textureless_sprite_t* controlVertice;
 	int i;
-	
-	
-	float mouvementControlCenter[2];
-	float fireControlCenter[2];
-	float ghostControlCenter[2];
-	
-	
-	
-	controlNumIndices = 16;
 
 	memset(touches, 0, sizeof(touches));
-	
-	
-	// Init controller data
-	controlVertice = controlVertices;
-	
-	
-	for (i=0; i<  NUM_CONTROL_VERTICES ; i++) 
-	{
-		controlVertice->color[R] = 255;
-		controlVertice->color[G] = 255;
-		controlVertice->color[B] = 255;
-		controlVertice->color[A] = 80;
-		controlVertice++;
-	}
-	
-	
-	// Move button
-	//   0 
-	// 1   2
-	//   3
-	
-#define border (1/15.0f*SS_W)
-	
-#define mouvementButtonSize (1/2.0f*SS_W)
-	
-	mouvementControlCenter[X] = -SS_W + mouvementButtonSize/2 + border ;
-	mouvementControlCenter[Y] = -SS_H + mouvementButtonSize/2 + border;
-	
-	controlVertices[0].pos[X] = mouvementControlCenter[X] ;
-	controlVertices[0].pos[Y] = mouvementControlCenter[Y] + mouvementButtonSize/2;
-	
-	controlVertices[1].pos[X] = mouvementControlCenter[X] - mouvementButtonSize/2;
-	controlVertices[1].pos[Y] = mouvementControlCenter[Y] ;
-	
-	controlVertices[2].pos[X] = mouvementControlCenter[X] + mouvementButtonSize/2;
-	controlVertices[2].pos[Y] = mouvementControlCenter[Y] ;
-	
-	controlVertices[3].pos[X] = mouvementControlCenter[X] ;
-	controlVertices[3].pos[Y] = mouvementControlCenter[Y] - mouvementButtonSize/2;
-	
-		
-	touches[BUTTON_MOVE].iphone_coo_SysPos[X] = (mouvementControlCenter[X] + SS_W) / 2;
-	touches[BUTTON_MOVE].iphone_coo_SysPos[Y] = SS_H - ((mouvementControlCenter[Y] + SS_H) /2);
-	touches[BUTTON_MOVE].iphone_size = mouvementButtonSize/3 ;
-	
-	// Fire bullet button
-	//    4
-    //  5    6
-	//    7
-#define fireButtonSize (1/3.0f*SS_W)
-	fireControlCenter[X] = SS_W - fireButtonSize/2 - border;
-	fireControlCenter[Y] = -SS_H + fireButtonSize/2 +border;
-	
-	controlVertices[4].pos[X] = fireControlCenter[X];
-	controlVertices[4].pos[Y] = fireControlCenter[Y] + fireButtonSize/2 ;
-	
-	controlVertices[5].pos[X] = fireControlCenter[X] - fireButtonSize/2;
-	controlVertices[5].pos[Y] = fireControlCenter[Y];
-	
-	controlVertices[6].pos[X] = fireControlCenter[X] + fireButtonSize/2;
-	controlVertices[6].pos[Y] = fireControlCenter[Y] ;
-	
-	controlVertices[7].pos[X] = fireControlCenter[X] ;
-	controlVertices[7].pos[Y] = fireControlCenter[Y] - fireButtonSize/2;
-	
-	touches[BUTTON_FIRE].iphone_coo_SysPos[X] = (fireControlCenter[X] + SS_W) / 2;
-	touches[BUTTON_FIRE].iphone_coo_SysPos[Y] = SS_H - ((fireControlCenter[Y] + SS_H) /2);
-	touches[BUTTON_FIRE].iphone_size = fireButtonSize/3 ;
-	
-	// Ghost button
-	//      8
-	//   9     10
-	//     11
-#define ghostButtonSize (1/3.0f*SS_W)	
-	ghostControlCenter[X] = SS_W - fireButtonSize - ghostButtonSize/2 - 2 * border;
-	ghostControlCenter[Y] = - SS_H  + ghostButtonSize/2 + border;
-	
-	controlVertices[8].pos[X] = ghostControlCenter[X] ;
-	controlVertices[8].pos[Y] = ghostControlCenter[Y] +ghostButtonSize/2;
-	
-	controlVertices[9].pos[X] = ghostControlCenter[X] - ghostButtonSize/2;
-	controlVertices[9].pos[Y] = ghostControlCenter[Y] ;
-	
-	controlVertices[10].pos[X] = ghostControlCenter[X] + ghostButtonSize/2;
-	controlVertices[10].pos[Y] = ghostControlCenter[Y] ;
-	
-	controlVertices[11].pos[X] = ghostControlCenter[X];
-	controlVertices[11].pos[Y] = ghostControlCenter[Y] - ghostButtonSize/2;
-	
-	touches[BUTTON_GHOST].iphone_coo_SysPos[X] = (ghostControlCenter[X] + SS_W) / 2;
-	touches[BUTTON_GHOST].iphone_coo_SysPos[Y] = SS_H - ((ghostControlCenter[Y] + SS_H) /2);
-	touches[BUTTON_GHOST].iphone_size = ghostButtonSize/3 ;
-	
-	
-	//controlVBOId = renderer.UploadVerticesToGPU(controlVertices,12*sizeof(xf_textureless_sprite_t));
-	
-	
-	
+
 	//Need to invalidate bufferCommand numCmd=0 ?
 	for(i = 0 ; i < numPlayers ; i++)
 		commandsBuffers[i].numCommands = 0;
@@ -223,39 +109,6 @@ void COM_Init(void)
 	COM_ResetTouchesBuffer();
 }
 
-
-
-void COM_UpdateGhostButton(void)
-{
-	float f;
-	float ghostControlCenter[2];
-	//float r;
-	
-	if (engine.controlMode == CONTROL_MODE_SWIP)
-		return;
-	
-	ghostControlCenter[X] = SS_W - fireButtonSize - ghostButtonSize/2 - 2 * border;
-	ghostControlCenter[Y] = - SS_H  + ghostButtonSize/2 + border;
-	
-	/*
-	 
-	if (players[controlledPlayer].nextGhostFireTime  > simulationTime)
-		f = 1 - (players[controlledPlayer].nextGhostFireTime - simulationTime ) / (float)MS_BETWEEN_GHOST ;
-	else 
-		f = 1;
-	*/
-	//Nasty branch avoidance
-	
-	//r = (float)simulationTime;
-	//r = fabsf(r);
-	
-	f =  1 - (players[controlledPlayer].nextGhostFireTime  > simulationTime) * (players[controlledPlayer].nextGhostFireTime - simulationTime ) / (float)MS_BETWEEN_GHOST ;
-	
-	controlVertices[8].pos[Y] = ghostControlCenter[Y] + f * ghostButtonSize/2;	
-	controlVertices[9].pos[X] = ghostControlCenter[X] - f * ghostButtonSize/2;
-	controlVertices[10].pos[X] = ghostControlCenter[X] + f * ghostButtonSize/2;
-	controlVertices[11].pos[Y] = ghostControlCenter[Y] - f * ghostButtonSize/2;
-}
 
 
 void COM_ConvertLocalTouchsToCommands(void)
@@ -277,21 +130,13 @@ void COM_ConvertLocalTouchsToCommands(void)
 	
 	if (touches[BUTTON_MOVE].down && !players[controlledPlayer].autopilot.enabled)
 	{
-		if (engine.controlMode == CONTROL_MODE_SWIP)
-		{
-			// Swipe mode: 1:1 finger tracking. dist already equals the finger
-			// delta in pixels * 80 / viewportDim; dividing by 40 turns that into
-			// the matching ss_position delta (ss spans [-1,1] = 2 across the
-			// viewport), so the ship moves exactly as far as the finger,
-			// independent of screen size, FOV and frame-rate.
-			command->delta[X] = touches[BUTTON_MOVE].dist[X] / 40.0f;
-			command->delta[Y] = touches[BUTTON_MOVE].dist[Y] / 40.0f;
-		}
-		else
-		{
-			command->delta[X] = touches[BUTTON_MOVE].dist[X] * PLAYER_SPEED_MS * timediff;
-			command->delta[Y] = touches[BUTTON_MOVE].dist[Y] * PLAYER_SPEED_MS * timediff;
-		}
+		// 1:1 finger tracking. dist already equals the finger delta in pixels
+		// * 80 / viewportDim; dividing by 40 turns that into the matching
+		// ss_position delta (ss spans [-1,1] = 2 across the viewport), so the
+		// ship moves exactly as far as the finger, independent of screen size,
+		// FOV and frame-rate.
+		command->delta[X] = touches[BUTTON_MOVE].dist[X] / 40.0f;
+		command->delta[Y] = touches[BUTTON_MOVE].dist[Y] / 40.0f;
 
 		// (TTB is now a one-shot horizontal orbit that returns to normal, so the
 		// controls need no axis inversion.)
@@ -313,14 +158,10 @@ void COM_ConvertLocalTouchsToCommands(void)
 	//Need to copy cmd to send to netchannel.c
 	memcpy(&toSend, command, sizeof(command_t));
 	
-	// A swipe is a delta, consumed once. The pad stick is held: io_interface.c
-	// lets go of it when the finger lifts.
-	if (engine.controlMode == CONTROL_MODE_SWIP)
-	{
-		touches[BUTTON_MOVE].down = 0;
-		touches[BUTTON_MOVE].dist[X] = 0;
-		touches[BUTTON_MOVE].dist[Y] = 0;
-	}
+	// A swipe is a delta, consumed once.
+	touches[BUTTON_MOVE].down = 0;
+	touches[BUTTON_MOVE].dist[X] = 0;
+	touches[BUTTON_MOVE].dist[Y] = 0;
 
 	touches[BUTTON_GHOST].down = 0;
 }
@@ -338,188 +179,51 @@ void COM_PrepareFingerSprites(command_t* command)
 {
 
 	xf_colorless_sprite_t* spriteVertice;
-	short ss_sprite_boundaries[4];
 	
 	spriteVertice = &diverSpriteLib.vertices[diverSpriteLib.numVertices];
-	
-	if (engine.controlMode == CONTROL_MODE_VIRT_PAD)
-	{	
-		
-		
-	
-		ss_sprite_boundaries[UP]    = ((SS_H - touches[BUTTON_MOVE].iphone_coo_SysPos[Y] + 8*command->delta[Y]*FINGER_SPRITE_SIZE) - SS_H/2)*2+ FINGER_SPRITE_SIZE ;
-		ss_sprite_boundaries[DOWN]  = ((SS_H - touches[BUTTON_MOVE].iphone_coo_SysPos[Y] + 8*command->delta[Y]*FINGER_SPRITE_SIZE) - SS_H/2)*2- FINGER_SPRITE_SIZE ;
-		ss_sprite_boundaries[LEFT]  = (touches[BUTTON_MOVE].iphone_coo_SysPos[X]  + 8*command->delta[X]*FINGER_SPRITE_SIZE- SS_W/2)*2- FINGER_SPRITE_SIZE ;
-		ss_sprite_boundaries[RIGHT] = (touches[BUTTON_MOVE].iphone_coo_SysPos[X]  + 8*command->delta[X]*FINGER_SPRITE_SIZE- SS_W/2)*2+ FINGER_SPRITE_SIZE;
-		
-		
-		spriteVertice->pos[X] = ss_sprite_boundaries[LEFT];
-		spriteVertice->pos[Y] = ss_sprite_boundaries[UP];
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN;
-		spriteVertice++;
-		
-		spriteVertice->pos[X] = ss_sprite_boundaries[LEFT];
-		spriteVertice->pos[Y] = ss_sprite_boundaries[DOWN];
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN + FINGER_SPRITE_HEIGHT;
-		spriteVertice++;
-		
-		
-		spriteVertice->pos[X] = ss_sprite_boundaries[RIGHT];
-		spriteVertice->pos[Y] = ss_sprite_boundaries[DOWN];
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN +FINGER_SPRITE_WIDTH ;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN +FINGER_SPRITE_HEIGHT ;
-		spriteVertice++;
-		
-		
-		spriteVertice->pos[X] = ss_sprite_boundaries[RIGHT];
-		spriteVertice->pos[Y] = ss_sprite_boundaries[UP];
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN+FINGER_SPRITE_WIDTH;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN;
-		
-		diverSpriteLib.numVertices+=4;
-		diverSpriteLib.numIndices+=6;
-	
-	
-		if ((command->buttons & BUTTON_FIRE_PRESSED) == BUTTON_FIRE_PRESSED )
-		{
-		spriteVertice = &diverSpriteLib.vertices[diverSpriteLib.numVertices];
-		
-		ss_sprite_boundaries[UP]    = (SS_H - touches[BUTTON_FIRE].iphone_coo_SysPos[Y] - SS_H/2)*2 + FINGER_SPRITE_SIZE ;
-		ss_sprite_boundaries[DOWN]  = (SS_H - touches[BUTTON_FIRE].iphone_coo_SysPos[Y] - SS_H/2)*2 - FINGER_SPRITE_SIZE ;
-		ss_sprite_boundaries[LEFT]  = (touches[BUTTON_FIRE].iphone_coo_SysPos[X]  - SS_W/2)*2- FINGER_SPRITE_SIZE ;
-		ss_sprite_boundaries[RIGHT] = (touches[BUTTON_FIRE].iphone_coo_SysPos[X]  - SS_W/2)*2+ FINGER_SPRITE_SIZE;
-		
-		Log_Printf("BUTTON_FIRE_PRESSED\n");
-		/*
-		    0 3
-		    1 2
-		 */
-		spriteVertice->pos[X] = ss_sprite_boundaries[LEFT];
-		spriteVertice->pos[Y] = ss_sprite_boundaries[UP];
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN;
-		spriteVertice++;
-		
-		spriteVertice->pos[X] = ss_sprite_boundaries[LEFT];
-		spriteVertice->pos[Y] = ss_sprite_boundaries[DOWN];
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN + FINGER_SPRITE_HEIGHT;
-		spriteVertice++;
 
-		
-		spriteVertice->pos[X] = ss_sprite_boundaries[RIGHT];
-		spriteVertice->pos[Y] = ss_sprite_boundaries[DOWN];
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN +FINGER_SPRITE_WIDTH ;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN +FINGER_SPRITE_HEIGHT ;
-		spriteVertice++;
-
-		
-		spriteVertice->pos[X] = ss_sprite_boundaries[RIGHT];
-		spriteVertice->pos[Y] = ss_sprite_boundaries[UP];
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN+FINGER_SPRITE_WIDTH;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN;
-		
-		
-		
-		diverSpriteLib.numVertices+=4;
-		diverSpriteLib.numIndices+=6;
-		}
-	
-		if ((command->buttons & BUTTON_GHOST_PRESSED) == BUTTON_GHOST_PRESSED ) 
-		{
-		spriteVertice = &diverSpriteLib.vertices[diverSpriteLib.numVertices];
-		
-		ss_sprite_boundaries[UP]    = (SS_H - touches[BUTTON_GHOST].iphone_coo_SysPos[Y] - SS_H/2)*2+ FINGER_SPRITE_SIZE ;
-		ss_sprite_boundaries[DOWN]  = (SS_H - touches[BUTTON_GHOST].iphone_coo_SysPos[Y] - SS_H/2)*2- FINGER_SPRITE_SIZE ;
-		ss_sprite_boundaries[LEFT]  = (touches[BUTTON_GHOST].iphone_coo_SysPos[X]  - SS_W/2)*2- FINGER_SPRITE_SIZE ;
-		ss_sprite_boundaries[RIGHT] = (touches[BUTTON_GHOST].iphone_coo_SysPos[X]  - SS_W/2)*2+ FINGER_SPRITE_SIZE;
-																	  
-		
-		/*
-		 0 3
-		 1 2
-		 */
-		spriteVertice->pos[X] = ss_sprite_boundaries[LEFT];
-		spriteVertice->pos[Y] = ss_sprite_boundaries[UP];
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN;
-		spriteVertice++;
-		
-		spriteVertice->pos[X] = ss_sprite_boundaries[LEFT];
-		spriteVertice->pos[Y] = ss_sprite_boundaries[DOWN];
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN + FINGER_SPRITE_HEIGHT;
-		spriteVertice++;
-		
-		
-		spriteVertice->pos[X] = ss_sprite_boundaries[RIGHT];
-		spriteVertice->pos[Y] = ss_sprite_boundaries[DOWN];
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN +FINGER_SPRITE_WIDTH ;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN +FINGER_SPRITE_HEIGHT ;
-		spriteVertice++;
-		
-		
-		spriteVertice->pos[X] = ss_sprite_boundaries[RIGHT];
-		spriteVertice->pos[Y] = ss_sprite_boundaries[UP];
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN+FINGER_SPRITE_WIDTH;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN;
-		
-		
-
-		
-		diverSpriteLib.numVertices+=4;
-		diverSpriteLib.numIndices+=6;
-		}
-	}
-	else 
+	if ((command->buttons & BUTTON_FIRE_PRESSED) == 0 &&
+		(command->buttons & BUTTON_GHOST_PRESSED) == 0 &&
+		 command->delta[X] == 0 &&
+		 command->delta[Y] == 0)
 	{
-		if ((command->buttons & BUTTON_FIRE_PRESSED) == 0 &&
-			(command->buttons & BUTTON_GHOST_PRESSED) == 0 &&
-			 command->delta[X] == 0 &&
-			 command->delta[Y] == 0)
-		{
-			showFingerStartPos[X] =  0.5;
-			showFingerStartPos[Y] = -0.5;
-			return;
-		}
-		showFingerStartPos[X] += command->delta[X]/2;///10.0f*320;
-		showFingerStartPos[Y] += command->delta[Y]/2;///10.0f*480;
-		/*
-		 0 3
-		 1 2
-		 */
-		spriteVertice->pos[X] = showFingerStartPos[X] * SS_W -FINGER_SPRITE_SIZE ;
-		spriteVertice->pos[Y] = showFingerStartPos[Y] * SS_H +FINGER_SPRITE_SIZE ;
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN;
-		spriteVertice++;
-		
-		spriteVertice->pos[X] = showFingerStartPos[X] * SS_W -FINGER_SPRITE_SIZE ;
-		spriteVertice->pos[Y] = showFingerStartPos[Y] * SS_H -FINGER_SPRITE_SIZE ;
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN + FINGER_SPRITE_HEIGHT;
-		spriteVertice++;
-		
-		
-		spriteVertice->pos[X] = showFingerStartPos[X] * SS_W +FINGER_SPRITE_SIZE ;
-		spriteVertice->pos[Y] = showFingerStartPos[Y] * SS_H -FINGER_SPRITE_SIZE ;
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN +FINGER_SPRITE_WIDTH ;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN +FINGER_SPRITE_HEIGHT ;
-		spriteVertice++;
-		
-		
-		spriteVertice->pos[X] = showFingerStartPos[X] * SS_W +FINGER_SPRITE_SIZE ;
-		spriteVertice->pos[Y] = showFingerStartPos[Y] * SS_H +FINGER_SPRITE_SIZE ;
-		spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN+FINGER_SPRITE_WIDTH;
-		spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN;
-		
-		diverSpriteLib.numVertices+=4;
-		diverSpriteLib.numIndices+=6;
+		showFingerStartPos[X] =  0.5;
+		showFingerStartPos[Y] = -0.5;
+		return;
 	}
-
+	showFingerStartPos[X] += command->delta[X]/2;///10.0f*320;
+	showFingerStartPos[Y] += command->delta[Y]/2;///10.0f*480;
+	/*
+	 0 3
+	 1 2
+	 */
+	spriteVertice->pos[X] = showFingerStartPos[X] * SS_W -FINGER_SPRITE_SIZE ;
+	spriteVertice->pos[Y] = showFingerStartPos[Y] * SS_H +FINGER_SPRITE_SIZE ;
+	spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN;
+	spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN;
+	spriteVertice++;
 	
+	spriteVertice->pos[X] = showFingerStartPos[X] * SS_W -FINGER_SPRITE_SIZE ;
+	spriteVertice->pos[Y] = showFingerStartPos[Y] * SS_H -FINGER_SPRITE_SIZE ;
+	spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN;
+	spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN + FINGER_SPRITE_HEIGHT;
+	spriteVertice++;
+	
+	
+	spriteVertice->pos[X] = showFingerStartPos[X] * SS_W +FINGER_SPRITE_SIZE ;
+	spriteVertice->pos[Y] = showFingerStartPos[Y] * SS_H -FINGER_SPRITE_SIZE ;
+	spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN +FINGER_SPRITE_WIDTH ;
+	spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN +FINGER_SPRITE_HEIGHT ;
+	spriteVertice++;
+	
+	
+	spriteVertice->pos[X] = showFingerStartPos[X] * SS_W +FINGER_SPRITE_SIZE ;
+	spriteVertice->pos[Y] = showFingerStartPos[Y] * SS_H +FINGER_SPRITE_SIZE ;
+	spriteVertice->text[U] = FINGER_SPRITE_U_ORIGIN+FINGER_SPRITE_WIDTH;
+	spriteVertice->text[V] = FINGER_SPRITE_V_ORIGIN;
+	
+	diverSpriteLib.numVertices+=4;
+	diverSpriteLib.numIndices+=6;
 }
 
 void COM_ExecCommand(command_t* command)
@@ -607,9 +311,6 @@ void COM_Update(void)
 		return;
 	
 	COM_ConvertLocalTouchsToCommands();
-	
-	
-	COM_UpdateGhostButton();
 	
 	//If playing we need to play the commands in the buffer
 	if (engine.playback.play)
@@ -723,7 +424,6 @@ void COM_ResetTouchesBuffer(void)
 		touches[i].dist[X] = 0;
 		touches[i].dist[Y] = 0;
 	}
-	IO_ReleasePad();
 }
 
 

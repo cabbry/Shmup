@@ -4,8 +4,8 @@ SHMUP Reborn
 SHMUP is the 3D shoot 'em up Fabien Sanglard wrote in 2009; his page is at
 [http://fabiensanglard.net/shmup/](http://fabiensanglard.net/shmup/). SHMUP
 Reborn is its modernization for today's iPhones and iPads, free and open source
-(GNU GPLv3), released with his agreement: five acts and a final boss, two
-control schemes, multiplayer for two to four over the local network or Game
+(GNU GPLv3), released with his agreement: five acts and a final boss,
+one-finger controls, multiplayer for two to four over the local network or Game
 Center. The game is the same on Windows; Android builds from the same sources.
 
 ![SHMUP Reborn -- the home screen](docs/images/home.png)

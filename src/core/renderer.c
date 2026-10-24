@@ -271,8 +271,6 @@ void SCR_RenderFrame(void)
 	
 	
 	
-	if (engine.controlVisible)
-		renderer.DrawControls();
 	
 	
 	

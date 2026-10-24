@@ -20,7 +20,4 @@ void IO_PushEvent(io_event_s* event);
 
 void IO_Init(void);
 
-// Lets go of every virtual-pad button (a reset, a pause, a new scene).
-void IO_ReleasePad(void);
-
 #endif

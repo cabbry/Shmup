@@ -53,8 +53,8 @@ static void AND_SaveSettings(void)
 	snprintf(path, sizeof(path), "%s/settings.cfg", gAndroidWritableDir);
 	f = fopen(path, "w");
 	if (!f) { Log_Printf("[settings] cannot write %s\n", path); return; }
-	fprintf(f, "sound=%d\nmusic=%d\ncontrol=%d\nship=%d\ncolor=%d\n",
-	        engine.soundEnabled, engine.musicEnabled, engine.controlMode, gShipChoice, gBulletColor);
+	fprintf(f, "sound=%d\nmusic=%d\nship=%d\ncolor=%d\n",
+	        engine.soundEnabled, engine.musicEnabled, gShipChoice, gBulletColor);
 	fclose(f);
 }
 
@@ -65,7 +65,6 @@ void AND_LoadSettings(void)
 	FILE* f;
 	engine.soundEnabled = 1;
 	engine.musicEnabled = 1;
-	engine.controlMode = CONTROL_MODE_SWIP;
 	if (!gAndroidWritableDir[0]) return;
 	snprintf(path, sizeof(path), "%s/settings.cfg", gAndroidWritableDir);
 	f = fopen(path, "r");
@@ -75,7 +74,6 @@ void AND_LoadSettings(void)
 		int v = atoi(strchr(line, '=') ? strchr(line, '=') + 1 : "0");
 		if      (!strncmp(line, "sound=", 6))       engine.soundEnabled = v ? 1 : 0;
 		else if (!strncmp(line, "music=", 6))       engine.musicEnabled = v ? 1 : 0;
-		else if (!strncmp(line, "control=", 8))     engine.controlMode = (uchar)v;
 		else if (!strncmp(line, "ship=", 5))        gShipChoice = v;
 		else if (!strncmp(line, "color=", 6))       gBulletColor = v;
 	}

@@ -560,7 +560,6 @@ void dEngine_SetMusicEnabled(int on)
 void dEngine_LoadScene(int sceneId)
 {
 	engine.showFingers=0;
-	engine.controlVisible=0;
 	
 	// Reset variables state (only usefull when we are not loading the first level
 	EV_InitForScene();

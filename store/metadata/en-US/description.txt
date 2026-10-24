@@ -11,7 +11,7 @@ PLAY TOGETHER
 
 YOUR SHIP
 - Four ships (Falcon, Viper, Phoenix and Ghost) and four bullet colours, one of them Invisible, for those who want to fly blind.
-- Two control schemes, swipe or virtual pad, each with its own tutorial. Switch between them in Others > Options, next to sound and music.
+- One finger to fly and fire, a double tap for the special shot, and a tutorial that shows it all. Sound and music in Others > Options.
 - A pause button during every act.
 - Your best scores on a Game Center leaderboard.
 

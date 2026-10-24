@@ -121,80 +121,6 @@ static int IO_MenuButtonAt(float tx, float ty, const touch_t* set, int numButton
 static int			gMenuArmed = -1;
 static signed char	gMenuArmedOn = -1;
 
-// ---- The virtual pad --------------------------------------------------------
-// A pad button is held from the moment a finger lands on it until that finger
-// lifts (or the system cancels it), wherever it slides in between: the stick
-// keeps steering, fire keeps firing. Events carry no finger identity, so a
-// finger is known by where its last event left it -- a MOVED event's previous
-// position, an ENDED event's position. The special shot is one press, one shot.
-static char  gPadHeld[NUM_BUTTONS];
-static float gPadLastPos[NUM_BUTTONS][2];
-
-void IO_ReleasePad(void)
-{
-	memset(gPadHeld, 0, sizeof(gPadHeld));
-}
-
-static float IO_Clamp1(float v) { return v < -1 ? -1 : (v > 1 ? 1 : v); }
-
-static void IO_PadTouch(const io_event_s* e)
-{
-	int		i, button = -1;
-	float	d, bestD = 64 * 64;
-	const float* at = (e->type == IO_EVENT_MOVED) ? e->previousPosition : e->position;
-
-	if (e->type == IO_EVENT_BEGAN)
-	{
-		for (i = 0; i < NUM_BUTTONS; i++)
-		{
-			d = SQUARE(touches[i].iphone_coo_SysPos[X] - e->position[X]) + SQUARE(touches[i].iphone_coo_SysPos[Y] - e->position[Y]);
-			if (d < bestD)
-			{
-				bestD = d;
-				button = i;
-			}
-		}
-		if (button < 0)
-			return;
-		gPadHeld[button] = 1;
-	}
-	else
-	{
-		for (i = 0; i < NUM_BUTTONS; i++)
-		{
-			if (!gPadHeld[i])
-				continue;
-			d = SQUARE(gPadLastPos[i][X] - at[X]) + SQUARE(gPadLastPos[i][Y] - at[Y]);
-			if (button < 0 || d < bestD)
-			{
-				bestD = d;
-				button = i;
-			}
-		}
-		if (button < 0)
-			return;
-		if (e->type == IO_EVENT_ENDED)
-		{
-			gPadHeld[button] = 0;
-			if (button != BUTTON_GHOST)		// the special shot's press has already fired
-			{
-				touches[button].down = 0;
-				touches[button].dist[X] = 0;
-				touches[button].dist[Y] = 0;
-			}
-			return;
-		}
-		if (button == BUTTON_GHOST)
-			return;		// sliding on the special button fires nothing more
-	}
-
-	gPadLastPos[button][X] = e->position[X];
-	gPadLastPos[button][Y] = e->position[Y];
-	touches[button].down = 1;
-	touches[button].dist[X] = IO_Clamp1((e->position[X] - touches[button].iphone_coo_SysPos[X]) / touches[button].iphone_size);
-	touches[button].dist[Y] = IO_Clamp1((touches[button].iphone_coo_SysPos[Y] - e->position[Y]) / touches[button].iphone_size);
-}
-
 void IO_PushEvent(io_event_s* event_in){
 	
 	int		button;
@@ -232,10 +158,6 @@ void IO_PushEvent(io_event_s* event_in){
 				MENU_GetCurrentButtonTouches()[button].down = 1;
 			gMenuArmed = -1;
 		}
-	}
-	else if (engine.controlMode == CONTROL_MODE_VIRT_PAD)
-	{
-		IO_PadTouch(&event);
 	}
 	else
 	{

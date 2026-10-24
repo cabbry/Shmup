@@ -49,8 +49,8 @@ void Native_GKSendData(const void* data, int len, int reliable);
 
 // Persist the solo loadout (ship + bullet colour) so it survives app restarts.
 void Native_SaveLoadout(int ship, int color);
-// The Options screen: persist engine.soundEnabled, engine.musicEnabled and
-// engine.controlMode, which every platform restores at launch.
+// The Options screen: persist engine.soundEnabled and engine.musicEnabled,
+// which every platform restores at launch.
 void Native_SaveOptions(void);
 
 #endif

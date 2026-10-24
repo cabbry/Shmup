@@ -250,18 +250,8 @@ void Action_GoToTutorial(void* tag)
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = numPlayerRespawn[DIFFICULTY_NORMAL];
 	
-	if (engine.controlMode == CONTROL_MODE_SWIP)
-	{	
-		dEngine_RequireSceneId(14);
-		MENU_Set(MENU_NONE);
-	}
-	else 
-	{
-		dEngine_RequireSceneId(15);
-		MENU_Set(MENU_NONE);
-	}
-
-		
+	dEngine_RequireSceneId(14);
+	MENU_Set(MENU_NONE);
 }
 
 
@@ -650,17 +640,15 @@ void Action_SelectBulletColor(void* tag)
 }
 
 // ---- The Options screen (Others -> Options) ---------------------------------
-// Controls, sound and music used to live only in the iOS Settings app, outside
-// the game, where nobody playing it would look. Each tap flips one switch,
-// saves it (Native_SaveOptions) and stays on the screen.
-static char gOptControlsLabel[48];
+// Sound and music used to live only in the iOS Settings app, outside the game,
+// where nobody playing it would look. Each tap flips one switch, saves it
+// (Native_SaveOptions) and stays on the screen. (The 2009 virtual pad, the
+// other control scheme, is gone: the game is played with one finger.)
 static char gOptSoundLabel[48];
 static char gOptMusicLabel[48];
 
 static void MENU_UpdateOptionsLabels(void)
 {
-	sprintf(gOptControlsLabel, MENU_Tr("%s: %s"), MENU_Tr("Controls"),
-	        MENU_Tr(engine.controlMode == CONTROL_MODE_VIRT_PAD ? "Pad" : "Swipe"));
 	sprintf(gOptSoundLabel, MENU_Tr("%s: %s"), MENU_Tr("Sound"), MENU_Tr(engine.soundEnabled ? "On" : "Off"));
 	sprintf(gOptMusicLabel, MENU_Tr("%s: %s"), MENU_Tr("Music"), MENU_Tr(engine.musicEnabled ? "On" : "Off"));
 }
@@ -676,12 +664,6 @@ static void MENU_OptionChanged(void)
 	MENU_UpdateOptionsLabels();
 	MENU_ClearButtonStates();	// stay here, and let the same button be tapped again
 	Native_SaveOptions();
-}
-
-void Action_ToggleControls(void* tag)
-{
-	engine.controlMode = (engine.controlMode == CONTROL_MODE_VIRT_PAD) ? CONTROL_MODE_SWIP : CONTROL_MODE_VIRT_PAD;
-	MENU_OptionChanged();
 }
 
 void Action_ToggleSound(void* tag)
@@ -806,16 +788,12 @@ static const menu_tr_t gMenuTr[] = {
 	{ "Options",              "Options" },
 	{ "OPTIONS",              "OPTIONS" },
 	{ "%s: %s",               "%s : %s" },
-	{ "Controls",             "Contr\xF4les" },
-	{ "Swipe",                "Glisser" },
-	{ "Pad",                  "Pad" },
 	{ "Sound",                "Son" },
 	{ "Music",                "Musique" },
 	{ "On",                   "Oui" },
 	{ "Off",                  "Non" },
-	{ "Swipe: one finger flies and fires.", "Glisser : un doigt pilote et tire." },
-	{ "Pad: stick at left, two fire buttons at right.", "Pad : manette \xE0 gauche, deux tirs \xE0 droite." },
-	{ "The tutorial follows this choice.", "Le tutoriel suit ce choix." },
+	{ "One finger flies and fires.",   "Un doigt pilote et tire." },
+	{ "A double tap: the special shot.", "Un double tap : le tir sp\xE9" "cial." },
 	{ "Red",                 "Rouge" },
 	{ "Blue",                "Bleu" },
 	{ "Invisible",           "Invisible" },
@@ -1275,24 +1253,22 @@ void MENU_Init(void)
 	buttonPos[Y] = -90;
 	MENU_CreateButton(currentMenu, MENU_Tr("Quit"), 3, Action_QuitFromPause, NULL, buttonPos, buttonDim);
 
-	// --- Options (Others -> Options): controls, sound, music, one tap each ---
+	// --- Options (Others -> Options): sound, music, one tap each ---
 	currentMenu = &menuScreens[MENU_OPTIONS];
 	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, MENU_Tr("OPTIONS"));
 	MENU_UpdateOptionsLabels();
 
-	buttonDim[WIDTH] = (240 * 2);	// room for the longest label, the French controls one
+	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
 	buttonPos[X] = 0;
-	buttonPos[Y] = 170;
-	MENU_CreateButton(currentMenu, gOptControlsLabel, 2.5f, Action_ToggleControls, NULL, buttonPos, buttonDim);
-	buttonPos[Y] = 40;
+	buttonPos[Y] = 120;
 	MENU_CreateButton(currentMenu, gOptSoundLabel, 2.5f, Action_ToggleSound, NULL, buttonPos, buttonDim);
-	buttonPos[Y] = -90;
+	buttonPos[Y] = -10;
 	MENU_CreateButton(currentMenu, gOptMusicLabel, 2.5f, Action_ToggleMusic, NULL, buttonPos, buttonDim);
 
-	MENU_CreateText(currentMenu, 0, -200, 1.6f, TEXT_CENTERED, MENU_Tr("Swipe: one finger flies and fires."));
-	MENU_CreateText(currentMenu, 0, -240, 1.6f, TEXT_CENTERED, MENU_Tr("Pad: stick at left, two fire buttons at right."));
-	MENU_CreateText(currentMenu, 0, -280, 1.6f, TEXT_CENTERED, MENU_Tr("The tutorial follows this choice."));
+	// How the game is played, said where the settings are.
+	MENU_CreateText(currentMenu, 0, -150, 1.6f, TEXT_CENTERED, MENU_Tr("One finger flies and fires."));
+	MENU_CreateText(currentMenu, 0, -190, 1.6f, TEXT_CENTERED, MENU_Tr("A double tap: the special shot."));
 
 	buttonPos[X] = 0 ;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);

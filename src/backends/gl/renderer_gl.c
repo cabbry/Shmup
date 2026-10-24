@@ -1363,16 +1363,6 @@ static void RenderFXSpritesG(void)
 	RenderColoredSprites(enFxLib.ss_vertices, enFxLib.num_indices, enFxLib.indices);
 }
 
-static void DrawControlsG(void)
-{
-	if (engine.controlMode == CONTROL_MODE_SWIP)
-		return;
-	sTextured = 0;
-	DrawIndexedClient(VK_2DT, controlVertices, controlIndices, (unsigned)controlNumIndices, GL_TRIANGLE_STRIP);
-	STATS_AddTriangles(controlNumIndices/2);
-	sTextured = 1;
-}
-
 static void StartCleanFrameG(void)
 {
 	// Nothing to do: the clear belongs to GLR_BeginFrame.
@@ -1456,7 +1446,6 @@ void initGLRenderer(renderer_t* r)
 	r->RenderString = RenderStringG;
 	r->GetColorBuffer = GetColorBufferG;
 	r->RenderFXSprites = RenderFXSpritesG;
-	r->DrawControls = DrawControlsG;
 	r->FreeGPUTexture = FreeGPUTextureG;
 	r->FreeGPUBuffer = FreeGPUBufferG;
 	r->UploadVerticesToGPU = UploadVerticesToGPUG;

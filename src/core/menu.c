@@ -792,8 +792,6 @@ static const menu_tr_t gMenuTr[] = {
 	{ "Music",                "Musique" },
 	{ "On",                   "Oui" },
 	{ "Off",                  "Non" },
-	{ "One finger flies and fires.",   "Un doigt pilote et tire." },
-	{ "A double tap: the special shot.", "Un double tap : le tir sp\xE9" "cial." },
 	{ "Red",                 "Rouge" },
 	{ "Blue",                "Bleu" },
 	{ "Invisible",           "Invisible" },
@@ -1266,9 +1264,6 @@ void MENU_Init(void)
 	buttonPos[Y] = -10;
 	MENU_CreateButton(currentMenu, gOptMusicLabel, 2.5f, Action_ToggleMusic, NULL, buttonPos, buttonDim);
 
-	// How the game is played, said where the settings are.
-	MENU_CreateText(currentMenu, 0, -150, 1.6f, TEXT_CENTERED, MENU_Tr("One finger flies and fires."));
-	MENU_CreateText(currentMenu, 0, -190, 1.6f, TEXT_CENTERED, MENU_Tr("A double tap: the special shot."));
 
 	buttonPos[X] = 0 ;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);

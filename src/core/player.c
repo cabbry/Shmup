@@ -1163,7 +1163,11 @@ static void P_SetBarQuad(xf_textureless_sprite_t* q, short l, short r, short top
 // bar, notch, Dynamic Island); on a 2:3 screen it lands about where the 2009
 // score was. Drawing (P_RenderHud below) and hit-testing (io_interface.c) both
 // read their positions here, so the two cannot drift apart.
-#define HUD_PAUSE_X  110	// between the score and the lives
+// "[ II ]", bracketed like "[ BACK ]" so it reads as a button (a bare "II"
+// did not, tester's feedback on 5.0.14). Centred in the gap between the
+// score's last digit and the lives icon: at the score's size the brackets
+// make it about 150 units wide.
+#define HUD_PAUSE_X  86
 #define HUD_BACK_DY  100	// [ BACK ] sits this far under the row
 
 short P_HudRowY(void)
@@ -1386,7 +1390,7 @@ void PL_RenderPlayerPointers(void)
 		{
 			short px, py;
 			P_PauseButtonPos(&px, &py);
-			SCR_ConvertTextToVertices("II", SCORE_FONT_SIZE, px, py, TEXT_CENTERED);
+			SCR_ConvertTextToVertices("[ II ]", SCORE_FONT_SIZE, px, py, TEXT_CENTERED);
 		}
 		if (P_BackButtonShown())
 		{

@@ -12,7 +12,7 @@ Nothing is hidden, remotely configured, or date- or region-dependent; the menus 
 HOW TO REACH EVERYTHING (no app account; Scores and Online use the device's Game Center sign-in)
 Home: Game Solo / Game Multi / Others (French: Jeu Solo / Jeu Multi / Autres).
 - Game Solo > Easy / Normal / Insane (6 / 3 / 1 lives; the HUD counts spare ships, x5 / x2 / x0) > any act: Dawn, Hope, Dusk, Rain, Final (the boss with arms).
-- In an act: one finger moves the ship and fires while it touches the screen; a double tap launches the special shot (every five seconds). "II" next to the score pauses: Resume / Quit (in a match the others play on).
+- In an act: one finger moves the ship and fires while it touches the screen; a double tap launches the special shot (every five seconds). "[ II ]" next to the score pauses: Resume / Quit (in a match the others play on).
 - Others > Options: sound, music.
 - Others > Custom: 4 ships (Ghost is the Falcon hull, translucent) and 4 bullet colours (Red, Blue, Yellow, and Invisible: your shots are not drawn, a challenge).
 - Others > Tutorial: a one-minute walkthrough of the controls that plays itself. Others > Demo: act Dawn playing itself. Both have [ BACK ] at the top. Others > Scores: the Game Center leaderboard. Others > Credits.

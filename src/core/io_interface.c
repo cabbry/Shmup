@@ -36,7 +36,8 @@ static int IO_HudButtonAt(float tx, float ty)
 	if (P_PauseButtonShown())
 	{
 		P_PauseButtonPos(&x, &y);
-		if (IO_Abs(tx - (x + SS_W) / 2.0f) < 24 && IO_Abs(ty - (SS_H - (y + SS_H) / 2.0f)) < 24)
+		// "[ II ]": as wide as its brackets, as tall as [ BACK ].
+		if (IO_Abs(tx - (x + SS_W) / 2.0f) < 40 && IO_Abs(ty - (SS_H - (y + SS_H) / 2.0f)) < 26)
 			return HUD_PAUSE;
 	}
 	if (P_BackButtonShown())

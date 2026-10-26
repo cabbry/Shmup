@@ -1,6 +1,6 @@
 # SHMUP Reborn — Privacy policy / Politique de confidentialité
 
-*Last updated: 2026-10-24*
+*Last updated: 2026-10-26*
 
 ## English
 
@@ -23,7 +23,8 @@ other: the moves and positions of the ships, the ship and colour each player
 picked, and the devices' local network addresses so they can reach one
 another. Nothing is sent to a server.
 
-**Contact**: open an issue at <https://github.com/cabbry/Shmup/issues>.
+**Contact**: write to cabbry@icloud.com, or open an issue at
+<https://github.com/cabbry/Shmup/issues>.
 
 ## Français
 
@@ -47,4 +48,5 @@ données de jeu : les mouvements et positions des vaisseaux, le vaisseau et la
 couleur choisis par chacun, et les adresses des appareils sur le réseau local
 pour qu'ils se joignent. Rien n'est envoyé à un serveur.
 
-**Contact** : ouvrez un ticket sur <https://github.com/cabbry/Shmup/issues>.
+**Contact** : écrivez à cabbry@icloud.com, ou ouvrez un ticket sur
+<https://github.com/cabbry/Shmup/issues>.

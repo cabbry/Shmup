@@ -19,12 +19,14 @@ store/
       keywords.txt                 <= 100, comma-separated
       promotional_text.txt         <= 170, can change without a new build
       whats_new.txt                <= 4000, the release notes
-      support_url.txt  marketing_url.txt
+      support_url.txt              the support page (store/SUPPORT.md, the e-mail)
+      marketing_url.txt
   screenshots/
     en-US/  fr-FR/
       APP_IPHONE_67/ *.png         6.9"/6.7" iPhone: 1320x2868 or 1290x2796 (required)
       APP_IPAD_PRO_3GEN_129/ *.png 13"/12.9" iPad: 2064x2752 or 2048x2732 (required, the app runs on iPad)
   PRIVACY.md                       the privacy policy the listing links to
+  SUPPORT.md                       the support page the listing links to
   review_notes.txt                 the notes for App Review
 ```
 

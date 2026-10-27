@@ -27,22 +27,28 @@ for pat in 'SHMUP_[A-Z_]+' '\(CI\)' 'disabled in prod' 'Shmup Lite' 'full versio
            'EnvHooks' 'ProbeTick' 'JumpInTime' 'SaveFramesToCP2Binary' 'stop recording' 'recording stopped' \
            '_t=%05d\.tga' 'audioTrack\.wav' 'SHIP c%d' 'v1 build\?' \
            'Fps: ' 'Net_Sent' 'Poly Count' 'Texture Switches' \
-           'Setup cmd' 'state=NET_' 'LAST SENT' 'My IP' 'Others > Network' 'MEMORY LEAK' 'shmup_log.txt'; do
+           'Setup cmd' 'state=NET_' 'LAST SENT' 'My IP' 'Others > Network' 'MEMORY LEAK' 'shmup_log.txt' \
+           '[Cc]heat' '[Gg]od ?[Mm]ode' '[Ss]taging' '[Ss]ecret [Mm]enu' '[Dd]ebug [Mm]enu' \
+           '[Dd]eveloper [Mm]ode' '[Uu]nlock [Aa]ll'; do
 	hits=$(grep -a -o -E "$pat" "$BIN" | sort -u | head -5)
 	[ -n "$hits" ] && bad "the executable contains '$pat': $(echo $hits)"
 done
 
-# 2. No environment variable is read: the import table has no getenv/setenv.
-#    On the runner nm must be there: a check that silently did not run is not
-#    a pass.
+# 2. No environment variable or launch argument is read: the import table has
+#    no getenv/setenv/_NSGetEnviron/_NSGetArgv, nothing looks a symbol up by
+#    name, and no Objective-C call asks NSProcessInfo for its environment or
+#    arguments. On the runner nm must be there: a check that silently did not
+#    run is not a pass.
 if command -v nm >/dev/null 2>&1; then
-	imports=$(nm -u "$BIN" 2>/dev/null | grep -E '(getenv|setenv|_NSGetEnviron)$' || true)
+	imports=$(nm -u "$BIN" 2>/dev/null | grep -E '(getenv|setenv|_NSGetEnviron|_NSGetArgv|dlsym|dlopen)$' || true)
 	[ -n "$imports" ] && bad "the executable imports $(echo $imports)"
 elif [ -n "${CI:-}" ]; then
 	bad "no nm on this runner: the import check could not run"
 else
 	echo "(no nm here: import check skipped -- it runs on the CI runner)"
 fi
+selectors=$(tr '\0' '\n' < "$BIN" | grep -a -x -E 'environment|arguments' | sort -u)
+[ -n "$selectors" ] && bad "the executable calls the selector(s) $(echo $selectors) (NSProcessInfo's environment or launch arguments)"
 
 # 3. Anywhere in the app: test data, switch names, settings rows hidden by an
 #    invented specifier type, a gesture or a line of text the game no longer has.
@@ -52,29 +58,69 @@ for pat in 'SHMUP_[A-Z_]+' 'test_rules' 'Rules_bench' 'Disabled[A-Za-z]*Specifie
 	[ -n "$files" ] && bad "'$pat' found in: $(echo $files)"
 done
 
-# 3b. The game's text files carry no developer notes about hidden things or
-#     test runs. (Not the executable: UIKit's own selectors say "Hidden".)
+# 3b. The game's text files carry no developer notes: testflight.yml strips the
+#     comments before the archive (strip_data_comments.sh), so a comment here
+#     means the strip did not run. And no word about hidden things, test runs or
+#     drafts. (Not the executable: UIKit's own selectors say "Hidden".)
 if [ -d "$APP/data" ]; then
-	files=$(grep -r -l -i -E 'hidden|simulator|cheat' "$APP/data" \
+	files=$(grep -r -l -E '#|(^|[[:space:]])(//|/\*)' "$APP/data" \
 	        --include='*.scene' --include='*.cfg' --include='*.mtl' --include='*.lbr' --include='*.map' 2>/dev/null | head -5)
-	[ -n "$files" ] && bad "a developer note in the game's data: $(echo $files)"
+	[ -n "$files" ] && bad "a developer comment in the game's data: $(echo $files)"
+	files=$(grep -r -l -i -E 'hidden|simulator|cheat|godmode|unlock|staging|draft|beta|unused|record|debug|test|todo|fixme' "$APP/data" \
+	        --include='*.scene' --include='*.cfg' --include='*.mtl' --include='*.lbr' --include='*.map' 2>/dev/null | head -5)
+	[ -n "$files" ] && bad "a developer word in the game's data: $(echo $files)"
 fi
 
-# 4. Files that have no place in the app.
-for f in Settings.bundle Entitlements.plist; do
+# 3c. Every file in the data is opened by something: its path is named in the
+#     game's text data or in the executable. A file nothing loads is something
+#     a reviewer can find and the game cannot show (a draft rail, a beta texture).
+#     The demo and the tutorial name their input record bare ("filename x.io").
+if [ -d "$APP/data" ]; then
+	refs=$( { find "$APP/data" -type f \( -name '*.scene' -o -name '*.cfg' -o -name '*.mtl' -o -name '*.lbr' -o -name '*.map' \) -exec cat {} + ; cat "$BIN"; } \
+	        | grep -a -o -E 'data/[A-Za-z0-9_./@-]+' ; \
+	        find "$APP/data" -type f -name '*.scene' -exec cat {} + | tr -d '\r' | awk '$1 == "filename" { print "data/commandRecord/" $2 }' )
+	orphans=$(cd "$APP" && find data -type f | while IFS= read -r f; do
+	          printf '%s\n' "$refs" | grep -q -x -F "$f" || echo "$f"; done | head -8)
+	[ -n "$orphans" ] && bad "files nothing loads: $(echo $orphans)"
+fi
+
+# 4. Files that have no place in the app: the old settings page, the
+#    entitlements source, embedded code, documents, the 2009 launch images, the
+#    text rails.
+for f in Settings.bundle Entitlements.plist PlugIns; do
 	[ -e "$APP/$f" ] && bad "$f is inside the app"
 done
+[ -d "$APP/Frameworks" ] && [ -n "$(ls -A "$APP/Frameworks" 2>/dev/null)" ] && bad "the app embeds frameworks: $(ls "$APP/Frameworks" | head -5 | tr '\n' ' ')"
+files=$(find "$APP" -type f \( -name '*.dylib' -o -name '*.md' -o -name '*.txt' -o -name 'Default*.png' -o -name '*.cp' \) | head -5)
+[ -n "$files" ] && bad "files that have no place in the app: $(echo $files)"
 
 # 5. No trial switch left in Info.plist, and no way in that the review notes do
-#    not describe: no URL scheme, no file sharing.
+#    not describe: no URL scheme, no file sharing or document types, no
+#    background mode, no other app's scheme queried, no alternate icon, no
+#    transport exception, and no permission asked but Local Network's.
+keys="License CFBundleURLTypes UIFileSharingEnabled LSSupportsOpeningDocumentsInPlace UIApplicationShortcutItems \
+      UIBackgroundModes CFBundleDocumentTypes UTExportedTypeDeclarations UTImportedTypeDeclarations NSUserActivityTypes \
+      LSApplicationQueriesSchemes NSAppTransportSecurity CFBundleAlternateIcons"
 if [ -x /usr/libexec/PlistBuddy ]; then
-	for key in License CFBundleURLTypes UIFileSharingEnabled LSSupportsOpeningDocumentsInPlace UIApplicationShortcutItems; do
+	for key in $keys; do
 		/usr/libexec/PlistBuddy -c "Print :$key" "$APP/Info.plist" >/dev/null 2>&1 && bad "Info.plist has a $key key"
 	done
+	/usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundleAlternateIcons" "$APP/Info.plist" >/dev/null 2>&1 && bad "Info.plist has alternate icons"
+	usage=$(/usr/libexec/PlistBuddy -c "Print" "$APP/Info.plist" 2>/dev/null | sed -n 's/^    \(NS[A-Za-z]*UsageDescription\) = .*/\1/p')
 elif [ -f "$APP/Info.plist" ]; then
-	for key in License CFBundleURLTypes UIFileSharingEnabled LSSupportsOpeningDocumentsInPlace UIApplicationShortcutItems; do
+	for key in $keys; do
 		grep -a -q "$key" "$APP/Info.plist" && bad "Info.plist has a $key key"
 	done
+	usage=$(grep -a -o -E 'NS[A-Za-z]+UsageDescription' "$APP/Info.plist" | sort -u)
+fi
+usage=$(printf '%s\n' ${usage:-} | grep -v -x 'NSLocalNetworkUsageDescription' || true)
+[ -n "$usage" ] && bad "Info.plist asks for a permission the review notes do not describe: $(echo $usage)"
+
+# 6. The signature: an App Store app is not debuggable. (Only where codesign
+#    exists -- the macOS runner; a local folder has no signature to read.)
+if command -v codesign >/dev/null 2>&1; then
+	ent=$(codesign -d --entitlements - --xml "$APP" 2>/dev/null || codesign -d --entitlements :- "$APP" 2>/dev/null || true)
+	echo "$ent" | tr -d ' \t\r\n' | grep -q '<key>get-task-allow</key><true/>' && bad "the app is signed debuggable (get-task-allow)"
 fi
 
 [ $fail -eq 0 ] && echo "clean: nothing hidden, nothing for testing, in $(basename "$APP")"

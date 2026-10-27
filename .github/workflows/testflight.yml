@@ -94,6 +94,13 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VER}" ios/shmup.plist
           echo "Version $VER / build $BUILD"
 
+      # The scenes and configs are commented for whoever edits them; the App
+      # Store bundle gets none of it. The script removes exactly what the
+      # game's lexer skips, so the game reads the same tokens; this runner's
+      # checkout is the only copy it touches.
+      - name: Ship the data without developer comments
+        run: bash tools/ci/strip_data_comments.sh data/data
+
       - name: Archive (Release, device, manual signing)
         working-directory: ios
         run: |

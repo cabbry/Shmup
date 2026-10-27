@@ -15,6 +15,15 @@
 // testflight.yml checks the archived app for what must not be in it.
 
 #ifdef SHMUP_CI_HOOKS
+	// The smoke tests run in the Simulator, and only there: an iPhone build
+	// with the flag set is a mistake, so it does not compile. (testflight.yml
+	// also greps the archive's compile lines for the flag.)
+	#if defined(__APPLE__)
+		#include <TargetConditionals.h>
+		#if TARGET_OS_IPHONE && !TARGET_OS_SIMULATOR
+			#error "SHMUP_CI_HOOKS is for the Simulator smoke tests; a device build must not have it"
+		#endif
+	#endif
 	#include <stdlib.h>
 	#define CI_GETENV(name)	getenv(name)
 #endif

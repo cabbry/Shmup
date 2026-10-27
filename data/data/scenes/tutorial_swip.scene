@@ -73,7 +73,6 @@ player
 playback
 {
 	play 1
-	record 0
 	filename tutorial_swip.scene.io
 }
 

@@ -895,25 +895,27 @@ void CAM_ExpandCameraWayPoints(camera_frame_t* startFrame,camera_frame_t* endFra
 
 void CAM_LoadPath(void)
 {	
-	//Check extension
-	char* extension;
 #ifdef SHMUP_CI_HOOKS
+	char* extension;
 	char binPath[256];	// the offline bake writes the .cp2b here
 #endif
 
 	cameraVisMemSize = 0;
-	
+
 	if (camera.pathFilename[0] == '\0')
 	{
 		Log_Printf("[CAM_LoadPath] No camera path loaded. Aborting.");
 		exit(0);
 	}
-	
-	extension = FS_GetExtensionAddress(camera.pathFilename);
 
-	
 	camera.path = NULL;
-	
+
+	// A shipped scene names a baked .cp2b. TEXT rails (.cp, tools/rails) are
+	// the authoring format: only a development build reads them -- the CI's
+	// boss smoke and the offline bake. An App Store build carries neither the
+	// rails nor the code that expands them.
+#ifdef SHMUP_CI_HOOKS
+	extension = FS_GetExtensionAddress(camera.pathFilename);
 	if (!strcmp(extension, "cp"))
 	{
 		// TEXT rail. A runtime-culled scene needs no baked visibility, so the
@@ -930,7 +932,6 @@ void CAM_LoadPath(void)
 		// visibility set and write the .cp2b out to be committed.
 		// NOTE: this used to be keyed on gRuntimeCullMap, which now starts OFF --
 		// so every text rail silently took the slow bake at load time.
-#ifdef SHMUP_CI_HOOKS
 		if (CI_GETENV("SHMUP_BAKE_VIS"))
 		{
 			PREPROC_SetSkipVis(0);
@@ -939,13 +940,13 @@ void CAM_LoadPath(void)
 			camera.path = PREPROC_ConvertCp1Tocp2b(camera.pathFilename,binPath,0);
 		}
 		else
-#endif
 		{
 			PREPROC_SetSkipVis(1);
 			camera.path = PREPROC_ConvertCp1Tocp2b(camera.pathFilename,NULL,0);
 		}
 	}
-	else 
+	else
+#endif
 	{
 		camera.path = CAM_ReadFileCP2Binary(camera.pathFilename,1);
 	}

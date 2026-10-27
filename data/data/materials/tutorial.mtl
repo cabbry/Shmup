@@ -1,10 +1,4 @@
-newmtl tutorial_background
-map_Kd data/textures/object/tutorial_background.png
-hasAlpha 0
-illum 10
-
 newmtl city_white
 map_Kd data/textures/act1/cityBlue.png
-#map_Kd data/texturesPVR/act1/cityBlue_4bbp.pvr
 hasAlpha 0
 illum 10

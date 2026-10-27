@@ -71,13 +71,6 @@ player
 
 
 
-playback
-{
-	play 0
-	record 0
-	filename 04rain.scene.io
-}
-
 
 
 music

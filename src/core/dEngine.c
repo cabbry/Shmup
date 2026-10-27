@@ -118,11 +118,11 @@ bool dEngine_ReadConfig(void)
 					strcpy(engine.scenes[currentSceneId].path, LE_getCurrentToken());
 
 					// v4: a legacy entry gets its kind from the 2009 id convention
-					// (0 the intro, 1..numScenes-1 the acts, 13 demo, 14-15 tutorials).
+					// (0 the intro, 1..numScenes-1 the acts, 13 the demo, 14 the tutorial).
 					engine.scenes[currentSceneId].kind =
 						(currentSceneId == 0) ? SCENE_KIND_INTRO :
 						(currentSceneId == 13) ? SCENE_KIND_DEMO :
-						(currentSceneId == 14 || currentSceneId == 15) ? SCENE_KIND_TUTORIAL : SCENE_KIND_ACT;
+						(currentSceneId == 14) ? SCENE_KIND_TUTORIAL : SCENE_KIND_ACT;
 
 					Log_Printf("Read scene %d, name %s, path %s\n",currentSceneId,engine.scenes[currentSceneId].name,engine.scenes[currentSceneId].path);
 
@@ -610,6 +610,12 @@ void dEngine_LoadScene(int sceneId)
 
 	engine.musicStartAt= 0;
 
+	// A scene plays recorded input only if its own playback block says so (the
+	// demo and the tutorial). Without this reset the last value carried over:
+	// every act had to declare "play 0" to undo the demo.
+	engine.playback.play = 0;
+	engine.playback.filename[0] = '\0';
+
 	// Now actually start loading things
 	RULES_InitForScene();	// v4 stage 2: the scene file may carry a rules block
 	World_OpenScene(engine.scenes[engine.sceneId].path);
@@ -1072,7 +1078,7 @@ void dEngine_ResumeGame(void)
 }
 
 // --- The pause button ---------------------------------------------------------
-// A visible "II" on the HUD row during an act (player.c draws it, io_interface.c
+// A visible "[II]" on the HUD row during an act (player.c draws it, io_interface.c
 // hit-tests it). Solo: the world freezes on the same frozen frame the return
 // from the background shows, the music pauses, and Resume runs the 3-2-1.
 // Multiplayer: the other players fly on, so the menu opens over a live match --

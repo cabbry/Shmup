@@ -28,9 +28,9 @@ camera
 {
 	# Act 2's shipped BAKED rail -- the configuration the boss act flew for months,
 	# with its visibility set and a decor that shows up on device. The text rail
-	# act3boss.cp (a real 180 U-turn, live decor culling for the whole act) made
+	# tools/rails/act3boss.cp (a real 180 U-turn, live decor culling for the whole act) made
 	# this act black on device; it stays
-	# in the repo, unused. The U-turn is not worth an unplayable level -- it now
+	# outside the shipped data, unused. The U-turn is not worth an unplayable level -- it now
 	# happens at the END of the rail only (see driftAtEnd below).
 	path:  data/cameraPath/act2.cp.cp2b
 
@@ -85,13 +85,6 @@ player
 }
 
 
-
-playback
-{
-	play 0
-	record 0
-	filename 04act4.scene.io
-}
 
 
 

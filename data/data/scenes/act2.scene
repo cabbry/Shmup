@@ -76,13 +76,6 @@ player
 }
 
  
- 
-playback
-{
-	play 0
-	record 0
-	filename 02act2.scene.io
-}
 
 
 

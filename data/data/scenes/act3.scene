@@ -69,13 +69,6 @@ player
 
 
 
-playback
-{
-	play 0
-	record 0
-	filename 03act3.scene.io
-}
-
 
 
 music

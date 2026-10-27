@@ -75,13 +75,6 @@ player
 }
 
  
- 
-playback
-{
-	play 0
-	record 0
-	filename 01act1.scene.io
-}
 
 
 

@@ -1171,9 +1171,12 @@ static void P_SetBarQuad(xf_textureless_sprite_t* q, short l, short r, short top
 // glyph sits centred in its cell, so the string "[ II ]" spread four thin
 // glyphs over six cells, about 130 units (tester's feedback on 5.0.15). The
 // glyphs are placed one by one instead, packed like a pause icon: at
-// SCORE_FONT_SIZE the same 6-unit gap between the bars and the brackets.
+// SCORE_FONT_SIZE about the same 7-unit gap between the bars and between a
+// bar and its bracket. The offsets follow the widths of the atlas's 'I' and
+// brackets (Poppins Bold, tools/cards/make_font.ps1); a new face means
+// measuring them again.
 static const char  hudPauseGlyphs[4]  = { '[', 'I', 'I', ']' };
-static const short hudPauseGlyphDx[4] = { -16, -5, 5, 16 };
+static const short hudPauseGlyphDx[4] = { -19, -6, 6, 19 };
 #define HUD_BACK_DY  100	// [ BACK ] sits this far under the row
 
 short P_HudRowY(void)

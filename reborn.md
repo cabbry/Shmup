@@ -435,6 +435,16 @@ order, each step a build:
   and 5.0.12 said infrequent; the screenshots are retaken on his iPhone and
   iPad from the TestFlight build; `master` is merged right before the
   submission. Still to settle: the music line, once Fabien answers.
+  Then four TestFlight builds of his own testing, 5.0.13 to 5.0.16, and what
+  came of them: the virtual pad goes altogether, so the controls are one
+  finger and Options holds sound and music; the pause button reads "[II]",
+  its four glyphs placed one by one because the font is monospaced and spread
+  "[ II ]" over six cells; the support page gives an e-mail address, since
+  GitHub issues need an account; the listing's copyright names Memset
+  Software, Fabien's company in 2009; and the menu font is redrawn in
+  **Poppins Bold** (SIL Open Font License). Century Gothic, the 2009 face, is
+  Monotype's, and the desktop licence it comes with does not cover a whole
+  alphabet shipped inside an app (`tools/cards/README.md`).
 - **App Store — 5.0.12 resubmitted, 2026-10-08.** Build 272, state
   WAITING_FOR_REVIEW, release still manual. **`READY_FOR_REVIEW` means staged,
   not sent**: attaching the version to the submission leaves it there, and a

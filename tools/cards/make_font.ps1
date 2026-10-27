@@ -1,5 +1,5 @@
 ﻿# Regenerate the menu font atlas -- data/menu/font.png -- at four times its
-# 2009 resolution, in the 2009 face.
+# 2009 resolution, in a free face cut to the 2009 metrics.
 #
 # THE ATLAS. A 16x16 grid indexed by the raw byte of the character
 # (renderer.c: col = byte & 15, row = byte >> 4), so the layout is cp1252:
@@ -8,39 +8,54 @@
 # is free -- it shipped at 32 px, drawn 96 px tall on a 3x device: the blur
 # Fabien pointed at next to the vector "Reborn" sign (2026-09-17). 128 px now.
 #
-# THE FACE. Measured against the shipped cells glyph by glyph (a candidate
-# sheet, tools/cards scratch): Century Gothic Bold is the 2009 skeleton -- the
-# geometric S and C, the straight-legged R, the equal-bowled B, the one-storey
-# g with the same hook. Two things the face does not have and the atlas did:
-# a SLASHED ZERO (the HUD's "x0" reads as "x�", and it should keep to) and a
-# hard black outline, A=240, two pixels of a 32-px cell. Both are added here.
+# THE FACE. The 2009 atlas is Century Gothic Bold (measured glyph by glyph
+# against a candidate sheet), and the first 128-px atlas was drawn in it. But
+# Century Gothic is Monotype's, on a PC through the Windows/Office licence,
+# which covers documents and images -- not a whole alphabet shipped inside an
+# app as a working font. So the atlas is drawn in POPPINS BOLD, SIL Open Font
+# License 1.1 (fonts\, with its licence), chosen by the tester on 2026-10-27
+# from a sheet against Urbanist, Jost and League Spartan. It is loaded from
+# that file, not from the machine's fonts, so any PC draws the same atlas.
+# Two things the 2009 atlas had and the face does not: a SLASHED ZERO (the
+# HUD's "x0" has always read "xØ") and a hard black outline, A=240, two pixels
+# of a 32-px cell. Both are added here.
+#
+# THE WIDTH. Poppins is about a tenth wider than Century Gothic, and the
+# engine draws each glyph in a quad two cells wide with a one-cell advance, so
+# the widest glyphs (m, w, W, M, æ, @) ran into their neighbours: "commence"
+# read "comnence". A glyph wider than Century Gothic's widest letter is
+# narrowed to it; the others keep their drawing.
 #
 # THE METRICS, from the shipped 'B' / 'x' / 'g' cells: cap height 15/32 of the
 # cell, baseline at 23/32, x-height 10/32, descender to 26/32, ink centred.
 #
-# THE KANJI, cells 0x01-0x06, are as in round 60: 明 希 望 水 lifted from the
-# painted 2009 title cards (at 128 px they upscale 2x from the card, against
-# the 3x the whole atlas used to get), 暮 and 雨 drawn from brush.ps1 strokes.
-# 0x09, 0x0A, 0x0D stay empty: tab, newline and CR can end up inside a string.
+# THE KANJI, cells 0x01-0x06 (明 希 望 暮 雨 水), are carried over from the
+# shipped atlas as they are. They were lifted from the 2009 title cards and
+# drawn from brush.ps1 strokes in round 60, but the cards have since been
+# redrawn at four times their size (make_cards.ps1, round 67), so the crop
+# rectangles that found them no longer do.
+# 0x09, 0x0A, 0x0D stay empty: tab, newline and CR can end up inside a string;
+# so do the five codes cp1252 leaves undefined (0x81, 0x8D, 0x8F, 0x90, 0x9D).
 Add-Type -AssemblyName System.Drawing
 $sp = Split-Path -Parent $MyInvocation.MyCommand.Path
-. "$sp\brush.ps1"
 
-$TITLES   = "E:\Projects\Shmup\data\data\titles"
 $FONTPATH = "E:\Projects\Shmup\data\data\menu\font.png"
 $CELLPX   = 128
 $ATLAS    = $CELLPX * 16
-$INK      = [int]($CELLPX * 0.90)         # the kanji box inside the cell
 
-$FACE     = "Century Gothic"
+$FACEFILE = "$sp\fonts\Poppins-Bold.ttf"   # SIL OFL 1.1, fonts\Poppins-OFL.txt
 $STYLE    = [System.Drawing.FontStyle]::Bold
 $CAP      = $CELLPX * 15 / 32              # cap height, from the 2009 'B'
 $BASE     = $CELLPX * 23 / 32              # baseline
 $OUTLINE  = $CELLPX * 2.2 / 32             # the black rim
 $OUTCOL   = [System.Drawing.Color]::FromArgb(240, 0, 0, 0)
+$MAXW     = $CELLPX * 70 / 128             # Century Gothic's widest letter, W, without its rim
 
 $cp1252 = [System.Text.Encoding]::GetEncoding(1252)
-$fam = New-Object System.Drawing.FontFamily($FACE)
+$faces = New-Object System.Drawing.Text.PrivateFontCollection
+$faces.AddFontFile($FACEFILE)
+$fam = $faces.Families[0]
+$FACE = $fam.Name
 
 # em size that puts THIS face's cap height on the 2009 one: measure 'H'
 function Measure-CapHeight([single]$em) {
@@ -55,10 +70,20 @@ $EM = 100.0 * $CAP / (Measure-CapHeight 100.0)
 # in a quad TWO cells wide, so a glyph that hugs its cell's edges collides
 # with its neighbours -- the 2009 ink stays inside the middle ~45 %.
 function Draw-Glyph($g, [string]$s, [single]$ox, [single]$oy) {
-  $p = New-Object System.Drawing.Drawing2D.GraphicsPath
+  # Winding is TrueType's own fill rule. With the default (alternate) rule,
+  # contours a face leaves overlapping -- a crossbar over a stem -- are
+  # punched out as holes: in the candidate sheet Jost's t drew as a dagger.
+  $p = New-Object System.Drawing.Drawing2D.GraphicsPath([System.Drawing.Drawing2D.FillMode]::Winding)
   $p.AddString($s, $fam, [int]$STYLE, $EM, (New-Object System.Drawing.PointF(0,0)), (New-Object System.Drawing.StringFormat))
   $b = $p.GetBounds()
   if ($b.Width -le 0) { $p.Dispose(); return }
+  if ($b.Width -gt $MAXW) {
+    # THE WIDTH (header): narrowed about its own centre, height untouched
+    $sq = New-Object System.Drawing.Drawing2D.Matrix
+    $sq.Translate(($b.X + $b.Width/2), 0); $sq.Scale(($MAXW / $b.Width), 1); $sq.Translate(-($b.X + $b.Width/2), 0)
+    $p.Transform($sq); $sq.Dispose()
+    $b = $p.GetBounds()
+  }
   # baseline: AddString's origin is the em box top; find where the baseline
   # falls by measuring a flat-bottomed glyph once
   $m = New-Object System.Drawing.Drawing2D.Matrix
@@ -86,26 +111,6 @@ $probe = New-Object System.Drawing.Drawing2D.GraphicsPath
 $probe.AddString("H", $fam, [int]$STYLE, $EM, (New-Object System.Drawing.PointF(0,0)), (New-Object System.Drawing.StringFormat))
 $script:BaselineY = $probe.GetBounds().Bottom; $probe.Dispose()
 
-# --- kanji cells, as round 60 but at CELLPX -------------------------------
-function Cell-FromImage($src, [int]$sx, [int]$sy, [int]$sw, [int]$sh) {
-  $cell = New-Object System.Drawing.Bitmap($CELLPX, $CELLPX, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-  $g = [System.Drawing.Graphics]::FromImage($cell); $g.InterpolationMode = 'HighQualityBicubic'
-  $scale = [Math]::Min($INK / [single]$sw, $INK / [single]$sh)
-  $dw = $sw * $scale; $dh = $sh * $scale; $dx = ($CELLPX - $dw) / 2; $dy = ($CELLPX - $dh) / 2
-  $g.DrawImage($src, (New-Object System.Drawing.RectangleF($dx, $dy, $dw, $dh)), (New-Object System.Drawing.RectangleF($sx, $sy, $sw, $sh)), [System.Drawing.GraphicsUnit]::Pixel)
-  $g.Dispose(); return $cell
-}
-function Cell-FromStrokes($strokes) {
-  $cell = New-Object System.Drawing.Bitmap($CELLPX, $CELLPX, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-  $g = [System.Drawing.Graphics]::FromImage($cell); $g.SmoothingMode = 'AntiAlias'
-  $p = GlyphPath $strokes 0 0 $INK
-  $b = $p.GetBounds()
-  $m = New-Object System.Drawing.Drawing2D.Matrix
-  $m.Translate(($CELLPX/2 - $b.Width/2 - $b.X), ($CELLPX/2 - $b.Height/2 - $b.Y)); $p.Transform($m)
-  $g.FillPath([System.Drawing.Brushes]::White, $p); $p.Dispose(); $g.Dispose()
-  return $cell
-}
-
 # --- the atlas -----------------------------------------------------------
 $out = New-Object System.Drawing.Bitmap($ATLAS, $ATLAS, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
 $g = [System.Drawing.Graphics]::FromImage($out)
@@ -117,27 +122,29 @@ for ($b = 0x20; $b -le 0xFF; $b++) {
   if ($b -eq 0x7F -or $b -eq 0xA0 -or $b -eq 0xAD) { continue }        # DEL, nbsp, soft hyphen
   $s = $cp1252.GetString([byte[]]@($b))
   if ($s -eq "" -or [int][char]$s -eq 0xFFFD) { continue }             # undefined in cp1252
+  if ([char]::IsControl($s[0])) { continue }                           # ...or mapped to a C1 control
   if ([char]::IsWhiteSpace($s[0])) { continue }
   $col = $b -band 15; $row = [Math]::Floor($b / 16)
   Draw-Glyph $g $s ($col * $CELLPX) ($row * $CELLPX)
   $drawn++
 }
 
-$dawn = New-Object System.Drawing.Bitmap("$TITLES\dawnTitle.png")
-$hope = New-Object System.Drawing.Bitmap("$TITLES\hopeTitle.png")
-$water= New-Object System.Drawing.Bitmap("$TITLES\boss.png")
-$cells = @{}
-$cells[0x01] = Cell-FromImage $dawn  32 17 61 71          # 明
-$cells[0x02] = Cell-FromImage $hope  37 15 51 56          # 希
-$cells[0x03] = Cell-FromImage $hope  37 72 51 49          # 望
-$cells[0x04] = Cell-FromStrokes $KANJI_KURE               # 暮
-$cells[0x05] = Cell-FromStrokes $KANJI_AME                # 雨
-$cells[0x06] = Cell-FromImage $water 22 12 73 77          # 水
-$dawn.Dispose(); $hope.Dispose(); $water.Dispose()
-foreach ($k in ($cells.Keys | Sort-Object)) {
-  $g.DrawImage($cells[$k], (($k -band 15) * $CELLPX), ([Math]::Floor($k / 16) * $CELLPX), $CELLPX, $CELLPX)
-  $cells[$k].Dispose()
+$g.Dispose(); $faces.Dispose()
+
+# THE KANJI (header): the shipped atlas's cells 0x01-0x06, byte for byte --
+# a DrawImage goes through premultiplied alpha and moves the soft edges. Read
+# from bytes, so the file is not locked when it is written back below.
+$shippedBytes = New-Object System.IO.MemoryStream(,[System.IO.File]::ReadAllBytes($FONTPATH))
+$shipped = [System.Drawing.Bitmap]::FromStream($shippedBytes)   # not New-Object Bitmap(image): that redraws it
+if ($shipped.Width -ne $ATLAS) { throw "the shipped atlas is $($shipped.Width) px wide; its kanji cells are copied 1:1 into a $ATLAS-px one" }
+$band = New-Object System.Drawing.Rectangle(0, 0, $ATLAS, $CELLPX)
+$src = $shipped.LockBits($band, 'ReadOnly', 'Format32bppArgb')
+$dst = $out.LockBits($band, 'ReadWrite', 'Format32bppArgb')
+$row = New-Object byte[] (6 * $CELLPX * 4)
+for ($y = 0; $y -lt $CELLPX; $y++) {
+  [Runtime.InteropServices.Marshal]::Copy([IntPtr]($src.Scan0.ToInt64() + $y * $src.Stride + $CELLPX * 4), $row, 0, $row.Length)
+  [Runtime.InteropServices.Marshal]::Copy($row, 0, [IntPtr]($dst.Scan0.ToInt64() + $y * $dst.Stride + $CELLPX * 4), $row.Length)
 }
-$g.Dispose(); $fam.Dispose()
+$out.UnlockBits($dst); $shipped.UnlockBits($src); $shipped.Dispose(); $shippedBytes.Dispose()
 $out.Save($FONTPATH, [System.Drawing.Imaging.ImageFormat]::Png); $out.Dispose()
-"wrote $FONTPATH : ${ATLAS}x${ATLAS}, $drawn Latin glyphs in $FACE Bold at em $([Math]::Round($EM,1)), 6 kanji cells"
+"wrote $FONTPATH : ${ATLAS}x${ATLAS}, $drawn Latin glyphs in $FACE Bold at em $([Math]::Round($EM,1)), 6 kanji cells kept"

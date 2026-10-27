@@ -1,6 +1,6 @@
 # SHMUP Reborn — Privacy policy / Politique de confidentialité
 
-*Last updated: 2026-10-26*
+*Last updated: 2026-10-27*
 
 ## English
 
@@ -11,10 +11,13 @@ own, no analytics, no advertising and no tracking.
 ship and bullet colour. This data never leaves the device.
 
 **Game Center**: if you are signed in to Game Center, the app submits your
-score to the "High Scores" leaderboard as you play (at the end of an act, of
-a game, and when the app closes) and can match you with other players for
-online games. During an online match it uses your Game Center player ID to
-seat the players; it stores nothing. Game Center is operated by Apple under
+score to the "High Scores" leaderboard as you play (near the end of most
+acts, when a game ends, and when the app closes) and can match you with other
+players for online games. During an online match it uses your Game Center
+player ID to seat the players, and the same game data as on a local network
+(below: the moves and positions of the ships, the ship and colour each player
+picked) goes to the other players' devices through Game Center; it stores
+nothing. Game Center is operated by Apple under
 [Apple's privacy policy](https://www.apple.com/legal/privacy/).
 
 **Local network**: Game Multi > Local finds nearby players over Wi-Fi
@@ -35,11 +38,14 @@ propre, aucune mesure d'audience, aucune publicité et aucun pistage.
 vaisseau et votre couleur de tir. Ces données ne quittent jamais l'appareil.
 
 **Game Center** : si vous êtes connecté à Game Center, l'app envoie votre
-score au classement « High Scores » en cours de jeu (à la fin d'un acte, d'une
-partie, et quand l'app se ferme) et peut vous mettre en relation avec
-d'autres joueurs pour une partie en ligne. Pendant une partie en ligne, elle
-utilise votre identifiant de joueur Game Center pour placer les joueurs ; elle
-ne conserve rien. Game Center est un service d'Apple, régi par la
+score au classement « High Scores » en cours de jeu (vers la fin de la
+plupart des actes, à la fin d'une partie, et quand l'app se ferme) et peut
+vous mettre en relation avec d'autres joueurs pour une partie en ligne.
+Pendant une partie en ligne, elle utilise votre identifiant de joueur Game
+Center pour placer les joueurs, et les mêmes données de jeu qu'en réseau local
+(ci-dessous : les mouvements et positions des vaisseaux, le vaisseau et la
+couleur choisis par chacun) partent vers les appareils des autres joueurs par
+Game Center ; elle ne conserve rien. Game Center est un service d'Apple, régi par la
 [politique de confidentialité d'Apple](https://www.apple.com/legal/privacy/fr-ww/).
 
 **Réseau local** : Jeu Multi > Local cherche des joueurs à proximité sur le

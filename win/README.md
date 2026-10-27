@@ -21,10 +21,8 @@ Linux runner, `win/build.sh`) and keeps the executable as an artifact.
 
 ## Controls
 
-- **Mouse**: press and drag is the finger. In swipe mode the ship follows
-  the drag; in pad mode (Others > Custom) the virtual pad is drawn and
-  pressed like on the phone.
-- **Keyboard**: the arrows, or WASD / ZQSD, move the ship in swipe mode (a
+- **Mouse**: press and drag is the finger; the ship follows the drag.
+- **Keyboard**: the arrows, or WASD / ZQSD, move the ship (a
   synthetic finger dragging from the screen's centre at 600 px/s). The ship
   fires while a finger is down, so while moving; **Space** is a finger
   pressed in place (fire standing still), a quick **double Space** is the

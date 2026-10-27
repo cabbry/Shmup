@@ -678,7 +678,7 @@ void Action_ToggleMusic(void* tag)
 	MENU_OptionChanged();
 }
 
-// ---- The pause menu (the HUD's "II" during an act) ---------------------------
+// ---- The pause menu (the HUD's "[II]" during an act) ---------------------------
 void MENU_ShowPause(int frozen)
 {
 	// texts[1]: in a match nothing stops for one player, so say so.
@@ -1238,7 +1238,7 @@ void MENU_Init(void)
 	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_BackFromActSelect,NULL, buttonPos, buttonDim);
 
 
-	// --- Pause (the HUD's "II" during an act): Resume / Quit ---
+	// --- Pause (the HUD's "[II]" during an act): Resume / Quit ---
 	currentMenu = &menuScreens[MENU_PAUSE];
 	MENU_CreateText(currentMenu, 0, (SS_H - 200), 3.0f, TEXT_CENTERED, MENU_Tr("PAUSE"));
 	MENU_CreateText(currentMenu, 0, (SS_H - 290), 2.0f, TEXT_CENTERED, "");	// texts[1]: set by MENU_ShowPause

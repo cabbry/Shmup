@@ -62,7 +62,8 @@ the 6.9" set; an iPad Pro 12.9"/13" frame is 2048x2732 or 2064x2752.
    bundle says the same (no tracking, no collected data, NSUserDefaults for
    reason CA92.1).
 2. **Age rating**: written by the push (*Cartoon or Fantasy Violence:
-   Infrequent or Mild*; everything else *None* or *No*, including "Guns or
+   Frequent or Intense* -- you fire at ships the whole game; 5.0.11 and
+   5.0.12 said infrequent; everything else *None* or *No*, including "Guns or
    other weapons" — the ships fire bullets, not firearms; change it in the
    web UI if you read the question otherwise). Expected rating: 9+. Check the
    rating Apple computed on the App Information page. Category: Games, Action

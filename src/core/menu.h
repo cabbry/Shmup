@@ -111,8 +111,8 @@ typedef struct menu_screen_t
 #define MENU_SELECT_SHIP 8
 #define MENU_SELECT_ACT 9
 #define MENU_ONLINE_SIZE 10	// v2 P4: pick the party size (2/3/4)
-#define MENU_PAUSE 13	// the HUD's "II" during an act: Resume / Quit
-#define MENU_OPTIONS 12	// Others -> Options: controls, sound, music
+#define MENU_PAUSE 13	// the HUD's "[II]" during an act: Resume / Quit
+#define MENU_OPTIONS 12	// Others -> Options: sound, music
 #define MENU_MULTI_MODE 11	// v2: Game Multi -> Local / Online / Back
 
 void MENU_Init(void);

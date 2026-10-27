@@ -3,22 +3,22 @@ SHMUP Reborn is a free, open-source (GNU GPLv3) modernization of SHMUP, the 3D s
 WHAT CHANGED SINCE THE 5.6 REJECTIONS OF 5.0.11 AND 5.0.12
 We went through the whole app for anything a reviewer could not see, and removed it:
 - Twelve switches used only by our simulator test scripts (invulnerability, autofire, extra ships in solo, act jump and replay, forced menu, boss-arm test modes, offline rail baking, a log file) and their diagnostic output are no longer compiled into App Store builds. A test level only they could open is gone.
-- The page in the iOS Settings app is gone (three player options, a developer statistics overlay, a Game Center switch that did nothing, six 2009 renderer settings hidden by misspelt row types). Sound and music are in the game: Others > Options.
-- Removed: a 2010 "Lite" trial, the 2009 virtual-pad controls (the game is played with one finger), an unused replay screen, a button placed off-screen, 2010 developer tools (time jump, input recorder, frame grabber), game files nothing loaded.
+- The page in the iOS Settings app is gone (three player options, a developer statistics overlay, a Game Center switch that did nothing, six 2009 renderer settings hidden by misspelt row types).
+- Removed: a 2010 "Lite" trial, the 2009 virtual-pad controls, an unused replay screen, a button placed off-screen, 2010 developer tools (time jump, input recorder, frame grabber), game files nothing loaded.
 - All five acts are open from the first launch; they used to unlock one by one.
-- A five-finger gesture went back to the menu; only the tutorials mentioned it. A visible pause button replaces it; the tutorials point to their [ BACK ] button.
-Nothing is hidden, remotely configured, or date- or region-dependent; the menus follow the device language (English or French). Our release pipeline checks every build for test switches, diagnostic output, test data and hidden settings before upload.
+- A five-finger gesture went back to the menu; only the tutorial mentioned it. A visible pause button replaces it; the tutorial points to its [ BACK ] button.
+Nothing is hidden, remotely configured, or date- or region-dependent; the menus follow the device language (English or French; the tutorial, HUD and end card are English). Every build is checked for all of this before upload.
 
 HOW TO REACH EVERYTHING (no app account; Scores and Online use the device's Game Center sign-in)
 Home: Game Solo / Game Multi / Others (French: Jeu Solo / Jeu Multi / Autres).
 - Game Solo > Easy / Normal / Insane (6 / 3 / 1 lives; the HUD counts spare ships, x5 / x2 / x0) > any act: Dawn, Hope, Dusk, Rain, Final (the boss with arms).
-- In an act: one finger moves the ship and fires while it touches the screen; a double tap launches the special shot (every five seconds). "[II]" next to the score pauses: Resume / Quit (in a match the others play on).
+- In an act: one finger moves the ship and fires while it touches the screen; a double tap launches the special shot (every five seconds). "[II]" next to the score pauses: Resume / Quit (in a match the others play on). Leaving the app pauses a solo game (back with a 3-2-1 count) and leaves a match.
 - Others > Options: sound, music.
 - Others > Custom: 4 ships (Ghost is the Falcon hull, translucent) and 4 bullet colours (Red, Blue, Yellow, and Invisible: your shots are not drawn, a challenge).
-- Others > Tutorial: a one-minute walkthrough of the controls that plays itself. Others > Demo: act Dawn playing itself. Both have [ BACK ] at the top. Others > Scores: the Game Center leaderboard. Others > Credits.
-- Game Multi > Local (same Wi-Fi; asks for Local Network access; Bonjour service _DodgeServer, the game's 2009 code name) or Online (Game Center; invitations work too) > 2 / 3 / 4 Players > act. Difficulty is Normal. Lives are shared (3 per player), the score is a team score; a fallen ship returns at the next act, and an empty pool gets one life there. Enemies are tougher with more ships; act Rain adds a ring of four enemies every 18 s for three or four players. A match needs the other devices; one device reaches the waiting screen. The first iPhone screenshot was taken during a three-player match.
+- Others > Tutorial: a one-minute walkthrough of the controls that plays itself. Others > Demo: act Dawn playing itself. Both have [ BACK ] at the top (the Demo from 8 s, once the ship flies). Others > Scores: the Game Center leaderboard. Others > Credits.
+- Game Multi > Local (same Wi-Fi; asks for Local Network access; Bonjour service _DodgeServer, the game's 2009 code name) or Online (Game Center; invitations work too) > 2 / 3 / 4 Players > act; the host's act is played, and a bullet colour already taken moves to a free one. Difficulty is Normal. Lives are shared (3 per player), the score is a team score; a fallen ship returns at the next act, and an empty pool gets one life there. Enemies are tougher with more ships; act Rain adds a ring of four enemies every 18 s for three or four players. A match needs the other devices; one device reaches the waiting screen. The first iPhone screenshot was taken during a three-player match.
 
-GAME CENTER is offered at launch. If it is declined, Scores and Online show where to sign in (iOS Settings > Game Center).
+GAME CENTER is offered at launch. If it is declined, Scores, and Online once players and act are chosen, show where to sign in (iOS Settings > Game Center).
 
 No purchases, ads, user-generated content, chat, web views or analytics. Network traffic: Game Center, and game data between the players' devices during a match.
 

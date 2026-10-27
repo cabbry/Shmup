@@ -39,7 +39,7 @@
 Add-Type -AssemblyName System.Drawing
 $sp = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-$FONTPATH = "E:\Projects\Shmup\data\data\menu\font.png"
+$FONTPATH = [System.IO.Path]::GetFullPath("$sp\..\..\data\data\menu\font.png")   # this checkout's atlas
 $CELLPX   = 128
 $ATLAS    = $CELLPX * 16
 

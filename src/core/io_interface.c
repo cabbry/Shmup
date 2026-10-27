@@ -118,7 +118,7 @@ static int IO_MenuButtonAt(float tx, float ty, const touch_t* set, int numButton
 
 // A menu button acts when a finger pressed it AND lifted on it, both while
 // that menu was up. A release alone used to be enough: a finger already down
-// when the pause menu opened (steering, the other hand on "II") could lift
+// when the pause menu opened (steering, the other hand on "[II]") could lift
 // on Quit and end the game.
 static int			gMenuArmed = -1;
 static signed char	gMenuArmedOn = -1;

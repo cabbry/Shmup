@@ -85,8 +85,9 @@ playback
 
 music
 {
+	# The demo is act Dawn playing itself: Dawn's song.
 	startMusicAt 0
-	trackname data/music/UNREALPM.mp3
+	trackname data/music/dawn.mp3
 }
 
 title

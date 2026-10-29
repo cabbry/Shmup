@@ -970,7 +970,7 @@ void MENU_Init(void)
 	MENU_CreateText(currentMenu,0, 200,2.0f,TEXT_CENTERED, "Producer:     Fabien Sanglard");
 	MENU_CreateText(currentMenu,0, 160,2.0f,TEXT_CENTERED, "Game engine:  Fabien Sanglard");
 	MENU_CreateText(currentMenu,0, 120,2.0f,TEXT_CENTERED, "Graphics:     Fabien Sanglard");
-	MENU_CreateText(currentMenu,0,  80,2.0f,TEXT_CENTERED, "Music:            Future Crew");
+	MENU_CreateText(currentMenu,0,  80,2.0f,TEXT_CENTERED, "Music:     Jr Cabbry & Claude");
 	MENU_CreateText(currentMenu,0,  40,2.0f,TEXT_CENTERED, "Reborn:             Jr Cabbry");
 	MENU_CreateBrushRule(currentMenu, 8);
 	MENU_CreateText(currentMenu,0, -24,2.0f,TEXT_CENTERED, "Artists:          Phil Walker");

@@ -81,20 +81,14 @@ player
 
 music
 {
-	# EVEN ACT -- the same track, cued at 2:02. Far enough into a 6:07 piece to
-	# be another section entirely, so starting a game at act II does not open
-	# on the same bars as act I.
+	# ONE SONG PER ACT: Hope's. Each act names its own file, so reaching the
+	# next act changes the track and it starts from its opening; replaying the
+	# same act keeps it playing (dEngine_LoadScene compares the file names).
 	#
-	# This cue only applies WHEN THE GAME TRACK STARTS -- coming in from the
-	# home screen, which plays the other theme. Reaching act II by finishing
-	# act I changes no track, so the music plays on and this number is not
-	# consulted. That is deliberate (tester's spec, round 60): the cue belongs
-	# to the start of a run, not to a level change.
-	#
-	# No `alternate`: with none declared the player LOOPS, so a long run cannot
-	# run the music out -- which is what used to leave the boss in silence.
-	startMusicAt 122
-	trackname data/music/UNREALPM.mp3
+	# No `alternate`: with none declared the player LOOPS, so however long the
+	# act takes the music cannot run out.
+	startMusicAt 0
+	trackname data/music/hope.mp3
 }
 
 title

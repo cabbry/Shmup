@@ -79,7 +79,7 @@ pack
     author   Fabien_Sanglard
     version  1
     scene    data/scenes/act1.scene   # from the data root
-    music    data/music/UNREALPM.mp3   cue 0
+    music    data/music/dawn.mp3      cue 0
     minPlayers 1   maxPlayers 4
 }
 ```
@@ -358,8 +358,8 @@ black on device.
   been used by someone other than its author. Needs a server, moderation,
   reporting (App Store 1.2). Content declarative only (§6).
 - **Skins, shots, cosmetics** — first-party only, if ever, through Apple's
-  in-app purchase; the music is Future Crew's and the art Fabien's, so any
-  paid cosmetic starts with their agreement.
+  in-app purchase; the art is Fabien's, so any paid cosmetic starts with his
+  agreement.
 - **Anything Sorare-like** — much later, if ever; see round 41's discussion
   in `reborn.md`: it is a company-scale door (App Store 3.1.1/3.1.5, MiCA,
   the French JONUM regime), not a feature.

@@ -74,7 +74,7 @@ player
 music
 {
 	startMusicAt 0
-	trackname data/music/UNREALPM.mp3
+	trackname data/music/dusk.mp3
 }
 
 title

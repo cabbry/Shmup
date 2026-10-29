@@ -637,26 +637,22 @@ void dEngine_LoadScene(int sceneId)
 	
 	ENE_Precache();
 	
-	// THE CUE BELONGS TO THE START OF A GAME, NOT TO A LEVEL CHANGE.
+	// A SCENE'S TRACK STARTS WHEN IT DIFFERS FROM THE ONE PLAYING.
 	//
-	// The whole game plays one track (UNREALPM, 6:44); the home screen plays
-	// the other and nothing else. So entering the game from the menu is a
-	// track change and re-cues -- where depends on the act you START at, which
-	// is what each scene's startMusicAt says: the top for the odd acts, 2:02
-	// for the even ones, far enough into the piece to be another section.
-	// After that the acts all name the same file, this comparison matches, and
-	// the music simply PLAYS ON across the level changes. Finish act I and act
-	// II does not rewind it. (Tester's spec, round 60.)
+	// The home screen and the tutorials play the menu song; each act names its
+	// own (Dawn, Hope, Dusk, Rain, Final). So entering an act from the menu, or
+	// reaching the next act, is a track change: it stops the old song and starts
+	// the new one at the scene's startMusicAt. Replaying the same act names the
+	// same file, this comparison matches, and the song plays on.
 	//
-	// This is the 2009 behaviour, and what broke it was never the comparison:
-	// it was the v4.1.1 hand-over, which swapped to the alternate theme when a
-	// track ended -- BEHIND this test. gPlayingTrack went on saying UNREALPM
-	// while UNREALTH played, so from then on an act opened on a residue rather
-	// than a decision, and the same act sounded different depending on how you
-	// reached it. There is no hand-over now: one game track, and no alternate
-	// declared anywhere, which makes the player LOOP (music_av.m) instead of
-	// running out. Nothing can change the track behind this comparison any
-	// more, so it cannot go stale.
+	// Until 5.0.17 the whole game played one 2009 track across the acts and
+	// this test kept it running between levels (round 60). What once broke it
+	// was never the comparison: it was the v4.1.1 hand-over, which swapped to
+	// the alternate theme when a track ended -- BEHIND this test, so
+	// gPlayingTrack named one file while another played. There is no hand-over:
+	// no scene declares an alternate, which makes the player LOOP (music_av.m)
+	// instead of running out. Nothing can change the track behind this
+	// comparison, so it cannot go stale.
 	if (engine.musicFilename[0] != '\0')
 	{
 		if (strcmp(gPlayingTrack, engine.musicFilename) != 0)

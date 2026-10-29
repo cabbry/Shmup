@@ -5,7 +5,7 @@ name: Smoke test the audio (sound trace of one act)
 # <name>" line per sound it starts, and the soundtrack glue prints
 # "[music] t=<sim> wall=<ms> init|start|stop|pause|resume|pos=" lines, with
 # a position sample every ~5 s of game. Act 1 with autofire exercises all
-# four effects and the UNREALPM track cued at 0. Stage 2b: the act is an input
+# four effects and the act's own song cued at 0. Stage 2b: the act is an input
 # (scene 5 = the finale), and the "[boss] attack" + "[rule] fire" lines ride along
 # in the trace -- the boss ladder parity contract.
 #
@@ -98,9 +98,9 @@ jobs:
           SCENE="${{ inputs.scene || 1 }}"
           MAXMIN="${{ inputs.maxMin || 35 }}"
           case "$SCENE" in 0) SCN=data/data/scenes/intro.scene;; 5) SCN=data/data/scenes/final.scene;; *) SCN="data/data/scenes/act$SCENE.scene";; esac
-          # round 60: the acts alternate their theme by parity, so read the track
+          # each act names its own song (5.0.18), so read the track
           # OUT of the scene rather than assume it here.
-          TRACK=$(awk '/trackname/{print $2}' "$SCN" 2>/dev/null | head -1 | xargs -n1 basename | sed 's/\.mp3$//'); TRACK="${TRACK:-UNREALPM}"
+          TRACK=$(awk '/trackname/{print $2}' "$SCN" 2>/dev/null | head -1 | xargs -n1 basename | sed 's/\.mp3$//'); TRACK="${TRACK:-dawn}"
           CUE=$(awk '/startMusicAt/{print $2}' "$SCN" 2>/dev/null); CUE="${CUE:-0}"
           echo "scene $SCENE, track $TRACK cued at $CUE, up to $MAXMIN min"
 

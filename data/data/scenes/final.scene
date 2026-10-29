@@ -90,17 +90,14 @@ player
 
 music
 {
-	# ODD ACT -- the game track from the top. ONE track for the whole game
-	# (UNREALPM, 6:07); UNREALTH belongs to the home screen and nowhere else.
-	#
-	# The cue applies WHEN THE GAME TRACK STARTS -- entering from the home
-	# screen. Between acts the file does not change, so the music plays on and
-	# is not rewound (tester's spec, round 60).
+	# ONE SONG PER ACT: Final's. Each act names its own file, so reaching the
+	# next act changes the track and it starts from its opening; replaying the
+	# same act keeps it playing (dEngine_LoadScene compares the file names).
 	#
 	# No `alternate`: with none declared the player LOOPS, so however long the
-	# run takes the music cannot run out.
+	# act takes the music cannot run out.
 	startMusicAt 0
-	trackname data/music/UNREALPM.mp3
+	trackname data/music/final.mp3
 }
 
 title

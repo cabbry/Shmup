@@ -74,12 +74,13 @@ the 6.9" set; an iPad Pro 12.9"/13" frame is 2048x2732 or 2064x2752.
    details: personal data, so it is not in this repository. Sign-in
    information: *not required*.
 5. **Content rights**: the game's credits name Future Crew for the music, the
-   two tracks shipped with the 2009 game. That is third-party content, and
-   the answer depends on the rights: `asc-store-shipping` sets it with
-   `content_rights=uses` (or `does_not_use` if the music is replaced). It was
-   answered "no third-party content" for 5.0.11 and 5.0.12, wrongly.
-6. **Submit for review** once Fabien has answered and the build is the one he
-   saw. Release: *manual* after approval, so the day is chosen.
+   two tracks shipped with the 2009 game; Fabien Sanglard bought the rights to
+   use them in SHMUP. That is third-party content: `asc-store-shipping` sets
+   it with `content_rights=uses`, and the review notes say where the music
+   comes from. It was answered "no third-party content" for 5.0.11 and
+   5.0.12, wrongly.
+6. **Submit for review**: version 5.0.17, build 278, with screenshots taken
+   from that build. Release: *manual* after approval, so the day is chosen.
 
 ## Sizes to respect (App Store Connect refuses beyond)
 

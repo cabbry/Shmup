@@ -42,7 +42,7 @@
 
 static char* MENU_Tr(const char* en);	// v2: menu localization (table below)
 
-menu_screen_t menuScreens[12];	// v2 P4: + MENU_ONLINE_SIZE; v2: + MENU_MULTI_MODE
+menu_screen_t menuScreens[14];	// v2 P4: + MENU_ONLINE_SIZE; v2: + MENU_MULTI_MODE; + MENU_OPTIONS; + MENU_PAUSE
 int currentMenuId;
 
 texture_t textureAtlas;
@@ -230,126 +230,31 @@ void MENU_CreateButton(menu_screen_t* screen,const char* text,float fontSize, bu
 	MENU_CreateButtonWithTag(screen,text,fontSize,action,NULL,update,pos,dimensions);
 }
 
+// Every solo entry -- an act, the tutorial, the demo -- starts from one local
+// player in seat 0, whatever a match left behind.
+static void MENU_EnterSolo(void)
+{
+	if (engine.mode == DE_MODE_MULTIPLAYER)
+		dEngine_LeaveMultiplayer();
+	numPlayers = 1;
+	controlledPlayer = 0;
+	engine.mode = DE_MODE_SINGLEPLAYER;
+}
+
 void Action_GoToTutorial(void* tag)
 {
 	int i;
 	
+	MENU_EnterSolo();
 	PL_ResetPlayersScore();
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = numPlayerRespawn[DIFFICULTY_NORMAL];
 	
-	if (engine.controlMode == CONTROL_MODE_SWIP)
-	{	
-		dEngine_RequireSceneId(14);
-		MENU_Set(MENU_NONE);
-	}
-	else 
-	{
-		dEngine_RequireSceneId(15);
-		MENU_Set(MENU_NONE);
-	}
-
-		
+	dEngine_RequireSceneId(14);
+	MENU_Set(MENU_NONE);
 }
 
 
-void Action_ReplayAct(void* tag)
-{
-	menu_button_t* button;
-	int actToPlay;
-	int* buttonPressed = (int*)tag;
-	
-	button = &menuScreens[currentMenuId].buttons[*buttonPressed];
-	
-	actToPlay = '0' - button->text[5];
-	
-	engine.playback.play = 1;
-	
-	dEngine_RequireSceneId(actToPlay);
-//	engine.requiredSceneId = actToPlay;
-	MENU_Set(MENU_NONE);	
-	//Use lastButtonPressed
-}
-
-void Action_UploadAct(void* tag)
-{
-	Native_UploadFileTo((char*)tag);
-}
-
-
-char replayList[10][256];
-int numReplayers=0;
-void MENU_UpdateReplayList(void)
-{
-	int i;
-	menu_screen_t* screen;
-	vec2short_t buttonPos;
-	vec2short_t buttonDim;
-	int* buttonId;
-	int actId;
-	screen = &menuScreens[MENU_REPLAY];
-	
-	numReplayers = Native_RetrieveListOf(replayList);
-	
-	//Free all texts char* for buttons
-	Log_Printf("[MENU_UpdateReplayList] MEMORY LEAK HERE !!\n");
-	/*
-	if (screen->numButtons > 2 )
-	{
-		for (i=2; i< screen->numButtons ; i++) {
-			free(screen->buttons[i].text);
-		}
-		screen->numButtons = 2;
-	}
-	*/
-	
-	//Check if the name should be changed
-	/*
-	if (engine.playback.record)
-		strcpy(screen->buttons[1].text,"Disable Recording");
-	else
-		strcpy(screen->buttons[1].text,"Enable Recording");
-	*/
-	
-	buttonPos[X] = 0; 
-	buttonPos[Y] = (SS_COO_SYST_HEIGHT - 30);
-	buttonDim[WIDTH] = (120 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	
-	for (i=0; i <numReplayers; i++) 
-	{
-		buttonId = calloc(1, sizeof(int));
-		*buttonId = i;
-		
-		buttonPos[Y] = SS_COO_SYST_HEIGHT - 200 -  i * 100; 
-		buttonPos[X] = 150; 
-
-		
-		actId = (replayList[i][0] -48)*10 + (replayList[i][1] -48)  ;
-		Log_Printf("actId=%d\n",actId);
-		if (actId >= engine.numScenes)
-			continue;
-		
-		//MENU_CreateText(screen,-40, buttonPos[Y],TEXT_NOT_CENTERED,engine.scenes[actId].name);
-		
-		
-		MENU_CreateButtonWithTag(screen,"Replay", 3, Action_ReplayAct, buttonId ,NULL, buttonPos, buttonDim);
-
-		buttonPos[Y] += 50; 
-		buttonPos[X] = 150 ;
-		MENU_CreateButtonWithTag(screen,"Upload", 3, Action_UploadAct,replayList[i],NULL, buttonPos, buttonDim);
-
-		
-
-	}
-}
-
-void Action_ChangeReplayRecordingState(void* tag)
-{
-	engine.playback.record = !engine.playback.record;
-	Log_Printf("[Action_ChangeReplayRecordingState] engine.playback.record=%d\n",engine.playback.record);
-	MENU_UpdateReplayList();
-}
 
 
 
@@ -408,6 +313,7 @@ void Action_PlayDemo(void* tag)
 	int i;
 	char* actId = (char*)tag;
 	
+	MENU_EnterSolo();
 	PL_ResetPlayersScore();
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = numPlayerRespawn[DIFFICULTY_NORMAL];
@@ -419,45 +325,17 @@ void Action_PlayDemo(void* tag)
     
 }
 
-void Action_GoToAct(void* tag)
-{
-	char* actId = (char*)tag;
-	dEngine_RequireSceneId(*actId);
-	MENU_Set(MENU_NONE);
-}
 
 
 // Difficulty picked on the SELECT_DIFFICULTY screen, applied when an act is
 // chosen on the SELECT_ACT screen that follows.
 static uchar gPickedDifficulty = 1;
 
-void Action_startNewGame(void* tag)
-{
-	int i;
-	uchar difficultyLevel;
-
-	difficultyLevel = *(char*)tag;
-
-	MENU_Set(MENU_NONE);
-	dEngine_RequireSceneId(1);
-
-	//Parameter set the difficulty level
-
-	engine.mode = DE_MODE_SINGLEPLAYER;
-	PL_ResetPlayersScore();
-	numPlayers = 1;
-
-
-	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
-		players[i].respawnCounter = numPlayerRespawn[difficultyLevel];
-
-	engine.difficultyLevel = difficultyLevel;
-}
 
 // New Game flow: pick a difficulty, then pick the starting act (full lives
 // either way). Act select makes practicing an act -- and reaching the final
-// boss -- possible without clearing the whole game in one run. Acts are only
-// selectable once they have been REACHED in play (gHighestActReached).
+// boss -- possible without clearing the whole game in one run. Every act is
+// open from the first launch.
 
 // v4.0.9 -- the act a MULTIPLAYER party starts on. Both devices pick one, and
 // the HOST's pick is the one that happens: the act must be identical on every
@@ -524,34 +402,20 @@ static int MENU_NumActButtons(void)
 	return n;
 }
 
-// texts[1] of the act-select screen is its status line; the buttons are the acts.
-static void MENU_UpdateActLockStatus(int lockedActTried)
+// The act buttons carry their acts' names, set each time the screen opens.
+static void MENU_UpdateActButtons(void)
 {
 	menu_screen_t* screen = &menuScreens[MENU_SELECT_ACT];
-	char* line = screen->texts[1].text;
 	int n = MENU_NumActButtons();
 	int act;
-
-	// "Grey out" locked acts: swap the button label (button text is a pointer,
-	// so swapping between the name and the literal is safe; the font is
-	// single-colour). Pack names live in engine.scenes[] for the whole run.
 	for (act = 1; act <= n; act++)
-		screen->buttons[act - 1].text = (act <= gHighestActReached)
-			? (char*)MENU_ActName(act)
-			: MENU_Tr("Locked");
-
-	if (lockedActTried > 1)
-		sprintf(line, MENU_Tr("Locked - finish %s first"), MENU_ActName(lockedActTried - 1));
-	else if (gHighestActReached >= 2)
-		sprintf(line, MENU_Tr("Unlocked up to %s"), MENU_ActName(gHighestActReached));
-	else
-		line[0] = '\0';
+		screen->buttons[act - 1].text = (char*)MENU_ActName(act);
 }
 
 void Action_PickDifficulty(void* tag)
 {
 	gPickedDifficulty = *(char*)tag;
-	MENU_UpdateActLockStatus(0);
+	MENU_UpdateActButtons();
 	MENU_Set(MENU_SELECT_ACT);
 }
 
@@ -560,15 +424,6 @@ void Action_startNewGameAtAct(void* tag)
 	int i;
 	int act = *(char*)tag;		// 1-based act index, NOT a scene id (v4)
 	int sceneId;
-
-	// Progression gate: the act must have been reached in play at least once.
-	// (Multiplayer comes through here too -- see MENU_ActPickedForParty.)
-	if (act > gHighestActReached)
-	{
-		MENU_UpdateActLockStatus(act);
-		MENU_ClearButtonStates();
-		return;
-	}
 
 	if (gPickingActForMP)
 	{
@@ -583,9 +438,8 @@ void Action_startNewGameAtAct(void* tag)
 	MENU_Set(MENU_NONE);
 	dEngine_RequireSceneId(sceneId);
 
-	engine.mode = DE_MODE_SINGLEPLAYER;
+	MENU_EnterSolo();
 	PL_ResetPlayersScore();
-	numPlayers = 1;
 
 	for(i=0 ; i < MAX_NUM_PLAYERS ; i++)
 		players[i].respawnCounter = numPlayerRespawn[gPickedDifficulty];
@@ -593,28 +447,24 @@ void Action_startNewGameAtAct(void* tag)
 	engine.difficultyLevel = gPickedDifficulty;
 }
 
+// Game Solo. The act screen also serves the multiplayer flow; leaving that
+// flow by Back used to leave gPickingActForMP set, and the next solo act
+// picked opened a multiplayer lobby instead. Entering the solo flow clears it.
 void Action_SpecifyDifficulty(void* tag)
 {
+	gPickingActForMP = 0;
 	MENU_Set(MENU_SELECT_DIFFICULTY);
 }
 
-void Action_startMultiplayerGame(void* tag)
+// Back from the act screen goes back the way the player came.
+void Action_BackFromActSelect(void* tag)
 {
-	
+	if (gPickingActForMP)
+		MENU_Set(MENU_ONLINE_SIZE);
+	else
+		MENU_Set(MENU_SELECT_DIFFICULTY);
 }
 
-void Action_PreGoToGameCenter(void* tag)
-{
-	MENU_Set(MENU_OTHERS);
-	
-	if (engine.gameCenterEnabled)
-		Action_ShowGameCenter(tag);
-	else 
-	{
-		Native_LoginGameCenter();
-	}
-
-}
 
 
 void Action_ConfigureMultiplayer(void* tag)
@@ -714,20 +564,10 @@ void Action_PickPartySize(void* tag)
 {
 	gPendingPartySize = tag ? *(int*)tag : 2;
 	gPickingActForMP = 1;
-	MENU_UpdateActLockStatus(0);
+	MENU_UpdateActButtons();
 	MENU_Set(MENU_SELECT_ACT);
 }
 
-#ifdef SHMUP_TARGET_ANDROID  
-#include "native_URL.h"
-void Action_GoBuyFullVersion(void* tag)
-{
-    goToURL("market://details?id=net.fabiensanglard.shmup");
-}
-#endif
-
-void replayLastGame(void){}
-void doNothing(void){}
 
 void Action_ShowCreditsMenu(void* tag)
 {
@@ -799,33 +639,86 @@ void Action_SelectBulletColor(void* tag)
 #endif
 }
 
+// ---- The Options screen (Others -> Options) ---------------------------------
+// Sound and music used to live only in the iOS Settings app, outside the game,
+// where nobody playing it would look. Each tap flips one switch, saves it
+// (Native_SaveOptions) and stays on the screen. (The 2009 virtual pad, the
+// other control scheme, is gone: the game is played with one finger.)
+static char gOptSoundLabel[48];
+static char gOptMusicLabel[48];
 
-void Action_GoToReplayScreen(void* tag)
+static void MENU_UpdateOptionsLabels(void)
 {
-	MENU_Set(MENU_REPLAY);
+	sprintf(gOptSoundLabel, MENU_Tr("%s: %s"), MENU_Tr("Sound"), MENU_Tr(engine.soundEnabled ? "On" : "Off"));
+	sprintf(gOptMusicLabel, MENU_Tr("%s: %s"), MENU_Tr("Music"), MENU_Tr(engine.musicEnabled ? "On" : "Off"));
 }
+
+void Action_ShowOptionsMenu(void* tag)
+{
+	MENU_UpdateOptionsLabels();
+	MENU_Set(MENU_OPTIONS);
+}
+
+static void MENU_OptionChanged(void)
+{
+	MENU_UpdateOptionsLabels();
+	MENU_ClearButtonStates();	// stay here, and let the same button be tapped again
+	Native_SaveOptions();
+}
+
+void Action_ToggleSound(void* tag)
+{
+	engine.soundEnabled = !engine.soundEnabled;
+	MENU_OptionChanged();
+}
+
+void Action_ToggleMusic(void* tag)
+{
+	dEngine_SetMusicEnabled(!engine.musicEnabled);
+	MENU_OptionChanged();
+}
+
+// ---- The pause menu (the HUD's "[II]" during an act) ---------------------------
+void MENU_ShowPause(int frozen)
+{
+	// texts[1]: in a match nothing stops for one player, so say so.
+	strcpy(menuScreens[MENU_PAUSE].texts[1].text, frozen ? "" : MENU_Tr("The match goes on."));
+	MENU_Set(MENU_PAUSE);
+	// Shown at once: a menu fades in with the frame time, and the frozen world
+	// runs with none (dEngine_HostFrame), so it would stay transparent.
+	menuScreens[MENU_PAUSE].alpha = 1;
+}
+
+void Action_ResumeFromPause(void* tag)
+{
+	dEngine_ResumeByPlayer();
+}
+
+void Action_QuitFromPause(void* tag)
+{
+	dEngine_QuitByPlayer();
+}
+
+
 
 
 void Action_BackToHome(void* tag)
 {
-	NET_Free();
+	dEngine_LeaveMultiplayer();
 	MENU_Set(MENU_HOME);
 }
 
-void Action_BackToOptions(void* tag)
+void Action_BackToMultiMode(void* tag)
 {
-	NET_Free();
+	dEngine_LeaveMultiplayer();
 	MENU_Set(MENU_MULTI_MODE);	// v2: multiplayer lives under Game Multi now
 }
 
 void Action_BackToHomeAfterGameOver(void* tag)
 {
-	
-	
-	NET_Free();
+	dEngine_LeaveMultiplayer();
 	MENU_Set(MENU_HOME);
 	dEngine_RequireSceneId(0);
-	
 }
 
 
@@ -861,7 +754,6 @@ static const menu_tr_t gMenuTr[] = {
 	{ "Game Multi",          "Jeu Multi" },
 	{ "Others",              "Autres" },
 	{ "Back",                "Retour" },
-	{ "New Game",            "Lancer" },
 	{ "Credits",             "Cr\xE9" "dits" },
 	{ "Tutorial",            "Tutoriel" },
 	{ "Scores",              "Scores" },
@@ -876,7 +768,6 @@ static const menu_tr_t gMenuTr[] = {
 	{ "Act II",              "Acte II" },
 	{ "Act III",             "Acte III" },
 	{ "Act IV",              "Acte IV" },
-	{ "Locked",              "Bloqu\xE9" },
 	{ "2 Players",           "2 Joueurs" },
 	{ "3 Players",           "3 Joueurs" },
 	{ "4 Players",           "4 Joueurs" },
@@ -884,17 +775,53 @@ static const menu_tr_t gMenuTr[] = {
 	{ "How many players ?",  "Combien de joueurs ?" },
 	{ "SELECT ACT",          "CHOISIR L'ACTE" },
 	{ "CUSTOM",              "CUSTOM" },
-	// v4: the %s is the act's own name, from its pack ("Act III", "Final").
-	{ "Locked - finish %s first", "Bloqu\xE9 - finis d'abord %s" },
-	{ "Unlocked up to %s",        "D\xE9" "bloqu\xE9 jusqu'\xE0 %s" },
 	// round 88: the multiplayer waiting lines, short enough for the screen
 	{ "%s - the host's act plays",   "%s - l'acte de l'h\xF4te fait foi" },
 	{ "Finding %d players for %s...", "Recherche de %d joueurs pour %s..." },
 	{ "(the host's act plays)",       "(l'acte de l'h\xF4te fait foi)" },
+	// the pause menu
+	{ "PAUSE",               "PAUSE" },
+	{ "Resume",              "Reprendre" },
+	{ "Quit",                "Quitter" },
+	{ "The match goes on.",  "La partie continue." },
+	// the Options screen
+	{ "Options",              "Options" },
+	{ "OPTIONS",              "OPTIONS" },
+	{ "%s: %s",               "%s : %s" },
+	{ "Sound",                "Son" },
+	{ "Music",                "Musique" },
+	{ "On",                   "Oui" },
+	{ "Off",                  "Non" },
 	{ "Red",                 "Rouge" },
 	{ "Blue",                "Bleu" },
 	{ "Invisible",           "Invisible" },
 	{ "Yellow",              "Jaune" },
+	// the waiting screen (netchannel.c and the iOS delegate write it; size 2 holds 40 characters)
+	{ "%d players - you are Player %d%s", "%d joueurs - vous : joueur %d%s" },
+	{ " (host)",                         " (h\xF4te)" },
+	{ "Online - Player %d of %d%s",       "En ligne - joueur %d sur %d%s" },
+	{ "Starting match...",                "La partie commence..." },
+	{ "Party of %d - you are Player %d",  "Groupe de %d - vous : joueur %d" },
+	{ "Starting...",                      "D\xE9part..." },
+	{ "Waiting for more players...",      "En attente d'autres joueurs..." },
+	{ "Looking for players...",           "Recherche de joueurs..." },
+	{ "Open %s > Local",                  "Ouvrez %s > Local" },
+	{ "on the other devices.",            "sur les autres appareils." },
+	{ "on the other devices first.",      "sur les autres appareils d'abord." },
+	{ "Local network access is off.",     "Acc\xE8s au r\xE9seau local refus\xE9." },
+	{ "Settings > Privacy and Security",  "R\xE9glages > Confidentialit\xE9 et" },
+	{ "> Local Network > Shmup",          "s\xE9" "curit\xE9 > R\xE9seau local > Shmup" },
+	{ "Local network unavailable.",       "R\xE9seau local indisponible." },
+	{ "No game found.",                   "Aucune partie trouv\xE9" "e." },
+	{ "Connection lost !",                "Connexion perdue !" },
+	{ "The other player",                 "L'autre joueur" },
+	{ "left the game.",                   "a quitt\xE9 la partie." },
+	{ "Player %d left the game.",         "Le joueur %d a quitt\xE9 la partie." },
+	{ "Waiting for the other players...", "En attente des autres joueurs..." },
+	{ "No Wi-Fi network.",                "Pas de r\xE9seau Wi-Fi." },
+	{ "Make sure Wi-Fi is on",            "V\xE9rifiez que le Wi-Fi est activ\xE9" },
+	{ "and the device is connected.",     "et l'appareil connect\xE9." },
+	{ "Joining a friend's game...",       "Connexion \xE0 la partie d'un ami..." },
 };
 
 static char* MENU_Tr(const char* en)
@@ -905,6 +832,11 @@ static char* MENU_Tr(const char* en)
 			if (!strcmp(gMenuTr[i].en, en))
 				return (char*)gMenuTr[i].fr;
 	return (char*)en;
+}
+
+const char* MENU_Translate(const char* en)
+{
+	return MENU_Tr(en);
 }
 
 char menuCreated = 0;
@@ -1085,13 +1017,8 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_BackToOptions,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_BackToMultiMode,NULL, buttonPos, buttonDim);
 	
-	buttonPos[X] = 0 ; 
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT - 120);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, MENU_Tr("New Game"), 3, Action_startMultiplayerGame,NULL, buttonPos, buttonDim);
 	
 	
 	
@@ -1125,22 +1052,6 @@ void MENU_Init(void)
 	MENU_CreateText(currentMenu, 0, -150, 3.0f, TEXT_CENTERED, "SCORE: 0");
 
 
-	currentMenu = &menuScreens[MENU_REPLAY];
-	currentMenu->numImages = 0;
-	currentMenu->numTexts = 0;
-	currentMenu->numButtons = 0;
-	
-	buttonPos[X] = 0 ; 
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 90);
-	buttonDim[WIDTH] = (159 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
-	
-	buttonPos[X] = 0 ; 
-	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 260);
-	buttonDim[WIDTH] = (220 * 2);
-	buttonDim[HEIGHT] = 64 * 2;
-	//MENU_CreateButton(currentMenu, recordUpdatableString, 2.5f, Action_ChangeReplayRecordingState,MENU_UpdateReplayList, buttonPos, buttonDim);
 	
 	
 	
@@ -1159,7 +1070,7 @@ void MENU_Init(void)
 	
 	
 	// v2 layout (user's order): row 1 Custom | Scores, row 2 Tutorial | Demo,
-	// row 3 Credits (centred), Back centred at the bottom.
+	// row 3 Options | Credits, Back centred at the bottom.
 	buttonPos[X] = -MENU_COL_X;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 510);
 	buttonDim[WIDTH] = MENU_COL_W;
@@ -1188,9 +1099,15 @@ void MENU_Init(void)
 	*actId = 13 ;
 	MENU_CreateButtonWithTag(currentMenu, MENU_Tr("Demo"), 3, Action_PlayDemo,actId,NULL, buttonPos, buttonDim);
 
-	buttonPos[X] = 0 ;
+	buttonPos[X] = -MENU_COL_X;
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
-	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[WIDTH] = MENU_COL_W;
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Options"), 3, Action_ShowOptionsMenu,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = MENU_COL_X;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
+	buttonDim[WIDTH] = MENU_COL_W;
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Credits"), 3, Action_ShowCreditsMenu,NULL, buttonPos, buttonDim);
 #else
@@ -1215,18 +1132,13 @@ void MENU_Init(void)
 	buttonDim[WIDTH] = MENU_COL_W;
 	buttonDim[HEIGHT] = 64 * 2;
 	MENU_CreateButton(currentMenu, MENU_Tr("Credits"), 3, Action_ShowCreditsMenu,NULL, buttonPos, buttonDim);
+
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 250);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Options"), 3, Action_ShowOptionsMenu,NULL, buttonPos, buttonDim);
 #endif
-//
-//	if (engine.gameCenterPossible)
-//    {
-//        buttonPos[X] = 160 ; 
-//        buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 370);
-//        buttonDim[WIDTH] = (159 * 2);
-//        buttonDim[HEIGHT] = 64 * 2;
-//        MENU_CreateButton(currentMenu, "GameCenter", 3, Action_PreGoToGameCenter,NULL, buttonPos, buttonDim);
-//    }
-    
-//On Android and limited edition we have a button to help go to the game.    
 
 	
 	
@@ -1238,11 +1150,6 @@ void MENU_Init(void)
 	*actId = 15 ;
 	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowHomeMenu,NULL, buttonPos, buttonDim);
 
-	buttonPos[X] = -MENU_COL_X ; 
-	buttonPos[Y] = (-SS_H + 220);
-	buttonDim[WIDTH] = MENU_COL_W;
-	buttonDim[HEIGHT] = 64 * 2;
-	//MENU_CreateButton(currentMenu, "Replays", 3, Action_GoToReplayScreen,MENU_UpdateReplayList, buttonPos, buttonDim);
 	
 	
 	currentMenu = &menuScreens[MENU_SELECT_DIFFICULTY];
@@ -1297,8 +1204,6 @@ void MENU_Init(void)
 	currentMenu = &menuScreens[MENU_SELECT_ACT];
 
 	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, MENU_Tr("SELECT ACT"));
-	// texts[1]: lock/progress status line (filled by MENU_UpdateActLockStatus).
-	MENU_CreateText(currentMenu, 0, (SS_H - 230), 2.0f, TEXT_CENTERED, "");
 
 	// Two columns, 150 apart, same cell geometry as the Custom screen -- one
 	// column would put the last act on top of the Back button (the overlap that
@@ -1321,8 +1226,7 @@ void MENU_Init(void)
 			buttonDim[HEIGHT] = 64 * 2;
 			actId = calloc(1, sizeof(char));
 			*actId = a + 1;
-			// The label is set for real by MENU_UpdateActLockStatus, which runs
-			// every time the screen is entered (locked acts read "Locked").
+			// MENU_UpdateActButtons sets the label again each time the screen opens.
 			MENU_CreateButtonWithTag(currentMenu, (char*)MENU_ActName(a + 1), 3, Action_startNewGameAtAct,actId,NULL, buttonPos, buttonDim);
 		}
 	}
@@ -1331,8 +1235,41 @@ void MENU_Init(void)
 	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
 	buttonDim[WIDTH] = (159 * 2);
 	buttonDim[HEIGHT] = 64 * 2;
-	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_SpecifyDifficulty,NULL, buttonPos, buttonDim);
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_BackFromActSelect,NULL, buttonPos, buttonDim);
 
+
+	// --- Pause (the HUD's "[II]" during an act): Resume / Quit ---
+	currentMenu = &menuScreens[MENU_PAUSE];
+	MENU_CreateText(currentMenu, 0, (SS_H - 200), 3.0f, TEXT_CENTERED, MENU_Tr("PAUSE"));
+	MENU_CreateText(currentMenu, 0, (SS_H - 290), 2.0f, TEXT_CENTERED, "");	// texts[1]: set by MENU_ShowPause
+
+	buttonPos[X] = 0;
+	buttonPos[Y] = 60;
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Resume"), 3, Action_ResumeFromPause, NULL, buttonPos, buttonDim);
+	buttonPos[Y] = -90;
+	MENU_CreateButton(currentMenu, MENU_Tr("Quit"), 3, Action_QuitFromPause, NULL, buttonPos, buttonDim);
+
+	// --- Options (Others -> Options): sound, music, one tap each ---
+	currentMenu = &menuScreens[MENU_OPTIONS];
+	MENU_CreateText(currentMenu, 0, (SS_H - 140), 3.0f, TEXT_CENTERED, MENU_Tr("OPTIONS"));
+	MENU_UpdateOptionsLabels();
+
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	buttonPos[X] = 0;
+	buttonPos[Y] = 120;
+	MENU_CreateButton(currentMenu, gOptSoundLabel, 2.5f, Action_ToggleSound, NULL, buttonPos, buttonDim);
+	buttonPos[Y] = -10;
+	MENU_CreateButton(currentMenu, gOptMusicLabel, 2.5f, Action_ToggleMusic, NULL, buttonPos, buttonDim);
+
+
+	buttonPos[X] = 0 ;
+	buttonPos[Y] = (-SS_COO_SYST_HEIGHT + 120);
+	buttonDim[WIDTH] = (159 * 2);
+	buttonDim[HEIGHT] = 64 * 2;
+	MENU_CreateButton(currentMenu, MENU_Tr("Back"), 3, Action_ShowOthersMenu,NULL, buttonPos, buttonDim);
 
 	// --- Loadout menu (solo: Others -> Ship): pick ship (left) + bullet colour (right) ---
 	currentMenu = &menuScreens[MENU_SELECT_SHIP];
@@ -1734,6 +1671,7 @@ int MENU_ScrollTouch(int eventType, short touchY)
 	return dy;
 }
 
+#ifdef SHMUP_CI_HOOKS
 // CI hooks (the camera cannot tap): SHMUP_MENU=<id> opens that menu on the
 // home scene, SHMUP_MENU_SCROLL=<n> presets its scroll (0 = top, up to scrollMax).
 void MENU_ApplyEnvHooks(void)
@@ -1749,6 +1687,7 @@ void MENU_ApplyEnvHooks(void)
 	if (sc && currentMenuId != MENU_NONE && menuScreens[currentMenuId].scrollable)
 		MENU_SetScroll(&menuScreens[currentMenuId], atoi(sc));
 }
+#endif
 
 touch_t* MENU_GetCurrentButtonTouches(void)
 {

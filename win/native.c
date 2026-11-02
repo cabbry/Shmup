@@ -70,15 +70,8 @@ void loadNativePNG(texture_t* tmpTex)
 //On windows there is no gamecenter, those method are here just to satisfy the linker.
 
 
-int  Native_RetrieveListOf(char replayListIn[10][256])
-{
-
-	return 0;
-}
-void Native_UploadFileTo(char path[256]){}
 void Action_ShowGameCenter(void* tag){}
 void Native_UploadScore(uint score){}
-void Native_LoginGameCenter(void){}
 
 
 void SND_LogMCI_Error(char* commmand,int cmdResult)

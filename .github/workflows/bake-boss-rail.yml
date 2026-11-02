@@ -1,6 +1,6 @@
 name: Bake the boss-act camera path
 
-# Recompiles data/cameraPath/act3boss.cp into its .cp2b (visibility bake
+# Recompiles tools/rails/act3boss.cp into its .cp2b (visibility bake
 # included) by running the game in the iOS Simulator with SHMUP_BAKE_SCENE=3:
 # the scene load converts the TEXT rail and saves the .cp2b into the app's
 # Documents dir, which we pull out and upload as an artifact. The artifact is
@@ -45,9 +45,12 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Point act3 at the TEXT rail (bake input)
+      # The text rails live in tools/rails, outside the shipped data: copy the
+      # one to bake into the checkout's data and point the boss act at it.
+      - name: Point the boss act at the TEXT rail (bake input)
         run: |
-          sed -i '' 's|data/cameraPath/act3boss.cp.cp2b|data/cameraPath/act3boss.cp|' data/data/scenes/final.scene
+          cp tools/rails/act3boss.cp data/data/cameraPath/act3boss.cp
+          sed -i '' -E 's#^([[:space:]]*path:).*#\1  data/cameraPath/act3boss.cp#' data/data/scenes/final.scene
           grep "path:" data/data/scenes/final.scene
 
       - name: Build (iphonesimulator, arm64, no signing)

@@ -67,6 +67,7 @@ static double SND_MusicPosition(void)
 	return gMusic ? gMusic.currentTime : -1.0;
 }
 
+#ifdef SHMUP_CI_HOOKS
 // Called once per frame from the view: a position sample every ~5 s of game.
 void SND_MusicProbeTick(void)
 {
@@ -77,6 +78,7 @@ void SND_MusicProbeTick(void)
 		return;
 	Log_Printf("[music] t=%d wall=%ld pos=%.2f\n", simulationTime, SND_WallMs(), SND_MusicPosition());
 }
+#endif
 
 
 // A track reached its end. Swap to the other one if there is one, otherwise

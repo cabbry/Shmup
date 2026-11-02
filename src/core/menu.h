@@ -105,22 +105,27 @@ typedef struct menu_screen_t
 #define MENU_ABOUT 2
 #define MENU_MULTIPLAYER 3
 #define MENU_GAMEOVER 4
-#define MENU_REPLAY 5
+// 5: retired (the replay/upload screen)
 #define MENU_OTHERS 6
 #define MENU_SELECT_DIFFICULTY 7
 #define MENU_SELECT_SHIP 8
 #define MENU_SELECT_ACT 9
 #define MENU_ONLINE_SIZE 10	// v2 P4: pick the party size (2/3/4)
+#define MENU_PAUSE 13	// the HUD's "[II]" during an act: Resume / Quit
+#define MENU_OPTIONS 12	// Others -> Options: sound, music
 #define MENU_MULTI_MODE 11	// v2: Game Multi -> Local / Online / Back
 
 void MENU_Init(void);
 void MENU_Set(signed char menuId);
+void MENU_ShowPause(int frozen);	// frozen = solo; in a match the game goes on
 signed char MENU_Get(void);
 void MENU_Render(void);
 // Round 41: scrolling menus. ScrollTouch takes the input layer's event type (IO_EVENT_*) and the
 // finger's y in the 320x480 touch space; returns 1 when the event was a drag (and must not reach the buttons).
 int MENU_ScrollTouch(int eventType, short touchY);
+#ifdef SHMUP_CI_HOOKS
 void MENU_ApplyEnvHooks(void);	// CI: SHMUP_MENU=<id> opens a menu at boot, SHMUP_MENU_SCROLL=<n> presets its scroll
+#endif
 void MENU_HandleTouches(void);
 void MENU_FreeRessources(void);
 touch_t* MENU_GetCurrentButtonTouches(void);
@@ -129,6 +134,7 @@ int MENU_GetNumButtonsTouches(void);
 // (centre origin, y up), for a platform that draws a keyboard cursor. 0 if none.
 int MENU_GetButtonRect(int i, short* x0, short* y0, short* x1, short* y1);
 char* MENU_GetMultiplayerTextLine(int i);
+const char* MENU_Translate(const char* en);	// the menus' English -> French table, for lines written outside menu.c
 void MENU_SetGameOverScore(unsigned int score);
 void MENU_ClearButtonStates(void);
 #define FADING_IN_TIME_PER_MS (1/1000.0f)

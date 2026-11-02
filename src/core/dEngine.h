@@ -44,12 +44,6 @@
 #define DIFFICULTY_NORMAL 1
 #define DIFFICULTY_INSANE 2
 
-#define CONTROL_MODE_SWIP 0
-#define CONTROL_MODE_VIRT_PAD 1
-
-#define LICENSE_LIMITED 0
-#define LICENSE_FULL 1
-
 #include "globals.h"
 #include "renderer.h"
 
@@ -62,7 +56,6 @@ typedef struct playback_t
 	char filename[256];
 	
 	char play;
-	char record;
 } playback_t ;
 
 #define DE_MODE_SINGLEPLAYER 0
@@ -90,7 +83,9 @@ typedef struct scene_t
 } scene_t;
 
 #define SCENE_KIND(sceneId)	(engine.scenes[(sceneId)].kind)
-#define SCENE_IS(kindValue)	(engine.scenes[engine.sceneId].kind == (kindValue))
+// Before the first scene loads, sceneId is -1: no scene is of any kind (an
+// input event that early used to read scenes[-1]).
+#define SCENE_IS(kindValue)	(engine.sceneId >= 0 && engine.scenes[engine.sceneId].kind == (kindValue))
 
 typedef struct player_stats_t
 {
@@ -107,8 +102,6 @@ typedef struct engine_info_t
 {
 	uchar soundEnabled;
 	uchar musicEnabled;
-	uchar gameCenterEnabled;
-	uchar gameCenterPossible;
 	
 	int numScenes;
 	int numActs;		// v4: how many scenes are of kind ACT
@@ -129,17 +122,11 @@ typedef struct engine_info_t
 	int requiredSceneId;
 	int sceneId;			//Valid for both mode.
 	
-	char controlVisible;
-	
 	uchar mode;
 	
 	uchar fogEnabled;
 	
 	uchar showFingers;
-	
-	uchar controlMode;
-	
-	uchar licenseType;
 	
 	uchar difficultyLevel ;
 	
@@ -151,20 +138,22 @@ extern engine_info_t engine;
 
 
 
-// Progression: furthest act (scene 1..3) ever reached; gates the act select.
-extern int gHighestActReached;
-
 bool dEngine_Init(void);
 void dEngine_InitDisplaySystem(uchar rendererType);
 void dEngine_RequireSceneId(int sceneId);
 void dEngine_HostFrame(void);
 void dEngine_CheckState(void);
-void dEngine_WriteScreenshot(char* directory);
 void dEngine_Pause(void);
 void dEngine_Resume(void);
 void dEngine_ResumeGame(void);
+void dEngine_SetMusicEnabled(int on);	// the Options screen: stop or restart the scene's track now
 void dEngine_RenderCountdown(void);
 extern int gCountdownMs;
+extern int gPausedByPlayer;	// the pause button: the world frozen behind the pause menu
+void dEngine_PauseByPlayer(void);
+void dEngine_ResumeByPlayer(void);
+void dEngine_QuitByPlayer(void);
+void dEngine_LeaveMultiplayer(void);
 void dEngine_GoToNextScene(void);
 
 #endif

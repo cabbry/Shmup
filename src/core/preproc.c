@@ -42,7 +42,6 @@ int logPreproc;
 // preproc.h). Declared here because the expansion/conversion helpers above
 // PREPROC_SetSkipVis read it.
 static int preprocSkipVis = 0;
-static int preprocKeyframeDebug = -1;	// -1 = env not read yet
 
 
 
@@ -554,9 +553,7 @@ prec_camera_frame_t* PREPROC_ReadFrameFromFile(void)
 	// mis-parses leaves every frame at t=0 and the camera at the origin, which
 	// reads on screen as "the level starts in the void"). Dump what the lexer
 	// actually produced when SHMUP_CULL_DEBUG is set.
-	if (preprocKeyframeDebug < 0)
-		preprocKeyframeDebug = CI_GETENV("SHMUP_CULL_DEBUG") ? 1 : 0;
-	if (preprocKeyframeDebug)
+	if (Log_ProbesEnabled())
 		Log_Printf("[cp keyframe] t=%d pos=(%.0f,%.0f,%.0f) quat=(%.3f,%.3f,%.3f,%.3f)\n",
 				   frame->time,
 				   frame->position[0], frame->position[1], frame->position[2],
@@ -899,6 +896,9 @@ void PREPROC_PopulateRawFaceSet(prec_camera_frame_t* frame)
 }
 
 
+#ifdef SHMUP_CI_HOOKS
+// The offline bake's output (bake-boss-rail.yml, SHMUP_BAKE_VIS): the .cp2b to
+// commit next to its .cp. A shipped game only reads rails.
 void PREPROC_SaveFramesToCP2Binary(char* filename, camera_frame_t* firstFrame)
 {
 	filehandle_t* fileHandle;
@@ -1010,6 +1010,7 @@ void PREPROC_SaveFramesToCP2Binary(char* filename, camera_frame_t* firstFrame)
 	Timer_resetTime();
 	Log_Printf("[PREPROC_SaveFramesToCP2Binary] Wrote %u keyFrames and %u deltaFrames.\n",keyFrameCounter,nonKeyFrameCounter);
 }
+#endif
 
 
 
@@ -1614,8 +1615,10 @@ camera_frame_t* PREPROC_ConvertCp1Tocp2b(char* cpFilename, char* cp2bFilename, c
 	
 	
 	// NULL = in-memory load (runtime-culled scenes): nothing to write.
+#ifdef SHMUP_CI_HOOKS
 	if (cp2bFilename)
 		PREPROC_SaveFramesToCP2Binary(cp2bFilename,rootRunTimeFrame.next);
+#endif
 
 
 	//free face <-> indice indexes

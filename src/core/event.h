@@ -44,7 +44,7 @@
 #define EV_REQUEST_MENU		0xB
 #define EV_AUTOPILOT_PL		0xC
 #define EV_SAVE_SCORE		0xD
-#define EV_LIMITED_EVENT	0xE
+// 0xE: retired (the 2010 Lite trial cut-off)
 #define EV_CLEAR_TITLE      0xF
 #define EV_TTB_ROLL			0x10
 

@@ -12,20 +12,17 @@ untouched, Windows plugs in four backends.
 
 `zig` is the only tool (0.14 or later, on the PATH or `-Zig path`). The
 executable finds the repository's `data/` by walking up from its own folder;
-`--data` or the `RD` environment variable override that. Settings, the
-loadout and the progress live in `%LOCALAPPDATA%\ShmupReborn\settings.cfg`.
-`SHMUP_LOG_FILE=1` also writes the log there; `SHMUP_CULL_DEBUG=1` prints
-the `[cull]` probe as on iOS.
+`--data` or the `RD` environment variable override that. The options and the
+loadout live in `%LOCALAPPDATA%\ShmupReborn\settings.cfg`. Escape is the
+pause button during an act, and goes back to the menu elsewhere.
 
 The CI cross-compiles the same sources on every push (`win.yml`, zig on a
 Linux runner, `win/build.sh`) and keeps the executable as an artifact.
 
 ## Controls
 
-- **Mouse**: press and drag is the finger. In swipe mode the ship follows
-  the drag; in pad mode (Others > Custom) the virtual pad is drawn and
-  pressed like on the phone.
-- **Keyboard**: the arrows, or WASD / ZQSD, move the ship in swipe mode (a
+- **Mouse**: press and drag is the finger; the ship follows the drag.
+- **Keyboard**: the arrows, or WASD / ZQSD, move the ship (a
   synthetic finger dragging from the screen's centre at 600 px/s). The ship
   fires while a finger is down, so while moving; **Space** is a finger
   pressed in place (fire standing still), a quick **double Space** is the

@@ -37,7 +37,6 @@
  */
 
 #import <Metal/Metal.h>
-#include "../../core/ci_hooks.h"
 #import <QuartzCore/CAMetalLayer.h>
 #import <simd/simd.h>
 
@@ -529,7 +528,7 @@ int MTL_Create(void* caMetalLayer, int pixelWidth, int pixelHeight)
 	gLayer = layer;
 	gLayer.device = gDevice;
 	gLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-	gLayer.framebufferOnly = NO;			// the [cull] probe and screenshots read the drawable back
+	gLayer.framebufferOnly = NO;			// the [cull] probe reads the drawable back; every build alike, so the smokes render what ships
 	gLayer.opaque = YES;
 
 	gLibrary = [gDevice newLibraryWithSource:[NSString stringWithUTF8String:kShaderSource] options:nil error:&err];
@@ -780,10 +779,8 @@ static void UpLoadEntityToGPUM(entity_t* entity)
 		return;
 	mesh = entity->model;
 	mesh->vboId = UploadVerticesToGPUM(mesh->vertexArray, mesh->numVertices * sizeof(vertex_t));
-#ifndef GENERATE_VIDEO
 	free(mesh->vertexArray);
 	mesh->vertexArray = 0;
-#endif
 	mesh->memLocation = MD5_MEMLOC_VRAM;
 }
 
@@ -1027,7 +1024,6 @@ static void RenderEntitiesM(void)
 	matrix_t	cullView, cullProj, cullPV;
 	vec3_t		cullLookat;
 	int			cullDrawn = 0;
-	static int	cullDebug = -1;
 	static int	cullLogTick = 0;
 	static char	cullIds[160] = "";
 	static int	cullTris = 0;
@@ -1090,7 +1086,7 @@ static void RenderEntitiesM(void)
 				entity->matrix[12] = camera.position[0];
 				entity->matrix[14] = camera.position[2];
 				cullDrawn++;
-				if (cullDebug == 1)
+				if (Log_ProbesEnabled())
 				{
 					char idbuf[16];
 					sprintf(idbuf, "%d,", i);
@@ -1119,7 +1115,7 @@ static void RenderEntitiesM(void)
 	if (gRuntimeCullMap)
 	{
 		sDepthWrite = 1;
-		if (cullDebug == 1 && cullLogTick + 1 >= 60)
+		if (Log_ProbesEnabled() && cullLogTick + 1 >= 60)
 		{
 			uchar spx[16*16*4];
 			int   sk, ssum = 0;
@@ -1141,7 +1137,7 @@ static void RenderEntitiesM(void)
 			if (COLL_CheckBoxAgainstFrustrum(entity->worldSpacebbox,cullFrustrum) == INT_OUT)
 				continue;
 			cullDrawn++;
-			if (cullDebug == 1)
+			if (Log_ProbesEnabled())
 			{
 				char idbuf[16];
 				sprintf(idbuf, "%d,", i);
@@ -1159,11 +1155,9 @@ static void RenderEntitiesM(void)
 	}
 	sCullBack = 1;			// glEnable(GL_CULL_FACE): ships and enemies are culled
 
-	if (cullDebug < 0)
-		cullDebug = CI_GETENV("SHMUP_CULL_DEBUG") ? 1 : 0;
-	if (cullDebug || gRuntimeCullMap)
+	if (Log_ProbesEnabled() || gRuntimeCullMap)
 	{
-		if (cullDebug && ++cullLogTick >= 60)
+		if (Log_ProbesEnabled() && ++cullLogTick >= 60)
 		{
 			uchar px[16*16*4];
 			int   k, sum = 0;
@@ -1191,7 +1185,7 @@ static void RenderEntitiesM(void)
 					   cullDrawn, num_map_entities, cullIds, cullTris, skyLuma, decorLuma, topLuma,
 					   players[0].ss_position[X], players[0].ss_position[Y], players[0].autopilot.enabled);
 		}
-		if (cullDebug)
+		if (Log_ProbesEnabled())
 		{
 			cullIds[0] = '\0';
 			cullTris = 0;
@@ -1364,21 +1358,6 @@ static void RenderFXSpritesM(void)
 	RenderColoredSprites(enFxLib.ss_vertices, enFxLib.num_indices, enFxLib.indices);
 }
 
-static void DrawControlsM(void)
-{
-	if (engine.controlMode == CONTROL_MODE_SWIP)
-		return;
-	sTextured = 0;
-	{
-		int i, maxIdx = 0;
-		for (i = 0; i < controlNumIndices; i++)
-			if (controlIndices[i] > maxIdx) maxIdx = controlIndices[i];
-		DrawIndexedClient(VK_2DT, controlVertices, (NSUInteger)(maxIdx + 1) * sizeof(xf_textureless_sprite_t), controlIndices, controlNumIndices, MTLPrimitiveTypeTriangleStrip);
-		STATS_AddTriangles(controlNumIndices/2);
-	}
-	sTextured = 1;
-}
-
 static void StartCleanFrameM(void)
 {
 	// Nothing to do: the texture matrix is the Short2Normalized attribute, and
@@ -1467,7 +1446,6 @@ void initMetalRenderer(renderer_t* r)
 	r->RenderString = RenderStringM;
 	r->GetColorBuffer = GetColorBufferM;
 	r->RenderFXSprites = RenderFXSpritesM;
-	r->DrawControls = DrawControlsM;
 	r->FreeGPUTexture = FreeGPUTextureM;
 	r->FreeGPUBuffer = FreeGPUBufferM;
 	r->UploadVerticesToGPU = UploadVerticesToGPUM;

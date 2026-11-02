@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       pack:
-        description: "level PACK id to photograph (act1, act3, tutorial_pad...). Resolved to its scene through config.cfg; overrides 'scene'."
+        description: "level PACK id to photograph (act1, act3, tutorial_swipe...). Resolved to its scene through config.cfg; overrides 'scene'."
         default: ""
         required: false
       scene:

@@ -655,13 +655,8 @@ void World_OpenScene(char* filename)
 					engine.playback.filename[0] = '\0';
 					strcpy(engine.playback.filename, LE_getCurrentToken());
 				
-				} 
-				else 
-				if (!strcmp("record", LE_getCurrentToken()))
-				{
-					
-					engine.playback.record = LE_readReal();
 				}
+				else
 				if (!strcmp("play", LE_getCurrentToken()))
 				{
 					

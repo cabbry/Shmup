@@ -13,9 +13,9 @@ format read by `world.c` and `event.c`) plus the files it points at:
 |---|---|---|
 | `map` | the baked city geometry (`data/map/*.map`) | `world.c` |
 | `light`, `fog` | one light, linear fog (colour, start, end) | `world.c` |
-| `camera` | the rail (`data/cameraPath/*.cp`, compiled to `.cp2b`), fov, near/far, `attachAt` / `detachAt` (ms), `driftAtEnd` | `world.c`, `camera.c` |
+| `camera` | the rail (`data/cameraPath/*.cp2b`, baked from its text source in `tools/rails/*.cp`), fov, near/far, `attachAt` / `detachAt` (ms), `driftAtEnd` | `world.c`, `camera.c` |
 | `player` ×N | spawn matrices per seat | `world.c` |
-| `playback` | the input record for the demo | `world.c` |
+| `playback` | the input record the demo and the tutorial replay; a scene without the block plays live | `world.c` |
 | `music` | `trackname`, `startMusicAt` (s) | `dEngine.c` |
 | `title` | the act card (`data/titles/*.png`), `prolog` / `epilog` start + duration, `movePlayersToDefautlSSLocation` | `titles.c` |
 | `enemies` | the spawn timeline: `settime` / `addtime` / `setttl` / `at <ms> spawnEnemy …` / `at <ms> spawnEnemyWave circle …` | `event.c` |
@@ -61,7 +61,7 @@ deterministic before a device does.
 data/levels/<id>/
   pack.cfg          the manifest
   <name>.scene      the scene file (paths inside it are from the data root, like every file the engine opens)
-  <name>.cp         the camera rail (compiled to .cp2b at first load)
+  <name>.cp2b       the camera rail, baked (only a development build reads a text .cp)
   title.png         the act card (optional)
   thumb.png         a thumbnail for the level list (optional)
   behaviour.lua     stage 3: scripted behaviour (built-in packs only, see §6)
@@ -183,7 +183,7 @@ Rules are evaluated once per simulation tick, after the timeline, as pure
 functions of the clock and the enemy list — every peer computes the same
 answer, so lockstep holds. `rules.c` prints `[rule] t=<sim> fire <name> …`
 behind the probe gate; `smoke-rules.yml` reads it on the bench scene
-(`data/levels/test_rules`, scene 12, CI only): three waves chained by rules,
+(`tools/ci/levels/test_rules`, scene 12, added to simulator builds by `smoke-rules.yml` only): three waves chained by rules,
 fired in order, the second one only after the last ship of the first is
 dead, the clock rule at 60 s.
 

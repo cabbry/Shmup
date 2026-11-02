@@ -190,8 +190,8 @@ static void SaveSettings(void)
 		Log_Printf("[settings] cannot write %s\n", path);
 		return;
 	}
-	fprintf(f, "sound=%d\nmusic=%d\ncontrol=%d\nship=%d\ncolor=%d\nhighestAct=%d\nlayout=2\n",
-	        engine.soundEnabled, engine.musicEnabled, engine.controlMode, gShipChoice, gBulletColor, gHighestActReached);
+	fprintf(f, "sound=%d\nmusic=%d\nship=%d\ncolor=%d\n",
+	        engine.soundEnabled, engine.musicEnabled, gShipChoice, gBulletColor);
 	fclose(f);
 }
 
@@ -203,10 +203,6 @@ void WIN_LoadSettings(void)
 	FILE* f;
 	engine.soundEnabled = 1;
 	engine.musicEnabled = 1;
-	engine.controlMode = CONTROL_MODE_SWIP;
-	engine.gameCenterEnabled = 0;
-	engine.gameCenterPossible = 0;
-	engine.licenseType = 1;
 	snprintf(path, sizeof(path), "%s/settings.cfg", getenv("WD") ? getenv("WD") : ".");
 	f = fopen(path, "r");
 	if (!f)
@@ -216,18 +212,14 @@ void WIN_LoadSettings(void)
 		int v = atoi(strchr(line, '=') ? strchr(line, '=') + 1 : "0");
 		if      (!strncmp(line, "sound=", 6))      engine.soundEnabled = v ? 1 : 0;
 		else if (!strncmp(line, "music=", 6))      engine.musicEnabled = v ? 1 : 0;
-		else if (!strncmp(line, "control=", 8))    engine.controlMode = (uchar)v;
 		else if (!strncmp(line, "ship=", 5))       gShipChoice = v;
 		else if (!strncmp(line, "color=", 6))      gBulletColor = v;
-		else if (!strncmp(line, "highestAct=", 11)) gHighestActReached = v;
 	}
 	fclose(f);
 	if (gShipChoice  < 0 || gShipChoice  >= NUM_SHIP_CHOICES)  gShipChoice  = 0;
 	if (gBulletColor < 0 || gBulletColor >= NUM_BULLET_COLORS) gBulletColor = 0;
-	if (gHighestActReached < 1) gHighestActReached = 1;
-	if (gHighestActReached > 5) gHighestActReached = 5;	// 5 playable acts, as on iOS
-	Log_Printf("[settings] sound=%d music=%d control=%d ship=%d color=%d highestAct=%d\n",
-	           engine.soundEnabled, engine.musicEnabled, engine.controlMode, gShipChoice, gBulletColor, gHighestActReached);
+	Log_Printf("[settings] sound=%d music=%d ship=%d color=%d\n",
+	           engine.soundEnabled, engine.musicEnabled, gShipChoice, gBulletColor);
 }
 
 void WIN_SaveSettings(void) { SaveSettings(); }
@@ -239,38 +231,13 @@ void Native_SaveLoadout(int ship, int color)
 	SaveSettings();
 }
 
-void Native_SaveProgress(int highestAct)
-{
-	gHighestActReached = highestAct;
-	SaveSettings();
-}
+void Native_SaveOptions(void) { SaveSettings(); }
 
 // ---------------------------------------------------------------------------
 //  The rest of native_services.h
 // ---------------------------------------------------------------------------
-int Native_RetrieveListOf(char replayList[10][256])
-{
-	char pattern[MAX_OSPATH * 2];
-	WIN32_FIND_DATAA fd;
-	HANDLE h;
-	int n = 0;
-	snprintf(pattern, sizeof(pattern), "%s/*.io", FS_GameWritableDir());
-	h = FindFirstFileA(pattern, &fd);
-	if (h == INVALID_HANDLE_VALUE)
-		return 0;
-	do
-	{
-		if (n < 10)
-			strncpy(replayList[n++], fd.cFileName, 255);
-	} while (FindNextFileA(h, &fd));
-	FindClose(h);
-	return n;
-}
-
-void Native_UploadFileTo(char path[256]) { (void)path; }
 void Action_ShowGameCenter(void* tag) { (void)tag; }
 void Native_UploadScore(uint score) { Log_Printf("[score] %u (no leaderboard on this platform)\n", score); }
-void Native_LoginGameCenter(void) {}
 void Native_StartOnlineMatchmaking(int partySize) { (void)partySize; }
 void Native_CancelOnlineMatchmaking(void) {}
 void Native_GKSendData(const void* data, int len, int reliable) { (void)data; (void)len; (void)reliable; }

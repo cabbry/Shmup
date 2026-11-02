@@ -10,11 +10,8 @@ void SND_ResumeSoundTrack(void){}
 
 
 // native_service.h
-int  Native_RetrieveListOf(char replayList[10][256]){ return 0;}
-void Native_UploadFileTo(char path[256]){}
 void Action_ShowGameCenter(void* tag){}
 void Native_UploadScore(unsigned int score){}
-void Native_LoginGameCenter(void){}
 
 // Round 90: what the core has learnt to ask since 2012, answered on Android.
 // No Game Center, no GameKit; the language from the activity's
@@ -56,8 +53,8 @@ static void AND_SaveSettings(void)
 	snprintf(path, sizeof(path), "%s/settings.cfg", gAndroidWritableDir);
 	f = fopen(path, "w");
 	if (!f) { Log_Printf("[settings] cannot write %s\n", path); return; }
-	fprintf(f, "sound=%d\nmusic=%d\ncontrol=%d\nship=%d\ncolor=%d\nhighestAct=%d\n",
-	        engine.soundEnabled, engine.musicEnabled, engine.controlMode, gShipChoice, gBulletColor, gHighestActReached);
+	fprintf(f, "sound=%d\nmusic=%d\nship=%d\ncolor=%d\n",
+	        engine.soundEnabled, engine.musicEnabled, gShipChoice, gBulletColor);
 	fclose(f);
 }
 
@@ -68,7 +65,6 @@ void AND_LoadSettings(void)
 	FILE* f;
 	engine.soundEnabled = 1;
 	engine.musicEnabled = 1;
-	engine.controlMode = CONTROL_MODE_SWIP;
 	if (!gAndroidWritableDir[0]) return;
 	snprintf(path, sizeof(path), "%s/settings.cfg", gAndroidWritableDir);
 	f = fopen(path, "r");
@@ -78,20 +74,16 @@ void AND_LoadSettings(void)
 		int v = atoi(strchr(line, '=') ? strchr(line, '=') + 1 : "0");
 		if      (!strncmp(line, "sound=", 6))       engine.soundEnabled = v ? 1 : 0;
 		else if (!strncmp(line, "music=", 6))       engine.musicEnabled = v ? 1 : 0;
-		else if (!strncmp(line, "control=", 8))     engine.controlMode = (uchar)v;
 		else if (!strncmp(line, "ship=", 5))        gShipChoice = v;
 		else if (!strncmp(line, "color=", 6))       gBulletColor = v;
-		else if (!strncmp(line, "highestAct=", 11)) gHighestActReached = v;
 	}
 	fclose(f);
 	if (gShipChoice  < 0 || gShipChoice  >= NUM_SHIP_CHOICES)  gShipChoice  = 0;
 	if (gBulletColor < 0 || gBulletColor >= NUM_BULLET_COLORS) gBulletColor = 0;
-	if (gHighestActReached < 1) gHighestActReached = 1;
-	if (gHighestActReached > 5) gHighestActReached = 5;
 }
 
 void Native_SaveLoadout(int ship, int color) { gShipChoice = ship; gBulletColor = color; AND_SaveSettings(); }
-void Native_SaveProgress(int highestAct)   { gHighestActReached = highestAct; AND_SaveSettings(); }
+void Native_SaveOptions(void)              { AND_SaveSettings(); }
 
 
 //ITextureloader.h

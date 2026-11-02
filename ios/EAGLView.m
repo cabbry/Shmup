@@ -41,7 +41,6 @@
 #include "material.h"
 
 #include <sys/types.h>
-#include <sys/sysctl.h>
 
 #include "player.h"
 #include "music.h"
@@ -52,7 +51,9 @@
 #include "titles.h"	// TITLE_IsShowing: the BACK hit-test yields to the title card
 #include "log.h"	// Log_ProbesEnabled / Log_Printf: the [music] probes
 
+#ifdef SHMUP_CI_HOOKS
 void SND_MusicProbeTick(void);
+#endif
 
 EAGLView *eaglview;
 
@@ -83,33 +84,15 @@ EAGLView *eaglview;
 
 - (void) checkEngineSettings
 {
-	//Set stats enabled
+	// The two switches of the in-game Options screen (Native_SaveOptions in
+	// dEngineAppDelegate.m writes them). Absent on a fresh install: sound and
+	// music on.
 	NSUserDefaults *standardUserDefaults = [NSUserDefaults standardUserDefaults];
-	[standardUserDefaults synchronize];
-	
-	NSString* statEnabledString = [standardUserDefaults stringForKey:@"StatisticsEnabled"];
-	
-	NSLog(@"StatisticsEnabled string = %@",statEnabledString);
-	renderer.statsEnabled = [@"1" isEqualToString:statEnabledString];
-
-	
-	NSLog(@"SoundEffectsEnabled='%@'",[[NSUserDefaults standardUserDefaults] stringForKey:@"SoundEffectsEnabled"]);
-	if ([[NSUserDefaults standardUserDefaults] stringForKey:@"SoundEffectsEnabled"] == nil)
-		engine.soundEnabled = 1;
-	else 
-	{
-		engine.soundEnabled = [[[NSUserDefaults standardUserDefaults] stringForKey:@"SoundEffectsEnabled"] intValue] ;
-	}
-	NSLog(@"engine.soundEnabled=%d",engine.soundEnabled);
-	
-	NSLog(@"MusicEnabled='%@'",[[NSUserDefaults standardUserDefaults] stringForKey:@"MusicEnabled"]);
-	if ([[NSUserDefaults standardUserDefaults] stringForKey:@"MusicEnabled"] == nil)
-		engine.musicEnabled = 1;
-	else 
-	{
-		engine.musicEnabled = [[[NSUserDefaults standardUserDefaults] stringForKey:@"MusicEnabled"] intValue] ;
-	}
-	NSLog(@"engine.musicEnabled=%d",engine.musicEnabled);
+	NSString* sound   = [standardUserDefaults stringForKey:@"SoundEffectsEnabled"];
+	NSString* music   = [standardUserDefaults stringForKey:@"MusicEnabled"];
+	engine.soundEnabled = sound ? ([sound intValue] ? 1 : 0) : 1;
+	engine.musicEnabled = music ? ([music intValue] ? 1 : 0) : 1;
+	renderer.statsEnabled = 0;
 
 	// Persisted solo loadout (Custom screen): restore the chosen ship + bullet colour.
 	if ([standardUserDefaults objectForKey:@"ShipChoice"] != nil)
@@ -120,74 +103,8 @@ EAGLView *eaglview;
 	if (gBulletColor < 0 || gBulletColor >= NUM_BULLET_COLORS) gBulletColor = 0;
 	NSLog(@"loadout ship=%d color=%d", gShipChoice, gBulletColor);
 
-	// Progression: restore the furthest act reached (gates the act-select screen).
-	if ([standardUserDefaults objectForKey:@"HighestAct"] != nil)
-		gHighestActReached = (int)[standardUserDefaults integerForKey:@"HighestAct"];
-	if (gHighestActReached < 1) gHighestActReached = 1;
-
-	// v4: an act was INSERTED before the boss, which moved from act 4 to act 5.
-	// A saved 4 meant "reached the boss"; left alone it would now mean "reached
-	// the new act 4" and would take the finale AWAY from a player who had
-	// already got there. Carry the old top over, once, and stamp the layout so
-	// this never runs twice (a player who legitimately stops at act 4 in the
-	// new layout must keep act 5 locked).
-	if ([standardUserDefaults objectForKey:@"ActLayout"] == nil)
-	{
-		if (gHighestActReached >= 4)
-			gHighestActReached = 5;
-		[standardUserDefaults setInteger:2 forKey:@"ActLayout"];
-		[standardUserDefaults setInteger:gHighestActReached forKey:@"HighestAct"];
-		[standardUserDefaults synchronize];
-		NSLog(@"progress migrated to the 5-act layout: highestAct=%d", gHighestActReached);
-	}
-
-	// 5 playable acts (scenes 1..5). engine.numScenes is not parsed yet at this
-	// point, hence the literal -- keep it in step with config.cfg.
-	if (gHighestActReached > 5) gHighestActReached = 5;
-	NSLog(@"highestAct=%d", gHighestActReached);
 
 
-	engine.gameCenterEnabled = 0;
-//	NSLog(@"GameCenterEnabled='%@'",[[NSUserDefaults standardUserDefaults] stringForKey:@"GameCenterEnabled"]);
-//	if ([[NSUserDefaults standardUserDefaults] stringForKey:@"GameCenterEnabled"] == nil)
-//		engine.gameCenterEnabled = 0;
-//	else 
-//	{
-//		engine.gameCenterEnabled = [[[NSUserDefaults standardUserDefaults] stringForKey:@"GameCenterEnabled"] intValue] ;
-//	}
-//	NSLog(@"gameCenterEnabled=%d",engine.gameCenterEnabled);
-	
-	NSLog(@"controlType='%@'",[[NSUserDefaults standardUserDefaults] stringForKey:@"controlType"]);
-	if ([[NSUserDefaults standardUserDefaults] stringForKey:@"controlType"] == nil)
-		engine.controlMode = CONTROL_MODE_SWIP;
-	else 
-	{
-		engine.controlMode = [[[NSUserDefaults standardUserDefaults] stringForKey:@"controlType"] intValue] ;
-	}
-	NSLog(@"controlType=%d",engine.controlMode);
-	
-	
-	//pList
-	NSString *path = [[NSBundle mainBundle] bundlePath];
-	NSString *finalPath = [path stringByAppendingPathComponent:@"Info.plist"];
-	NSDictionary *plistData = [NSDictionary dictionaryWithContentsOfFile:finalPath];
-	NSString* version = [plistData objectForKey:@"License"];
-	engine.licenseType = [version intValue];
-	
-	
-	//Also check the iOS version, if version > 4.0 gamecenter is possible.
-	CGFloat systemVersion = [[[ UIDevice currentDevice ] systemVersion ] floatValue ];
-	if( systemVersion >= 4.1 )
-	{
-		engine.gameCenterPossible=1;
-		printf("GameCenter possible.\n");
-	}
-	else {
-		engine.gameCenterPossible=0;
-		printf("GameCenter NOT possible.\n");
-	}
-
-	
 }
 
 //void AudioInterruptionListenerCallback(void* user_data, UInt32 interruption_state)
@@ -216,16 +133,7 @@ EAGLView *eaglview;
 		// v3 (round 37): the layer is a CAMetalLayer (+layerClass); OpenGL ES
 		// retired once the device round confirmed Metal.
 
-		//Set the texture quality
-		renderer.materialQuality = [[[NSUserDefaults standardUserDefaults] stringForKey:@"MaterialQuality"] intValue];
-		
-		//#ifndef GENERATE_VIDEO
-		renderer.materialQuality = MATERIAL_QUALITY_LOW;
-		//#else
 		renderer.materialQuality = MATERIAL_QUALITY_HIGH;
-		//#endif
-
-		UIDevice* thisDevice = [UIDevice currentDevice];
 
 		// The engine's surface, in pixels, BEFORE dEngine_Init: the menus are
 		// built in there and place their titles with a formula that divides by
@@ -254,57 +162,16 @@ EAGLView *eaglview;
 		renderer.props |= PROP_FOG;		
 		
 		
-		if(thisDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad)
-		{
-			// iPad
-			 
-            //Disable fog only on iPad1 machines, iPad2 have enough fillarate
-            size_t size;
-			sysctlbyname("hw.machine", NULL, &size, NULL, 0);
-			char *machine = malloc(size);
-			sysctlbyname("hw.machine", machine, &size, NULL, 0);
-			
-			
-			if (!strcmp(machine, "iPad1,1"))
-				renderer.props &= ~PROP_FOG ;
-			
-		}
 		
 		
 	//	printf("renderer.resolution =%.2f\n",renderer.resolution );
 				
-		//Set shadow enabled/disabled
-		//Set shadow type
-		if ([[[NSUserDefaults standardUserDefaults] stringForKey:@"ShadowType"] intValue])
-			renderer.props |= PROP_SHADOW ;
-		else 
-			renderer.props &= ~PROP_SHADOW ;
-
-		
-		if ([[[NSUserDefaults standardUserDefaults] stringForKey:@"NormalMappingEnabled"] intValue])
-			renderer.props |= PROP_BUMP ;
-		else 
-			renderer.props &= ~PROP_BUMP ;
-
-		
-		if ([[[NSUserDefaults standardUserDefaults] stringForKey:@"SpecularMappingEnabled"] intValue])
-			renderer.props |= PROP_SPEC ;		
-		else
-			renderer.props &= ~PROP_SPEC ;
+		renderer.props &= ~(PROP_SHADOW | PROP_BUMP | PROP_SPEC);	// the 2009 GL pipeline's; Metal draws none of them
 
 		
         
 		animating = FALSE;
-		displayLinkSupported = FALSE;
 		displayLink = nil;
-		animationTimer = nil;
-		
-		// A system version of 3.1 or greater is required to use CADisplayLink. The NSTimer
-		// class is used as fallback when it isn't available.
-		NSString *reqSysVer = @"3.1";
-		NSString *currSysVer = [[UIDevice currentDevice] systemVersion];
-		if ([currSysVer compare:reqSysVer options:NSNumericSearch] != NSOrderedAscending)
-			displayLinkSupported = TRUE;
         
 			
 		
@@ -322,7 +189,9 @@ EAGLView *eaglview;
 	MTL_BeginFrame();
 	dEngine_HostFrame();
 	MTL_EndFrame();
+#ifdef SHMUP_CI_HOOKS
 	SND_MusicProbeTick();	// audio bench: a soundtrack position sample every ~5 s
+#endif
 }
 
 
@@ -395,80 +264,21 @@ EAGLView *eaglview;
 - (void)startAnimation {
     if (!animating)
 	{
-		
-		if (displayLinkSupported)
-		{
-			// CADisplayLink is API new to iPhone SDK 3.1. Compiling against earlier versions will result in a warning, but can be dismissed
-			// if the system version runtime check for CADisplayLink exists in -initWithCoder:. The runtime check ensures this code will
-			// not be called in system versions earlier than 3.1.
-			
-			displayLink = [NSClassFromString(@"CADisplayLink") displayLinkWithTarget:self selector:@selector(drawView:)];
-			
-			/*
-			 Platforms
-			 iPhone1,1 -> iPhone 1G
-			 iPhone1,2 -> iPhone 3G 
-			 iPod1,1   -> iPod touch 1G 
-			 iPod2,1   -> iPod touch 2G 
-			 */
-			
-			size_t size;
-			sysctlbyname("hw.machine", NULL, &size, NULL, 0);
-			char *machine = malloc(size);
-			sysctlbyname("hw.machine", machine, &size, NULL, 0);
-			
-			
-			if (!strcmp(machine, "iPhone1,1") || !strcmp(machine, "iPod1,1"))
-				animationFrameInterval = 2;
-			else
-				animationFrameInterval = 1;
-			/*
-			 #ifdef _ARM_ARCH_7
-			 NSLog(@"Running on _ARM_ARCH_7");
-			 
-			 #else
-			 NSLog(@"Running on _ARM_ARCH_6");
-			 animationFrameInterval = 2;
-			 #endif
-*/			 
-			
-			free(machine);
-				
-				
-			// v3: preferredFramesPerSecond replaces the deprecated setFrameInterval: (and the typed receiver ends the "multiple methods named" ambiguity)
-			((CADisplayLink*)displayLink).preferredFramesPerSecond = (animationFrameInterval > 0) ? (NSInteger)(60 / animationFrameInterval) : 60;
-			[displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
-		}
-		else
-		{
-			NSLog(@"CADisplayLink is unavailable, failing back to NSTimer");
-			animationTimer = [NSTimer scheduledTimerWithTimeInterval:(NSTimeInterval)((MAX_FPS) * animationFrameInterval) target:self selector:@selector(drawView:) userInfo:nil repeats:TRUE];
-		}	
+		displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(drawView:)];
+		((CADisplayLink*)displayLink).preferredFramesPerSecond = (animationFrameInterval > 0) ? (NSInteger)(60 / animationFrameInterval) : 60;
+		[displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
 		animating = TRUE;
 	}
-	
 }
-
 
 - (void)stopAnimation {
 	if (animating)
 	{
-		if (displayLinkSupported)
-		{
-			[displayLink invalidate];
-			displayLink = nil;
-		}
-		else
-		{
-			[animationTimer invalidate];
-			animationTimer = nil;
-		}
-		
+		[displayLink invalidate];
+		displayLink = nil;
 		animating = FALSE;
 	}
 }
-
-
 
 
 - (void)  loadTexture:(texture_t*)text
@@ -557,12 +367,15 @@ void loadNativePNG(texture_t* tmpTex)
     [self stopAnimation];
 }
 
-- (void) handleTouches:(UIEvent*)event 
+// Each callback hands over the touches of ITS phase only. Walking [event
+// allTouches] instead pushed a touch once per callback of the same event (a
+// finger lifting while another moved ended twice), and a cancelled touch --
+// a system gesture, a call -- never ended at all: fire stayed held.
+- (void) handleTouches:(NSSet*)phaseTouches
 {
 
-    int touchCount = 0;
     io_event_s shmupEvent;
-    static int previousTouchCount;
+    memset(&shmupEvent, 0, sizeof(shmupEvent));
 
 
     // v3.0.1: UIKit reports touches in points; the engine maps them against its
@@ -574,35 +387,17 @@ void loadNativePNG(texture_t* tmpTex)
     CGFloat toSurface = self.bounds.size.width > 0
         ? renderer.glBuffersDimensions[WIDTH] / self.bounds.size.width : 1;
 
-    NSSet *iPhonetouches = [event allTouches];
-    for (UITouch *myTouch in iPhonetouches)
+    for (UITouch *myTouch in phaseTouches)
     {
-        touchCount++;
         CGPoint touchLocation = [myTouch locationInView:nil];
         CGPoint prevTouchLocation = [myTouch previousLocationInView:nil];
         touchLocation.x *= toSurface;  touchLocation.y *= toSurface;
         prevTouchLocation.x *= toSurface;  prevTouchLocation.y *= toSurface;
 
-        // Tutorial (scenes 14 = swipe, 15 = virtual pad) and Demo (scene 13): a
-        // top-centre BACK button to leave and return to the main menu. Swallow
-        // the touch.
-        if ((SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) && myTouch.phase == UITouchPhaseBegan && !TITLE_IsShowing())	// v4: by kind
-        {
-            CGPoint local = [myTouch locationInView:self];
-            CGFloat fx = local.x / self.bounds.size.width;
-            CGFloat fy = local.y / self.bounds.size.height;
-            if (fx > 0.32f && fx < 0.68f && fy > 0.17f && fy < 0.29f)
-            {
-                MENU_Set(MENU_HOME);
-                dEngine_RequireSceneId(0);
-                continue;
-            }
-        }
-
         shmupEvent.position[X] = touchLocation.x;
         shmupEvent.position[Y] = touchLocation.y;
         
-        if (myTouch.phase == UITouchPhaseEnded){
+        if (myTouch.phase == UITouchPhaseEnded || myTouch.phase == UITouchPhaseCancelled){
             shmupEvent.type = IO_EVENT_ENDED;
             IO_PushEvent(&shmupEvent);
         }
@@ -621,61 +416,29 @@ void loadNativePNG(texture_t* tmpTex)
     }
 	
 	
-	if ( touchCount == 5 && previousTouchCount != 5 )
-	{
-		MENU_Set(MENU_HOME);
-		engine.requiredSceneId=0;
-	}
-	
-	previousTouchCount = touchCount;
 	
 }
 
 - (void) touchesBegan:(NSSet*)touches withEvent:(UIEvent*)event {
 	//	printf( "touchesBegan\n" );
-	[self handleTouches:event];
+	[self handleTouches:touches];
 }
 
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event {
 	//	printf( "touchesMoved\n" );
-	[self handleTouches:event];
+	[self handleTouches:touches];
 }
 
 - (void) touchesEnded:(NSSet*)touches withEvent:(UIEvent*)event {
 	//	printf( "touchesEnded\n" );
-	[self handleTouches:event];
+	[self handleTouches:touches];
 }
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
 	//	printf( "touchesCancelled\n" );
-	[self handleTouches:event];
+	[self handleTouches:touches];
 }
 
 
-extern char*	FS_GameWritableDir(void);
-int Native_RetrieveListOf(char replayList[10][256])
-{
-	NSFileManager* fileManager = [NSFileManager defaultManager];
-	
-	NSString* pathToList = [NSString stringWithFormat:@"%s", FS_GameWritableDir()];
-	
-	NSDirectoryEnumerator *dirEnum = [fileManager enumeratorAtPath:pathToList];
-	
-	int numFile = 0;
-	
-	NSLog(@"[Native_RetrieveListOf]:");
-	NSString *file;
-	while (file = [dirEnum nextObject]) {
-//		printf("File extension %s\n",[[file pathExtension] cStringUsingEncoding:NSASCIIStringEncoding] );
-		if ([[file pathExtension] isEqualToString: @"io"]) {
-			
-			strcpy(replayList[numFile],[file cStringUsingEncoding:NSASCIIStringEncoding]);
-			printf("	- Listing %d [%s]\n",numFile,replayList[numFile]);
-			numFile++;
-		}
-	}
-	
-	return numFile;
-}
 
 @end

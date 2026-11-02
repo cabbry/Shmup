@@ -41,8 +41,6 @@ that name and the app delegate outlet is typed with it.
 @private
 
 	BOOL animating;
-	BOOL displayLinkSupported;
-    NSTimer *animationTimer;
 	id displayLink;
     NSInteger animationFrameInterval;
 }

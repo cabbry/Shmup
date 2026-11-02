@@ -32,9 +32,6 @@
 #include "music.h"
 #include "native_services.h"   // declares Native_UploadScore et al. (we define the stubs below)
 
-#include <sys/types.h>
-#include <sys/sysctl.h>
-
 #import <AVFoundation/AVFoundation.h>
 #import <GameKit/GameKit.h>
 
@@ -45,6 +42,11 @@ UIViewController* vc=nil;
 // the one-shot role election / handoff to the engine.
 static GKMatch* gMatch = nil;
 static BOOL     gMatchStarted = NO;
+
+// The notices an online match shows when it cannot be set up (defined with
+// the Game Center hint, below the delegate).
+static void ShowOnlineNotice(NSString* en, NSString* fr);
+static void ShowOnlineUnavailable(void);
 
 
 
@@ -76,6 +78,7 @@ static BOOL     gMatchStarted = NO;
 - (void) applicationDidFinishLaunching:(UIApplication *)application
 {
 	NSLog(@"applicationDidFinishLaunching");
+	this = self;	// before the Game Center handler below can run and use it
 	[UIApplication sharedApplication].idleTimerDisabled = YES;
 
     if (vc == nil)
@@ -92,14 +95,14 @@ static BOOL     gMatchStarted = NO;
         if (gcVC) {
             [vc presentViewController:gcVC animated:YES completion:nil];
         } else if ([GKLocalPlayer local].isAuthenticated) {
-            NSLog(@"[GameCenter] authenticated as %@", [GKLocalPlayer local].displayName);
+            NSLog(@"[GameCenter] authenticated");
             // v2 P4: listen for invitations. Without this an invited player
             // taps "Play" in Game Center / iMessage and NOTHING happens --
             // and inviting three friends is the natural way to fill a party
             // of four. The listener has to be registered after auth, and only
             // once (registering twice delivers every callback twice).
             [[GKLocalPlayer local] unregisterAllListeners];
-            [[GKLocalPlayer local] registerListener:this];
+            [[GKLocalPlayer local] registerListener:self];
         } else {
             NSLog(@"[GameCenter] not authenticated: %@", error);
         }
@@ -124,9 +127,9 @@ static BOOL     gMatchStarted = NO;
 
 	[glView checkEngineSettings];
 
-	// Keep the game (do NOT reset). Resume the music queue from where it was
-	// paused, then arm the 3-2-1-SHMUP countdown if a game was in progress.
-	SND_ResumeSoundTrack();
+	// Keep the game (do NOT reset): dEngine_ResumeGame resumes the music queue
+	// from where it was paused and arms the 3-2-1-SHMUP countdown if a game was
+	// in progress.
 	dEngine_ResumeGame();
 
 	[glView startAnimation];
@@ -146,12 +149,10 @@ static BOOL     gMatchStarted = NO;
 	// So when the app is really backgrounded during a multiplayer match, end the match
 	// cleanly and go back to the menu instead of resuming out of sync. (Single-player
 	// still pauses + 3-2-1 resumes, handled in applicationDidBecomeActive.)
-	if (engine.mode == DE_MODE_MULTIPLAYER && NET_IsRunning())
-	{
-		NET_Free();
-		MENU_Set(MENU_HOME);
-		dEngine_RequireSceneId(0);
-	}
+	// The mode, not NET_IsRunning: between two acts the session is not running
+	// yet still in the match.
+	if (engine.mode == DE_MODE_MULTIPLAYER && NET_IsInMatch())
+		dEngine_QuitByPlayer();
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)application
@@ -167,9 +168,7 @@ static BOOL     gMatchStarted = NO;
 
 - (void)applicationDidReceiveMemoryWarning:(UIApplication *)application
 {
-	printf("*****************************************************\n");
-	printf("******[applicationDidReceiveMemoryWarning] WARNING***\n");
-	printf("*****************************************************\n");
+	NSLog(@"applicationDidReceiveMemoryWarning");
 }
 
 
@@ -205,8 +204,11 @@ static BOOL     gMatchStarted = NO;
 
 - (void)matchmakerViewController:(GKMatchmakerViewController *)viewController didFailWithError:(NSError *)error {
 	NSLog(@"[GKMatch] matchmaking failed: %@", error);
-	[viewController dismissViewControllerAnimated:YES completion:nil];
 	NET_AbortOnlineMatch();
+	[viewController dismissViewControllerAnimated:YES completion:^{
+		ShowOnlineNotice(@"Online matchmaking failed. Check the connection and try again.",
+		                 @"La recherche en ligne a échoué. Vérifiez la connexion et réessayez.");
+	}];
 }
 
 #pragma mark - GKLocalPlayerListener (invitations)
@@ -221,17 +223,31 @@ static BOOL     gMatchStarted = NO;
 
 	Native_CancelOnlineMatchmaking();		// drop any stale match first
 
+	// An invitation can arrive anywhere: in an act, behind the pause menu, in
+	// another party's lobby. The match starts from the home scene, like one
+	// set up from the menus -- an act left running underneath used to keep
+	// playing, and the party then started on the act AFTER it.
+	if (engine.sceneId != 0)
+	{
+		dEngine_QuitByPlayer();		// leaves a match and a pause too
+		dEngine_CheckState();		// the home scene now, so the waiting screen goes over it
+	}
+	else if (engine.mode == DE_MODE_MULTIPLAYER)
+		dEngine_LeaveMultiplayer();
+	NET_SetStartAct(0);				// no act picked here: the host's pick, or Dawn
+
 	engine.mode = DE_MODE_MULTIPLAYER;
 	NET_Init();
 	net.transport = NET_TRANSPORT_GAMECENTER;
 	PL_ResetPlayersScore();
 	engine.difficultyLevel = DIFFICULTY_NORMAL;
 	MENU_Set(MENU_MULTIPLAYER);
-	sprintf(MENU_GetMultiplayerTextLine(0), "Joining a friend's game...");
+	sprintf(MENU_GetMultiplayerTextLine(0), "%s", MENU_Translate("Joining a friend's game..."));
 
 	GKMatchmakerViewController* mmvc = [[GKMatchmakerViewController alloc] initWithInvite:invite];
 	if (mmvc == nil) {
 		NET_AbortOnlineMatch();
+		ShowOnlineUnavailable();
 		return;
 	}
 	mmvc.matchmakerDelegate = this;
@@ -269,7 +285,9 @@ static void GKSeats_Clear(void) {
 			else
 				NET_OnPeerLost();	// unknown sender: not our table, bail out clean
 		} else {
-			NET_AbortOnlineMatch();	// still matchmaking: just back out to the menu
+			NET_AbortOnlineMatch();	// still matchmaking: back out to the menu, and say why
+			ShowOnlineNotice(@"A player left before the match started.",
+			                 @"Un joueur est parti avant le début de la partie.");
 		}
 		return;
 	}
@@ -322,6 +340,9 @@ static void MatchPollStop(void) {
 		NSLog(@"[GKMatch] still %lu player(s) short after %d s: giving up on this match",
 		      (unsigned long)gMatch.expectedPlayerCount, MATCH_POLL_MAX_TICKS / 2);
 		MatchPollStop();
+		NET_AbortOnlineMatch();		// the waiting screen would sit there for good
+		ShowOnlineNotice(@"The other players did not connect. Try again.",
+		                 @"Les autres joueurs ne se sont pas connectés. Réessayez.");
 		return;
 	}
 	[self tryStartMatch];
@@ -357,21 +378,10 @@ static void MatchPollStop(void) {
 #pragma mark - Native services (platform stubs)
 
 /*
- The engine (event.c, menu.c, player.c) calls these C entry points through
- native_services.h. Every other platform backend (win32, linux, macOS,
- Android) implements them as no-ops -- see e.g. engine/win32/native.c.
-
- The original iOS implementations were removed during modernization:
-   - Game Center (GKLeaderboardViewController / GKScore) : APIs removed/
-     deprecated in current SDKs, and the feature was already disabled at
-     runtime (engine.gameCenterEnabled is forced to 0).
-   - "Buy the full version" cross-promo (UIAlertView)    : deprecated, and
-     the linked App Store page no longer exists.
-   - Replay telemetry upload to fabiensanglard.net       : dead endpoint,
-     and plain-HTTP POSTs are blocked by App Transport Security.
-
- Native_RetrieveListOf (the replay file listing) is still implemented for
- real in EAGLView.m -- it uses NSFileManager and needs no modernization.
+ The engine (event.c, menu.c, player.c) reaches the platform through these C
+ entry points, declared in native_services.h: Game Center scores and the
+ leaderboard sheet, the menu language, the version string, the saved loadout
+ and options, and the online-match bridge further down.
 */
 
 // v2: menu localization -- French menus when the user's preferred language is
@@ -407,10 +417,38 @@ void Native_UploadScore(uint score) {
 		}];
 	}
 }
-void Native_LoginGameCenter(void) {}
+// Scores and Online need a Game Center player. Someone who declined the
+// sign-in sheet at launch used to tap either button and see nothing at all;
+// now they are told where to sign in.
+static void ShowGameCenterSignInHint(void) {
+	NSString* msg = Native_IsFrenchLanguage()
+		? @"Connectez-vous à Game Center dans l’app Réglages pour voir le classement et jouer en ligne."
+		: @"Sign in to Game Center in the Settings app to see the leaderboard and play online.";
+	MENU_ClearButtonStates();	// the tapped button must not stay pressed
+	if (!vc) return;
+	UIAlertController* a = [UIAlertController alertControllerWithTitle:@"Game Center" message:msg preferredStyle:UIAlertControllerStyleAlert];
+	[a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+	[vc presentViewController:a animated:YES completion:nil];
+}
+
+// An online match that cannot be set up says so, instead of dropping back to
+// the Game Multi menu in silence.
+static void ShowOnlineNotice(NSString* en, NSString* fr) {
+	MENU_ClearButtonStates();
+	if (!vc) return;
+	UIAlertController* a = [UIAlertController alertControllerWithTitle:@"Game Center" message:(Native_IsFrenchLanguage() ? fr : en) preferredStyle:UIAlertControllerStyleAlert];
+	[a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+	[vc presentViewController:a animated:YES completion:nil];
+}
+
+static void ShowOnlineUnavailable(void) {
+	ShowOnlineNotice(@"Online play is not available on this device (Game Center restrictions).",
+	                 @"Le jeu en ligne n’est pas disponible sur cet appareil (restrictions Game Center).");
+}
+
 void Action_ShowGameCenter(void* tag) {
 	if (!this || !vc) return;
-	if (![GKLocalPlayer local].isAuthenticated) return;
+	if (![GKLocalPlayer local].isAuthenticated) { ShowGameCenterSignInHint(); return; }
 
 	// v3: the deployment target is iOS 15, so the pre-14 viewState branch was
 	// dead code -- and deprecated. The iOS 14 initializer stands alone.
@@ -420,7 +458,6 @@ void Action_ShowGameCenter(void* tag) {
 	gcvc.gameCenterDelegate = this;
 	[vc presentViewController:gcvc animated:YES completion:nil];
 }
-void Native_UploadFileTo(char path[256]) {}
 
 // Persist the solo loadout (ship + bullet colour) in NSUserDefaults; restored at
 // launch in EAGLView's checkEngineSettings.
@@ -431,13 +468,16 @@ void Native_SaveLoadout(int ship, int color) {
 	[d synchronize];
 }
 
-// Persist the furthest act ever reached (gates the act-select screen); restored
-// at launch in EAGLView's checkEngineSettings.
-void Native_SaveProgress(int highestAct) {
+// The Options screen. The keys are the ones checkEngineSettings (EAGLView.m)
+// reads at launch and on every return to the foreground, written as strings
+// like the values it parses with intValue.
+void Native_SaveOptions(void) {
 	NSUserDefaults* d = [NSUserDefaults standardUserDefaults];
-	[d setInteger:highestAct forKey:@"HighestAct"];
+	[d setObject:(engine.soundEnabled ? @"1" : @"0") forKey:@"SoundEffectsEnabled"];
+	[d setObject:(engine.musicEnabled ? @"1" : @"0") forKey:@"MusicEnabled"];
 	[d synchronize];
 }
+
 
 #pragma mark - Online multiplayer bridge (engine -> GameKit)
 
@@ -448,8 +488,9 @@ void Native_SaveProgress(int highestAct) {
 void Native_StartOnlineMatchmaking(int partySize) {
 	if (!this || !vc) return;
 	if (![GKLocalPlayer local].isAuthenticated) {
-		// Not signed into Game Center: cannot matchmake -- bounce back to the menu.
+		// Not signed into Game Center: cannot matchmake -- back to the menu, and say why.
 		NET_AbortOnlineMatch();
+		ShowGameCenterSignInHint();
 		return;
 	}
 
@@ -464,8 +505,9 @@ void Native_StartOnlineMatchmaking(int partySize) {
 
 	GKMatchmakerViewController* mmvc = [[GKMatchmakerViewController alloc] initWithMatchRequest:req];
 	if (mmvc == nil) {
-		// Matchmaking unavailable (e.g. Game Center restricted): back out cleanly.
+		// Matchmaking unavailable (e.g. Game Center restricted): back out, and say why.
 		NET_AbortOnlineMatch();
+		ShowOnlineUnavailable();
 		return;
 	}
 	mmvc.matchmakerDelegate = this;

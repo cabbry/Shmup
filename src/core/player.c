@@ -25,7 +25,7 @@
 
 #include "player.h"
 #include "ci_hooks.h"
-#include <stdlib.h>	// getenv: the SHMUP_AUTOFIRE CI probe
+#include <stdlib.h>
 #include "renderer.h"
 #include "camera.h"
 #include "timer.h"
@@ -84,9 +84,6 @@ static void P_ApplyShipTint(int playerId, int shipChoice)
 	players[playerId].entity.color[3] = t[3];
 }
 
-// Diagnostic: basename of the ship model actually loaded for the solo player, shown
-// in-game so we can confirm the Custom ship choice is applied (vs. the art just looking alike).
-char gLoadedShipDebug[64] = "";
 
 // Solo bullet colour (Others -> Ship). Selects the colour COLUMN of the bullet atlas
 // (spritesBullets.png); the player index already does this in multiplayer, so in solo
@@ -361,15 +358,6 @@ void P_LoadPlayer(int playerIdToLoad)
 		ENT_LoadEntity(currentEntity, modelToLoad, ENT_FULL_DRAW);
 		P_ApplyShipTint(playerIdToLoad,
 			(engine.mode == DE_MODE_SINGLEPLAYER) ? gShipChoice : 0);
-
-		// Diagnostic: record the basename of what player 0 (the solo ship) actually loaded.
-		if (playerIdToLoad == 0)
-		{
-			const char* base = modelToLoad;
-			const char* s;
-			for (s = modelToLoad; *s; s++) if (*s == '/') base = s + 1;
-			snprintf(gLoadedShipDebug, sizeof(gLoadedShipDebug), "SHIP c%d %s", gShipChoice, base);
-		}
 	}
 	
 
@@ -731,6 +719,7 @@ void P_Update(void)
 			// frame and the smoke's dome/sky luma assertions sample a REAL
 			// frame mix -- the client-state lottery (builds 207/208) never
 			// reproduced on an idle run because no polluting pass ever drew.
+#ifdef SHMUP_CI_HOOKS
 			{
 				static int autofire = -1;
 				if (autofire < 0)
@@ -743,6 +732,7 @@ void P_Update(void)
 				if (autofire && engine.mode == DE_MODE_SINGLEPLAYER)
 					P_FireTwoBullet(player);
 			}
+#endif
 
 			if (player->autopilot.enabled)
 			{
@@ -1168,6 +1158,55 @@ static void P_SetBarQuad(xf_textureless_sprite_t* q, short l, short r, short top
 	q[3].color[R] = botRed; q[3].color[G] = botGreen; q[3].color[B] = botBlue; q[3].color[A] = alpha;
 }
 
+// ---- The HUD's buttons -------------------------------------------------------
+// The top row -- score, lives, pause -- sits just below the safe area (status
+// bar, notch, Dynamic Island); on a 2:3 screen it lands about where the 2009
+// score was. Drawing (P_RenderHud below) and hit-testing (io_interface.c) both
+// read their positions here, so the two cannot drift apart.
+// "[II]", bracketed like "[ BACK ]" so it reads as a button (a bare "II"
+// did not, tester's feedback on 5.0.14). Centred in the gap between the
+// score's last digit and the lives icon.
+#define HUD_PAUSE_X  86
+// The font is monospaced -- one cell per glyph, spaces included -- and every
+// glyph sits centred in its cell, so the string "[ II ]" spread four thin
+// glyphs over six cells, about 130 units (tester's feedback on 5.0.15). The
+// glyphs are placed one by one instead, packed like a pause icon: at
+// SCORE_FONT_SIZE about the same 7-unit gap between the bars and between a
+// bar and its bracket. The offsets follow the widths of the atlas's 'I' and
+// brackets (Poppins Bold, tools/cards/make_font.ps1); a new face means
+// measuring them again.
+static const char  hudPauseGlyphs[4]  = { '[', 'I', 'I', ']' };
+static const short hudPauseGlyphDx[4] = { -19, -6, 6, 19 };
+#define HUD_BACK_DY  100	// [ BACK ] sits this far under the row
+
+short P_HudRowY(void)
+{
+	float orthoPerPx = (2.0f * SS_H) / (float)renderer.glBuffersDimensions[HEIGHT];
+	return (short)(SS_H - renderer.safeInsetTopPx * orthoPerPx - 30.0f);
+}
+
+// The HUD row is drawn only while the ships fly with the camera, and never
+// over the end-of-game card (PL_RenderPlayerPointers). A button answers only
+// when it is drawn.
+static int P_HudRowDrawn(void)
+{
+	return entitiesAttachedToCamera && !TITLE_IsEndOfGameScreen() && !engine.menuVisible;
+}
+
+int P_PauseButtonShown(void)
+{
+	return SCENE_IS(SCENE_KIND_ACT) && P_HudRowDrawn();
+}
+
+int P_BackButtonShown(void)
+{
+	// Not while an act title card is up: its band covers this very zone.
+	return (SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) && !TITLE_IsShowing() && P_HudRowDrawn();
+}
+
+void P_PauseButtonPos(short* x, short* y) { *x = HUD_PAUSE_X; *y = P_HudRowY(); }
+void P_BackButtonPos(short* x, short* y)  { *x = 0;           *y = (short)(P_HudRowY() - HUD_BACK_DY); }
+
 static void P_RenderBossHealthBar(int hp, int maxHp, short barY)
 {
 	static xf_textureless_sprite_t quads[12];
@@ -1336,8 +1375,7 @@ void PL_RenderPlayerPointers(void)
 	// Island). On a 2:3 device (vScale=1, safeInsetTopPx=0) this lands at ~the
 	// legacy SCORE_POS_Y, so other platforms are unaffected.
 	{
-		float orthoPerPx = (2.0f * SS_H) / (float)renderer.glBuffersDimensions[HEIGHT];
-		short scoreY = (short)(SS_H - renderer.safeInsetTopPx * orthoPerPx - 30.0f);
+		short scoreY = P_HudRowY();
 		int bossHp = 0, bossMaxHp = 0, bossFight;
 		short bossBarY = 0;
 		SCR_ConvertTextToVertices(stringScore,SCORE_FONT_SIZE,SCORE_POS_X,scoreY,TEXT_NOT_CENTERED);
@@ -1355,12 +1393,26 @@ void PL_RenderPlayerPointers(void)
 			sprintf(livesStr, "x%d", pool);
 			SCR_ConvertTextToVertices(livesStr, MP_LIVES_FONT_SIZE, livesTextX, scoreY, TEXT_NOT_CENTERED);
 		}
-		// Tutorial (scenes 14 = swipe, 15 = virtual pad) and Demo (scene 13): a
-		// BACK button at the top-centre to leave. Hit-tested in EAGLView.
-		// Not while the act title card is up: the card's band covers this
-		// very zone and the two used to print over each other (round 38).
-		if ((SCENE_IS(SCENE_KIND_DEMO) || SCENE_IS(SCENE_KIND_TUTORIAL)) && !TITLE_IsShowing())	// v4: by kind
-			SCR_ConvertTextToVertices("[ BACK ]",SCORE_FONT_SIZE,0,(short)(scoreY - 100),TEXT_CENTERED);
+		// The HUD's buttons. Their positions and their hit-test live together
+		// (P_PauseButtonPos / P_BackButtonPos, io_interface.c).
+		if (P_PauseButtonShown())
+		{
+			short px, py;
+			char glyph[2] = { 0, 0 };
+			int g;
+			P_PauseButtonPos(&px, &py);
+			for (g = 0; g < 4; g++)
+			{
+				glyph[0] = hudPauseGlyphs[g];
+				SCR_ConvertTextToVertices(glyph, SCORE_FONT_SIZE, (short)(px + hudPauseGlyphDx[g]), py, TEXT_CENTERED);
+			}
+		}
+		if (P_BackButtonShown())
+		{
+			short bx, by;
+			P_BackButtonPos(&bx, &by);
+			SCR_ConvertTextToVertices("[ BACK ]", SCORE_FONT_SIZE, bx, by, TEXT_CENTERED);
+		}
 		// Boss health bar (act 3), just under the score line while the fight is
 		// on. Only the "BOSS" label is font text (letters are proven on-screen);
 		// the bar itself is drawn after the text pass as solid colored quads.

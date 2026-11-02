@@ -1,6 +1,6 @@
 name: Smoke test the rules (the bench, then the reactive act)
 
-# v4 stage 2 -- the rules bench. Scene 12 (data/levels/test_rules) chains
+# v4 stage 2 -- the rules bench. Scene 12 (tools/ci/levels/test_rules) chains
 # three waves by RULES, not by the clock: w2 spawns 1.5 s after w1 is wiped
 # out, w3 when w2 is, and a clock rule fires at 60 s. With autofire on, the
 # engine prints "[rule] t=<sim> fire <name> ..." for every rule that fires.
@@ -45,6 +45,16 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             build | tail -5
+
+      # The bench is test data, not part of the game: it lives in tools/ci and
+      # goes into the simulator build here, never into a shipped app.
+      - name: Add the rules bench to the test build
+        run: |
+          APP=$(find ios/build -name "Shmup.app" -maxdepth 3 | head -1)
+          mkdir -p "$APP/data/levels"
+          cp -R tools/ci/levels/test_rules "$APP/data/levels/test_rules"
+          perl -0pi -e 's/(\n[ \t]*pack 13[ \t])/\n\tpack 12\tdata\/levels\/test_rules\/pack.cfg\r$1/' "$APP/data/config.cfg"
+          grep -n "pack 1[23]" "$APP/data/config.cfg"
 
       - name: Boot a simulator
         id: sim

@@ -19,12 +19,14 @@ store/
       keywords.txt                 <= 100, comma-separated
       promotional_text.txt         <= 170, can change without a new build
       whats_new.txt                <= 4000, the release notes
-      support_url.txt  marketing_url.txt
+      support_url.txt              the support page (store/SUPPORT.md, the e-mail)
+      marketing_url.txt
   screenshots/
     en-US/  fr-FR/
       APP_IPHONE_67/ *.png         6.9"/6.7" iPhone: 1320x2868 or 1290x2796 (required)
       APP_IPAD_PRO_3GEN_129/ *.png 13"/12.9" iPad: 2064x2752 or 2048x2732 (required, the app runs on iPad)
   PRIVACY.md                       the privacy policy the listing links to
+  SUPPORT.md                       the support page the listing links to
   review_notes.txt                 the notes for App Review
 ```
 
@@ -60,7 +62,8 @@ the 6.9" set; an iPad Pro 12.9"/13" frame is 2048x2732 or 2064x2752.
    bundle says the same (no tracking, no collected data, NSUserDefaults for
    reason CA92.1).
 2. **Age rating**: written by the push (*Cartoon or Fantasy Violence:
-   Infrequent or Mild*; everything else *None* or *No*, including "Guns or
+   Frequent or Intense* -- you fire at ships the whole game; 5.0.11 and
+   5.0.12 said infrequent; everything else *None* or *No*, including "Guns or
    other weapons" — the ships fire bullets, not firearms; change it in the
    web UI if you read the question otherwise). Expected rating: 9+. Check the
    rating Apple computed on the App Information page. Category: Games, Action
@@ -70,10 +73,14 @@ the 6.9" set; an iPad Pro 12.9"/13" frame is 2048x2732 or 2064x2752.
 4. **App Review contact** (name, phone, e-mail) in the version's review
    details: personal data, so it is not in this repository. Sign-in
    information: *not required*.
-5. **Content rights**: the app does not contain third-party content. The two
-   music tracks shipped with the 2009 game are part of Fabien's release.
-6. **Submit for review** once Fabien has answered and the build is the one he
-   saw. Release: *manual* after approval, so the day is chosen.
+5. **Content rights**: the game's credits name Future Crew for the music, the
+   two tracks shipped with the 2009 game; Fabien Sanglard bought the rights to
+   use them in SHMUP. That is third-party content: `asc-store-shipping` sets
+   it with `content_rights=uses`, and the review notes say where the music
+   comes from. It was answered "no third-party content" for 5.0.11 and
+   5.0.12, wrongly.
+6. **Submit for review**: version 5.0.17, build 278, with screenshots taken
+   from that build. Release: *manual* after approval, so the day is chosen.
 
 ## Sizes to respect (App Store Connect refuses beyond)
 

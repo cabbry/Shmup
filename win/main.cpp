@@ -217,7 +217,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	dEngine_Init();
 	renderer.statsEnabled = 0;
-	engine.licenseType = LICENSE_FULL;
 	//This is only for windows build. Uses the viewport
 	IO_Init();
 

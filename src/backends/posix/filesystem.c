@@ -32,15 +32,18 @@ char fs_gamedir[ MAX_OSPATH ];
 char fs_writableDir[ MAX_OSPATH ];
 
 
+// Passed directly by the platform (ios/main.m, win/main.c). They went through
+// the environment until v5; nothing in the game reads the environment now.
+void FS_SetDirectories(const char* gameDir, const char* writableDir)
+{
+	snprintf( fs_gamedir, sizeof(fs_gamedir), "%s", gameDir ? gameDir : "" );
+	snprintf( fs_writableDir, sizeof(fs_writableDir), "%s", writableDir ? writableDir : "" );
+}
+
 bool FS_InitFilesystem( void )
 {
-	char *p;
-	p = getenv("RD");
-	sprintf( fs_gamedir, "%s", p );
 	//Log_Printf("[Filesystem] Base    directory initialized (%s).\n",fs_gamedir);
 	
-	p = getenv("WD");\
-	sprintf( fs_writableDir, "%s", p );
 	//Log_Printf("[Filesystem] Writable directory initialized (%s).\n",fs_writableDir);
 
 

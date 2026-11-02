@@ -1,1 +1,1 @@
-https://fabiensanglard.net/shmup/
+https://github.com/cabbry/Shmup

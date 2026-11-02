@@ -64,7 +64,6 @@ engine_info_t engine;
 #define CONFIG_PATH "data/config.cfg"
 
 
-char* screenShotDirectory = "./";//"/Users/fabiensanglard/Pictures/dEngine/";
 
 
 static void dEngine_ReadPack(int sceneId, const char* packPath);	// v4 stage 1, defined below dEngine_ReadConfig
@@ -119,11 +118,11 @@ bool dEngine_ReadConfig(void)
 					strcpy(engine.scenes[currentSceneId].path, LE_getCurrentToken());
 
 					// v4: a legacy entry gets its kind from the 2009 id convention
-					// (0 the intro, 1..numScenes-1 the acts, 13 demo, 14-15 tutorials).
+					// (0 the intro, 1..numScenes-1 the acts, 13 the demo, 14 the tutorial).
 					engine.scenes[currentSceneId].kind =
 						(currentSceneId == 0) ? SCENE_KIND_INTRO :
 						(currentSceneId == 13) ? SCENE_KIND_DEMO :
-						(currentSceneId == 14 || currentSceneId == 15) ? SCENE_KIND_TUTORIAL : SCENE_KIND_ACT;
+						(currentSceneId == 14) ? SCENE_KIND_TUTORIAL : SCENE_KIND_ACT;
 
 					Log_Printf("Read scene %d, name %s, path %s\n",currentSceneId,engine.scenes[currentSceneId].name,engine.scenes[currentSceneId].path);
 
@@ -281,8 +280,8 @@ bool dEngine_ReadConfig(void)
 	LE_popLexer();
 	FS_CloseFile(config);
 
-	// v4: number the acts in id order; the progression, the licence check and
-	// the end-of-game card key on actIndex / numActs, not on scene ids.
+	// v4: number the acts in id order; the act select and the end-of-game card
+	// key on actIndex / numActs, not on scene ids.
 	{
 		int i, n = 0;
 		for (i = 0; i < MAX_NUM_SCENES; i++)
@@ -298,71 +297,6 @@ bool dEngine_ReadConfig(void)
 
 }
 
-uchar* screenShotBuffer;
-void dEngine_INIT_ScreenshotBuffer(void)
-{
-	screenShotBuffer = calloc(renderer.glBuffersDimensions[WIDTH]*renderer.glBuffersDimensions[HEIGHT], 4);
-}
-
-void dEngine_WriteScreenshot(char* directory)
-{
-	
-	int i;//,j;
-	filehandle_t* pScreenshot;
-	char fullPath[256];
-	
-	uchar tga_header[18];
-	uchar* pixel;
-	uchar tmpChannel;
-	
-	/*
-	char num[64];
-	sprintf(num, "scene%05d_t=%05d",engine.sceneId, simulationTime);
-	memset(fullPath, 256, sizeof(char));
-	strcat(fullPath,directory);
-	strcat(fullPath,num);
-	strcat(fullPath,".tga");
-	*/
-	fullPath[0] = '\0';
-	sprintf(fullPath,"%sscene%05d_t=%05d.tga",directory,engine.sceneId, simulationTime);
-	
-	
-	
-	
-	SCR_GetColorBuffer(screenShotBuffer);
-	
-	pScreenshot = FS_OpenFile(fullPath, "wb");
-	
-	memset(tga_header, 0, 18);
-	tga_header[2] = 2;
-	tga_header[12] = (renderer.glBuffersDimensions[WIDTH] & 0x00FF);
-	tga_header[13] = (renderer.glBuffersDimensions[WIDTH]  & 0xFF00) / 256; // /256
-	tga_header[14] = (renderer.glBuffersDimensions[HEIGHT]  & 0x00FF) ;
-	tga_header[15] =(renderer.glBuffersDimensions[HEIGHT] & 0xFF00) / 256;
-	tga_header[16] = 32 ;
-	
-	
-	
-	FS_Write(&tga_header, 18, sizeof(uchar), pScreenshot);
-	
-	// RGB > BGR
-	pixel = screenShotBuffer;
-	for(i=0 ; i < renderer.glBuffersDimensions[WIDTH] * renderer.glBuffersDimensions[HEIGHT] ; i++)
-	{
-		tmpChannel = pixel[0];
-		pixel[0] = pixel[2];
-		pixel[2] = tmpChannel;
-		
-		pixel += 4;
-	}
-	
-	
-	FS_Write(screenShotBuffer, renderer.glBuffersDimensions[WIDTH] * renderer.glBuffersDimensions[HEIGHT], 4 * sizeof(uchar), pScreenshot);
-	
-	FS_CloseFile(pScreenshot);
-	
-}
-
 // CI hook (v2): SHMUP_FAKE_PLAYERS=<n> flies n ships in a SOLO game -- the
 // 4-player RENDERING paths (four attached hulls, the seat 2/3 spawns world.c
 // synthesizes, pointers, muzzle flashes x4, the x12 pool on the HUD, LEE
@@ -375,6 +309,7 @@ void dEngine_WriteScreenshot(char* directory)
 // P_InitPlayers quietly take it back.
 static void dEngine_ApplyFakePlayers(void)
 {
+#ifdef SHMUP_CI_HOOKS
 	char* fake = CI_GETENV("SHMUP_FAKE_PLAYERS");
 	if (fake && engine.mode == DE_MODE_SINGLEPLAYER)
 	{
@@ -387,6 +322,7 @@ static void dEngine_ApplyFakePlayers(void)
 			players[i].respawnCounter = (char)(n * numPlayerRespawn[DIFFICULTY_NORMAL]);	// the MP pool, N x 3
 		Log_Printf("[fake] %d ships in a solo game (CI).\n", n);
 	}
+#endif
 }
 
 // v4 stage 1: read a level pack's manifest into scenes[sceneId]. The block:
@@ -512,9 +448,6 @@ bool dEngine_Init(void)
 	TEXT_InitCacheSystem();
 	MAT_InitCacheSystem();
 
-#ifdef GENERATE_VIDEO	
-	dEngine_INIT_ScreenshotBuffer();
-#endif
 	
 	engine.sceneId = -1;
 	dEngine_RequireSceneId(0);
@@ -526,9 +459,9 @@ bool dEngine_Init(void)
 	engine.musicStartAt = 0;
 	engine.playback.filename[0] = '\0';
 	
-	engine.soundEnabled = 1;
-	engine.musicEnabled = 1;
-	engine.gameCenterEnabled = 0;
+	// Sound, music and the control mode are NOT set here: every platform loads
+	// the player's saved options (the Options screen) before calling dEngine_Init,
+	// and this used to overwrite sound and music back to "on" right after.
 	
 	ENPAR_Init();
 	
@@ -561,11 +494,13 @@ bool dEngine_Init(void)
 	// With the scene pointing at a .cp TEXT camera path, loading it recompiles
 	// the rail (visibility bake included) and saves the .cp2b to the writable
 	// dir -- run in the iOS Simulator, where the file is easy to extract.
+#ifdef SHMUP_CI_HOOKS
 	{
 		char* bakeScene = CI_GETENV("SHMUP_BAKE_SCENE");
 		if (bakeScene)
 			dEngine_RequireSceneId(atoi(bakeScene));
 	}
+#endif
 
 
 	return true;
@@ -592,23 +527,57 @@ void dEngine_InitDisplaySystem(uchar rendererType)
 // Progression: the furthest act (scene 1..3) ever reached. Gates the act-select
 // screen -- an act is only selectable once it has been reached in play. Persisted
 // on iOS (NSUserDefaults) and restored at launch.
-int gHighestActReached = 1;
 
 // v2: the soundtrack file currently loaded in the native player, so a scene
 // change to the SAME track lets the music play on (see dEngine_LoadScene).
 static char gPlayingTrack[256] = "";
 
+// The Options screen switches the music live. The music backends do nothing
+// while the switch is off -- stopping included -- so stop BEFORE switching
+// off; switching back on restarts the current scene's own track from its cue.
+void dEngine_SetMusicEnabled(int on)
+{
+	if (!on && engine.musicEnabled)
+	{
+		SND_StopSoundTrack();
+		gPlayingTrack[0] = '\0';
+		engine.musicEnabled = 0;
+	}
+	else if (on && !engine.musicEnabled)
+	{
+		engine.musicEnabled = 1;
+		gPlayingTrack[0] = '\0';
+		if (engine.musicFilename[0] != '\0')
+		{
+			SND_InitSoundTrack(engine.musicFilename, engine.musicStartAt);
+			SND_StartSoundTrack();
+			strncpy(gPlayingTrack, engine.musicFilename, sizeof(gPlayingTrack)-1);
+			gPlayingTrack[sizeof(gPlayingTrack)-1] = '\0';
+		}
+	}
+}
+
 void dEngine_LoadScene(int sceneId)
 {
-	event_t* ev;
-
-	COM_StopRecording();
-
 	engine.showFingers=0;
-	engine.controlVisible=0;
 	
 	// Reset variables state (only usefull when we are not loading the first level
 	EV_InitForScene();
+
+	// A title card belongs to the scene that showed it. An act's epilogue
+	// left running (the player quit on it) used to count down over the menu
+	// and then start the next act from there.
+	TITLE_Clear();
+
+	// The pause belongs to the scene too. Whatever left it -- Quit, the Android
+	// Back key, a scene change requested the frame the player paused -- the new
+	// scene must not load frozen behind a menu that is no longer there.
+	if (gPausedByPlayer)
+	{
+		gPausedByPlayer = 0;
+		SND_ResumeSoundTrack();
+	}
+	gCountdownMs = 0;
 	
 	P_ResetPlayers();
 	ENE_Reset();
@@ -638,17 +607,14 @@ void dEngine_LoadScene(int sceneId)
 	// black: the sky domes enclose the camera and no per-entity test can reject them.
 	gRuntimeCullMap = 0;
 
-	// Progression: remember the furthest act ever reached (solo or multiplayer).
-	// v4: an act is a scene of kind ACT; its 1-based actIndex is the progression unit.
-	if (SCENE_KIND(sceneId) == SCENE_KIND_ACT && engine.scenes[sceneId].actIndex > gHighestActReached)
-	{
-		gHighestActReached = engine.scenes[sceneId].actIndex;
-#if defined(__APPLE__) || defined(SHMUP_TARGET_WINDOWS)
-		Native_SaveProgress(gHighestActReached);	// round 87: Windows persists it too (native_win.c)
-#endif
-	}
 
 	engine.musicStartAt= 0;
+
+	// A scene plays recorded input only if its own playback block says so (the
+	// demo and the tutorial). Without this reset the last value carried over:
+	// every act had to declare "play 0" to undo the demo.
+	engine.playback.play = 0;
+	engine.playback.filename[0] = '\0';
 
 	// Now actually start loading things
 	RULES_InitForScene();	// v4 stage 2: the scene file may carry a rules block
@@ -660,7 +626,9 @@ void dEngine_LoadScene(int sceneId)
 	P_ReloadShip();
 
 	MENU_Set(engine.scenes[engine.sceneId].defaultMenuId);
+#ifdef SHMUP_CI_HOOKS
 	MENU_ApplyEnvHooks();	// round 41: CI can open a menu and preset its scroll (SHMUP_MENU, SHMUP_MENU_SCROLL)
+#endif
 	
 	COM_StartScene();
 	
@@ -712,9 +680,6 @@ void dEngine_LoadScene(int sceneId)
 	CAM_LoadPath();
 	CAM_StartPlaying();
 	
-#ifdef GENERATE_VIDEO
-		Timer_ForceTimeIncrement(16);
-#endif	
 	
 	Timer_resetTime();
 	
@@ -724,13 +689,6 @@ void dEngine_LoadScene(int sceneId)
 		
 	VIS_Update();
 	
-	if (SCENE_IS(SCENE_KIND_ACT) && engine.scenes[engine.sceneId].actIndex == 1 && engine.licenseType == LICENSE_LIMITED)
-	{
-		ev = calloc(1, sizeof(event_t));
-		ev->time = 130000;
-		ev->type = EV_LIMITED_EVENT;
-		EV_AddEvent(ev);
-	}
     
     //We are back to main menu, init a few things
     if (SCENE_KIND(sceneId) == SCENE_KIND_INTRO)
@@ -771,65 +729,6 @@ void dEngine_FreeSceneRessources(void)
 	TITLE_FreeRessources();
 }
 
-int timeJumpCounter =0;//;
-int timeJumpTarget = 19250;
-void dEngine_JumpInTime(void)
-{
-	event_t* event;
-	event_t* toDelete;
-	int i;
-	
-	if (timeJumpCounter >0)
-	{
-		//Pause the timer
-		Timer_Pause();
-		renderer.enabled=0;
-		
-		//Remove all futur enemy spawning events.
-		event = EV_GetNextEvent();
-		
-		while (event != NULL) 
-		{			
-			while (event->next != NULL && event->next->time <= timeJumpTarget && event->next->type == EV_SPAWN_ENEMY)
-			{
-				//Log_Printf("[dEngine_JumpInTime] Cleaning EV_SPAWN_ENEMY events t=%d.\n",event->next->time);
-				
-				toDelete = event->next;
-				event->next = event->next->next;
-				
-				free(toDelete->payload);
-				free(toDelete);
-			}
-			
-			
-			event = event->next;
-		}
-		
-	//	Log_Printf("[dEngine_JumpInTime] events cleaned.\n");
-		
-		while (simulationTime < timeJumpTarget) 
-		{
-			//Move one step ahead
-			timediff = 16; //We are going to simulate by slice of 16ms until we reached the jumpTime.
-			simulationTime+=timediff;
-			
-			
-			//Play all frames
-		//	Log_Printf("[dEngine_JumpInTime] t=%d.\n",simulationTime);
-			dEngine_HostFrame();
-		}
-		
-		for (i=0; i < numPlayers; i++) {
-			players[i].showPointer = 0;
-		}
-		
-		//Resume the timer
-		Timer_Resume();
-		renderer.enabled = 1;
-		timeJumpCounter--;
-	}
-}
-
 void dEngine_RequireSceneId(int sceneId)
 {
 	engine.requiredSceneId = sceneId ;
@@ -857,9 +756,6 @@ void dEngine_CheckState(void)
 
 	engine.sceneId = engine.requiredSceneId;
 
-
-	dEngine_JumpInTime();
-
 	// CI hook: SHMUP_REPLAY_SCENE=<n> re-enters scene n ONCE, the first time
 	// we LEAVE it. Full teardown (FreeSceneRessources) then a fresh entry --
 	// the exact path of a player's game-over/menu/retry, which is where the
@@ -869,6 +765,7 @@ void dEngine_CheckState(void)
 	// scene burned the one shot before scene n ever ran, silently coupling
 	// this to SHMUP_BAKE_SCENE). Singleplayer only: a local env jump inside
 	// a lockstep match would desync the peers.
+#ifdef SHMUP_CI_HOOKS
 	{
 		static int replayScene = -2;
 		static int replayed = 0;
@@ -887,6 +784,7 @@ void dEngine_CheckState(void)
 			dEngine_RequireSceneId(replayScene);
 		}
 	}
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -905,9 +803,9 @@ void dEngine_CheckState(void)
 // So in multiplayer the clock follows the WALL, not the frame: whatever whole
 // steps wall time is owed are simulated here, with the renderer off, and only
 // the last one is drawn. Under load the match now stutters instead of slowing
-// down -- which is the trade a networked game has to make. The engine already
-// runs nested host frames this way for scene loads (dEngine_JumpInTime), so
-// the mechanism is the one that has been shipping since 2010.
+// down -- which is the trade a networked game has to make. Nested host frames
+// with the drawing off are how the 2010 engine fast-forwarded a scene at load,
+// so the mechanism itself is an old one.
 //
 // Solo never enters here: its timing, and every act tuned against it, is
 // untouched to the bit.
@@ -966,8 +864,7 @@ static void dEngine_CatchUp(void)
 {
 	int now, delta, steps, wasEnabled;
 
-	// A time jump is already driving nested frames of its own (scene load): stay out.
-	if (engine.mode != DE_MODE_MULTIPLAYER || !NET_IsRunning() || timeJumpCounter > 0)
+	if (engine.mode != DE_MODE_MULTIPLAYER || !NET_IsRunning())
 	{
 		gCatchupLastWall = 0;			// re-arm for the next match
 		gCatchupDebt = 0.0f;
@@ -990,11 +887,10 @@ static void dEngine_CatchUp(void)
 	// Each nested frame is a NORMAL frame with the drawing switched off: it ticks
 	// the same clock, reads and sends on the wire, and moves the same world -- so
 	// a stuttering device still feeds its peer sixty commands a second.
-	// The renderer flag is SAVED, not assumed: a scene change inside one of the
-	// nested frames runs dEngine_JumpInTime, which switches drawing back on when
-	// it is done -- and this loop must not inherit that and paint a second time
-	// into a Metal frame already in flight. Re-asserted before every step, and
-	// put back exactly as it was found.
+	// The renderer flag is SAVED, not assumed, and re-asserted before every
+	// step: whatever a nested frame does (a scene change runs inside one), this
+	// loop must not paint a second time into a Metal frame already in flight.
+	// Put back exactly as it was found.
 	wasEnabled = renderer.enabled;
 	gCatchupBusy = 1;
 	if (Log_ProbesEnabled())
@@ -1019,18 +915,24 @@ void dEngine_HostFrame(void)
 	dEngine_CheckState();
 
 
-	if (gCountdownMs > 0)
+	// Solo only: in a match the world never stops (an invitation accepted
+	// behind the pause menu turns the game into one).
+	if (engine.mode == DE_MODE_SINGLEPLAYER && (gCountdownMs > 0 || gPausedByPlayer))
 	{
-		// Returning from the background: keep the WHOLE game frozen and run the
+		// Paused by the player (the pause menu is up), or returning from the
+		// background: keep the WHOLE game frozen and run the
 		// 3-2-1-SHMUP countdown. We deliberately skip every simulation, input and
 		// collision step below, so nothing moves, fires, scores, dies or spawns
 		// (no more leaking explosions, sounds, sparks or stray shots). We only
 		// re-prepare the player sprites from the unchanged state and redraw, with
 		// the countdown overlay on top. timediff is 0, so the muzzle flash -- the
 		// one animated thing left in the render-prep path -- stays hidden.
-		gCountdownMs -= 16;
-		if (gCountdownMs < 0)
-			gCountdownMs = 0;
+		if (gCountdownMs > 0)
+		{
+			gCountdownMs -= 16;
+			if (gCountdownMs < 0)
+				gCountdownMs = 0;
+		}
 		timediff = 0;
 
 		diverSpriteLib.numVertices = 0;   // rebuilt by PL_RenderPlayerPointers
@@ -1042,6 +944,8 @@ void dEngine_HostFrame(void)
 		P_PreparePointerSprites();
 
 		SCR_RenderFrame();
+		if (engine.menuVisible)
+			MENU_HandleTouches();	// the pause menu: Resume / Quit
 		return;
 	}
 
@@ -1051,12 +955,6 @@ void dEngine_HostFrame(void)
 	diverSpriteLib.numVertices=0;
 	diverSpriteLib.numIndices=0;
 	
-#ifdef GENERATE_VIDEO	
-	if (MENU_Get() == 0 && simulationTime > 57000 && !MENU_GetCurrentButtonTouches()[0].down)
-		MENU_GetCurrentButtonTouches()[0].down = 1 ;
-	
-	SND_UpdateRecord();
-#endif	
 	
 	NET_Setup();
 	
@@ -1108,9 +1006,6 @@ void dEngine_HostFrame(void)
 	if (engine.menuVisible)
 		MENU_HandleTouches();
 	
-#ifdef GENERATE_VIDEO
-		dEngine_WriteScreenshot(screenShotDirectory);
-#endif
 	
 }
 
@@ -1127,7 +1022,6 @@ void dEngine_Pause(void)
 	title_mode = MODE_UNKNOWN;
 	
 	NET_Free();
-	COM_StopRecording();
 	engine.playback.play = 0;
 	
 	
@@ -1136,7 +1030,6 @@ void dEngine_Pause(void)
 	MENU_Set(MENU_HOME);
 	SND_StopSoundTrack();
 	gPlayingTrack[0] = '\0';	// v2: the app went to background -- next scene re-inits the track
-	SND_FinalizeRecord();
 	//dEngine_RequireSceneId(0);
 	engine.sceneId = -1;
 }
@@ -1165,10 +1058,13 @@ int gCountdownMs = 0;
 
 void dEngine_ResumeGame(void)
 {
-	// Coming back from the background: never reset. Audio (pause/resume of the
-	// queue) is handled by the iOS app delegate. Here we just clear stale touch
-	// input and, if a game is actually in progress, arm the countdown that holds
-	// the world frozen for a moment.
+	// Coming back from the background: never reset. The platforms paused the
+	// music when they left; it comes back here -- unless the player had paused
+	// the game, whose menu is still up and whose world stays frozen. Then clear
+	// stale touch input and, if a game is actually in progress, arm the
+	// countdown that holds the world frozen for a moment.
+	if (!gPausedByPlayer)
+		SND_ResumeSoundTrack();
 	COM_ResetTouchesBuffer();
 
 	// Single-player only: the freeze + countdown holds the world still locally,
@@ -1179,6 +1075,72 @@ void dEngine_ResumeGame(void)
 	// used to print over it (a Known issue since round 8, closed in round 42).
 	if (entitiesAttachedToCamera && engine.mode == DE_MODE_SINGLEPLAYER && !engine.menuVisible)
 		gCountdownMs = RESUME_COUNTDOWN_MS;
+}
+
+// --- The pause button ---------------------------------------------------------
+// A visible "[II]" on the HUD row during an act (player.c draws it, io_interface.c
+// hit-tests it). Solo: the world freezes on the same frozen frame the return
+// from the background shows, the music pauses, and Resume runs the 3-2-1.
+// Multiplayer: the other players fly on, so the menu opens over a live match --
+// Quit leaves it cleanly, Resume closes the menu.
+int gPausedByPlayer = 0;
+
+void dEngine_PauseByPlayer(void)
+{
+	int frozen = (engine.mode == DE_MODE_SINGLEPLAYER);
+
+	COM_ResetTouchesBuffer();
+	if (frozen)
+	{
+		gPausedByPlayer = 1;
+		gCountdownMs = 0;
+		SND_PauseSoundTrack();
+	}
+	MENU_ShowPause(frozen);
+	Log_Printf("[pause] on (%s)\n", frozen ? "frozen" : "live match");
+}
+
+void dEngine_ResumeByPlayer(void)
+{
+	MENU_Set(MENU_NONE);
+	COM_ResetTouchesBuffer();
+	if (gPausedByPlayer)
+	{
+		gPausedByPlayer = 0;
+		SND_ResumeSoundTrack();
+		gCountdownMs = RESUME_COUNTDOWN_MS;
+	}
+	Log_Printf("[pause] off\n");
+}
+
+// Back to one local player: the session torn down, the seat given back. A
+// seat left behind made the next solo game write its commands into a buffer
+// nothing drains (code review). The test is the MODE, not the network state:
+// between two acts and while a match starts, the session is not "running"
+// yet still negotiating, and it went on doing so behind the home menu.
+void dEngine_LeaveMultiplayer(void)
+{
+	NET_Free();
+	numPlayers = 1;
+	controlledPlayer = 0;
+	engine.mode = DE_MODE_SINGLEPLAYER;
+}
+
+// Quit from the pause menu -- and every other "back to the home menu" during
+// a scene: the Escape key, the Android Back key.
+void dEngine_QuitByPlayer(void)
+{
+	Log_Printf("[pause] quit\n");
+	if (gPausedByPlayer)
+	{
+		gPausedByPlayer = 0;
+		SND_ResumeSoundTrack();
+	}
+	gCountdownMs = 0;
+	if (engine.mode == DE_MODE_MULTIPLAYER)
+		dEngine_LeaveMultiplayer();
+	MENU_Set(MENU_HOME);
+	dEngine_RequireSceneId(0);
 }
 
 void dEngine_RenderCountdown(void)
@@ -1213,10 +1175,7 @@ void dEngine_GoToNextScene(void)
 		// That was the last act: the game is COMPLETE. Return to the menu cleanly
 		// (both multiplayer sims reach this at the same simulation tick, so each
 		// side tears its session down deterministically).
-		NET_Free();
-		numPlayers = 1;
-		controlledPlayer = 0;
-		engine.mode = DE_MODE_SINGLEPLAYER;
+		dEngine_LeaveMultiplayer();
 		MENU_Set(MENU_HOME);
 		dEngine_RequireSceneId(0);
 		return;

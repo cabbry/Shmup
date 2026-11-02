@@ -1,0 +1,2 @@
+/* The Local Network prompt, in English (the default is in shmup.plist). */
+"NSLocalNetworkUsageDescription" = "SHMUP uses the local network to find and play with nearby players over Wi-Fi.";

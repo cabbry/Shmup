@@ -138,7 +138,6 @@ typedef struct renderer_t
 	
 	void (*FreeGPUBuffer)(uint texture);
 	
-	void (*DrawControls)(void);
 	void (*StartCleanFrame)(void);
 	
 	void (*RenderColorlessSprites)(xf_colorless_sprite_t* vertices, ushort numIndices, ushort* indices);

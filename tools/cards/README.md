@@ -45,11 +45,26 @@ skeleton off it, then iterate: the shapes here took three passes.
 uses it — the tester picked 暮 over it. Both say dusk; 夕 is the evening
 itself and 暮 is nightfall, the sun going under the grass.
 
+## The menu font (`make_font.ps1`)
+
+`data/menu/font.png` is a 16×16 grid of 128-px cells indexed by the
+character's own byte (cp1252). The Latin letters are drawn in **Poppins
+Bold**, whose file and SIL Open Font License sit in `fonts/`: the script
+loads that file, not an installed font. The 2009 face was Century Gothic
+Bold, but that is Monotype's, and the desktop licence it comes with on a PC
+does not cover a whole alphabet shipped inside an app. The tester chose
+Poppins from a sheet of free faces drawn the way the engine draws text. It is
+cut to the 2009 metrics, and its few widest glyphs are narrowed to Century
+Gothic's widest letter so that neighbours do not run together; the header of
+the script has the numbers. The HUD's pause button places its glyphs by hand
+(`player.c`), so a change of face means measuring its offsets again.
+
 ## The kanji in the menu buttons
 
-`make_font.ps1` puts six of them into `data/menu/font.png`, which is a 16×16
-grid of 32×32 cells indexed by the character's own byte. Rows 0 and 1 are the
-control codes and held nothing but placeholder boxes:
+Six of them live in `data/menu/font.png`, in rows 0 and 1, which are the
+control codes and held nothing but placeholder boxes. `make_font.ps1` now
+carries them over from the shipped atlas byte for byte; the table says where
+they first came from:
 
 | cell | glyph | act | comes from |
 |---|---|---|---|

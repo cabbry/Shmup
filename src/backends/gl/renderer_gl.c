@@ -40,7 +40,6 @@
  */
 
 #include "config.h"
-#include "../../core/ci_hooks.h"
 #include "renderer_gl.h"
 #include "dEngine.h"
 #include "camera.h"
@@ -807,10 +806,8 @@ static void UpLoadEntityToGPUG(entity_t* entity)
 		return;
 	mesh = entity->model;
 	mesh->vboId = UploadVerticesToGPUG(mesh->vertexArray, mesh->numVertices * sizeof(vertex_t));
-#ifndef GENERATE_VIDEO
 	free(mesh->vertexArray);
 	mesh->vertexArray = 0;
-#endif
 	mesh->memLocation = MD5_MEMLOC_VRAM;
 }
 
@@ -1060,7 +1057,6 @@ static void RenderEntitiesG(void)
 	matrix_t	cullView, cullProj, cullPV;
 	vec3_t		cullLookat;
 	int			cullDrawn = 0;
-	static int	cullDebug = -1;
 	static int	cullLogTick = 0;
 	static char	cullIds[160] = "";
 	static int	cullTris = 0;
@@ -1123,7 +1119,7 @@ static void RenderEntitiesG(void)
 				entity->matrix[12] = camera.position[0];
 				entity->matrix[14] = camera.position[2];
 				cullDrawn++;
-				if (cullDebug == 1)
+				if (Log_ProbesEnabled())
 				{
 					char idbuf[16];
 					sprintf(idbuf, "%d,", i);
@@ -1152,7 +1148,7 @@ static void RenderEntitiesG(void)
 	if (gRuntimeCullMap)
 	{
 		sDepthWrite = 1;
-		if (cullDebug == 1 && cullLogTick + 1 >= 60)
+		if (Log_ProbesEnabled() && cullLogTick + 1 >= 60)
 		{
 			uchar spx[16*16*4];
 			int   sk, ssum = 0;
@@ -1174,7 +1170,7 @@ static void RenderEntitiesG(void)
 			if (COLL_CheckBoxAgainstFrustrum(entity->worldSpacebbox,cullFrustrum) == INT_OUT)
 				continue;
 			cullDrawn++;
-			if (cullDebug == 1)
+			if (Log_ProbesEnabled())
 			{
 				char idbuf[16];
 				sprintf(idbuf, "%d,", i);
@@ -1192,11 +1188,9 @@ static void RenderEntitiesG(void)
 	}
 	sCullBack = 1;			// glEnable(GL_CULL_FACE): ships and enemies are culled
 
-	if (cullDebug < 0)
-		cullDebug = CI_GETENV("SHMUP_CULL_DEBUG") ? 1 : 0;
-	if (cullDebug || gRuntimeCullMap)
+	if (Log_ProbesEnabled() || gRuntimeCullMap)
 	{
-		if (cullDebug && ++cullLogTick >= 60)
+		if (Log_ProbesEnabled() && ++cullLogTick >= 60)
 		{
 			uchar px[16*16*4];
 			int   k, sum = 0;
@@ -1224,7 +1218,7 @@ static void RenderEntitiesG(void)
 					   cullDrawn, num_map_entities, cullIds, cullTris, skyLuma, decorLuma, topLuma,
 					   players[0].ss_position[X], players[0].ss_position[Y], players[0].autopilot.enabled);
 		}
-		if (cullDebug)
+		if (Log_ProbesEnabled())
 		{
 			cullIds[0] = '\0';
 			cullTris = 0;
@@ -1369,16 +1363,6 @@ static void RenderFXSpritesG(void)
 	RenderColoredSprites(enFxLib.ss_vertices, enFxLib.num_indices, enFxLib.indices);
 }
 
-static void DrawControlsG(void)
-{
-	if (engine.controlMode == CONTROL_MODE_SWIP)
-		return;
-	sTextured = 0;
-	DrawIndexedClient(VK_2DT, controlVertices, controlIndices, (unsigned)controlNumIndices, GL_TRIANGLE_STRIP);
-	STATS_AddTriangles(controlNumIndices/2);
-	sTextured = 1;
-}
-
 static void StartCleanFrameG(void)
 {
 	// Nothing to do: the clear belongs to GLR_BeginFrame.
@@ -1462,7 +1446,6 @@ void initGLRenderer(renderer_t* r)
 	r->RenderString = RenderStringG;
 	r->GetColorBuffer = GetColorBufferG;
 	r->RenderFXSprites = RenderFXSpritesG;
-	r->DrawControls = DrawControlsG;
 	r->FreeGPUTexture = FreeGPUTextureG;
 	r->FreeGPUBuffer = FreeGPUBufferG;
 	r->UploadVerticesToGPU = UploadVerticesToGPUG;

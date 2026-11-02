@@ -1,1 +1,1 @@
-https://github.com/cabbry/Shmup/issues
+https://github.com/cabbry/Shmup/blob/master/store/SUPPORT.md

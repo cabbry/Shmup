@@ -120,14 +120,18 @@ to the true screen edges, and the touch-coordinate mapping.
 
 - ✅ Compiles on Xcode 26 with `-Werror`, zero warnings, **no deprecated API**;
   ARC; simulator build and signed device archive in CI.
-- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.x** (build 270) — Metal
+- ✅ Live on **TestFlight** as **SHMUP Reborn 5.0.19** (build 281) — Metal
   renderer at native resolution, AVFoundation audio, full speed on device,
-  iPhone and iPad. 🟡 **App Store listing prepared** in `store/` (round 85),
-  privacy manifest in the bundle; submission waits for Fabien's word.
+  iPhone and iPad. 🟡 **In App Store review**: 5.0.19 submitted on
+  2026-11-05, after two refusals under guideline 5.6 and a one-pass
+  remediation (Roadmap > Open); listing in `store/`, release manual.
 - ✅ **Runs on Windows** (round 87): `win/build.ps1` with zig cc alone, an
   OpenGL backend that is the Metal one line for line, waveOut, MCI, WIC;
   mouse and keyboard; 60 fps paced to the fixed step. The LAN too (round
-  88, an mDNS responder of our own); no Game Center.
+  88, an mDNS responder of our own), **played against an iPhone, and it
+  works** (the tester, reported 2026-11-05): the lockstep across
+  architectures -- ARM64 fuses a·b+c into one instruction, x86-64 does not
+  -- did not show, so `-ffp-contract=off` was never needed. No Game Center.
 - ✅ **Runs on Android** (round 90): the same GL backend in its ES 2 flavour,
   the 2012 glue brought up to the core, the APK built by the CI; proven on
   the PC's emulator to the act-select screen and into Act I.
@@ -205,6 +209,10 @@ to the true screen edges, and the touch-coordinate mapping.
 - Accepted (v3, Metal): a transparent-to-black fade shows under the act title
   card where OpenGL drew none — a fixed-pipeline emulation gap the tester
   judged "not shocking, keep it". Left as is on purpose.
+- CI only, Intel Simulator (2026-11-05): on an iPhone Simulator the scene
+  jump straight to act IV or the Final Act fell back to the home menu, and
+  the menu font once drew garbled. Never reported on a device; not
+  investigated.
 
 ## Roadmap
 
@@ -374,14 +382,6 @@ order, each step a build:
   content only — no Lua from the network.
 - **A four-device session** for v2: everything is rig-proven at four,
   device-proven at two. Needs hardware and four hands.
-- **The PC on the LAN with an iPhone** — built in round 88 (Winsock plus an
-  mDNS responder of our own, bench green); waiting for the first real
-  match. The open question is the lockstep across architectures — ARM64
-  contracts a·b+c into one fused instruction, x86-64 does not, so the two
-  simulations may differ in the last bit; the 300 ms position resync and
-  the host's authority on deaths absorb some of that, a real match will
-  tell how much. If it shows, `-ffp-contract=off` on the iOS side is the
-  first thing to try.
 - **Android** — runs since round 90 on the GL backend's ES 2 flavour; the
   CI builds the APK; menus, act I, music and effects checked on the
   emulator (effects at -6 dB, the music pausing with the game). The light
@@ -391,6 +391,40 @@ order, each step a build:
 - **Gameplay videos on YouTube** (Fabien's suggestion): the five acts, the Act
   III side-view beat, Rain's storm, a LAN match, an online match. A recording
   session away.
+- **App Store — 5.0.19 submitted, 2026-11-05.** Build 281, state
+  WAITING_FOR_REVIEW, release manual.
+    * **The music stays the 2009 music**, the tester's call (2026-11-02): the
+      two Future Crew tracks, whose use in SHMUP Fabien Sanglard bought. The
+      listing now declares third-party content (5.0.11 and 5.0.12 said none,
+      wrongly), the credits name Future Crew, and the review notes say where
+      the music comes from. A replacement score was drafted on the `music`
+      branch (5.0.18) and parked.
+    * **The version line.** 5.0.17 (build 278) was the candidate; 5.0.19 is
+      the same app, numbered above the parked 5.0.18. GitHub had no
+      Apple-silicon runner for three days, so `testflight.yml` builds on
+      `macos-15-intel`; the archive and .ipa checks ran clean. The refused
+      record was renamed through the API -- a PATCH of `versionString` works
+      on a REJECTED version -- from 5.0.12 to 5.0.17, then 5.0.19.
+    * **The screenshots come from the Simulator**: `shots.yml` on build 281's
+      game code, five per language on iPhone (the final boss, the side view,
+      a bullet wall, a swarm, the home menu in that language) and four on
+      iPad. The test switches play an act unattended and draw nothing; a new
+      one, `SHMUP_LIVES`, starts the bank where a fresh game does -- the scene
+      jump skips the act select, and the HUD read "x0". The Intel Simulator
+      is slow: a frame every thirty seconds or so, a 50-minute timeout. No
+      multiplayer frame, and the notes no longer announce one.
+    * **The push before the click.** `asc-store-push` writes the build, the
+      notes, the screenshots, the copyright and the age rating (frequent
+      cartoon violence: Apple now computes 12+). The first Submit came a
+      minute before the push and sent what the record still held -- build 272
+      and the September listing. It was cancelled through the API
+      (`canceled: true` on the review submission; DEVELOPER_REJECTED in thirty
+      seconds, no message to Apple), the push ran, and the second Submit sent
+      281. The order from now on: push, read the state, then click.
+    * **Cancelling closes the resolution-centre thread** of the refused
+      submission: its messages stay readable, the reply box goes. The review
+      notes open on what changed since the 5.6 refusals, which is what a
+      reply would have said.
 - **App Store — 5.0.12 refused again under 5.6, 2026-10-23; one-pass
   remediation.** The second refusal was byte-identical to the first, and for
   a plain reason: between the two tags `ios/` and `data/` had not changed by
@@ -434,7 +468,8 @@ order, each step a build:
   is declared *frequent* -- you fire at ships the whole game -- where 5.0.11
   and 5.0.12 said infrequent; the screenshots are retaken on his iPhone and
   iPad from the TestFlight build; `master` is merged right before the
-  submission. Still to settle: the music line, once Fabien answers.
+  submission. The music line was settled on 2026-11-02 (the 5.0.19 item,
+  above).
   Then four TestFlight builds of his own testing, 5.0.13 to 5.0.16, and what
   came of them: the virtual pad goes altogether, so the controls are one
   finger and Options holds sound and music; the pause button reads "[II]",

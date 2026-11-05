@@ -36,10 +36,21 @@ Avoid: a pause or a menu overlay on top of the action, a game over screen,
 an almost empty frame. Nothing may be added around the picture, no frame, no
 caption: Apple asks for the app as it runs.
 
-Take them from the build being submitted, as a player gets it -- TestFlight on
-a device, or the Simulator with no test switch. A capture from a test build
-(autofire, a jump to a scene) or from an older version is not the app as it
-runs: the HUD's pause button, the version on the home menu give it away.
+Take them from the build being submitted: TestFlight on a device, or
+`shots.yml` in the Simulator on the same commit, with `version` set to the
+submitted one. Nobody touches the Simulator's screen, so the action frames
+use the test switches that play unattended -- `pack` jumps to the act,
+`SHMUP_AUTOFIRE=1 SHMUP_INVULN=1 SHMUP_LIVES=3` in `env` -- and none of them
+draws anything: the HUD, the font, the pause button are the player's. The one
+difference on screen is the ship staying where it starts. Without
+`SHMUP_LIVES` the HUD reads "x0", a last life. What gives an old capture away
+is the pause button and the version on the home menu; both must match the
+build. The Intel Simulator runs the game far slower than a phone and takes
+each frame in about thirty seconds, so ask for plenty (`seconds`, every 30)
+and pick.
+
+The 5.0.19 set came that way (iPhone 16 Pro Max and iPad Pro 13-inch
+Simulators, 2026-11-05); the multiplayer shot cannot be taken there.
 
 `APP_IPAD_PRO_3GEN_129` is the 13-inch iPad set (2048 x 2732), required as
 the app runs on iPad.

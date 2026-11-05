@@ -322,6 +322,22 @@ static void dEngine_ApplyFakePlayers(void)
 			players[i].respawnCounter = (char)(n * numPlayerRespawn[DIFFICULTY_NORMAL]);	// the MP pool, N x 3
 		Log_Printf("[fake] %d ships in a solo game (CI).\n", n);
 	}
+	// SHMUP_LIVES=<n>: the bank of respawns a solo game starts with. The act
+	// select sets it from the difficulty; SHMUP_BAKE_SCENE jumps past that
+	// menu, so the bank stayed empty and the HUD read "x0" -- a last life, in
+	// every store screenshot. n=3 is a fresh game on normal (the HUD reads x2).
+	{
+		char* lives = CI_GETENV("SHMUP_LIVES");
+		if (lives && !fake && engine.mode == DE_MODE_SINGLEPLAYER)
+		{
+			int n = atoi(lives), i;
+			if (n < 1) n = 1;
+			if (n > 99) n = 99;
+			for (i = 0; i < MAX_NUM_PLAYERS; i++)
+				players[i].respawnCounter = (char)n;
+			Log_Printf("[lives] a bank of %d respawns (CI).\n", n);
+		}
+	}
 #endif
 }
 

@@ -31,9 +31,10 @@ store/
 ```
 
 Screenshots are sorted by file name inside a folder; the first one is the one
-the store shows first. Up to ten per set. Take them **on a device** (the
-Simulator's timing is not the game's): Settings > Control Centre has a
-screenshot button, and the frames land in Photos at the device's native size.
+the store shows first. Up to ten per set. Take them on a device (Settings >
+Control Centre has a screenshot button, and the frames land in Photos at the
+device's native size) or with `shots.yml` in the Simulator, the way
+`screenshots/README.md` describes.
 An iPhone 15/16 Pro Max frame is 1290x2796 or 1320x2868, both accepted for
 the 6.9" set; an iPad Pro 12.9"/13" frame is 2048x2732 or 2064x2752.
 

@@ -31,7 +31,10 @@ env:
 
 jobs:
   build:
-    runs-on: macos-15
+    # Intel: since 2026-11-02 GitHub hands no Apple-silicon Mac to these jobs
+    # ("not acquired ... capacity constraints"); the Intel image carries the
+    # same Xcode 26 set, and the device binary is arm64 either way.
+    runs-on: macos-15-intel
     timeout-minutes: 60
     steps:
       - name: Checkout

@@ -79,7 +79,7 @@ the 6.9" set; an iPad Pro 12.9"/13" frame is 2048x2732 or 2064x2752.
    it with `content_rights=uses`, and the review notes say where the music
    comes from. It was answered "no third-party content" for 5.0.11 and
    5.0.12, wrongly.
-6. **Submit for review**: version 5.0.17, build 278, with screenshots taken
+6. **Submit for review**: version 5.0.19, build 281, with screenshots taken
    from that build. Release: *manual* after approval, so the day is chosen.
 
 ## Sizes to respect (App Store Connect refuses beyond)

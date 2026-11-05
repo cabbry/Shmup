@@ -337,7 +337,7 @@ its runtime proof as much as code does.**
 Decided with the tester, and parked: first-party cosmetics through Apple's
 in-app purchase if ever, nothing Sorare-like for a long while.
 
-### In progress — v5, the boss's skeletal arms (the `v5` branch, from round 72)
+### Done — v5, the boss's skeletal arms (rounds 72-83, the `v5` branch)
 
 Fabien's last note: animate the boss's arms. The survey (round 72) found the
 2010 MD5 loader already reads multi-joint skeletons and weights, and re-skins
@@ -371,7 +371,8 @@ order, each step a build:
    clamp trims the beam to the crook while an arm lives.
 9. **Five bones** — done, round 83: the Bloc breathes at the Tube, the Pince
    (a child bone at the Cou) does the pincer, the recoil and the tremor.
-10. Later, if Fabien wants to author in Blender: an `md5anim` loader.
+10. **Optional, not planned**: an `md5anim` loader, only if Fabien wants to
+    author the poses in Blender; today they are computed in code.
 
 ### Open — carried over
 

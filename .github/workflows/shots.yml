@@ -32,10 +32,20 @@ on:
         description: "SIMULATION seconds at which to take a frame (comma-separated). Overrides 'seconds': the Simulator runs the game 3-20 s behind the clock, differently every run; this reads the engine's own t= from the log (needs SHMUP_CULL_DEBUG=1 in env, which prints it every second)."
         default: ""
         required: false
+      version:
+        description: "marketing version the home menu shows (e.g. 5.0.19); empty = the plist's own. App Store screenshots must show the submitted one."
+        default: ""
+        required: false
+      lang:
+        description: "device language for the menus: en (default) or fr"
+        default: ""
+        required: false
 
 jobs:
   shots:
-    runs-on: macos-15
+    # Intel, like testflight.yml: since 2026-11-02 GitHub hands no
+    # Apple-silicon Mac to these jobs. The build takes the runner's own arch.
+    runs-on: macos-15-intel
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -46,17 +56,19 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Build (iphonesimulator, arm64, no signing)
+      - name: Build (iphonesimulator, the runner's arch, no signing)
         working-directory: ios
         run: |
           set -o pipefail
+          VER="${{ inputs.version }}"
+          if [ -n "$VER" ]; then /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VER" shmup.plist; fi
           xcodebuild \
             -project dEngine.xcodeproj \
             -target Shmup \
             -configuration Release \
             GCC_PREPROCESSOR_DEFINITIONS='$(inherited) SHMUP_CI_HOOKS=1' \
             -sdk iphonesimulator \
-            -arch arm64 \
+            -arch "$(uname -m)" \
             SYMROOT="$PWD/build" \
             IPHONEOS_DEPLOYMENT_TARGET=15.0 \
             ONLY_ACTIVE_ARCH=YES \
@@ -120,9 +132,13 @@ jobs:
           for kv in $EXTRA; do ENVS="$ENVS SIMCTL_CHILD_$kv"; done
           # the sim-timed mode reads the engine's own log file: force it on, with the t= probe
           if [ -n "${{ inputs.simSeconds }}" ]; then ENVS="$ENVS SIMCTL_CHILD_SHMUP_LOG_FILE=1 SIMCTL_CHILD_SHMUP_CULL_DEBUG=1"; fi
-          echo "launching scene $SCENE with: $ENVS"
+          # the menus follow [NSLocale preferredLanguages]; launch arguments set it
+          # for this app only, the simulator stays as it is
+          LANGARGS=""
+          if [ "${{ inputs.lang }}" = "fr" ]; then LANGARGS="-AppleLanguages (fr) -AppleLocale fr_FR"; fi
+          echo "launching scene $SCENE with: $ENVS $LANGARGS"
           # shellcheck disable=SC2086
-          nohup env $ENVS xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > "$RUNNER_TEMP/app.log" 2>&1 &
+          nohup env $ENVS xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" $LANGARGS > "$RUNNER_TEMP/app.log" 2>&1 &
           SIM_LIST="${{ inputs.simSeconds }}"
           if [ -n "$SIM_LIST" ]; then
             # sim-timed frames: wait for the ENGINE's clock. Read the app's own log file

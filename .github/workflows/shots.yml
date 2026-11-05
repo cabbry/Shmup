@@ -46,7 +46,9 @@ jobs:
     # Intel, like testflight.yml: since 2026-11-02 GitHub hands no
     # Apple-silicon Mac to these jobs. The build takes the runner's own arch.
     runs-on: macos-15-intel
-    timeout-minutes: 30
+    # 50: the Intel Simulator plays slowly and takes a frame in ~30 s; a run
+    # that follows an act to its boss needs 15 minutes of frames after the build.
+    timeout-minutes: 50
     steps:
       - name: Checkout
         uses: actions/checkout@v5
